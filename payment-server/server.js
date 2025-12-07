@@ -17,7 +17,6 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'; // Or wherever frontend is hosted
 const MODE = process.env.MODE || 'test_mode';
 
-const PRODUCT_10_DEMOS = "10_demos_pack"; // Custom product ID for logic
 
 if (!DODO_PAYMENTS_API_KEY || !DODO_WEBHOOK_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     console.warn("⚠️  Payment Server: Required environment variables missing. Server may not function correctly.");
