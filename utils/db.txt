@@ -1,0 +1,57 @@
+
+-- Enable UUID extension
+create extension if not exists "uuid-ossp";
+
+-- Create Table: videos
+create table public.videos (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  
+  -- The original filename or project name
+  title text,
+  
+  -- URLs to the files in the 'uploads' bucket
+  input_video_url text not null,
+  final_video_url text,
+  
+  -- Processing status
+  status text default 'processing' check (status in ('processing', 'completed', 'failed')),
+  
+  -- Store metadata used for generation
+  voice_id text,
+  crop_data jsonb, -- {x, y, width, height}
+  trim_data jsonb, -- {start, end}
+  
+  -- Store the Gemini Analysis result
+  analysis_result jsonb
+);
+
+-- Enable RLS
+alter table public.videos enable row level security;
+
+-- Policies (For this demo, allowing public access, but in prod use authenticated roles)
+create policy "Enable read access for all users" on public.videos
+    for select using (true);
+
+create policy "Enable insert access for all users" on public.videos
+    for insert with check (true);
+
+create policy "Enable update access for all users" on public.videos
+    for update using (true);
+
+-- Storage Bucket Setup
+-- 1. Go to Storage in Supabase Dashboard
+-- 2. Create a new public bucket named "uploads"
+
+-- Storage Policies (SQL representation)
+-- Allow public access to 'uploads' bucket
+begin;
+  insert into storage.buckets (id, name, public) 
+  values ('uploads', 'uploads', true)
+  on conflict (id) do nothing;
+  
+  insert into storage.policies (name, definition, bucket_id, read, write, create)
+  values 
+  ('Public Access', 'bucket_id = ''uploads''', 'uploads', true, true, true)
+  on conflict (name) do nothing;
+commit;

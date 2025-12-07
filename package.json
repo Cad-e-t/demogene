@@ -1,0 +1,32 @@
+{
+  "name": "demogen-ai",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "child_process": "^1.0.2",
+    "react": "^19.2.1",
+    "uuid": "^13.0.0",
+    "@google/genai": "^1.31.0",
+    "react-dom": "^19.2.1",
+    "path": "^0.12.7",
+    "@supabase/supabase-js": "^2.86.2",
+    "fs": "^0.0.1-security",
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
+    "url": "^0.11.4",
+    "os": "^0.1.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

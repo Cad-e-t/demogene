@@ -1,0 +1,5 @@
+{
+  "name": "DemoGen AI",
+  "description": "AI-powered screen recording to polished demo video generator using Gemini 1.5 Pro and FFmpeg pipelines.",
+  "requestFramePermissions": []
+}
