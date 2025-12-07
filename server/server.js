@@ -60,8 +60,6 @@ function parseTime(t) {
 
 app.get('/', (req, res) => res.send('DemoGen API Running'));
 
-// NOTE: GET /videos endpoint removed. Frontend now queries Supabase directly with RLS.
-
 app.post('/process-video', upload.single('video'), async (req, res) => {
   const filesToDelete = [];
   try {
@@ -79,13 +77,43 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     
     if (!file) return res.status(400).send('No file uploaded');
     filesToDelete.push(file.path);
+
+    // =======================================================
+    // 0. Validation: Credits & Duration
+    // =======================================================
     
+    // Check 1: Credits
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', userId)
+        .single();
+    
+    if (profileError || !profile) {
+        throw new Error('Could not fetch user profile for credit check');
+    }
+    
+    if (profile.credits < 1) {
+        cleanup(filesToDelete);
+        return res.status(402).json({ error: 'Insufficient credits. Please purchase a pack.' });
+    }
+
+    // Check 2: Duration (Approx based on trim first)
+    // If user provided valid trim, verify that range.
+    if (trim && typeof trim.end === 'number' && typeof trim.start === 'number' && trim.end > trim.start) {
+        const requestedDuration = trim.end - trim.start;
+        if (requestedDuration > 90) {
+            cleanup(filesToDelete);
+            return res.status(400).json({ error: 'Video duration exceeds 90 seconds limit. Please trim the video.' });
+        }
+    }
+
     const isVoiceless = voiceId === 'voiceless';
     
     console.log(`[${new Date().toISOString()}] Processing ${file.originalname} for user ${userId}... Mode: ${isVoiceless ? 'Voiceless' : 'Narrated'}`);
 
     // =======================================================
-    // 0. Preprocessing: Apply User Crop/Trim
+    // 1. Preprocessing: Apply User Crop/Trim
     // =======================================================
     console.log('--- Preprocessing Video (Crop/Trim) ---');
     // Use temp dir for intermediate files
@@ -94,8 +122,15 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     
     await preprocessVideo(file.path, crop, trim, cleanInputPath);
 
+    // Check 3: Final physical file duration (Double check)
+    const actualDuration = getDuration(cleanInputPath);
+    if (actualDuration > 90.5) { // 0.5s tolerance
+        cleanup(filesToDelete);
+        return res.status(400).json({ error: 'Processed video duration exceeds 90 seconds. Please trim further.' });
+    }
+
     // =======================================================
-    // 1. Upload Clean Input to Supabase Storage
+    // 2. Upload Clean Input to Supabase Storage
     // =======================================================
     const inputBuffer = fs.readFileSync(cleanInputPath);
     // Use UUID to avoid issues with complex filenames
@@ -118,7 +153,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     console.log('Clean Input Uploaded:', inputPublicUrl);
 
     // =======================================================
-    // 2. Gemini Analysis (Use Clean Input)
+    // 3. Gemini Analysis (Use Clean Input)
     // =======================================================
     const cleanFileBuffer = fs.readFileSync(cleanInputPath);
     const cleanFileBase64 = cleanFileBuffer.toString('base64');
@@ -130,7 +165,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     console.log('Analysis complete. Segments:', analysis.segments.length);
 
     // =======================================================
-    // 3. Audio Generation (Single File) OR Duration Calc
+    // 4. Audio Generation (Single File) OR Duration Calc
     // =======================================================
     let fullAudioPath = null;
     let audioLineDurations = [];
@@ -155,7 +190,6 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     } else {
         console.log('--- Voiceless Mode: Calculating visual durations ---');
         // If voiceless, the "audio duration" for each segment is simply the duration of the visual segment itself.
-        // This effectively tells the processor: "Make the final segment exactly as long as the visual content."
         audioLineDurations = analysis.segments.map(seg => {
             const start = parseTime(seg.start_time);
             const end = parseTime(seg.end_time);
@@ -169,7 +203,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     console.log('Calculated Split Points:', audioLineDurations.map(d => d.toFixed(2)));
 
     // =======================================================
-    // 4. FFmpeg Processing Pipeline
+    // 5. FFmpeg Processing Pipeline
     // =======================================================
     const outputPath = path.join(TEMP_DIR, `final_${Date.now()}.mp4`);
     
@@ -185,7 +219,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     console.log('--- Pipeline Complete ---');
 
     // =======================================================
-    // 5. Upload Final Output to Supabase Storage
+    // 6. Upload Final Output to Supabase Storage
     // =======================================================
     const outputBuffer = fs.readFileSync(outputPath);
     const outputFileName = `outputs/${uuidv4()}.mp4`;
@@ -203,7 +237,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
         .getPublicUrl(outputFileName);
 
     // =======================================================
-    // 6. Save to Database
+    // 7. Save to Database
     // =======================================================
     const { error: dbError } = await supabase
         .from('videos')
@@ -222,7 +256,18 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     if (dbError) console.error("Database Insert Error:", dbError);
 
     // =======================================================
-    // 7. Return Result
+    // 8. Charge Credit (After success)
+    // =======================================================
+    try {
+        const { error: chargeError } = await supabase.rpc('charge_credit', { p_user_id: userId });
+        if (chargeError) console.error("Error charging credit:", chargeError);
+        else console.log(`Credit charged for user ${userId}`);
+    } catch (e) {
+        console.error("RPC Error charging credit:", e);
+    }
+
+    // =======================================================
+    // 9. Return Result
     // =======================================================
     res.setHeader('X-Analysis-Result', JSON.stringify(analysis));
     res.setHeader('Content-Type', 'video/mp4');

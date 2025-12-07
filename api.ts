@@ -1,7 +1,9 @@
 
 import { AnalysisResult, CropData, ProcessingStatus, TrimData } from './types';
+import { supabase } from './supabaseClient';
 
 const API_BASE_URL = 'http://localhost:8000';
+const PAYMENT_API_URL = 'http://localhost:8087';
 
 export async function processVideoRequest(
   file: File,
@@ -30,12 +32,15 @@ export async function processVideoRequest(
     if (!response.ok) {
         let errMessage = response.statusText;
         try {
-            const errText = await response.text();
-            if (errText) errMessage = errText;
+            const errJson = await response.json();
+            if (errJson.error) errMessage = errJson.error;
         } catch (e) {
-            // ignore
+             try {
+                 const errText = await response.text();
+                 if (errText) errMessage = errText;
+             } catch(e2) {}
         }
-      throw new Error(`Server Error: ${errMessage}`);
+        throw new Error(errMessage);
     }
 
     const analysisHeader = response.headers.get('X-Analysis-Result');
@@ -54,4 +59,25 @@ export async function processVideoRequest(
     onStatusUpdate('error');
     throw error;
   }
+}
+
+export async function createCheckoutSession(productId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
+
+    const response = await fetch(`${PAYMENT_API_URL}/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ productId })
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to create checkout session');
+    }
+
+    return await response.json();
 }
