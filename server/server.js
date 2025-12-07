@@ -1,3 +1,4 @@
+
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -5,10 +6,12 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { v4 as uuidv4 } from 'uuid';
 import { analyzeVideo, generateVoiceover } from './gemini.js';
 import { processVideoPipeline, preprocessVideo, calculateAudioLineDurations } from './video-processor.js';
 import { supabase } from './supabase.js';
 import { execSync } from 'child_process';
+import { VIDEO_ANALYSIS_PROMPT, VIDEO_ANALYSIS_NO_SCRIPT_PROMPT } from './prompts.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,8 +27,7 @@ app.use(express.json());
 
 // Use standard CORS package
 app.use(cors({
-    origin: true, // Reflect request origin
-    credentials: true,
+    origin: '*', // Allow any origin
     exposedHeaders: ['X-Analysis-Result'] // Required for the frontend to read the analysis result
 }));
 
@@ -48,7 +50,31 @@ function getDuration(filePath) {
   }
 }
 
+function parseTime(t) {
+    if (typeof t === 'number') return t;
+    const parts = t.toString().split(':').map(parseFloat);
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return parts[0];
+}
+
 app.get('/', (req, res) => res.send('DemoGen API Running'));
+
+// Endpoint to fetch videos
+app.get('/videos', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('videos')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json(data);
+    } catch (err) {
+        console.error("Error fetching videos:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 app.post('/process-video', upload.single('video'), async (req, res) => {
   const filesToDelete = [];
@@ -64,7 +90,9 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     if (!file) return res.status(400).send('No file uploaded');
     filesToDelete.push(file.path);
     
-    console.log(`[${new Date().toISOString()}] Processing ${file.originalname}...`);
+    const isVoiceless = voiceId === 'voiceless';
+    
+    console.log(`[${new Date().toISOString()}] Processing ${file.originalname}... Mode: ${isVoiceless ? 'Voiceless' : 'Narrated'}`);
 
     // =======================================================
     // 0. Preprocessing: Apply User Crop/Trim
@@ -80,7 +108,9 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     // 1. Upload Clean Input to Supabase Storage
     // =======================================================
     const inputBuffer = fs.readFileSync(cleanInputPath);
-    const inputFileName = `inputs/${Date.now()}_${file.originalname}`;
+    // Use UUID to avoid issues with complex filenames
+    const inputExt = path.extname(file.originalname) || '.mp4';
+    const inputFileName = `inputs/${uuidv4()}${inputExt}`;
     
     const { data: uploadData, error: uploadError } = await supabase.storage
         .from('uploads')
@@ -104,28 +134,48 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     const cleanFileBase64 = cleanFileBuffer.toString('base64');
     
     console.log('--- Analyzing Video with Gemini ---');
-    const analysis = await analyzeVideo(cleanFileBase64, 'video/mp4'); 
+    // Select Prompt based on mode
+    const prompt = isVoiceless ? VIDEO_ANALYSIS_NO_SCRIPT_PROMPT : VIDEO_ANALYSIS_PROMPT;
+    const analysis = await analyzeVideo(cleanFileBase64, 'video/mp4', prompt); 
     console.log('Analysis complete. Segments:', analysis.segments.length);
 
     // =======================================================
-    // 3. Audio Generation (Single File)
+    // 3. Audio Generation (Single File) OR Duration Calc
     // =======================================================
-    console.log('--- Generating Voiceover (Single File) ---');
-    
-    // Generates one big buffer and returns the specific lines used
-    const { audioBuffer, linesToSpeak } = await generateVoiceover(analysis.script.script_lines, voiceId);
-    
-    // Write the full audio file to disk (temp dir)
-    const fullAudioPath = path.join(TEMP_DIR, `audio_${Date.now()}.wav`);
-    fs.writeFileSync(fullAudioPath, audioBuffer);
-    filesToDelete.push(fullAudioPath);
+    let fullAudioPath = null;
+    let audioLineDurations = [];
 
-    // Get total duration of the generated audio
-    const totalAudioDuration = getDuration(fullAudioPath);
-    console.log(`Total Audio Duration: ${totalAudioDuration}s`);
+    if (!isVoiceless) {
+        console.log('--- Generating Voiceover (Single File) ---');
+        
+        // Generates one big buffer and returns the specific lines used
+        const { audioBuffer, linesToSpeak } = await generateVoiceover(analysis.script.script_lines, voiceId);
+        
+        // Write the full audio file to disk (temp dir)
+        fullAudioPath = path.join(TEMP_DIR, `audio_${Date.now()}.wav`);
+        fs.writeFileSync(fullAudioPath, audioBuffer);
+        filesToDelete.push(fullAudioPath);
 
-    // Calculate line durations mathematically (The Python Logic)
-    const audioLineDurations = calculateAudioLineDurations(linesToSpeak, totalAudioDuration);
+        // Get total duration of the generated audio
+        const totalAudioDuration = getDuration(fullAudioPath);
+        console.log(`Total Audio Duration: ${totalAudioDuration}s`);
+
+        // Calculate line durations mathematically (The Python Logic)
+        audioLineDurations = calculateAudioLineDurations(linesToSpeak, totalAudioDuration);
+    } else {
+        console.log('--- Voiceless Mode: Calculating visual durations ---');
+        // If voiceless, the "audio duration" for each segment is simply the duration of the visual segment itself.
+        // This effectively tells the processor: "Make the final segment exactly as long as the visual content."
+        audioLineDurations = analysis.segments.map(seg => {
+            const start = parseTime(seg.start_time);
+            const end = parseTime(seg.end_time);
+            return Math.max(1.0, end - start); // Ensure at least 1s duration
+        });
+        
+        // Ensure script object exists for consistency in response
+        analysis.script = { script_lines: [] }; 
+    }
+    
     console.log('Calculated Split Points:', audioLineDurations.map(d => d.toFixed(2)));
 
     // =======================================================
@@ -137,7 +187,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     
     await processVideoPipeline(
         cleanInputPath,
-        fullAudioPath,    // Single master audio
+        fullAudioPath,    // Null if voiceless
         audioLineDurations, // Mathematical durations
         analysis,
         outputPath
@@ -148,7 +198,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     // 5. Upload Final Output to Supabase Storage
     // =======================================================
     const outputBuffer = fs.readFileSync(outputPath);
-    const outputFileName = `outputs/final_${Date.now()}.mp4`;
+    const outputFileName = `outputs/${uuidv4()}.mp4`;
     
     const { error: outUploadError } = await supabase.storage
         .from('uploads')
@@ -168,7 +218,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     const { error: dbError } = await supabase
         .from('videos')
         .insert({
-            title: file.originalname,
+            title: file.originalname, // Keep original name here for user reference
             input_video_url: inputPublicUrl,
             final_video_url: outputPublicUrl,
             status: 'completed',

@@ -1,3 +1,4 @@
+
 export const VIDEO_ANALYSIS_PROMPT = `
 You are analyzing a screen recording of a software demo and must produce three outputs in one pass:
 1) Video segmentation
@@ -118,5 +119,85 @@ Final Combined Output Format (strict)
 }
 ]
 }
+}
+`;
+
+export const VIDEO_ANALYSIS_NO_SCRIPT_PROMPT = `
+You are analyzing a screen recording of a software demo and must produce two outputs in one pass:
+1) Video segmentation
+2) Gradient background recommendation
+
+**IMPORTANT: Do NOT generate a script or narration lines.**
+
+────────────────────────────────────────────────────────
+1. Segment the video into chronological demo steps
+────────────────────────────────────────────────────────
+Segment the video into meaningful demo steps, not micro mouse movements.
+
+A demo step is:
+* a single user-triggered action that causes a visible change, OR
+* a system-generated visual change
+
+Segmentation rules:
+* Each segment must represent one clear functional step.
+* Ignore minor cursor movement, idle hovering, micro scrolls.
+* Only record mouse activity if it triggers a visible step.
+* If cursor is not visible, set mouse_activity to null.
+* neutral_visual_description: describe only what is visible.
+* purpose: describe the functional significance of that step.
+
+Each segment must include:
+* start_time
+* end_time
+* neutral_visual_description
+* purpose
+* mouse_activity:
+  * clicks: array of {type, x, y, time}
+  * hover_regions (optional)
+
+Coordinates must be normalized 0–1.
+Timestamps must include milliseconds.
+
+────────────────────────────────────────────────────────
+2. Recommend the gradient background
+────────────────────────────────────────────────────────
+Based on the UI’s dominant colors inside the viewport:
+* Select a soft two-color gradient.
+* Maintain strong contrast without exceeding 20–30%.
+* Shift dominant hue ±20–40° to avoid matching the UI.
+* Keep saturation low (20–50%).
+* Never match the UI’s accent color; only complement it.
+* Provide valid HEX colors.
+
+Return:
+{
+"start_color": "#RRGGBB",
+"end_color": "#RRGGBB",
+"style": "vertical" or "radial"
+}
+
+────────────────────────────────────────────────────────
+Final Combined Output Format (strict)
+────────────────────────────────────────────────────────
+
+{
+"background_gradient": {
+"start_color": "#000000",
+"end_color": "#333333",
+"style": "radial"
+},
+
+"segments": [
+{
+"start_time": "00:00.000",
+"end_time": "00:02.150",
+"neutral_visual_description": "",
+"purpose": "",
+"mouse_activity": {
+"clicks": [],
+"hover_regions": []
+}
+}
+]
 }
 `;

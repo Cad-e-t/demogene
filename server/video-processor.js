@@ -61,6 +61,8 @@ function parseTime(t) {
 // ==========================================
 
 export function calculateAudioLineDurations(lines, totalAudioDuration) {
+    if (!lines || lines.length === 0) return [];
+    
     // 1. Calculate total characters
     const totalChars = lines.reduce((acc, line) => acc + line.narration.length, 0);
     
@@ -77,7 +79,8 @@ export function calculateAudioLineDurations(lines, totalAudioDuration) {
 // ==========================================
 
 async function createRoundedMask(width, height, radius, outputPath) {
-    const filter = `format=rgba,geq=r='255':g='255':b='255':a='if(gt(abs(W/2-X),W/2-${radius})*gt(abs(H/2-Y),H/2-${radius}),if(lte(hypot({${radius}}-(W/2-abs(W/2-X)),{${radius}}-(H/2-abs(H/2-Y))),{${radius}}),255,0),255)'`;
+    // Fixed: Removed invalid curly braces around ${radius} in the hypot functions
+    const filter = `format=rgba,geq=r='255':g='255':b='255':a='if(gt(abs(W/2-X),W/2-${radius})*gt(abs(H/2-Y),H/2-${radius}),if(lte(hypot(${radius}-(W/2-abs(W/2-X)),${radius}-(H/2-abs(H/2-Y))),${radius}),255,0),255)'`;
     await runFFmpeg([
         '-f', 'lavfi', '-i', `color=black:s=${width}x${height}:d=1`,
         '-vf', filter, '-frames:v', '1', '-y', outputPath
@@ -302,7 +305,8 @@ async function applyZoomEffect(inPath, outPath, params, workDir) {
         fs.copyFileSync(inPath, outPath);
     } else {
         const listPath = path.join(workDir, `zlist_${uuidv4()}.txt`);
-        fs.writeFileSync(listPath, parts.map(p => `file '${p}'`).join('\n'));
+        // Fixed: Replace backslashes with forward slashes for FFmpeg concat demuxer on Windows
+        fs.writeFileSync(listPath, parts.map(p => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
         await runFFmpeg(['-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', '-y', outPath]);
     }
 }
@@ -430,13 +434,19 @@ export async function processVideoPipeline(
         
         // 4. Concat Visuals
         const listPath = path.join(workDir, 'list.txt');
-        fs.writeFileSync(listPath, processedPaths.map(p => `file '${p}'`).join('\n'));
+        // Fixed: Replace backslashes with forward slashes for FFmpeg concat demuxer on Windows
+        fs.writeFileSync(listPath, processedPaths.map(p => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
         const syncedVideo = path.join(workDir, 'synced.mp4');
         await runFFmpeg(['-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', '-y', syncedVideo]);
         
-        // 5. Merge with Master Audio
+        // 5. Merge with Master Audio (IF AUDIO EXISTS)
         console.log("--- Pipeline Step 4: Final Merge ---");
-        await runFFmpeg(['-i', syncedVideo, '-i', fullAudioPath, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-y', finalOutputPath]);
+        if (fullAudioPath) {
+            await runFFmpeg(['-i', syncedVideo, '-i', fullAudioPath, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-y', finalOutputPath]);
+        } else {
+            console.log("--- No Audio Path (Voiceless Mode) - Just Copying Video ---");
+            fs.copyFileSync(syncedVideo, finalOutputPath);
+        }
         
         return finalOutputPath;
         

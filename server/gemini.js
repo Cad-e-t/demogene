@@ -6,7 +6,7 @@ import { MOCK_ANALYSIS_RESULT, MOCK_AUDIO_URL } from "./mocks.js";
 const TEST_MODE = false; // Set to true to bypass API calls and use mock data
 const MODEL_NAME = "gemini-3-pro-preview";
 
-export async function analyzeVideo(fileBase64, mimeType) {
+export async function analyzeVideo(fileBase64, mimeType, prompt = VIDEO_ANALYSIS_PROMPT) {
   if (TEST_MODE) {
     console.log("TEST_MODE: Using mock analysis result.");
     return MOCK_ANALYSIS_RESULT;
@@ -22,7 +22,7 @@ export async function analyzeVideo(fileBase64, mimeType) {
       contents: {
         parts: [
           {
-            text: VIDEO_ANALYSIS_PROMPT
+            text: prompt
           },
           {
             inlineData: {
@@ -49,7 +49,11 @@ export async function analyzeVideo(fileBase64, mimeType) {
 
 export async function generateVoiceover(scriptLines, voiceName) {
     // 1. Filter valid lines
-    const linesToSpeak = scriptLines.filter(l => l.narration && l.narration.trim() !== "");
+    const linesToSpeak = scriptLines ? scriptLines.filter(l => l.narration && l.narration.trim() !== "") : [];
+    
+    if (linesToSpeak.length === 0) {
+        return { audioBuffer: null, linesToSpeak: [] };
+    }
     
     if (TEST_MODE) {
         console.log("TEST_MODE: Using mock audio url.");
