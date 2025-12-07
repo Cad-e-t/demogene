@@ -329,25 +329,7 @@ export default function App() {
                              </div>
                         ) : (
                             session && profile ? (
-                                profile.credits > 0 ? (
-                                    <div className="bg-gray-900 border border-green-900/50 rounded-2xl p-6 flex items-center justify-between shadow-lg shadow-green-900/10">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center text-green-500 font-bold text-xl">
-                                                {profile.credits}
-                                            </div>
-                                            <div>
-                                                <h3 className="text-lg font-bold text-white">Credits Available</h3>
-                                                <p className="text-gray-400 text-sm">You're ready to create.</p>
-                                            </div>
-                                        </div>
-                                        <button 
-                                            onClick={handlePurchase}
-                                            className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition text-sm font-medium"
-                                        >
-                                            Add More (+10)
-                                        </button>
-                                    </div>
-                                ) : (
+                                profile.credits > 0 ? null : (
                                     <div className="bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-indigo-500/30 rounded-2xl p-8 text-center relative overflow-hidden">
                                          <div className="absolute top-0 right-0 p-3 opacity-10">
                                              <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39h-2.07c-.12-.9-.9-1.54-2.34-1.54-1.3 0-1.87.61-1.87 1.37 0 .84.62 1.55 2.69 2.05 2.49.59 4.17 1.66 4.17 3.67 0 1.74-1.41 2.85-3.14 3.2z"/></svg>
