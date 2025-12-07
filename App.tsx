@@ -142,14 +142,39 @@ export default function App() {
 
   // --- File Handling ---
 
+  const handleClearFile = () => {
+    if (videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+    }
+    setFile(null);
+    setVideoUrl(null);
+    setStep('idle');
+    setErrorMessage(null);
+    setResult(null);
+    setFinalVideoUrl(null);
+    setCrop({ x: 0, y: 0, width: 1, height: 1 });
+    setTrim({ start: 0, end: 0 });
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      if (videoUrl) {
+          URL.revokeObjectURL(videoUrl);
+      }
       const f = e.target.files[0];
       setFile(f);
       setVideoUrl(URL.createObjectURL(f));
       
+      // Reset state for new file
+      setErrorMessage(null);
+      setResult(null);
+      setFinalVideoUrl(null);
+      setCrop({ x: 0, y: 0, width: 1, height: 1 });
+      setTrim({ start: 0, end: 0 });
+      
       if (!session) {
         setShowAuthModal(true);
+        setStep('idle'); // Wait for login in hero? No, show editor with modal
       } else {
         setStep('uploading'); 
       }
@@ -352,81 +377,102 @@ export default function App() {
 
                 </div>
                 ) : (
-                <div className="grid lg:grid-cols-3 gap-8 relative">
+                <div className="grid lg:grid-cols-3 gap-8 relative animate-fade-in">
                     
                     {/* Left Column: Editor */}
                     <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-1 overflow-hidden">
-                        {(step === 'uploading' || (file && !session)) ? (
-                        <div className="relative">
-                            <VideoCropper 
-                                videoUrl={videoUrl!} 
-                                onCropChange={setCrop}
-                                onTrimChange={setTrim}
-                            />
-                            
-                            {/* Validation Warning */}
-                            {trim.end - trim.start > 90 && (
-                                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600/90 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg z-30">
-                                    Video must be &le; 90s. Current: {(trim.end - trim.start).toFixed(1)}s
+                        
+                        {/* Project Header (New Layout) */}
+                        <div className="flex items-center justify-between bg-gray-900/40 p-4 rounded-xl border border-gray-800 backdrop-blur-sm">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="flex-shrink-0 w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                                 </div>
-                            )}
-
-                            {showAuthModal && (
-                                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-                                    <h3 className="text-2xl font-bold text-white mb-2">Login Required</h3>
-                                    <p className="text-gray-400 mb-6 max-w-sm">Please sign in to process your video with our AI pipeline.</p>
-                                    <button 
-                                        onClick={handleLogin}
-                                        className="flex items-center gap-3 bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-xl transform hover:scale-105"
-                                    >
-                                        <XIcon className="w-5 h-5" />
-                                        <span>Sign in with X</span>
-                                    </button>
+                                <div className="min-w-0">
+                                    <h3 className="font-semibold text-white truncate text-sm">Active Project</h3>
+                                    <p className="text-xs text-gray-400 truncate max-w-[200px]">{file?.name || 'Untitled Project'}</p>
                                 </div>
-                            )}
+                            </div>
+                            <button 
+                                onClick={handleClearFile}
+                                className="flex-shrink-0 text-xs font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg transition border border-gray-700 hover:border-gray-600 flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                Change Video
+                            </button>
                         </div>
-                        ) : (
-                            <div className="aspect-video bg-black flex items-center justify-center rounded-xl relative overflow-hidden">
-                                {finalVideoUrl ? (
-                                    <video src={finalVideoUrl} controls className="w-full h-full" />
-                                ) : (
-                                    <div className="flex flex-col items-center gap-4 animate-pulse">
-                                        {step !== 'error' && <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>}
-                                        <p className="text-indigo-300 font-medium">
-                                            {step === 'analyzing' && 'Analyzing visual content...'}
-                                            {step === 'generating_audio' && 'Generating AI Voiceover...'}
-                                            {step === 'rendering' && 'Rendering final video...'}
-                                            {step === 'error' && 'Processing Failed'}
-                                        </p>
+
+                        <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-1 overflow-hidden shadow-2xl">
+                            {(step === 'uploading' || (file && !session)) ? (
+                            <div className="relative">
+                                <VideoCropper 
+                                    videoUrl={videoUrl!} 
+                                    onCropChange={setCrop}
+                                    onTrimChange={setTrim}
+                                />
+                                
+                                {/* Validation Warning */}
+                                {trim.end - trim.start > 90 && (
+                                    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600/90 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg z-30">
+                                        Video must be &le; 90s. Current: {(trim.end - trim.start).toFixed(1)}s
+                                    </div>
+                                )}
+
+                                {showAuthModal && (
+                                    <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                                        <h3 className="text-2xl font-bold text-white mb-2">Login Required</h3>
+                                        <p className="text-gray-400 mb-6 max-w-sm">Please sign in to process your video with our AI pipeline.</p>
+                                        <button 
+                                            onClick={handleLogin}
+                                            className="flex items-center gap-3 bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-xl transform hover:scale-105"
+                                        >
+                                            <XIcon className="w-5 h-5" />
+                                            <span>Sign in with X</span>
+                                        </button>
                                     </div>
                                 )}
                             </div>
-                        )}
-                    </div>
-                    
-                    {/* Script Preview */}
-                    {result && result.script && result.script.script_lines.length > 0 && (
-                        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-                            <h3 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-green-500"></span> Generated Script
-                            </h3>
-                            <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-                                {result.script.script_lines.map((line, idx) => (
-                                    <div key={idx} className="flex gap-4 p-3 rounded-lg hover:bg-gray-800 transition">
-                                        <span className={`text-xs font-bold uppercase tracking-wider py-1 px-2 rounded h-fit ${
-                                            line.type === 'hook' ? 'bg-purple-500/20 text-purple-300' :
-                                            line.type === 'cta' ? 'bg-green-500/20 text-green-300' :
-                                            'bg-blue-500/20 text-blue-300'
-                                        }`}>
-                                            {line.type}
-                                        </span>
-                                        <p className="text-gray-300 leading-relaxed">{line.narration}</p>
-                                    </div>
-                                ))}
-                            </div>
+                            ) : (
+                                <div className="aspect-video bg-black flex items-center justify-center rounded-xl relative overflow-hidden">
+                                    {finalVideoUrl ? (
+                                        <video src={finalVideoUrl} controls className="w-full h-full" />
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-4 animate-pulse">
+                                            {step !== 'error' && <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>}
+                                            <p className="text-indigo-300 font-medium">
+                                                {step === 'analyzing' && 'Analyzing visual content...'}
+                                                {step === 'generating_audio' && 'Generating AI Voiceover...'}
+                                                {step === 'rendering' && 'Rendering final video...'}
+                                                {step === 'error' && 'Processing Failed'}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                    )}
+                        
+                        {/* Script Preview */}
+                        {result && result.script && result.script.script_lines.length > 0 && (
+                            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                                <h3 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-green-500"></span> Generated Script
+                                </h3>
+                                <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                                    {result.script.script_lines.map((line, idx) => (
+                                        <div key={idx} className="flex gap-4 p-3 rounded-lg hover:bg-gray-800 transition">
+                                            <span className={`text-xs font-bold uppercase tracking-wider py-1 px-2 rounded h-fit ${
+                                                line.type === 'hook' ? 'bg-purple-500/20 text-purple-300' :
+                                                line.type === 'cta' ? 'bg-green-500/20 text-green-300' :
+                                                'bg-blue-500/20 text-blue-300'
+                                            }`}>
+                                                {line.type}
+                                            </span>
+                                            <p className="text-gray-300 leading-relaxed">{line.narration}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Right Column: Settings */}
@@ -469,7 +515,6 @@ export default function App() {
                                     {step === 'analyzing' ? <div className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"/> : "✓"}
                                     <span className="text-sm font-medium">Analyzing Video</span>
                                 </div>
-                                {/* ... other steps same as before ... */}
                                 <div className={`flex items-center gap-3 ${step === 'generating_audio' ? 'text-indigo-400' : (['rendering', 'complete'].includes(step) ? 'text-green-500' : 'text-gray-600')}`}>
                                     {step === 'generating_audio' ? <div className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"/> : (['rendering', 'complete'].includes(step) ? "✓" : "-")}
                                     <span className="text-sm font-medium">Voiceover</span>
@@ -503,7 +548,7 @@ export default function App() {
                         )}
 
                         {step === 'complete' && (
-                             <button onClick={() => window.location.reload()} className="w-full py-3 border border-gray-700 hover:bg-gray-800 text-white font-medium rounded-xl transition">Start New Project</button>
+                             <button onClick={handleClearFile} className="w-full py-3 border border-gray-700 hover:bg-gray-800 text-white font-medium rounded-xl transition">Start New Project</button>
                         )}
                          {step === 'error' && (
                             <button onClick={() => { setStep('uploading'); setErrorMessage(null); }} className="w-full py-3 border border-gray-700 hover:bg-gray-800 text-white font-medium rounded-xl transition">Try Again</button>
@@ -530,7 +575,6 @@ export default function App() {
         {/* VIEW: VIDEOS */}
         {currentView === 'videos' && (
             <div className="space-y-8 animate-fade-in">
-                {/* Same as before... */}
                  <div className="flex items-center justify-between">
                     <h2 className="text-3xl font-bold text-white">Your Videos</h2>
                     <button onClick={fetchVideos} className="text-sm text-gray-400 hover:text-white">Refresh</button>
@@ -564,7 +608,6 @@ export default function App() {
                         <h3 className="font-bold text-xl leading-tight">{selectedVideo.title}</h3>
                         <button onClick={() => setSelectedVideo(null)} className="text-gray-400 hover:text-white">✕</button>
                     </div>
-                    {/* ... details ... */}
                      <a href={selectedVideo.final_video_url} download className="block w-full py-3 bg-white text-black font-bold text-center rounded-lg hover:bg-gray-200 transition">Download Video</a>
                 </div>
             </div>
