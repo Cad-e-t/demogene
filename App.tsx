@@ -4,8 +4,15 @@ import { VideoCropper } from './components/VideoCropper';
 import { ProcessingStatus, CropData, TrimData, AnalysisResult, VoiceOption } from './types';
 import { VOICES } from './constants';
 import { processVideoRequest } from './api';
+import { supabase } from './supabaseClient';
+import { Session } from '@supabase/supabase-js';
 
-const API_BASE_URL = 'http://localhost:8000';
+// X (Twitter) Icon Component
+const XIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+  </svg>
+);
 
 interface VideoProject {
     id: string;
@@ -18,10 +25,12 @@ interface VideoProject {
 }
 
 export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
   const [currentView, setCurrentView] = useState<'home' | 'videos'>('home');
   const [file, setFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [step, setStep] = useState<ProcessingStatus['step']>('idle');
+  const [showAuthModal, setShowAuthModal] = useState(false);
   
   const [crop, setCrop] = useState<CropData>({ x: 0, y: 0, width: 1, height: 1 });
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -35,33 +44,88 @@ export default function App() {
   const [videos, setVideos] = useState<VideoProject[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<VideoProject | null>(null);
 
-  const fetchVideos = async () => {
+  useEffect(() => {
+    // Check active sessions and subscribe to auth changes
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      // If user logs in while modal is open, close it
+      if (session) setShowAuthModal(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogin = async () => {
     try {
-        const res = await fetch(`${API_BASE_URL}/videos`);
-        const data = await res.json();
-        setVideos(data);
+        await supabase.auth.signInWithOAuth({
+            provider: 'twitter',
+        });
+    } catch (error) {
+        console.error("Login failed:", error);
+    }
+  };
+
+  const handleLogout = async () => {
+      await supabase.auth.signOut();
+      setCurrentView('home');
+      setVideos([]);
+  };
+
+  const fetchVideos = async () => {
+    if (!session?.user) return;
+    
+    try {
+        // Fetch directly from Supabase using RLS
+        const { data, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setVideos(data || []);
     } catch(e) {
         console.error("Failed to fetch videos", e);
     }
   };
 
   useEffect(() => {
-    if (currentView === 'videos') {
+    if (currentView === 'videos' && session) {
         fetchVideos();
     }
-  }, [currentView]);
+  }, [currentView, session]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const f = e.target.files[0];
       setFile(f);
       setVideoUrl(URL.createObjectURL(f));
-      setStep('uploading'); 
+      
+      if (!session) {
+        // If not logged in, show video but immediately trigger modal
+        setShowAuthModal(true);
+        // Do not set step to 'uploading' yet, wait for login
+      } else {
+        setStep('uploading'); 
+      }
     }
   };
 
+  // Re-check upload step if session changes
+  useEffect(() => {
+      if (session && file && step === 'idle') {
+          setStep('uploading');
+      }
+  }, [session, file, step]);
+
   const handleGenerate = async () => {
-    if (!file) return;
+    if (!file || !session) return;
     setStep('analyzing');
 
     try {
@@ -69,7 +133,8 @@ export default function App() {
             file, 
             crop,
             trim,
-            voice.id, 
+            voice.id,
+            session.user.id, // Pass User ID
             (s) => setStep(s)
         );
 
@@ -94,7 +159,6 @@ export default function App() {
         className={`group relative w-full h-16 flex items-center justify-center transition-colors ${active ? 'text-indigo-400 bg-gray-800/50' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
     >
         {path}
-        {/* Sliding Wing Extension */}
         <div className="absolute left-full top-0 h-full bg-gray-900 border-l border-r border-gray-800 flex items-center overflow-hidden w-0 group-hover:w-32 transition-all duration-300 z-50">
              <span className="pl-4 whitespace-nowrap text-sm font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
                 {label}
@@ -104,48 +168,71 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-indigo-500 selection:text-white flex">
+    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-indigo-500 selection:text-white">
       
-      {/* 1. Narrow Sidebar */}
-      <aside className="fixed top-0 left-0 bottom-0 w-16 bg-gray-900 border-r border-gray-800 flex flex-col items-center z-50">
-         {/* Logo Placeholder */}
-         <div className="h-16 w-full flex items-center justify-center border-b border-gray-800 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg shadow-lg shadow-indigo-500/20"></div>
-         </div>
+      {/* 1. Narrow Sidebar - ONLY VISIBLE IF LOGGED IN */}
+      {session && (
+        <aside className="fixed top-0 left-0 bottom-0 w-16 bg-gray-900 border-r border-gray-800 flex flex-col items-center z-50">
+             {/* Logo */}
+             <div className="h-16 w-full flex items-center justify-center border-b border-gray-800 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg shadow-lg shadow-indigo-500/20"></div>
+             </div>
 
-         {/* Navigation Icons */}
-         <div className="w-full flex flex-col gap-2">
-            <SidebarIcon 
-                active={currentView === 'home'} 
-                onClick={() => setCurrentView('home')} 
-                label="Home"
-                path={
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
-                }
-            />
-            <SidebarIcon 
-                active={currentView === 'videos'} 
-                onClick={() => setCurrentView('videos')} 
-                label="Videos"
-                path={
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                }
-            />
-         </div>
-      </aside>
+             {/* Navigation Icons */}
+             <div className="w-full flex flex-col gap-2">
+                <SidebarIcon 
+                    active={currentView === 'home'} 
+                    onClick={() => setCurrentView('home')} 
+                    label="Home"
+                    path={
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                    }
+                />
+                <SidebarIcon 
+                    active={currentView === 'videos'} 
+                    onClick={() => setCurrentView('videos')} 
+                    label="Videos"
+                    path={
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    }
+                />
+             </div>
+             
+             <div className="mt-auto mb-4">
+                 <button onClick={handleLogout} className="text-gray-500 hover:text-white" title="Logout">
+                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                     </svg>
+                 </button>
+             </div>
+        </aside>
+      )}
+
+      {/* Top Right Auth Button (Only if NOT logged in) */}
+      {!session && (
+          <div className="absolute top-6 right-8 z-50">
+              <button 
+                onClick={handleLogin}
+                className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full font-bold hover:bg-gray-200 transition shadow-lg"
+              >
+                  <XIcon className="w-4 h-4" />
+                  <span>Sign in</span>
+              </button>
+          </div>
+      )}
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-16 max-w-7xl mx-auto px-8 py-12">
-        
+      <main className={`transition-all duration-300 ${session ? 'ml-16' : ''}`}>
+        <div className="max-w-7xl mx-auto px-8 py-12">
         {/* VIEW: HOME */}
         {currentView === 'home' && (
             <>
-                {step === 'idle' ? (
-                <div className="flex flex-col items-center justify-center min-h-[80vh] text-center space-y-8 animate-fade-in">
+                {step === 'idle' && !file ? (
+                <div className="flex flex-col items-center justify-center min-h-[80vh] text-center space-y-8 animate-fade-in relative">
                     <div className="space-y-4 max-w-2xl">
                     <h2 className="text-5xl font-extrabold tracking-tight text-white leading-tight">
                         Turn Screen Recordings into <span className="text-indigo-400">Polished Demos</span>
@@ -156,7 +243,7 @@ export default function App() {
                     </p>
                     </div>
 
-                    <label className="group relative cursor-pointer">
+                    <label className="group relative cursor-pointer z-10">
                     <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
                     <div className="relative flex items-center gap-3 px-8 py-4 bg-gray-900 ring-1 ring-gray-800 rounded-xl leading-none hover:bg-gray-800 transition">
                         <svg className="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -168,19 +255,36 @@ export default function App() {
                     </label>
                 </div>
                 ) : (
-                <div className="grid lg:grid-cols-3 gap-8">
+                <div className="grid lg:grid-cols-3 gap-8 relative">
                     
                     {/* Left Column: Editor */}
                     <div className="lg:col-span-2 space-y-6">
                     <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-1 overflow-hidden">
-                        {step === 'uploading' ? (
-                        <VideoCropper 
-                            videoUrl={videoUrl!} 
-                            onCropChange={setCrop}
-                            onTrimChange={setTrim}
-                        />
+                        {(step === 'uploading' || (file && !session)) ? (
+                        <div className="relative">
+                            <VideoCropper 
+                                videoUrl={videoUrl!} 
+                                onCropChange={setCrop}
+                                onTrimChange={setTrim}
+                            />
+                            
+                            {/* AUTH MODAL OVERLAY */}
+                            {showAuthModal && (
+                                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                                    <h3 className="text-2xl font-bold text-white mb-2">Login Required</h3>
+                                    <p className="text-gray-400 mb-6 max-w-sm">Please sign in to process your video with our AI pipeline.</p>
+                                    <button 
+                                        onClick={handleLogin}
+                                        className="flex items-center gap-3 bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-xl transform hover:scale-105"
+                                    >
+                                        <XIcon className="w-5 h-5" />
+                                        <span>Sign in with X</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         ) : (
-                            // During processing/result, show either original or placeholder for result
+                            // During processing/result
                             <div className="aspect-video bg-black flex items-center justify-center rounded-xl relative overflow-hidden">
                                 {finalVideoUrl ? (
                                     <video src={finalVideoUrl} controls className="w-full h-full" />
@@ -199,7 +303,7 @@ export default function App() {
                         )}
                     </div>
                     
-                    {/* Script Preview (Only after analysis) */}
+                    {/* Script Preview */}
                     {result && result.script && result.script.script_lines.length > 0 && (
                         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
                             <h3 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
@@ -225,7 +329,7 @@ export default function App() {
 
                     {/* Right Column: Settings & Actions */}
                     <div className="space-y-6">
-                    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 sticky top-8">
+                    <div className={`bg-gray-900 border border-gray-800 rounded-xl p-6 sticky top-8 transition-opacity ${showAuthModal ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                         <h3 className="font-semibold text-lg mb-6">Configuration</h3>
                         
                         {/* Voice Selector */}
@@ -250,7 +354,7 @@ export default function App() {
                         </div>
 
                         {/* Processing Status Steps */}
-                        {step !== 'uploading' && step !== 'error' && (
+                        {step !== 'uploading' && step !== 'error' && step !== 'idle' && (
                             <div className="mb-8 space-y-3">
                                 <div className={`flex items-center gap-3 ${step === 'analyzing' ? 'text-indigo-400' : 'text-green-500'}`}>
                                     {step === 'analyzing' ? <div className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"/> : "✓"}
@@ -277,7 +381,8 @@ export default function App() {
                         {step === 'uploading' && (
                             <button 
                                 onClick={handleGenerate}
-                                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/20 transition-all transform active:scale-95"
+                                disabled={!session}
+                                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Generate Demo Video
                             </button>
@@ -352,7 +457,7 @@ export default function App() {
                 </div>
             </div>
         )}
-
+        </div>
       </main>
 
       {/* MODAL FOR VIDEO DETAILS */}

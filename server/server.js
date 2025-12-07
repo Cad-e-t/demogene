@@ -60,29 +60,19 @@ function parseTime(t) {
 
 app.get('/', (req, res) => res.send('DemoGen API Running'));
 
-// Endpoint to fetch videos
-app.get('/videos', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('videos')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        res.json(data);
-    } catch (err) {
-        console.error("Error fetching videos:", err);
-        res.status(500).json({ error: err.message });
-    }
-});
+// NOTE: GET /videos endpoint removed. Frontend now queries Supabase directly with RLS.
 
 app.post('/process-video', upload.single('video'), async (req, res) => {
   const filesToDelete = [];
   try {
     const file = req.file;
     // Parse body fields
-    let { crop, trim, voiceId } = req.body;
+    let { crop, trim, voiceId, userId } = req.body;
     
+    if (!userId) {
+        return res.status(401).send('Unauthorized: Missing User ID');
+    }
+
     // Parse JSON strings if necessary
     try { if (typeof crop === 'string') crop = JSON.parse(crop); } catch(e){}
     try { if (typeof trim === 'string') trim = JSON.parse(trim); } catch(e){}
@@ -92,7 +82,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     
     const isVoiceless = voiceId === 'voiceless';
     
-    console.log(`[${new Date().toISOString()}] Processing ${file.originalname}... Mode: ${isVoiceless ? 'Voiceless' : 'Narrated'}`);
+    console.log(`[${new Date().toISOString()}] Processing ${file.originalname} for user ${userId}... Mode: ${isVoiceless ? 'Voiceless' : 'Narrated'}`);
 
     // =======================================================
     // 0. Preprocessing: Apply User Crop/Trim
@@ -218,6 +208,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     const { error: dbError } = await supabase
         .from('videos')
         .insert({
+            user_id: userId, // Assign to the correct user
             title: file.originalname, // Keep original name here for user reference
             input_video_url: inputPublicUrl,
             final_video_url: outputPublicUrl,

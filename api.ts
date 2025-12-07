@@ -8,6 +8,7 @@ export async function processVideoRequest(
   crop: CropData,
   trim: TrimData,
   voiceId: string,
+  userId: string,
   onStatusUpdate: (status: ProcessingStatus['step']) => void
 ): Promise<{ videoUrl: string; analysis: AnalysisResult }> {
   const formData = new FormData();
@@ -15,6 +16,7 @@ export async function processVideoRequest(
   formData.append('crop', JSON.stringify(crop));
   formData.append('trim', JSON.stringify(trim));
   formData.append('voiceId', voiceId);
+  formData.append('userId', userId);
 
   // Initial status update (App.tsx might already set this, but safe to reinforce)
   onStatusUpdate('analyzing');
