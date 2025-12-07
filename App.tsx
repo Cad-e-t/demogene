@@ -29,7 +29,7 @@ interface UserProfile {
     credits: number;
 }
 
-const PRODUCT_10_DEMOS = "pdt_10_demos"; // Use real ID in prod
+const PRODUCT_10_DEMOS = "pdt_2LwDVRweVv9iX22U5RDSW"; // Use real ID in prod
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -289,7 +289,7 @@ export default function App() {
                         </h2>
                         <p className="text-xl text-gray-400">
                             AI-powered cropping, zooming, scripting, and voiceovers. 
-                            Upload raw footage (max 90s), get a launch-ready video.
+                            Upload raw footage, get a launch-ready video.
                         </p>
                         
                         <div className="pt-4">

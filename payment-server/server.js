@@ -72,12 +72,17 @@ const processWebhookAsync = async (data) => {
             const profileUpdateData = {
                  billing_address: billing,
                  last_payment_currency: currency,
-                 card_last_four: card_last_four
+                 card_last_four: card_last_four,
+                 updated_at: new Date().toISOString()
             };
             if (customer_id || customer?.customer_id) {
                 profileUpdateData.dodo_customer_id = customer_id || customer?.customer_id;
             }
             if (customer?.phone_number) profileUpdateData.phone_number = customer.phone_number;
+            
+            // Save Name and Email from Webhook to Profile so we can reuse them for future checkouts
+            if (customer?.email) profileUpdateData.customer_email = customer.email;
+            if (customer?.name) profileUpdateData.customer_name = customer.name;
 
             await supabase.from('profiles').update(profileUpdateData).eq('id', userId);
 
@@ -146,7 +151,7 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
         // Fetch profile to see if returning customer
         const { data: profile } = await supabase
             .from('profiles')
-            .select('dodo_customer_id, billing_address')
+            .select('dodo_customer_id, billing_address, customer_email, customer_name')
             .eq('id', user.id)
             .single();
 
@@ -158,16 +163,19 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
                 user_id: user.id,
                 credits_to_add: String(credits),
                 product_id: finalProductId
-            },
-            customer: {
-                email: user.email,
-                name: user.user_metadata?.full_name || user.email
             }
+            // Customer object is purposely omitted here for first-time users.
+            // DodoPayments will collect it on the checkout page.
         };
 
-        // If returning customer
+        // If returning customer, inject the stored ID, Name, and Email
         if (profile?.dodo_customer_id) {
-             checkoutPayload.customer.customer_id = profile.dodo_customer_id;
+             checkoutPayload.customer = {
+                 customer_id: profile.dodo_customer_id
+             };
+             if (profile.customer_email) checkoutPayload.customer.email = profile.customer_email;
+             if (profile.customer_name) checkoutPayload.customer.name = profile.customer_name;
+             
              if (profile.billing_address) checkoutPayload.billing_address = profile.billing_address;
         }
 
