@@ -1,4 +1,5 @@
 
+
 import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -42,7 +43,9 @@ function getResolution(filePath) {
 function getDuration(filePath) {
   try {
       const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`);
-      return parseFloat(out.toString().trim());
+      const val = parseFloat(out.toString().trim());
+      // Safety check for NaN which can crash downstream commands
+      return isNaN(val) ? 0.0 : val;
   } catch (e) {
       return 0.0;
   }
@@ -50,6 +53,7 @@ function getDuration(filePath) {
 
 function parseTime(t) {
     if (typeof t === 'number') return t;
+    if (!t) return 0;
     const parts = t.toString().split(':').map(parseFloat);
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     if (parts.length === 2) return parts[0] * 60 + parts[1];
@@ -79,7 +83,6 @@ export function calculateAudioLineDurations(lines, totalAudioDuration) {
 // ==========================================
 
 async function createRoundedMask(width, height, radius, outputPath) {
-    // Fixed: Removed invalid curly braces around ${radius} in the hypot functions
     const filter = `format=rgba,geq=r='255':g='255':b='255':a='if(gt(abs(W/2-X),W/2-${radius})*gt(abs(H/2-Y),H/2-${radius}),if(lte(hypot(${radius}-(W/2-abs(W/2-X)),${radius}-(H/2-abs(H/2-Y))),${radius}),255,0),255)'`;
     await runFFmpeg([
         '-f', 'lavfi', '-i', `color=black:s=${width}x${height}:d=1`,
@@ -173,41 +176,37 @@ function transformSegmentData(segments, params) {
         newSeg.end_time = Math.max(0.0, end - timeTrim);
         
         if (newSeg.mouse_activity) {
-            // Transform Clicks
-            if (newSeg.mouse_activity.clicks) {
-                const validClicks = [];
-                for (const click of newSeg.mouse_activity.clicks) {
-                    const cTime = parseTime(click.time);
-                    if (cTime <= timeTrim) continue;
-                    
-                    click.time = cTime - timeTrim;
-                    click.x = (padding + (click.x * vidW)) / bgW;
-                    click.y = (padding + (click.y * vidH)) / bgH;
-                    validClicks.push(click);
-                }
-                newSeg.mouse_activity.clicks = validClicks;
-            }
+            const act = newSeg.mouse_activity;
+            const rawTime = act.timestamp || act.time;
             
-            // Transform Hovers
-            if (newSeg.mouse_activity.hover_regions) {
-                const validHovers = [];
-                for (const hover of newSeg.mouse_activity.hover_regions) {
-                    const hStart = parseTime(hover.start_time);
-                    const hEnd = parseTime(hover.end_time);
-                    if (hEnd <= timeTrim) continue;
+            if (rawTime !== undefined && rawTime !== null) {
+                const cTime = parseTime(rawTime);
+                
+                // Only process if activity is after trim
+                if (cTime > timeTrim) {
+                    const adjustedTime = cTime - timeTrim;
+                    if (act.timestamp !== undefined) act.timestamp = adjustedTime;
+                    else act.time = adjustedTime;
                     
-                    hover.start_time = Math.max(0.0, hStart - timeTrim);
-                    hover.end_time = Math.max(0.0, hEnd - timeTrim);
+                    // Transform Coordinates
+                    // Mocks.js uses coordinates object
+                    let cx = act.coordinates ? act.coordinates.x : act.x;
+                    let cy = act.coordinates ? act.coordinates.y : act.y;
                     
-                    // Transform coords (x1, y1, x2, y2)
-                    hover.x1 = (padding + (hover.x1 * vidW)) / bgW;
-                    hover.x2 = (padding + (hover.x2 * vidW)) / bgW;
-                    hover.y1 = (padding + (hover.y1 * vidH)) / bgH;
-                    hover.y2 = (padding + (hover.y2 * vidH)) / bgH;
+                    cx = (padding + (cx * vidW)) / bgW;
+                    cy = (padding + (cy * vidH)) / bgH;
                     
-                    validHovers.push(hover);
+                    if (act.coordinates) {
+                        act.coordinates.x = cx;
+                        act.coordinates.y = cy;
+                    } else {
+                        act.x = cx;
+                        act.y = cy;
+                    }
+                } else {
+                    // Activity fell in the trimmed part
+                    newSeg.mouse_activity = null;
                 }
-                newSeg.mouse_activity.hover_regions = validHovers;
             }
         }
         newSegments.push(newSeg);
@@ -219,85 +218,86 @@ function transformSegmentData(segments, params) {
 // ZOOM LOGIC
 // ==========================================
 
-function getZoomParams(segment, segStartAbs, segEndAbs) {
+function getZoomEvents(segment, segStartAbs, segEndAbs) {
     const activity = segment.mouse_activity;
-    if (!activity) return { hasZoom: false };
+    if (!activity) return [];
     
-    let targetClick = null;
-    if (activity.clicks) {
-        for (const click of activity.clicks) {
-            const cTime = parseTime(click.time);
-            if (cTime >= segStartAbs && cTime <= segEndAbs && click.type === 'left') {
-                targetClick = click;
-                break;
-            }
-        }
+    const events = [];
+    
+    const rawTime = activity.timestamp || activity.time;
+    if (rawTime === undefined || rawTime === null) return [];
+    
+    const cTime = parseTime(rawTime);
+    
+    // Check if event falls within this segment
+    if (cTime >= segStartAbs && cTime <= segEndAbs) {
+        const relTime = cTime - segStartAbs;
+        
+        let cx = activity.coordinates ? activity.coordinates.x : activity.x;
+        let cy = activity.coordinates ? activity.coordinates.y : activity.y;
+        
+        // Use provided hold duration or default
+        let holdDuration = activity.hold_duration !== undefined ? parseFloat(activity.hold_duration) : 2.0;
+        
+        events.push({ relTime, cx, cy, holdDuration });
     }
     
-    if (!targetClick) return { hasZoom: false };
-    
-    const clickAbsTime = parseTime(targetClick.time);
-    const relTime = clickAbsTime - segStartAbs;
-    const cx = targetClick.x;
-    const cy = targetClick.y;
-    
-    let holdDuration = 1.0;
-    if (activity.hover_regions) {
-        for (const hover of activity.hover_regions) {
-            const hStart = parseTime(hover.start_time);
-            const hEnd = parseTime(hover.end_time);
-            if (clickAbsTime >= hStart && clickAbsTime <= hEnd) {
-                holdDuration = Math.max(0.5, hEnd - hStart);
-                break;
-            }
-        }
-    }
-    
-    return { hasZoom: true, relTime, cx, cy, holdDuration };
+    return events;
 }
 
-async function applyZoomEffect(inPath, outPath, params, workDir) {
-    const { relTime, cx, cy, holdDuration } = params;
+async function applyMultiZoomEffect(inPath, outPath, events, workDir) {
     const { width, height } = getResolution(inPath);
     const videoDur = getDuration(inPath);
     
     const ZOOM_FACTOR = 1.8;
     const TRANSITION = 0.4;
     
-    const zoomStart = Math.max(0, relTime - TRANSITION);
-    const zoomEnd = Math.min(relTime + holdDuration + TRANSITION, videoDur);
-    
-    // Calculate Crop
-    const cropW = Math.floor(width / ZOOM_FACTOR);
-    const cropH = Math.floor(height / ZOOM_FACTOR);
-    let cropX = Math.floor(cx * width - cropW / 2);
-    let cropY = Math.floor(cy * height - cropH / 2);
-    
-    cropX = Math.max(0, Math.min(cropX, width - cropW));
-    cropY = Math.max(0, Math.min(cropY, height - cropH));
-    
+    let currentTime = 0;
     const parts = [];
     
-    // Part 1: Before Zoom
-    if (zoomStart > 0.05) {
-        const p1 = path.join(workDir, `z1_${uuidv4()}.mp4`);
-        await runFFmpeg(['-i', inPath, '-ss', '0', '-to', zoomStart.toString(), ...FF_FLAGS, '-an', '-y', p1]);
-        parts.push(p1);
+    for (let i = 0; i < events.length; i++) {
+        const event = events[i];
+        
+        // Calculate cut points
+        const zoomStart = Math.max(currentTime, event.relTime - TRANSITION);
+        const zoomEnd = Math.min(videoDur, event.relTime + event.holdDuration + TRANSITION);
+        
+        // Safety check to ensure we move forward and don't overlap strangely
+        if (zoomStart < currentTime) continue;
+        
+        // 1. Normal Segment (From previous cursor to Zoom Start)
+        if (zoomStart > currentTime + 0.05) {
+            const pNormal = path.join(workDir, `seg_norm_${uuidv4()}.mp4`);
+            await runFFmpeg(['-i', inPath, '-ss', currentTime.toString(), '-to', zoomStart.toString(), ...FF_FLAGS, '-an', '-y', pNormal]);
+            parts.push(pNormal);
+        }
+        
+        // 2. Zoomed Segment
+        if (zoomEnd > zoomStart + 0.05) {
+            const pZoom = path.join(workDir, `seg_zoom_${uuidv4()}.mp4`);
+            
+            // Calculate Crop
+            const cropW = Math.floor(width / ZOOM_FACTOR);
+            const cropH = Math.floor(height / ZOOM_FACTOR);
+            let cropX = Math.floor(event.cx * width - cropW / 2);
+            let cropY = Math.floor(event.cy * height - cropH / 2);
+            
+            cropX = Math.max(0, Math.min(cropX, width - cropW));
+            cropY = Math.max(0, Math.min(cropY, height - cropH));
+            
+            const filter = `crop=${cropW}:${cropH}:${cropX}:${cropY},scale=${width}:${height}`;
+            await runFFmpeg(['-i', inPath, '-ss', zoomStart.toString(), '-to', zoomEnd.toString(), '-vf', filter, ...FF_FLAGS, '-an', '-y', pZoom]);
+            parts.push(pZoom);
+        }
+        
+        currentTime = zoomEnd;
     }
     
-    // Part 2: Zoomed
-    if (zoomEnd > zoomStart) {
-        const p2 = path.join(workDir, `z2_${uuidv4()}.mp4`);
-        const filter = `crop=${cropW}:${cropH}:${cropX}:${cropY},scale=${width}:${height}`;
-        await runFFmpeg(['-i', inPath, '-ss', zoomStart.toString(), '-to', zoomEnd.toString(), '-vf', filter, ...FF_FLAGS, '-an', '-y', p2]);
-        parts.push(p2);
-    }
-    
-    // Part 3: After Zoom
-    if (zoomEnd < videoDur - 0.05) {
-        const p3 = path.join(workDir, `z3_${uuidv4()}.mp4`);
-        await runFFmpeg(['-i', inPath, '-ss', zoomEnd.toString(), ...FF_FLAGS, '-an', '-y', p3]);
-        parts.push(p3);
+    // 3. Tail Segment
+    if (currentTime < videoDur - 0.05) {
+        const pTail = path.join(workDir, `seg_tail_${uuidv4()}.mp4`);
+        await runFFmpeg(['-i', inPath, '-ss', currentTime.toString(), ...FF_FLAGS, '-an', '-y', pTail]);
+        parts.push(pTail);
     }
     
     // Concat
@@ -305,7 +305,6 @@ async function applyZoomEffect(inPath, outPath, params, workDir) {
         fs.copyFileSync(inPath, outPath);
     } else {
         const listPath = path.join(workDir, `zlist_${uuidv4()}.txt`);
-        // Fixed: Replace backslashes with forward slashes for FFmpeg concat demuxer on Windows
         fs.writeFileSync(listPath, parts.map(p => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
         await runFFmpeg(['-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', '-y', outPath]);
     }
@@ -375,7 +374,7 @@ export async function processVideoPipeline(
         
         for (let i = 0; i < count; i++) {
             const seg = transformedSegments[i];
-            const audioDur = audioDurations[i];
+            let audioDur = audioDurations[i];
             const start = parseTime(seg.start_time);
             const end = parseTime(seg.end_time);
             const duration = end - start;
@@ -386,14 +385,14 @@ export async function processVideoPipeline(
             const rawSegPath = path.join(workDir, `raw_${i}.mp4`);
             await runFFmpeg(['-ss', start.toString(), '-t', duration.toString(), '-i', intermediateStyled, '-an', ...FF_FLAGS, '-y', rawSegPath]);
             
-            // 2. Apply Zoom
-            const zoomParams = getZoomParams(seg, start, end);
+            // 2. Apply Zoom (Multiple zooms supported)
+            const zoomEvents = getZoomEvents(seg, start, end);
             let currentSource = rawSegPath;
             
-            if (zoomParams.hasZoom) {
-                console.log(`  -> Applying Zoom at rel time ${zoomParams.relTime.toFixed(2)}s`);
+            if (zoomEvents.length > 0) {
+                console.log(`  -> Applying ${zoomEvents.length} zoom(s)`);
                 const zoomedPath = path.join(workDir, `zoomed_${i}.mp4`);
-                await applyZoomEffect(rawSegPath, zoomedPath, zoomParams, workDir);
+                await applyMultiZoomEffect(rawSegPath, zoomedPath, zoomEvents, workDir);
                 currentSource = zoomedPath;
             }
             
@@ -418,8 +417,6 @@ export async function processVideoPipeline(
                         console.log(`  -> Trimmed motionless video to match audio.`);
                         await runFFmpeg(['-i', motionlessPath, '-t', audioDur.toString(), '-an', ...FF_FLAGS, '-y', finalSegPath]);
                     } else {
-                         // Decimated too much? Or just right? Usually we trim original if decimated is too short, or extend?
-                         // Python script logic: "Motionless too short. Trim original."
                          console.log(`  -> Motionless too short. Trimming original.`);
                          await runFFmpeg(['-i', currentSource, '-t', audioDur.toString(), '-an', ...FF_FLAGS, '-y', finalSegPath]);
                     }
@@ -434,7 +431,6 @@ export async function processVideoPipeline(
         
         // 4. Concat Visuals
         const listPath = path.join(workDir, 'list.txt');
-        // Fixed: Replace backslashes with forward slashes for FFmpeg concat demuxer on Windows
         fs.writeFileSync(listPath, processedPaths.map(p => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
         const syncedVideo = path.join(workDir, 'synced.mp4');
         await runFFmpeg(['-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', '-y', syncedVideo]);

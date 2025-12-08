@@ -1,3 +1,4 @@
+
 export interface CropData {
   x: number; // Normalized 0-1
   y: number; // Normalized 0-1
@@ -50,4 +51,18 @@ export interface VoiceOption {
   id: string;
   name: string;
   gender: 'Male' | 'Female';
+}
+
+export interface VideoProject {
+    id: string;
+    title: string;
+    final_video_url: string | null;
+    created_at: string;
+    status: 'processing' | 'completed' | 'failed';
+    voice_id: string;
+    analysis_result?: AnalysisResult;
+    user_id: string;
+    // UI Only
+    processingStep?: ProcessingStatus['step'];
+    errorMessage?: string;
 }

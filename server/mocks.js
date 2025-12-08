@@ -1,130 +1,116 @@
 export const MOCK_AUDIO_URL = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/raw-screen-upload/download%20(1).wav";
 
 export const MOCK_ANALYSIS_RESULT = {
-  "background_gradient": {
-    "start_color": "#1e3c72",
-    "end_color": "#2a5298",
-    "style": "radial"
-  },
-  "segments": [
-    {
-      "start_time": "00:00.000",
-      "end_time": "00:09.100",
-      "neutral_visual_description": "The cursor moves to the search bar, types 'Trust', and a dropdown of results appears.",
-      "purpose": "Searching for a specific startup.",
-      "mouse_activity": {
-        "clicks": [
-          {
-            "type": "left",
-            "x": 0.35,
-            "y": 0.42,
-            "time": "00:05.500"
-          }
-        ],
-        "hover_regions": []
-      }
-    },
-    {
-      "start_time": "00:09.100",
-      "end_time": "00:23.800",
-      "neutral_visual_description": "The user clicks a search result, loading a dashboard with revenue graphs and metrics, then scrolls to view details.",
-      "purpose": "Viewing verified revenue data and analytics.",
-      "mouse_activity": {
-        "clicks": [
-          {
-            "type": "left",
-            "x": 0.38,
-            "y": 0.48,
-            "time": "00:09.100"
-          }
-        ],
-        "hover_regions": []
-      }
-    },
-    {
-      "start_time": "00:23.800",
-      "end_time": "00:46.500",
-      "neutral_visual_description": "User clicks 'Add startup', inputs a key into the Stripe field, switches tabs to input a token for DodoPayments, and sets a username handle.",
-      "purpose": "Connecting revenue sources via API keys.",
-      "mouse_activity": {
-        "clicks": [
-          {
-            "type": "left",
-            "x": 0.62,
-            "y": 0.41,
-            "time": "00:23.800"
-          },
-          {
-            "type": "left",
-            "x": 0.65,
-            "y": 0.28,
-            "time": "00:29.800"
-          }
-        ],
-        "hover_regions": []
-      }
-    },
-    {
-      "start_time": "00:46.500",
-      "end_time": "01:00.000",
-      "neutral_visual_description": "User submits the initial form, then fills out a secondary modal with the startup name 'MonkeyFace', description, and URL, finally clicking save.",
-      "purpose": "Configuring public profile details.",
-      "mouse_activity": {
-        "clicks": [
-          {
-            "type": "left",
-            "x": 0.55,
-            "y": 0.85,
-            "time": "00:46.500"
-          },
-          {
-            "type": "left",
-            "x": 0.68,
-            "y": 0.88,
-            "time": "00:59.000"
-          }
-        ],
-        "hover_regions": []
-      }
-    },
-    {
-      "start_time": "01:00.000",
-      "end_time": "01:14.000",
-      "neutral_visual_description": "The new dashboard loads, displaying the startup name and placeholder verification data.",
-      "purpose": "Displaying the newly created and verified listing.",
-      "mouse_activity": {
-        "clicks": [],
-        "hover_regions": []
-      }
-    }
-  ],
-  "script": {
-    "script_lines": [
-      {
-        "segment_index": 0,
-        "type": "hook",
-        "narration": "Building trust in the startup world requires transparency, not just claims."
-      },
-      {
-        "segment_index": 1,
-        "type": "body",
-        "narration": "TrustMRR acts as the definitive database for verified startup revenues, allowing you to explore authentic metrics and growth trends instantly."
-      },
-      {
-        "segment_index": 2,
-        "type": "body",
-        "narration": "Getting verified is simple. Securely connect your payment provider to automatically sync your revenue data without manual reporting."
-      },
-      {
-        "segment_index": 3,
-        "type": "body",
-        "narration": "Once connected, customize your public profile to showcase your brand and project details to the community."
-      },
-      {
-        "segment_index": 4,
-        "type": "cta",
-        "narration": "Within seconds, your live dashboard is ready. Get verified and build instant credibility with TrustMRR."
-      }
-    ]
-  }
+"background_gradient": {
+"start_color": "#1F2329",
+"end_color": "#000000",
+"style": "radial"
+},
+"segments": [
+{
+"start_time": "00:00.000",
+"end_time": "00:08.500",
+"purpose": "Search for a company",
+"mouse_activity": {
+"timestamp": "00:04.200",
+"coordinates": {
+"x": 0.38,
+"y": 0.42
+},
+"hold_duration": 3.0
+}
+},
+{
+"start_time": "00:08.500",
+"end_time": "00:23.000",
+"purpose": "View company dashboard",
+"mouse_activity": {
+"timestamp": "00:08.800",
+"coordinates": {
+"x": 0.38,
+"y": 0.52
+},
+"hold_duration": 2.0
+}
+},
+{
+"start_time": "00:23.000",
+"end_time": "00:29.500",
+"purpose": "Initiate adding a startup",
+"mouse_activity": {
+"timestamp": "00:24.100",
+"coordinates": {
+"x": 0.62,
+"y": 0.41
+},
+"hold_duration": 1.0
+}
+},
+{
+"start_time": "00:29.500",
+"end_time": "00:46.500",
+"purpose": "Enter API credentials",
+"mouse_activity": {
+"timestamp": "00:30.200",
+"coordinates": {
+"x": 0.5,
+"y": 0.4
+},
+"hold_duration": 14.0
+}
+},
+{
+"start_time": "00:46.500",
+"end_time": "01:00.000",
+"purpose": "Submit and customize details",
+"mouse_activity": {
+"timestamp": "00:46.800",
+"coordinates": {
+"x": 0.6,
+"y": 0.75
+},
+"hold_duration": 0.0
+}
+},
+{
+"start_time": "01:00.000",
+"end_time": "01:12.000",
+"purpose": "View final verified listing",
+"mouse_activity": null
+}
+],
+"script": {
+"script_lines": [
+{
+"segment_index": 0,
+"type": "hook",
+"narration": "TrustMRR is a database of verified startup revenues that lets you instantly search for real financial data."
+},
+{
+"segment_index": 1,
+"type": "body",
+"narration": "Analyze comprehensive dashboards featuring MRR, growth trends, and analytics to make data-driven decisions."
+},
+{
+"segment_index": 2,
+"type": "body",
+"narration": "To list your own project, simply start by connecting your preferred payment provider."
+},
+{
+"segment_index": 3,
+"type": "body",
+"narration": "Securely verify your revenue by inputting your read-only API credentials and claiming your unique handle."
+},
+{
+"segment_index": 4,
+"type": "body",
+"narration": "Once verified, you can customize your public listing with your logo and project description."
+},
+{
+"segment_index": 5,
+"type": "cta",
+"narration": "Join the community today and let your verified metrics build trust for you."
+}
+]
+}
 };

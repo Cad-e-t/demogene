@@ -1,5 +1,3 @@
-
-
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -45,7 +43,8 @@ app.use((req, res, next) => {
 function getDuration(filePath) {
   try {
       const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`);
-      return parseFloat(out.toString().trim());
+      const val = parseFloat(out.toString().trim());
+      return isNaN(val) ? 0.0 : val;
   } catch (e) {
       return 0.0;
   }
@@ -177,35 +176,56 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     // =======================================================
     let fullAudioPath = null;
     let audioLineDurations = [];
+    
+    // Check if we actually have a script to narrate
+    const hasScript = analysis.script && analysis.script.script_lines && analysis.script.script_lines.length > 0;
 
-    if (!isVoiceless) {
+    if (!isVoiceless && hasScript) {
         console.log('--- Generating Voiceover (Single File) ---');
         
         // Generates one big buffer and returns the specific lines used
         const { audioBuffer, linesToSpeak } = await generateVoiceover(analysis.script.script_lines, voiceId);
         
-        // Write the full audio file to disk (temp dir)
-        fullAudioPath = path.join(TEMP_DIR, `audio_${Date.now()}.wav`);
-        fs.writeFileSync(fullAudioPath, audioBuffer);
-        filesToDelete.push(fullAudioPath);
+        if (audioBuffer) {
+            // 1. Save Raw PCM data from Gemini (usually s16le, 24kHz, 1ch)
+            const rawAudioPath = path.join(TEMP_DIR, `raw_audio_${Date.now()}.pcm`);
+            fs.writeFileSync(rawAudioPath, audioBuffer);
+            filesToDelete.push(rawAudioPath);
+            
+            // 2. Convert Raw PCM to standard WAV using FFmpeg
+            fullAudioPath = path.join(TEMP_DIR, `audio_${Date.now()}.wav`);
+            try {
+                console.log("Converting Raw PCM to WAV...");
+                execSync(`ffmpeg -f s16le -ar 24000 -ac 1 -i "${rawAudioPath}" -y "${fullAudioPath}"`, { stdio: 'ignore' });
+                filesToDelete.push(fullAudioPath);
+            } catch (e) {
+                console.error("Audio Conversion Failed:", e);
+                // Don't throw, just fall back to voiceless logic below
+                fullAudioPath = null;
+            }
+        } else {
+            console.warn("Warning: Audio generation returned empty buffer. Proceeding without voiceover.");
+        }
 
-        // Get total duration of the generated audio
-        const totalAudioDuration = getDuration(fullAudioPath);
-        console.log(`Total Audio Duration: ${totalAudioDuration}s`);
-
-        // Calculate line durations mathematically (The Python Logic)
-        audioLineDurations = calculateAudioLineDurations(linesToSpeak, totalAudioDuration);
-    } else {
-        console.log('--- Voiceless Mode: Calculating visual durations ---');
-        // If voiceless, the "audio duration" for each segment is simply the duration of the visual segment itself.
+        if (fullAudioPath) {
+             // 3. Get total duration of the VALID WAV file
+            const totalAudioDuration = getDuration(fullAudioPath);
+            console.log(`Total Audio Duration: ${totalAudioDuration}s`);
+            // Calculate line durations mathematically
+            audioLineDurations = calculateAudioLineDurations(linesToSpeak, totalAudioDuration);
+        }
+    } 
+    
+    // Fallback logic: If voiceless OR if audio generation failed
+    if (!fullAudioPath) {
+        console.log('--- Voiceless Mode (or fallback): Calculating visual durations ---');
         audioLineDurations = analysis.segments.map(seg => {
             const start = parseTime(seg.start_time);
             const end = parseTime(seg.end_time);
             return Math.max(1.0, end - start); // Ensure at least 1s duration
         });
         
-        // Ensure script object exists for consistency in response
-        analysis.script = { script_lines: [] }; 
+        if (!analysis.script) analysis.script = { script_lines: [] };
     }
     
     console.log('Calculated Split Points:', audioLineDurations.map(d => d.toFixed(2)));

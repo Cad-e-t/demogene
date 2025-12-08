@@ -1,9 +1,8 @@
-
-
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import { MOCK_ANALYSIS_RESULT, MOCK_AUDIO_URL } from "./mocks.js";
 
-const TEST_MODE = false; // Set to true to bypass API calls and use mock data
+// Set this to false for real production use, or use ENV variable
+const TEST_MODE = process.env.TEST_MODE === 'true'; 
 const MODEL_NAME = "gemini-3-pro-preview";
 
 export async function analyzeVideo(fileBase64, mimeType, prompt) {
@@ -55,20 +54,6 @@ export async function generateVoiceover(scriptLines, voiceName) {
         return { audioBuffer: null, linesToSpeak: [] };
     }
     
-    if (TEST_MODE) {
-        console.log("TEST_MODE: Using mock audio url.");
-        try {
-            const response = await fetch(MOCK_AUDIO_URL);
-            if (!response.ok) throw new Error("Failed to fetch mock audio");
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            return { audioBuffer: buffer, linesToSpeak };
-        } catch (e) {
-            console.error("TEST_MODE: Error fetching mock audio:", e);
-            return { audioBuffer: null, linesToSpeak };
-        }
-    }
-
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -82,7 +67,7 @@ export async function generateVoiceover(scriptLines, voiceName) {
             model: "gemini-2.5-flash-preview-tts",
             contents: [{ parts: [{ text: fullText }] }],
             config: {
-                responseModalities: ["AUDIO"],
+                responseModalities: [Modality.AUDIO],
                 speechConfig: {
                     voiceConfig: {
                         prebuiltVoiceConfig: { voiceName: voiceName || "Puck" }
@@ -96,7 +81,10 @@ export async function generateVoiceover(scriptLines, voiceName) {
             const buffer = Buffer.from(base64Audio, 'base64');
             return { audioBuffer: buffer, linesToSpeak };
         }
-        throw new Error("No audio data in response");
+        
+        console.warn("No audio data returned in response.");
+        return { audioBuffer: null, linesToSpeak };
+
     } catch (e) {
         console.error("Error generating full audio:", e);
         throw e;
