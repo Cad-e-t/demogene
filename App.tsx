@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { VideoCropper } from './components/VideoCropper';
 import { ProcessingStatus, CropData, TrimData, AnalysisResult, VoiceOption } from './types';
@@ -46,6 +47,7 @@ export default function App() {
   const [crop, setCrop] = useState<CropData>({ x: 0, y: 0, width: 1, height: 1 });
   const [trim, setTrim] = useState<TrimData>({ start: 0, end: 0 });
   const [voice, setVoice] = useState<VoiceOption>(VOICES[0]);
+  const [appDescription, setAppDescription] = useState<string>("");
   
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
@@ -154,6 +156,7 @@ export default function App() {
     setFinalVideoUrl(null);
     setCrop({ x: 0, y: 0, width: 1, height: 1 });
     setTrim({ start: 0, end: 0 });
+    setAppDescription("");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,6 +174,7 @@ export default function App() {
       setFinalVideoUrl(null);
       setCrop({ x: 0, y: 0, width: 1, height: 1 });
       setTrim({ start: 0, end: 0 });
+      setAppDescription("");
       
       if (!session) {
         setShowAuthModal(true);
@@ -200,6 +204,12 @@ export default function App() {
         return;
     }
 
+    if (voice.id !== 'voiceless' && !appDescription.trim()) {
+        setErrorMessage("Please provide a short description of your app for the script.");
+        setStep('error');
+        return;
+    }
+
     // Credits check before call (UX only, server double checks)
     if (profile && profile.credits < 1) {
         paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -216,7 +226,8 @@ export default function App() {
             trim,
             voice.id,
             session.user.id, 
-            (s) => setStep(s)
+            (s) => setStep(s),
+            appDescription
         );
 
         setResult(analysis);
@@ -488,25 +499,42 @@ export default function App() {
                         </div>
                         
                         {/* Voice Selector */}
-                        <div className="mb-8">
-                        <label className="block text-sm font-medium text-gray-400 mb-2">Narrator Voice</label>
-                        <div className="grid grid-cols-1 gap-2">
-                            {VOICES.map((v) => (
-                            <button
-                                key={v.id}
-                                onClick={() => setVoice(v)}
-                                className={`flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
-                                voice.id === v.id 
-                                    ? 'bg-indigo-600/20 border-indigo-500 text-white' 
-                                    : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:border-gray-600'
-                                }`}
-                            >
-                                <span className="font-medium">{v.name}</span>
-                                <span className="text-xs opacity-60">{v.gender}</span>
-                            </button>
-                            ))}
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-400 mb-2">Narrator Voice</label>
+                            <div className="grid grid-cols-1 gap-2">
+                                {VOICES.map((v) => (
+                                <button
+                                    key={v.id}
+                                    onClick={() => setVoice(v)}
+                                    className={`flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
+                                    voice.id === v.id 
+                                        ? 'bg-indigo-600/20 border-indigo-500 text-white' 
+                                        : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:border-gray-600'
+                                    }`}
+                                >
+                                    <span className="font-medium">{v.name}</span>
+                                    <span className="text-xs opacity-60">{v.gender}</span>
+                                </button>
+                                ))}
+                            </div>
                         </div>
-                        </div>
+
+                        {/* Short App Description */}
+                        {voice.id !== 'voiceless' && (
+                            <div className="mb-8">
+                                <label className="block text-sm font-medium text-gray-400 mb-2">
+                                    Short App Description <span className="text-red-400">*</span>
+                                </label>
+                                <textarea
+                                    className="w-full bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
+                                    rows={3}
+                                    placeholder="e.g. The database of verified startup revenues..."
+                                    value={appDescription}
+                                    onChange={(e) => setAppDescription(e.target.value)}
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Briefly explain what your app does to help AI write the script.</p>
+                            </div>
+                        )}
 
                         {/* Status */}
                         {step !== 'uploading' && step !== 'error' && step !== 'idle' && (

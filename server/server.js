@@ -1,4 +1,5 @@
 
+
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -11,7 +12,7 @@ import { analyzeVideo, generateVoiceover } from './gemini.js';
 import { processVideoPipeline, preprocessVideo, calculateAudioLineDurations } from './video-processor.js';
 import { supabase } from './supabase.js';
 import { execSync } from 'child_process';
-import { VIDEO_ANALYSIS_PROMPT, VIDEO_ANALYSIS_NO_SCRIPT_PROMPT } from './prompts.js';
+import { getVideoAnalysisPrompt, VIDEO_ANALYSIS_NO_SCRIPT_PROMPT } from './prompts.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,7 +66,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
   try {
     const file = req.file;
     // Parse body fields
-    let { crop, trim, voiceId, userId } = req.body;
+    let { crop, trim, voiceId, userId, appDescription } = req.body;
     
     if (!userId) {
         return res.status(401).send('Unauthorized: Missing User ID');
@@ -160,7 +161,14 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     
     console.log('--- Analyzing Video with Gemini ---');
     // Select Prompt based on mode
-    const prompt = isVoiceless ? VIDEO_ANALYSIS_NO_SCRIPT_PROMPT : VIDEO_ANALYSIS_PROMPT;
+    let prompt;
+    if (isVoiceless) {
+        prompt = VIDEO_ANALYSIS_NO_SCRIPT_PROMPT;
+    } else {
+        const desc = appDescription || "A software application";
+        prompt = getVideoAnalysisPrompt(desc);
+    }
+
     const analysis = await analyzeVideo(cleanFileBase64, 'video/mp4', prompt); 
     console.log('Analysis complete. Segments:', analysis.segments.length);
 

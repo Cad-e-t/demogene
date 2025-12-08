@@ -1,5 +1,6 @@
 
-export const VIDEO_ANALYSIS_PROMPT = `
+
+export const getVideoAnalysisPrompt = (appDescription) => `
 You are analyzing a screen recording of a software demo and must produce three outputs in one pass:
 1) Video segmentation
 2) Gradient background recommendation
@@ -58,7 +59,7 @@ Return:
 Inputs for script generation:
 * The segments produced in section 1
 * Short app description:
-  {The database of verified startup revenues}
+  ${appDescription}
 
 Script rules:
 * Hook: 1–2 sentences highlighting the product’s core value.

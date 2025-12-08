@@ -1,4 +1,5 @@
 
+
 import { AnalysisResult, CropData, ProcessingStatus, TrimData } from './types';
 import { supabase } from './supabaseClient';
 
@@ -11,7 +12,8 @@ export async function processVideoRequest(
   trim: TrimData,
   voiceId: string,
   userId: string,
-  onStatusUpdate: (status: ProcessingStatus['step']) => void
+  onStatusUpdate: (status: ProcessingStatus['step']) => void,
+  appDescription?: string
 ): Promise<{ videoUrl: string; analysis: AnalysisResult }> {
   const formData = new FormData();
   formData.append('video', file);
@@ -19,6 +21,10 @@ export async function processVideoRequest(
   formData.append('trim', JSON.stringify(trim));
   formData.append('voiceId', voiceId);
   formData.append('userId', userId);
+  
+  if (appDescription) {
+    formData.append('appDescription', appDescription);
+  }
 
   // Initial status update (App.tsx might already set this, but safe to reinforce)
   onStatusUpdate('analyzing');
