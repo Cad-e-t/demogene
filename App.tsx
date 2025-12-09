@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { Session } from '@supabase/supabase-js';
@@ -11,7 +10,7 @@ import { VideoModal } from './components/VideoModal';
 
 import { CropData, TrimData, VoiceOption, VideoProject } from './types';
 import { VOICES } from './constants';
-import { processVideoRequest, createCheckoutSession } from './api';
+import { processVideoRequest, createCheckoutSession } from './frontend-api';
 import { DEFAULT_SCRIPT_RULES, DEFAULT_TTS_STYLE } from './scriptStyles';
 
 const XIcon = ({ className }: { className?: string }) => (
