@@ -224,11 +224,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             <textarea
                                 className="w-full bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
                                 rows={3}
-                                placeholder="e.g. The database of verified startup revenues..."
+                                placeholder="Your-App-Name is a platform that..."
                                 value={appDescription}
                                 onChange={(e) => setAppDescription(e.target.value)}
                             />
-                            <p className="text-xs text-gray-500 mt-1">Briefly explain what your app does to help AI write the script.</p>
+                            <p className="text-xs text-gray-500 mt-1">Please include the name of your application so AI can use it in the script.</p>
                         </div>
                     )}
 
