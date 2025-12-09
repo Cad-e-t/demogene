@@ -26,7 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, h
         <aside className="fixed top-0 left-0 bottom-0 w-16 bg-gray-900 border-r border-gray-800 flex flex-col items-center z-50">
              <div className="h-16 w-full flex items-center justify-center border-b border-gray-800 mb-4">
                 <img 
-                    src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/Generated%20Image%20December%2007,%202025%20-%201_26PM%20(1)%20-%20Edited.png" 
+                    src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/Generated%20Image%20December%2009,%202025%20-%2010_52AM.png" 
                     alt="DemoGen AI Logo" 
                     className="w-10 h-10 rounded-lg shadow-lg shadow-indigo-500/20 object-cover" 
                 />
