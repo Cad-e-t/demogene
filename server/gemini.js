@@ -3,7 +3,8 @@ import { MOCK_ANALYSIS_RESULT, MOCK_AUDIO_URL } from "./mocks.js";
 
 // Set this to false for real production use, or use ENV variable
 const TEST_MODE = process.env.TEST_MODE === 'true'; 
-const MODEL_NAME = "gemini-3-pro-preview";
+const MODEL_NAME = process.env.GEMINI_MODEL_NAME || "gemini-2.5-pro";
+const TTS_MODEL_NAME = process.env.GEMINI_TTS_MODEL_NAME || "gemini-2.5-flash-preview-tts";
 
 export async function analyzeVideo(fileBase64, mimeType, prompt) {
   if (TEST_MODE) {
@@ -46,7 +47,7 @@ export async function analyzeVideo(fileBase64, mimeType, prompt) {
   }
 }
 
-export async function generateVoiceover(scriptLines, voiceName) {
+export async function generateVoiceover(scriptLines, voiceName, stylePrompt) {
     // 1. Filter valid lines
     const linesToSpeak = scriptLines ? scriptLines.filter(l => l.narration && l.narration.trim() !== "") : [];
     
@@ -60,12 +61,16 @@ export async function generateVoiceover(scriptLines, voiceName) {
     // 2. Join all narrations into one text block
     const fullText = linesToSpeak.map(l => l.narration).join(" ");
     
+    // Prefix style prompt if provided
+    const textToSpeak = stylePrompt ? `${stylePrompt}: ${fullText}` : fullText;
+    
     try {
         console.log("Generating single audio file for text length:", fullText.length);
+        if (stylePrompt) console.log("Using style prompt:", stylePrompt);
         
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash-preview-tts",
-            contents: [{ parts: [{ text: fullText }] }],
+            model: TTS_MODEL_NAME,
+            contents: [{ parts: [{ text: textToSpeak }] }],
             config: {
                 responseModalities: [Modality.AUDIO],
                 speechConfig: {

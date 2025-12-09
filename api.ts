@@ -1,5 +1,4 @@
 
-
 import { AnalysisResult, CropData, ProcessingStatus, TrimData } from './types';
 import { supabase } from './supabaseClient';
 
@@ -13,7 +12,9 @@ export async function processVideoRequest(
   voiceId: string,
   userId: string,
   onStatusUpdate: (status: ProcessingStatus['step']) => void,
-  appDescription?: string
+  appDescription?: string,
+  scriptRules?: string,
+  stylePrompt?: string
 ): Promise<{ videoUrl: string; analysis: AnalysisResult }> {
   const formData = new FormData();
   formData.append('video', file);
@@ -24,6 +25,14 @@ export async function processVideoRequest(
   
   if (appDescription) {
     formData.append('appDescription', appDescription);
+  }
+
+  if (scriptRules) {
+    formData.append('scriptRules', scriptRules);
+  }
+
+  if (stylePrompt) {
+    formData.append('stylePrompt', stylePrompt);
   }
 
   // Initial status update (App.tsx might already set this, but safe to reinforce)

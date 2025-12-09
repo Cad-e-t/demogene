@@ -12,6 +12,7 @@ import { VideoModal } from './components/VideoModal';
 import { CropData, TrimData, VoiceOption, VideoProject } from './types';
 import { VOICES } from './constants';
 import { processVideoRequest, createCheckoutSession } from './api';
+import { DEFAULT_SCRIPT_RULES, DEFAULT_TTS_STYLE } from './scriptStyles';
 
 const XIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
@@ -186,7 +187,9 @@ export default function App() {
               (step) => {
                   setVideos(prev => prev.map(v => v.id === tempId ? { ...v, processingStep: step } : v));
               },
-              appDescription
+              appDescription,
+              DEFAULT_SCRIPT_RULES,
+              DEFAULT_TTS_STYLE
           );
           
           // Success

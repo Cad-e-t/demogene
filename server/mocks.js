@@ -1,116 +1,109 @@
 export const MOCK_AUDIO_URL = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/raw-screen-upload/download%20(1).wav";
 
 export const MOCK_ANALYSIS_RESULT = {
-"background_gradient": {
-"start_color": "#1F2329",
-"end_color": "#000000",
-"style": "radial"
-},
-"segments": [
-{
-"start_time": "00:00.000",
-"end_time": "00:08.500",
-"purpose": "Search for a company",
-"mouse_activity": {
-"timestamp": "00:04.200",
-"coordinates": {
-"x": 0.38,
-"y": 0.42
-},
-"hold_duration": 3.0
-}
-},
-{
-"start_time": "00:08.500",
-"end_time": "00:23.000",
-"purpose": "View company dashboard",
-"mouse_activity": {
-"timestamp": "00:08.800",
-"coordinates": {
-"x": 0.38,
-"y": 0.52
-},
-"hold_duration": 2.0
-}
-},
-{
-"start_time": "00:23.000",
-"end_time": "00:29.500",
-"purpose": "Initiate adding a startup",
-"mouse_activity": {
-"timestamp": "00:24.100",
-"coordinates": {
-"x": 0.62,
-"y": 0.41
-},
-"hold_duration": 1.0
-}
-},
-{
-"start_time": "00:29.500",
-"end_time": "00:46.500",
-"purpose": "Enter API credentials",
-"mouse_activity": {
-"timestamp": "00:30.200",
-"coordinates": {
-"x": 0.5,
-"y": 0.4
-},
-"hold_duration": 14.0
-}
-},
-{
-"start_time": "00:46.500",
-"end_time": "01:00.000",
-"purpose": "Submit and customize details",
-"mouse_activity": {
-"timestamp": "00:46.800",
-"coordinates": {
-"x": 0.6,
-"y": 0.75
-},
-"hold_duration": 0.0
-}
-},
-{
-"start_time": "01:00.000",
-"end_time": "01:12.000",
-"purpose": "View final verified listing",
-"mouse_activity": null
-}
-],
-"script": {
-"script_lines": [
-{
-"segment_index": 0,
-"type": "hook",
-"narration": "TrustMRR is a database of verified startup revenues that lets you instantly search for real financial data."
-},
-{
-"segment_index": 1,
-"type": "body",
-"narration": "Analyze comprehensive dashboards featuring MRR, growth trends, and analytics to make data-driven decisions."
-},
-{
-"segment_index": 2,
-"type": "body",
-"narration": "To list your own project, simply start by connecting your preferred payment provider."
-},
-{
-"segment_index": 3,
-"type": "body",
-"narration": "Securely verify your revenue by inputting your read-only API credentials and claiming your unique handle."
-},
-{
-"segment_index": 4,
-"type": "body",
-"narration": "Once verified, you can customize your public listing with your logo and project description."
-},
-{
-"segment_index": 5,
-"type": "cta",
-"narration": "Join the community today and let your verified metrics build trust for you."
-}
-]
-}
+  "background_gradient": {
+    "start_color": "#1A1D2A",
+    "end_color": "#2C2A4A",
+    "style": "radial"
+  },
+  "segments": [
+    {
+      "start_time": "00:00.000",
+      "end_time": "00:08.730",
+      "purpose": "User searches for a specific startup.",
+      "mouse_activity": {
+        "timestamp": "00:04.760",
+        "coordinates": {
+          "x": 0.43,
+          "y": 0.46
+        },
+        "hold_duration": 3.5
+      }
+    },
+    {
+      "start_time": "00:08.730",
+      "end_time": "00:20.610",
+      "purpose": "User reviews the startup's revenue dashboard.",
+      "mouse_activity": null
+    },
+    {
+      "start_time": "00:20.610",
+      "end_time": "00:24.030",
+      "purpose": "User navigates to the startup's external website.",
+      "mouse_activity": {
+        "timestamp": "00:20.610",
+        "coordinates": {
+          "x": 0.8,
+          "y": 0.19
+        },
+        "hold_duration": 1.0
+      }
+    },
+    {
+      "start_time": "00:24.030",
+      "end_time": "00:54.400",
+      "purpose": "User initiates adding a new startup to the database.",
+      "mouse_activity": {
+        "timestamp": "00:24.890",
+        "coordinates": {
+          "x": 0.64,
+          "y": 0.46
+        },
+        "hold_duration": 24.0
+      }
+    },
+    {
+      "start_time": "00:54.400",
+      "end_time": "01:00.040",
+      "purpose": "User customizes the new startup's public profile.",
+      "mouse_activity": {
+        "timestamp": "00:58.850",
+        "coordinates": {
+          "x": 0.69,
+          "y": 0.89
+        },
+        "hold_duration": 1.2
+      }
+    },
+    {
+      "start_time": "01:00.040",
+      "end_time": "01:11.750",
+      "purpose": "Observing the final data synchronization and page generation.",
+      "mouse_activity": null
+    }
+  ],
+  "script": {
+    "script_lines": [
+      {
+        "segment_index": 0,
+        "type": "hook",
+        "narration": "Access a transparent database of verified startup revenues to analyze real-world performance metrics."
+      },
+      {
+        "segment_index": 1,
+        "type": "body",
+        "narration": "Review verified total revenue, monthly recurring revenue, and historical growth trends to assess performance."
+      },
+      {
+        "segment_index": 2,
+        "type": "body",
+        "narration": "Seamlessly navigate directly to the startup's website for further research."
+      },
+      {
+        "segment_index": 3,
+        "type": "body",
+        "narration": "Securely connect your payment provider to automatically list your startup and verify its revenue."
+      },
+      {
+        "segment_index": 4,
+        "type": "body",
+        "narration": "Customize your public profile with your company logo, description, and website to build your brand presence."
+      },
+      {
+        "segment_index": 5,
+        "type": "cta",
+        "narration": "Build investor trust and attract acquisition opportunities by showcasing your verified revenue on TrustMRR."
+      }
+    ]
+  }
 };

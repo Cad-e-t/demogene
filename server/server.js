@@ -1,3 +1,4 @@
+
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -65,7 +66,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
   try {
     const file = req.file;
     // Parse body fields
-    let { crop, trim, voiceId, userId, appDescription } = req.body;
+    let { crop, trim, voiceId, userId, appDescription, scriptRules, stylePrompt } = req.body;
     
     if (!userId) {
         return res.status(401).send('Unauthorized: Missing User ID');
@@ -165,7 +166,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
         prompt = VIDEO_ANALYSIS_NO_SCRIPT_PROMPT;
     } else {
         const desc = appDescription || "A software application";
-        prompt = getVideoAnalysisPrompt(desc);
+        prompt = getVideoAnalysisPrompt(desc, scriptRules);
     }
 
     const analysis = await analyzeVideo(cleanFileBase64, 'video/mp4', prompt); 
@@ -184,7 +185,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
         console.log('--- Generating Voiceover (Single File) ---');
         
         // Generates one big buffer and returns the specific lines used
-        const { audioBuffer, linesToSpeak } = await generateVoiceover(analysis.script.script_lines, voiceId);
+        const { audioBuffer, linesToSpeak } = await generateVoiceover(analysis.script.script_lines, voiceId, stylePrompt);
         
         if (audioBuffer) {
             // 1. Save Raw PCM data from Gemini (usually s16le, 24kHz, 1ch)
