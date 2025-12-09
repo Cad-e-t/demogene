@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { VideoCropper } from './VideoCropper';
 import { CropData, TrimData, VoiceOption } from '../types';
@@ -113,7 +112,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                             <span className="font-semibold text-white">Less than the price of a coffee.</span>
                                         </p>
                                         <div className="inline-block bg-gray-900/80 backdrop-blur border border-indigo-500/50 rounded-xl p-6 hover:border-indigo-400 transition cursor-pointer transform hover:scale-105" onClick={onPurchase}>
-                                            <div className="text-3xl font-bold text-white mb-1">$3.00</div>
+                                            <div className="text-3xl font-bold text-white mb-1">$4.00</div>
                                             <div className="text-indigo-300 font-medium">for 10 Demos</div>
                                             <button className="mt-4 w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold">Purchase Now</button>
                                         </div>
@@ -256,7 +255,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 {profile && profile.credits < 1 && (
                     <div className="mt-6 bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-indigo-500/30 rounded-xl p-6 text-center">
                             <h4 className="font-bold text-white mb-2">Need Credits?</h4>
-                            <p className="text-sm text-gray-400 mb-4">$3 for 10 Demos</p>
+                            <p className="text-sm text-gray-400 mb-4">$4 for 10 Demos</p>
                             <button onClick={onPurchase} className="w-full py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition">Purchase Pack</button>
                     </div>
                 )}

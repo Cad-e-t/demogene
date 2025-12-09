@@ -140,11 +140,11 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
 
         if (!dodo) throw new Error("Dodo client not initialized");
 
-        // Logic for "10 Demos for $3"
+        // Logic for "10 Demos for $4"
         // In real DodoPayments, you create a product in their dashboard and use that ID.
         // Here we simulate or use a dynamic/real ID.
-        let amount = 300; // $3.00 USD (in cents)
-        let credits = 10;
+        let amount = 400; // $4.00 USD (in cents)
+        let credits = parseInt(process.env.CREDITS_PER_PACK || '10');
         let finalProductId = productId;
 
         // Fetch profile to see if returning customer
