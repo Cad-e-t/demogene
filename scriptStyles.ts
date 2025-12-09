@@ -44,4 +44,4 @@ Output format:
 ]
 }`;
 
-export const DEFAULT_TTS_STYLE = "Read aloud in a warm welcoming tone.";
+export const DEFAULT_TTS_STYLE = "Read aloud in in a clear, confident tone.";
