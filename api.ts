@@ -1,10 +1,8 @@
-
-
 import { AnalysisResult, CropData, ProcessingStatus, TrimData } from './types';
 import { supabase } from './supabaseClient';
 
-const API_BASE_URL = 'http://localhost:8000';
-const PAYMENT_API_URL = 'http://localhost:8087';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
+const PAYMENT_API_URL = process.env.PAYMENT_API_URL || 'http://localhost:8087';
 
 export async function processVideoRequest(
   file: File,
