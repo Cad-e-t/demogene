@@ -24,7 +24,7 @@ interface UserProfile {
     credits: number;
 }
 
-const PRODUCT_10_DEMOS = "pdt_rY1vFirO50yP5g1VyjfT6"; 
+const PRODUCT_10_DEMOS = "pdt_2LwDVRweVv9iX22U5RDSW"; 
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
