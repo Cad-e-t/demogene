@@ -127,7 +127,7 @@ export default function App() {
       setErrorMessage(null);
       setCrop({ x: 0, y: 0, width: 1, height: 1 });
       setTrim({ start: 0, end: 0 });
-      setAppDescription("Your-App-Name is a ...");
+      setAppDescription("");
       
       if (!session) setShowAuthModal(true);
     }
