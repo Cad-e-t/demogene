@@ -1,4 +1,5 @@
 
+
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -28,7 +29,7 @@ app.use(express.json());
 // Use standard CORS package
 app.use(cors({
     origin: '*', // Allow any origin
-    exposedHeaders: ['X-Analysis-Result'] // Required for the frontend to read the analysis result
+    exposedHeaders: ['X-Video-Id'] // UPDATED: Expose ID instead of Result to avoid header overflow/char issues
 }));
 
 // Increase timeout for long processing
@@ -268,7 +269,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     // =======================================================
     // 7. Save to Database
     // =======================================================
-    const { error: dbError } = await supabase
+    const { data: insertedVideo, error: dbError } = await supabase
         .from('videos')
         .insert({
             user_id: userId, // Assign to the correct user
@@ -280,7 +281,9 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
             crop_data: crop,
             trim_data: trim,
             analysis_result: analysis
-        });
+        })
+        .select('id')
+        .single();
 
     if (dbError) console.error("Database Insert Error:", dbError);
 
@@ -298,7 +301,10 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     // =======================================================
     // 9. Return Result
     // =======================================================
-    res.setHeader('X-Analysis-Result', JSON.stringify(analysis));
+    // Pass Video ID in header so frontend can fetch analysis from DB, avoiding header char limits
+    if (insertedVideo && insertedVideo.id) {
+        res.setHeader('X-Video-Id', insertedVideo.id);
+    }
     res.setHeader('Content-Type', 'video/mp4');
     
     const fileStream = fs.createReadStream(outputPath);

@@ -1,4 +1,5 @@
 
+
 import { AnalysisResult, CropData, ProcessingStatus, TrimData } from './types';
 import { supabase } from './supabaseClient';
 
@@ -58,14 +59,28 @@ export async function processVideoRequest(
         throw new Error(errMessage);
     }
 
-    const analysisHeader = response.headers.get('X-Analysis-Result');
-    if (!analysisHeader) {
-      throw new Error('Missing analysis result header from server');
+    // Retrieve Video ID from header instead of potentially massive analysis JSON
+    const videoId = response.headers.get('X-Video-Id');
+    if (!videoId) {
+      throw new Error('Missing video ID header from server');
     }
     
-    const analysis: AnalysisResult = JSON.parse(analysisHeader);
+    // Get the video file blob
     const blob = await response.blob();
     const videoUrl = URL.createObjectURL(blob);
+
+    // Fetch the full analysis from the database to avoid header size/character limits
+    const { data: videoRecord, error: dbError } = await supabase
+        .from('videos')
+        .select('analysis_result')
+        .eq('id', videoId)
+        .single();
+
+    if (dbError || !videoRecord) {
+        throw new Error('Failed to retrieve analysis results from database');
+    }
+
+    const analysis: AnalysisResult = videoRecord.analysis_result as AnalysisResult;
 
     onStatusUpdate('complete');
     return { videoUrl, analysis };
