@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 
 interface SidebarProps {
     currentView: 'home' | 'videos';
@@ -15,40 +14,101 @@ const SidebarIcon = ({ active, onClick, label, path }: any) => (
     >
         {path}
         {active && (
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 bg-white rounded-r"></div>
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 bg-white rounded-r hidden md:block"></div>
         )}
     </button>
 );
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, handleLogout }) => {
-    return (
-        <aside className="fixed top-0 left-0 bottom-0 w-14 bg-gray-950 border-r border-gray-800 flex flex-col items-center z-50 pt-4">
-             {/* Logo Placeholder */}
-             <div className="mb-6 w-8 h-8 flex items-center justify-center bg-white/5 rounded-full text-[10px] font-bold text-gray-300">
-                 DG
-             </div>
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-             {/* Navigation Icons - Top Aligned */}
-             <div className="w-full flex flex-col gap-1">
-                <SidebarIcon 
-                    active={currentView === 'home'} 
-                    onClick={() => setCurrentView('home')} 
-                    label="Home"
-                    path={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>}
-                />
-                <SidebarIcon 
-                    active={currentView === 'videos'} 
-                    onClick={() => setCurrentView('videos')} 
-                    label="Videos"
-                    path={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>}
-                />
-             </div>
-             
-             <div className="mt-auto mb-4 w-full flex justify-center">
-                 <button onClick={handleLogout} className="text-gray-600 hover:text-white p-2 transition-colors">
-                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                 </button>
-             </div>
-        </aside>
+    const handleMobileNav = (view: 'home' | 'videos') => {
+        setCurrentView(view);
+        setIsMobileMenuOpen(false);
+    };
+
+    const handleMobileLogout = () => {
+        handleLogout();
+        setIsMobileMenuOpen(false);
+    };
+
+    return (
+        <>
+            {/* --- DESKTOP SIDEBAR (Visible md+) --- */}
+            <aside className="hidden md:flex fixed top-0 left-0 bottom-0 w-14 bg-gray-950 border-r border-gray-800 flex-col items-center z-50 pt-4">
+                 {/* Logo */}
+                 <div className="mb-6 w-8 h-8 flex items-center justify-center bg-white/5 rounded-full text-[10px] font-bold text-gray-300 select-none">
+                     DG
+                 </div>
+
+                 {/* Icons */}
+                 <div className="w-full flex flex-col gap-1">
+                    <SidebarIcon 
+                        active={currentView === 'home'} 
+                        onClick={() => setCurrentView('home')} 
+                        label="Home"
+                        path={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>}
+                    />
+                    <SidebarIcon 
+                        active={currentView === 'videos'} 
+                        onClick={() => setCurrentView('videos')} 
+                        label="Videos"
+                        path={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>}
+                    />
+                 </div>
+                 
+                 <div className="mt-auto mb-4 w-full flex justify-center">
+                     <button onClick={handleLogout} className="text-gray-600 hover:text-white p-2 transition-colors">
+                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                     </button>
+                 </div>
+            </aside>
+
+            {/* --- MOBILE TOPBAR (Visible < md) --- */}
+            <nav className="md:hidden fixed top-0 left-0 right-0 h-14 bg-gray-950 border-b border-gray-800 flex items-center justify-between px-4 z-50">
+                <div className="flex items-center gap-2">
+                     <div className="w-7 h-7 flex items-center justify-center bg-white/5 rounded-full text-[10px] font-bold text-gray-300">
+                         DG
+                     </div>
+                     <span className="font-bold text-sm text-gray-300">DemoGen</span>
+                </div>
+
+                <button 
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    className="p-2 text-gray-400 hover:text-white"
+                >
+                    {isMobileMenuOpen ? (
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    ) : (
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    )}
+                </button>
+
+                {/* Mobile Dropdown Menu */}
+                {isMobileMenuOpen && (
+                    <div className="absolute top-14 left-0 right-0 bg-gray-900 border-b border-gray-800 shadow-2xl flex flex-col p-4 gap-2 animate-fade-in">
+                        <button 
+                            onClick={() => handleMobileNav('home')}
+                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium ${currentView === 'home' ? 'bg-indigo-500/10 text-indigo-400' : 'text-gray-400 hover:bg-gray-800'}`}
+                        >
+                            Create New Demo
+                        </button>
+                        <button 
+                            onClick={() => handleMobileNav('videos')}
+                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium ${currentView === 'videos' ? 'bg-indigo-500/10 text-indigo-400' : 'text-gray-400 hover:bg-gray-800'}`}
+                        >
+                            My Videos
+                        </button>
+                        <div className="h-px bg-gray-800 my-1"></div>
+                        <button 
+                            onClick={handleMobileLogout}
+                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10"
+                        >
+                            Sign Out
+                        </button>
+                    </div>
+                )}
+            </nav>
+        </>
     );
 };

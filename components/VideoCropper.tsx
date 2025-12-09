@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { CropData, TrimData } from '../types';
 
@@ -15,6 +14,7 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({ videoUrl, onCropChan
   
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   
   // Crop State (Normalized 0-1)
   const [crop, setCrop] = useState<CropData>({ x: 0.1, y: 0.1, width: 0.8, height: 0.8 });
@@ -38,11 +38,41 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({ videoUrl, onCropChan
   const handleTimeUpdate = () => {
     if (videoRef.current) {
       setCurrentTime(videoRef.current.currentTime);
-      // Loop trim preview
-      if (videoRef.current.currentTime >= trim.end) {
-        videoRef.current.currentTime = trim.start;
+      
+      // Loop Logic
+      if (videoRef.current.currentTime >= trim.end && trim.end > 0) {
+        // If playing, loop back to start
+        if (isPlaying) {
+             videoRef.current.currentTime = trim.start;
+             videoRef.current.play();
+        } else {
+             // If not playing (scrubbing), just clamp
+             // videoRef.current.currentTime = trim.end; // This feels sticky when scrubbing
+        }
       }
     }
+  };
+
+  // Play/Pause Toggle
+  const togglePlay = useCallback(() => {
+      if (!videoRef.current) return;
+      
+      if (videoRef.current.paused) {
+          // If at end, reset to start before playing
+          if (videoRef.current.currentTime >= trim.end) {
+              videoRef.current.currentTime = trim.start;
+          }
+          videoRef.current.play().then(() => setIsPlaying(true)).catch(e => console.error(e));
+      } else {
+          videoRef.current.pause();
+          setIsPlaying(false);
+      }
+  }, [trim]);
+
+  // Handle Video Ended (Natural End)
+  const handleEnded = () => {
+      setIsPlaying(false);
+      if (videoRef.current) videoRef.current.currentTime = trim.start;
   };
 
   // --- Crop Logic ---
@@ -81,7 +111,7 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({ videoUrl, onCropChan
         const minSize = 0.1;
 
         if (isDraggingCrop === 'move') {
-           // Move logic omitted for now to keep it simple, same as before
+           // Move logic omitted
         } else {
             if (isDraggingCrop.includes('W')) {
                 const newW = right - clampedX;
@@ -165,32 +195,38 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({ videoUrl, onCropChan
   return (
     <div className="flex flex-col w-full h-full">
       
-      {/* Video Canvas Area */}
-      <div className="flex-1 bg-black/5 overflow-hidden select-none relative flex items-center justify-center">
-        {/* We keep aspect-video only as a fallback or user preference, 
-            but for flat layout it's better to fit logic. 
-            However, maintaining old crop logic relies on containerRef bounding box.
-            We'll make the container fit the video. */}
-        <div className="relative h-full w-full flex items-center justify-center p-4" ref={containerRef}>
+      {/* 
+         Video Canvas Area 
+         - Uses flex center to position.
+         - Wrapper div is relative and inline-flex to shrink-wrap the video.
+         - Video has max constraints.
+         - Overlay is absolute to wrapper.
+      */}
+      <div className="flex-1 bg-black/5 overflow-hidden select-none flex items-center justify-center p-4">
+        
+        {/* Constraint Wrapper: This div matches the Video's rendered size exactly because Video is block and Wrapper is inline-block/relative */}
+        <div 
+            className="relative shadow-2xl bg-black inline-flex items-center justify-center"
+            ref={containerRef}
+            style={{ maxHeight: '100%', maxWidth: '100%' }}
+        >
             <video 
-            ref={videoRef}
-            src={videoUrl}
-            className="max-w-full max-h-full object-contain pointer-events-none"
-            onLoadedMetadata={handleLoadedMetadata}
-            onTimeUpdate={handleTimeUpdate}
-            muted
-            playsInline
+                ref={videoRef}
+                src={videoUrl}
+                className="max-w-full max-h-full object-contain pointer-events-none block"
+                // Important: Limit max height to viewport calculation if needed, but flex parent handles it mostly.
+                // We add a specific style to ensure it doesn't push the controls off screen on small mobile devices.
+                style={{ maxHeight: 'calc(100vh - 180px)' }}
+                onLoadedMetadata={handleLoadedMetadata}
+                onTimeUpdate={handleTimeUpdate}
+                onEnded={handleEnded}
+                // Removed 'muted' prop to allow sound if desired, but user can add later. Sticking to muted for crop/trim usually.
+                muted 
+                playsInline
             />
 
-            {/* Crop Overlay */}
-            {/* Note: This overlay is absolute to the container. If video is smaller than container due to aspect ratio, 
-                this overlay might go over empty space. 
-                Optimally, we should match overlay to video dimensions, but that requires complex JS.
-                For now, relying on 'max-w-full' often mitigates huge gaps if container is tight.
-            */}
-            <div 
-            className="absolute top-0 left-0 w-full h-full pointer-events-none"
-            >
+            {/* Crop Overlay - Absolute to the Wrapper */}
+            <div className="absolute inset-0 pointer-events-none">
                {/* Actual crop box */}
                 <div 
                     className="absolute border border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.8)] pointer-events-auto"
@@ -209,36 +245,61 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({ videoUrl, onCropChan
                         <div className="border-b border-white w-full row-start-3 col-span-3 absolute top-0"></div>
                     </div>
 
-                    {/* Resize Handles - Minimal Dots */}
-                    <div onMouseDown={(e) => handleCropMouseDown('NW', e)} className="absolute top-0 left-0 w-2 h-2 -translate-x-1/2 -translate-y-1/2 bg-white cursor-nw-resize z-20" />
-                    <div onMouseDown={(e) => handleCropMouseDown('NE', e)} className="absolute top-0 right-0 w-2 h-2 translate-x-1/2 -translate-y-1/2 bg-white cursor-ne-resize z-20" />
-                    <div onMouseDown={(e) => handleCropMouseDown('SW', e)} className="absolute bottom-0 left-0 w-2 h-2 -translate-x-1/2 translate-y-1/2 bg-white cursor-sw-resize z-20" />
-                    <div onMouseDown={(e) => handleCropMouseDown('SE', e)} className="absolute bottom-0 right-0 w-2 h-2 translate-x-1/2 translate-y-1/2 bg-white cursor-se-resize z-20" />
+                    {/* Resize Handles */}
+                    <div onMouseDown={(e) => handleCropMouseDown('NW', e)} className="absolute top-0 left-0 w-3 h-3 -translate-x-1/2 -translate-y-1/2 bg-white cursor-nw-resize z-20" />
+                    <div onMouseDown={(e) => handleCropMouseDown('NE', e)} className="absolute top-0 right-0 w-3 h-3 translate-x-1/2 -translate-y-1/2 bg-white cursor-ne-resize z-20" />
+                    <div onMouseDown={(e) => handleCropMouseDown('SW', e)} className="absolute bottom-0 left-0 w-3 h-3 -translate-x-1/2 translate-y-1/2 bg-white cursor-sw-resize z-20" />
+                    <div onMouseDown={(e) => handleCropMouseDown('SE', e)} className="absolute bottom-0 right-0 w-3 h-3 translate-x-1/2 translate-y-1/2 bg-white cursor-se-resize z-20" />
                     
-                    <div onMouseDown={(e) => handleCropMouseDown('N', e)} className="absolute top-0 left-1/2 w-4 h-1 -translate-x-1/2 -translate-y-1/2 bg-white cursor-n-resize z-10" />
-                    <div onMouseDown={(e) => handleCropMouseDown('S', e)} className="absolute bottom-0 left-1/2 w-4 h-1 -translate-x-1/2 translate-y-1/2 bg-white cursor-s-resize z-10" />
-                    <div onMouseDown={(e) => handleCropMouseDown('W', e)} className="absolute left-0 top-1/2 h-4 w-1 -translate-x-1/2 -translate-y-1/2 bg-white cursor-w-resize z-10" />
-                    <div onMouseDown={(e) => handleCropMouseDown('E', e)} className="absolute right-0 top-1/2 h-4 w-1 translate-x-1/2 -translate-y-1/2 bg-white cursor-e-resize z-10" />
+                    <div onMouseDown={(e) => handleCropMouseDown('N', e)} className="absolute top-0 left-1/2 w-8 h-1.5 -translate-x-1/2 -translate-y-1/2 bg-white cursor-n-resize z-10 rounded-full" />
+                    <div onMouseDown={(e) => handleCropMouseDown('S', e)} className="absolute bottom-0 left-1/2 w-8 h-1.5 -translate-x-1/2 translate-y-1/2 bg-white cursor-s-resize z-10 rounded-full" />
+                    <div onMouseDown={(e) => handleCropMouseDown('W', e)} className="absolute left-0 top-1/2 h-8 w-1.5 -translate-x-1/2 -translate-y-1/2 bg-white cursor-w-resize z-10 rounded-full" />
+                    <div onMouseDown={(e) => handleCropMouseDown('E', e)} className="absolute right-0 top-1/2 h-8 w-1.5 translate-x-1/2 -translate-y-1/2 bg-white cursor-e-resize z-10 rounded-full" />
                 </div>
             </div>
         </div>
       </div>
 
-      {/* Trimming Controls */}
-      <div className="select-none bg-gray-950 border-t border-gray-800 p-4">
+      {/* Trimming & Playback Controls */}
+      <div className="select-none bg-gray-950 border-t border-gray-800 p-4 pb-6 md:pb-4 flex flex-col gap-3 z-10 relative">
         
-        {/* Time Info */}
-        <div className="flex justify-between text-xs font-mono text-gray-500 mb-2">
-            <div><span className="text-gray-400">{trim.start.toFixed(1)}s</span></div>
-            <div><span className="text-white">{currentTime.toFixed(1)}s</span></div>
-            <div><span className="text-gray-400">{trim.end.toFixed(1)}s</span></div>
+        {/* Controls Row */}
+        <div className="flex items-center justify-between">
+            <button 
+                onClick={togglePlay}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-500 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                title={isPlaying ? "Pause" : "Play Loop"}
+            >
+                {isPlaying ? (
+                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+                ) : (
+                     <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                )}
+            </button>
+
+            {/* Time Info */}
+            <div className="flex gap-4 text-xs font-mono">
+                <div className="flex flex-col items-center">
+                    <span className="text-gray-500 text-[10px] uppercase">Start</span>
+                    <span className="text-gray-300">{trim.start.toFixed(1)}s</span>
+                </div>
+                <div className="flex flex-col items-center">
+                    <span className="text-gray-500 text-[10px] uppercase">Current</span>
+                    <span className="text-white font-bold">{currentTime.toFixed(1)}s</span>
+                </div>
+                <div className="flex flex-col items-center">
+                    <span className="text-gray-500 text-[10px] uppercase">End</span>
+                    <span className="text-gray-300">{trim.end.toFixed(1)}s</span>
+                </div>
+            </div>
         </div>
 
         {/* Timeline Container */}
         <div 
             ref={timelineRef}
-            className="relative h-8 w-full cursor-pointer group"
+            className="relative h-10 w-full cursor-pointer group flex items-center"
             onClick={(e) => {
+                // Seek on click
                 if(!isDraggingTrim && videoRef.current && timelineRef.current) {
                     const rect = timelineRef.current.getBoundingClientRect();
                     const pct = (e.clientX - rect.left) / rect.width;
@@ -248,12 +309,27 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({ videoUrl, onCropChan
             }}
         >
             {/* Background Track */}
-            <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-800 -translate-y-1/2" />
+            <div className="absolute left-0 right-0 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                {/* Visual Progress Bar (Background) */}
+                 <div 
+                    className="h-full bg-gray-700" 
+                    style={{ width: currentPct + '%' }}
+                />
+            </div>
 
-            {/* Active Region */}
+            {/* Active Region (Trim Selection) */}
             <div 
-                className="absolute top-1/2 h-1 bg-indigo-500 -translate-y-1/2 pointer-events-none"
+                className="absolute h-1.5 bg-indigo-500/50 pointer-events-none"
                 style={{
+                    left: `${startPct}%`,
+                    width: `${widthPct}%`
+                }}
+            />
+
+            {/* Active Region Border (Top/Bottom visual) */}
+            <div 
+                 className="absolute top-1 bottom-1 border-t-2 border-b-2 border-indigo-500 opacity-30 pointer-events-none"
+                 style={{
                     left: `${startPct}%`,
                     width: `${widthPct}%`
                 }}
@@ -262,22 +338,28 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({ videoUrl, onCropChan
             {/* Left Handle */}
             <div
                 onMouseDown={(e) => handleTrimMouseDown('start', e)}
-                className="absolute top-1/2 w-3 h-4 bg-indigo-500 rounded-sm -translate-y-1/2 cursor-ew-resize z-20 hover:scale-125 transition-transform"
-                style={{ left: `${startPct}%`, transform: 'translate(-50%, -50%)' }}
-            />
+                className="absolute w-4 h-6 bg-indigo-500 rounded-sm cursor-ew-resize z-20 hover:scale-110 transition-transform shadow flex items-center justify-center group/handle"
+                style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
+            >
+                <div className="w-0.5 h-3 bg-white/50"></div>
+            </div>
 
             {/* Right Handle */}
             <div
                 onMouseDown={(e) => handleTrimMouseDown('end', e)}
-                className="absolute top-1/2 w-3 h-4 bg-indigo-500 rounded-sm -translate-y-1/2 cursor-ew-resize z-20 hover:scale-125 transition-transform"
-                style={{ left: `${endPct}%`, transform: 'translate(-50%, -50%)' }}
-            />
+                className="absolute w-4 h-6 bg-indigo-500 rounded-sm cursor-ew-resize z-20 hover:scale-110 transition-transform shadow flex items-center justify-center group/handle"
+                style={{ left: `${endPct}%`, transform: 'translateX(-50%)' }}
+            >
+                 <div className="w-0.5 h-3 bg-white/50"></div>
+            </div>
 
              {/* Playhead */}
              <div 
-                className="absolute top-0 bottom-0 w-px bg-white z-10 pointer-events-none" 
+                className="absolute top-0 bottom-0 w-0.5 bg-white z-10 pointer-events-none shadow-[0_0_10px_rgba(255,255,255,0.5)]" 
                 style={{ left: `${currentPct}%` }}
-            />
+            >
+                 <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45"></div>
+            </div>
         </div>
       </div>
     </div>

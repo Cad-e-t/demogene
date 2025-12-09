@@ -1,5 +1,4 @@
-
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { VideoCropper } from './VideoCropper';
 import { CropData, TrimData, VoiceOption } from '../types';
 import { VOICES } from '../constants';
@@ -52,32 +51,35 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const duration = trim.end - trim.start;
     const isDurationValid = duration <= 90;
 
+    // Mobile Editor State
+    const [mobileTab, setMobileTab] = useState<'preview' | 'settings'>('preview');
+
     // --- LANDING PAGE VIEW (No File Selected) ---
     if (!file) {
         return (
-            <div className="relative w-full min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gray-950">
+            <div className="relative w-full min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gray-950 pb-20 md:pb-0">
                 
                 {/* Background Ambience */}
-                <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[128px] pointer-events-none" />
-                <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-600/5 rounded-full blur-[128px] pointer-events-none" />
+                <div className="absolute top-0 left-1/4 w-[300px] lg:w-[500px] h-[300px] lg:h-[500px] bg-indigo-600/10 rounded-full blur-[80px] lg:blur-[128px] pointer-events-none" />
+                <div className="absolute bottom-0 right-1/4 w-[300px] lg:w-[600px] h-[300px] lg:h-[600px] bg-purple-600/5 rounded-full blur-[80px] lg:blur-[128px] pointer-events-none" />
 
-                <div className="container mx-auto px-6 lg:px-12 relative z-10 grid lg:grid-cols-2 gap-16 items-center min-h-[80vh]">
+                <div className="container mx-auto px-6 lg:px-12 relative z-10 grid lg:grid-cols-2 gap-10 lg:gap-16 items-center min-h-[80vh]">
                     
                     {/* Left: Typography & Action */}
-                    <div className="space-y-8 text-center lg:text-left">
-                        <h1 className="text-5xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1]">
-                            Turn <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Screen Recordings</span> <br/>
-                            Into Polished Walkthrough Demos.
+                    <div className="space-y-6 lg:space-y-8 text-center lg:text-left mt-10 lg:mt-0">
+                        <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1]">
+                            Turn <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Screen Recordings</span> <br className="hidden md:block"/>
+                            Into Polished Demos.
                         </h1>
                         
-                        <p className="text-xl text-gray-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                            Upload a raw footage and get a clean narrated walkthrough that shows how your product works. Easy to share with users, customers, and communities.
+                        <p className="text-base sm:text-lg lg:text-xl text-gray-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                            Upload raw footage and get a clean narrated walkthrough. Perfect for demos, tutorials, and social updates.
                         </p>
                         
                         <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-4">
-                            <label className="group relative cursor-pointer">
+                            <label className="group relative cursor-pointer w-full sm:w-auto">
                                 <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-200"></div>
-                                <div className="relative flex items-center gap-3 px-8 py-4 bg-white text-black rounded-xl hover:bg-gray-100 transition shadow-xl transform active:scale-95">
+                                <div className="relative flex items-center justify-center gap-3 px-8 py-4 bg-white text-black rounded-xl hover:bg-gray-100 transition shadow-xl transform active:scale-95">
                                     <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                     </svg>
@@ -87,20 +89,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             </label>
                             
                             {!session && (
-                                <button onClick={handleLogin} className="flex items-center gap-3 px-8 py-4 rounded-xl font-semibold text-gray-300 hover:text-white border border-transparent hover:border-gray-700 hover:bg-gray-800 transition">
+                                <button onClick={handleLogin} className="flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-gray-300 hover:text-white border border-transparent hover:border-gray-700 hover:bg-gray-800 transition w-full sm:w-auto">
                                     <XIcon className="w-5 h-5" />
                                     <span>Sign in</span>
                                 </button>
                             )}
                         </div>
 
-                         {/* Notification / Payment Success Area */}
+                         {/* Notification */}
                          {showSuccessNotification && (
-                            <div className="mt-8 bg-green-900/20 border border-green-500/30 rounded-xl p-4 flex items-center gap-4 max-w-md mx-auto lg:mx-0 animate-fade-in">
-                                <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center text-green-400">✓</div>
+                            <div className="mt-8 bg-green-900/20 border border-green-500/30 rounded-xl p-4 flex items-center gap-4 max-w-md mx-auto lg:mx-0 animate-fade-in text-left">
+                                <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center text-green-400 shrink-0">✓</div>
                                 <div>
                                     <h3 className="font-bold text-white text-sm">Purchase Successful</h3>
-                                    <p className="text-green-200/80 text-xs">10 credits added to account.</p>
+                                    <p className="text-green-200/80 text-xs">Credits added to account.</p>
                                 </div>
                                 <button onClick={() => setShowSuccessNotification(false)} className="ml-auto text-gray-400 hover:text-white">✕</button>
                             </div>
@@ -137,8 +139,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 {session && profile && profile.credits < 1 && (
                      <div className="w-full bg-gray-900 border-t border-gray-800 py-4 absolute bottom-0 z-20">
                          <div className="container mx-auto px-6 flex items-center justify-between">
-                            <span className="text-sm text-gray-400">You are currently out of credits.</span>
-                            <button onClick={onPurchase} className="text-sm font-bold text-indigo-400 hover:text-indigo-300">
+                            <span className="text-xs sm:text-sm text-gray-400">You are out of credits.</span>
+                            <button onClick={onPurchase} className="text-xs sm:text-sm font-bold text-indigo-400 hover:text-indigo-300">
                                 Get 10 Demos for $4 →
                             </button>
                          </div>
@@ -149,15 +151,46 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
 
     // --- APP EDITOR VIEW (File Selected) ---
-    // Modern Flat Layout
+    // Layout: 
+    // Desktop: Row (Video Left, Settings Right)
+    // Mobile: Column (Header -> Tab Content)
     return (
-        <div className="h-screen w-full flex bg-gray-950 text-gray-300 font-sans overflow-hidden">
+        <div className="h-[calc(100vh-3.5rem)] md:h-screen w-full flex flex-col md:flex-row bg-gray-950 text-gray-300 font-sans overflow-hidden">
              
-             {/* LEFT: Video Canvas Area */}
-             <div className="flex-1 flex flex-col min-w-0 relative">
+             {/* HEADER BAR (Mobile Only) with Tab Switcher */}
+             <div className="md:hidden h-14 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 shrink-0 z-20">
+                 <button 
+                     onClick={onClearFile}
+                     className="text-gray-400 hover:text-white"
+                 >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                 </button>
                  
-                 {/* Flat Toolbar / Header */}
-                 <div className="h-14 border-b border-gray-800 flex items-center justify-between px-6 bg-gray-950 flex-shrink-0">
+                 {/* Mobile Segmented Control */}
+                 <div className="flex bg-gray-950 rounded-lg p-1 border border-gray-800">
+                     <button 
+                        onClick={() => setMobileTab('preview')}
+                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${mobileTab === 'preview' ? 'bg-gray-800 text-white shadow' : 'text-gray-500'}`}
+                     >
+                        Preview
+                     </button>
+                     <button 
+                        onClick={() => setMobileTab('settings')}
+                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${mobileTab === 'settings' ? 'bg-gray-800 text-white shadow' : 'text-gray-500'}`}
+                     >
+                        Settings
+                     </button>
+                 </div>
+
+                 <div className="w-5"></div> {/* Spacer for center alignment */}
+             </div>
+
+             {/* LEFT PANEL: Video Canvas Area */}
+             {/* Hidden on mobile if tab is 'settings' */}
+             <div className={`flex-1 flex flex-col min-w-0 relative ${mobileTab === 'settings' ? 'hidden md:flex' : 'flex'}`}>
+                 
+                 {/* Desktop Toolbar */}
+                 <div className="hidden md:flex h-14 border-b border-gray-800 items-center justify-between px-6 bg-gray-950 flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <button 
                             onClick={onClearFile}
@@ -168,14 +201,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         </button>
                         <span className="text-sm font-medium text-white truncate max-w-md">{file?.name}</span>
                     </div>
-                    {/* Status/Duration Indicator */}
                     <div className="text-xs font-mono text-gray-500">
                         {duration.toFixed(1)}s Selected
                     </div>
                  </div>
 
                  {/* Canvas Content */}
-                 <div className="flex-1 bg-black/20 relative flex flex-col">
+                 <div className="flex-1 bg-black/20 relative flex flex-col min-h-0">
                       {videoUrl && (
                           <VideoCropper 
                              videoUrl={videoUrl}
@@ -186,7 +218,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       
                       {/* Floating Warning */}
                       {!isDurationValid && (
-                            <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg z-30">
+                            <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg z-30 whitespace-nowrap">
                                 Max limit 90s. Current: {duration.toFixed(1)}s
                             </div>
                       )}
@@ -194,7 +226,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                  {/* Auth Modal Overlay */}
                  {showAuthModal && (
-                    <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                    <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
                         <h3 className="text-xl font-bold text-white mb-2">Login Required</h3>
                         <p className="text-gray-400 mb-6 text-sm">Sign in to process your video.</p>
                         <button 
@@ -208,8 +240,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                  )}
              </div>
 
-             {/* RIGHT: Settings Sidebar */}
-             <div className="w-80 border-l border-gray-800 bg-gray-950 flex flex-col z-10 flex-shrink-0">
+             {/* RIGHT PANEL: Settings Sidebar */}
+             {/* Hidden on mobile if tab is 'preview' */}
+             <div className={`w-full md:w-80 md:border-l border-gray-800 bg-gray-950 flex flex-col z-10 flex-shrink-0 ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex h-full'}`}>
+                 
                  <div className="h-14 border-b border-gray-800 flex items-center px-6 flex-shrink-0">
                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">Configuration</h3>
                      <div className="ml-auto">
@@ -230,10 +264,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                  <button
                                     key={v.id}
                                     onClick={() => setVoice(v)}
-                                    className={`w-full flex items-center justify-between px-3 py-2 text-sm border transition-all duration-200 ${
+                                    className={`w-full flex items-center justify-between px-3 py-3 md:py-2 text-sm border rounded-lg md:rounded-none transition-all duration-200 ${
                                         voice.id === v.id
                                         ? 'bg-white text-black border-white'
-                                        : 'bg-transparent text-gray-500 border-gray-800 hover:border-gray-700 hover:text-gray-300'
+                                        : 'bg-gray-900 text-gray-400 border-gray-800 hover:border-gray-700 hover:text-gray-300'
                                     }`}
                                  >
                                      <span className="font-medium">{v.name}</span>
@@ -250,7 +284,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                 App Description<span className="text-indigo-400">*</span>
                             </label>
                             <textarea 
-                                className="w-full bg-gray-900 border border-gray-800 p-3 text-sm text-gray-300 focus:border-gray-600 focus:outline-none transition-colors min-h-[120px] resize-none placeholder-gray-700 leading-relaxed"
+                                className="w-full bg-gray-900 border border-gray-800 p-3 text-sm text-gray-300 focus:border-gray-600 focus:outline-none transition-colors min-h-[120px] resize-none placeholder-gray-700 leading-relaxed rounded-md"
                                 placeholder="Supabase is a Postgres..."
                                 value={appDescription}
                                 onChange={(e) => setAppDescription(e.target.value)}
@@ -259,17 +293,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
                      )}
 
                      {errorMessage && (
-                        <div className="text-xs text-red-400 bg-red-950/30 border-l-2 border-red-500 pl-3 py-2">
+                        <div className="text-xs text-red-400 bg-red-950/30 border-l-2 border-red-500 pl-3 py-2 rounded-r">
                             {errorMessage}
                         </div>
                      )}
                  </div>
 
-                 <div className="p-6 border-t border-gray-800 flex-shrink-0 bg-gray-950">
+                 <div className="p-6 border-t border-gray-800 flex-shrink-0 bg-gray-950 pb-safe">
                      <button 
                         onClick={onGenerate}
                         disabled={!session || !isDurationValid}
-                        className="w-full py-3 bg-white text-black text-sm font-bold hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="w-full py-3.5 bg-white text-black text-sm font-bold rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-white/5"
                     >
                         Generate Demo
                     </button>

@@ -220,9 +220,8 @@ export default function App() {
           />
       )}
 
-      {/* Removed the restrictive max-w-7xl mx-auto wrapper here. 
-          Layout control is delegated to child components. */}
-      <main className={`transition-all duration-300 min-h-screen ${session ? 'ml-16' : ''}`}>
+      {/* Responsive Margin: Left on Desktop, Top on Mobile */}
+      <main className={`transition-all duration-300 min-h-screen ${session ? 'md:ml-14 mt-14 md:mt-0' : ''}`}>
           
           <div className={currentView === 'home' ? 'block' : 'hidden'}>
               <HomeView 
