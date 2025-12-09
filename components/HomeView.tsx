@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useRef } from 'react';
 import { VideoCropper } from './VideoCropper';
 import { CropData, TrimData, VoiceOption } from '../types';
 import { VOICES } from '../constants';
@@ -47,7 +48,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     showSuccessNotification, setShowSuccessNotification,
     errorMessage
 }) => {
-
+    
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const duration = trim.end - trim.start;
     const isDurationValid = duration <= 90;
 
@@ -171,26 +173,29 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 
                 {/* Left Column: Editor (Takes more space now) */}
                 <div className="lg:col-span-8 xl:col-span-9 flex flex-col gap-6">
-                    {/* Project Header */}
-                    <div className="flex items-center justify-between bg-gray-900/40 p-4 rounded-xl border border-gray-800 backdrop-blur-sm">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="flex-shrink-0 w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                            </div>
-                            <div className="min-w-0">
-                                <h3 className="font-semibold text-white truncate text-sm">Active Project</h3>
-                                <p className="text-xs text-gray-400 truncate max-w-[300px]">{file.name}</p>
-                            </div>
-                        </div>
-                        <button 
-                            onClick={onClearFile}
-                            className="flex-shrink-0 text-xs font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg transition border border-gray-700 hover:border-gray-600 flex items-center gap-2"
-                        >
-                            Change Video
-                        </button>
-                    </div>
 
                     <div className="flex-1 bg-gray-900/50 border border-gray-800 rounded-2xl p-1 overflow-hidden shadow-2xl relative flex flex-col justify-center">
+                        
+                        {/* Integrated Change Video Button */}
+                        <div className="absolute top-4 right-4 z-20">
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex items-center gap-2 bg-gray-900/80 hover:bg-gray-800 text-gray-200 hover:text-white px-4 py-2 rounded-lg backdrop-blur-md border border-gray-700 hover:border-gray-600 transition-all text-sm font-medium shadow-lg group"
+                            >
+                                <svg className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                Change Video
+                            </button>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept="video/*" 
+                                onChange={onFileChange} 
+                            />
+                        </div>
+
                         {videoUrl && (
                              <div className="w-full h-full overflow-y-auto p-4 flex items-center justify-center">
                                 <VideoCropper 
