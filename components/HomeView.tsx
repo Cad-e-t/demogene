@@ -4,7 +4,6 @@ import { VideoCropper } from './VideoCropper';
 import { CropData, TrimData, VoiceOption } from '../types';
 import { VOICES } from '../constants';
 
-// X (Twitter) Icon Component for Auth Modal
 const XIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
@@ -56,18 +55,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
     // --- LANDING PAGE VIEW (No File Selected) ---
     if (!file) {
         return (
-            <div className="relative w-full min-h-screen flex flex-col items-center justify-center overflow-hidden">
+            <div className="relative w-full min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gray-950">
                 
                 {/* Background Ambience */}
-                <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[128px] pointer-events-none" />
-                <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[128px] pointer-events-none" />
+                <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[128px] pointer-events-none" />
+                <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-600/5 rounded-full blur-[128px] pointer-events-none" />
 
                 <div className="container mx-auto px-6 lg:px-12 relative z-10 grid lg:grid-cols-2 gap-16 items-center min-h-[80vh]">
                     
                     {/* Left: Typography & Action */}
                     <div className="space-y-8 text-center lg:text-left">
-                        {/* Removed Version Badge */}
-                        
                         <h1 className="text-5xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1]">
                             Turn <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Screen Recordings</span> <br/>
                             Into Polished Walkthrough Demos.
@@ -112,46 +109,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                     {/* Right: Abstract UI Visualization */}
                     <div className="relative hidden lg:block">
-                         {/* Abstract Window Frame */}
                          <div className="relative z-10 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl overflow-hidden aspect-video transform rotate-1 hover:rotate-0 transition-transform duration-700">
-                             {/* Fake Browser Header */}
                              <div className="h-10 border-b border-gray-800 bg-gray-900/50 flex items-center px-4 gap-2">
                                  <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
                                  <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
                                  <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
-                                 <div className="ml-4 h-5 w-64 bg-gray-800 rounded-full opacity-50"></div>
                              </div>
-                             {/* Fake Content */}
                              <div className="p-8 grid grid-cols-12 gap-6 h-full bg-gradient-to-br from-gray-900 to-black">
                                  <div className="col-span-4 space-y-4">
                                      <div className="h-8 w-3/4 bg-gray-800 rounded animate-pulse"></div>
                                      <div className="h-4 w-full bg-gray-800/50 rounded"></div>
                                      <div className="h-4 w-5/6 bg-gray-800/50 rounded"></div>
-                                     <div className="h-32 w-full bg-indigo-900/10 border border-indigo-500/20 rounded mt-8 relative overflow-hidden">
-                                          <div className="absolute inset-0 bg-indigo-500/10 animate-pulse"></div>
-                                     </div>
                                  </div>
                                  <div className="col-span-8 bg-gray-800/30 rounded-lg border border-gray-700/50 p-4 relative">
-                                     {/* Fake Video Player UI */}
                                      <div className="absolute inset-0 flex items-center justify-center">
                                          <div className="w-16 h-16 bg-white/10 rounded-full backdrop-blur flex items-center justify-center border border-white/20">
                                             <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[18px] border-l-white border-b-[10px] border-b-transparent ml-1"></div>
                                          </div>
                                      </div>
-                                     {/* Zoom Effect Decoration */}
-                                     <div className="absolute top-10 right-10 w-24 h-24 border-2 border-indigo-500 rounded-lg opacity-50 shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                                         <div className="absolute -bottom-6 -right-6 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded">ZOOM x2.0</div>
-                                     </div>
                                  </div>
                              </div>
                          </div>
-                         
-                         {/* Decorative Elements behind */}
-                         <div className="absolute -inset-4 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl opacity-20 blur-2xl -z-10"></div>
                     </div>
                 </div>
 
-                {/* Footer / Out of Credits Prompt in Landing */}
+                {/* Footer Credits Prompt */}
                 {session && profile && profile.credits < 1 && (
                      <div className="w-full bg-gray-900 border-t border-gray-800 py-4 absolute bottom-0 z-20">
                          <div className="container mx-auto px-6 flex items-center justify-between">
@@ -167,144 +149,137 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
 
     // --- APP EDITOR VIEW (File Selected) ---
+    // Modern Flat Layout
     return (
-        <div className="container max-w-[1920px] mx-auto px-6 lg:px-12 py-8 animate-fade-in">
-            <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-6rem)]">
-                
-                {/* Left Column: Editor (Takes more space now) */}
-                <div className="lg:col-span-8 xl:col-span-9 flex flex-col gap-6">
+        <div className="h-screen w-full flex bg-gray-950 text-gray-300 font-sans overflow-hidden">
+             
+             {/* LEFT: Video Canvas Area */}
+             <div className="flex-1 flex flex-col min-w-0 relative">
+                 
+                 {/* Flat Toolbar / Header */}
+                 <div className="h-14 border-b border-gray-800 flex items-center justify-between px-6 bg-gray-950 flex-shrink-0">
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={onClearFile}
+                            className="text-gray-500 hover:text-white transition-colors p-1"
+                            title="Close Project"
+                        >
+                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        <span className="text-sm font-medium text-white truncate max-w-md">{file?.name}</span>
+                    </div>
+                    {/* Status/Duration Indicator */}
+                    <div className="text-xs font-mono text-gray-500">
+                        {duration.toFixed(1)}s Selected
+                    </div>
+                 </div>
 
-                    <div className="flex-1 bg-gray-900/50 border border-gray-800 rounded-2xl p-1 overflow-hidden shadow-2xl relative flex flex-col justify-center">
-                        
-                        {/* Integrated Change Video Button */}
-                        <div className="absolute top-4 right-4 z-20">
-                            <button 
-                                onClick={() => fileInputRef.current?.click()}
-                                className="flex items-center gap-2 bg-gray-900/80 hover:bg-gray-800 text-gray-200 hover:text-white px-4 py-2 rounded-lg backdrop-blur-md border border-gray-700 hover:border-gray-600 transition-all text-sm font-medium shadow-lg group"
-                            >
-                                <svg className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                </svg>
-                                Change Video
-                            </button>
-                            <input 
-                                type="file" 
-                                ref={fileInputRef} 
-                                className="hidden" 
-                                accept="video/*" 
-                                onChange={onFileChange} 
+                 {/* Canvas Content */}
+                 <div className="flex-1 bg-black/20 relative flex flex-col">
+                      {videoUrl && (
+                          <VideoCropper 
+                             videoUrl={videoUrl}
+                             onCropChange={setCrop}
+                             onTrimChange={setTrim}
+                          />
+                      )}
+                      
+                      {/* Floating Warning */}
+                      {!isDurationValid && (
+                            <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg z-30">
+                                Max limit 90s. Current: {duration.toFixed(1)}s
+                            </div>
+                      )}
+                 </div>
+
+                 {/* Auth Modal Overlay */}
+                 {showAuthModal && (
+                    <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                        <h3 className="text-xl font-bold text-white mb-2">Login Required</h3>
+                        <p className="text-gray-400 mb-6 text-sm">Sign in to process your video.</p>
+                        <button 
+                            onClick={handleLogin}
+                            className="flex items-center gap-2 bg-white text-black px-6 py-2 rounded-full text-sm font-bold hover:bg-gray-200 transition"
+                        >
+                            <XIcon className="w-4 h-4" />
+                            <span>Sign in</span>
+                        </button>
+                    </div>
+                 )}
+             </div>
+
+             {/* RIGHT: Settings Sidebar */}
+             <div className="w-80 border-l border-gray-800 bg-gray-950 flex flex-col z-10 flex-shrink-0">
+                 <div className="h-14 border-b border-gray-800 flex items-center px-6 flex-shrink-0">
+                     <h3 className="text-xs font-bold text-white uppercase tracking-wider">Configuration</h3>
+                     <div className="ml-auto">
+                         {profile && (
+                            <span className={`text-[10px] font-mono border border-gray-800 px-2 py-1 rounded ${profile.credits > 0 ? 'text-gray-400' : 'text-red-400 border-red-900/30 bg-red-900/10'}`}>
+                                {profile.credits} CREDITS
+                            </span>
+                         )}
+                     </div>
+                 </div>
+
+                 <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                     {/* Voice Selector */}
+                     <div className="space-y-3">
+                         <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Voice</label>
+                         <div className="space-y-1">
+                             {VOICES.map(v => (
+                                 <button
+                                    key={v.id}
+                                    onClick={() => setVoice(v)}
+                                    className={`w-full flex items-center justify-between px-3 py-2 text-sm border transition-all duration-200 ${
+                                        voice.id === v.id
+                                        ? 'bg-white text-black border-white'
+                                        : 'bg-transparent text-gray-500 border-gray-800 hover:border-gray-700 hover:text-gray-300'
+                                    }`}
+                                 >
+                                     <span className="font-medium">{v.name}</span>
+                                     <span className="opacity-60 text-[10px] uppercase">{v.gender}</span>
+                                 </button>
+                             ))}
+                         </div>
+                     </div>
+
+                     {/* Description Input */}
+                     {voice.id !== 'voiceless' && (
+                        <div className="space-y-3">
+                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wider flex justify-between">
+                                App Description<span className="text-indigo-400">*</span>
+                            </label>
+                            <textarea 
+                                className="w-full bg-gray-900 border border-gray-800 p-3 text-sm text-gray-300 focus:border-gray-600 focus:outline-none transition-colors min-h-[120px] resize-none placeholder-gray-700 leading-relaxed"
+                                placeholder="Supabase is a Postgres..."
+                                value={appDescription}
+                                onChange={(e) => setAppDescription(e.target.value)}
                             />
                         </div>
+                     )}
 
-                        {videoUrl && (
-                             <div className="w-full h-full overflow-y-auto p-4 flex items-center justify-center">
-                                <VideoCropper 
-                                    videoUrl={videoUrl} 
-                                    onCropChange={setCrop}
-                                    onTrimChange={setTrim}
-                                />
-                             </div>
-                        )}
-                        
-                        {/* Validation Warning */}
-                        {!isDurationValid && (
-                            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600/90 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg z-30 pointer-events-none">
-                                Video must be &le; 90s. Current: {duration.toFixed(1)}s
-                            </div>
-                        )}
-
-                        {showAuthModal && (
-                            <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-                                <h3 className="text-2xl font-bold text-white mb-2">Login Required</h3>
-                                <p className="text-gray-400 mb-6 max-w-sm">Please sign in to process your video with our AI pipeline.</p>
-                                <button 
-                                    onClick={handleLogin}
-                                    className="flex items-center gap-3 bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-xl transform hover:scale-105"
-                                >
-                                    <XIcon className="w-5 h-5" />
-                                    <span>Sign in with X</span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Right Column: Settings */}
-                <div className="lg:col-span-4 xl:col-span-3 flex flex-col h-full overflow-y-auto pb-4">
-                    <div className={`bg-gray-900 border border-gray-800 rounded-xl p-6 transition-opacity flex-1 flex flex-col ${showAuthModal ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-                        <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-semibold text-lg">Configuration</h3>
-                                {profile && (
-                                    <span className={`text-xs font-bold px-2 py-1 rounded ${profile.credits > 0 ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
-                                        {profile.credits} Credits
-                                    </span>
-                                )}
+                     {errorMessage && (
+                        <div className="text-xs text-red-400 bg-red-950/30 border-l-2 border-red-500 pl-3 py-2">
+                            {errorMessage}
                         </div>
-                        
-                        <div className="space-y-6 flex-1">
-                            {/* Voice Selector */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-2">Narrator Voice</label>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {VOICES.map((v) => (
-                                    <button
-                                        key={v.id}
-                                        onClick={() => setVoice(v)}
-                                        className={`flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
-                                        voice.id === v.id 
-                                            ? 'bg-indigo-600/20 border-indigo-500 text-white' 
-                                            : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:border-gray-600'
-                                        }`}
-                                    >
-                                        <span className="font-medium">{v.name}</span>
-                                        <span className="text-xs opacity-60">{v.gender}</span>
-                                    </button>
-                                    ))}
-                                </div>
-                            </div>
+                     )}
+                 </div>
 
-                            {/* Short App Description */}
-                            {voice.id !== 'voiceless' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        Short App Description <span className="text-red-400">*</span>
-                                    </label>
-                                    <textarea
-                                        className="w-full bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
-                                        rows={4}
-                                        placeholder="Your-App-Name is a platform that..."
-                                        value={appDescription}
-                                        onChange={(e) => setAppDescription(e.target.value)}
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Please include the name of your application so AI can use it in the script.</p>
-                                </div>
-                            )}
-
-                            {errorMessage && (
-                                <div className="p-4 bg-red-900/50 border border-red-800 rounded-lg text-red-200 text-sm">
-                                    {errorMessage}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="pt-6 border-t border-gray-800 space-y-3 mt-auto">
-                            <button 
-                                onClick={onGenerate}
-                                disabled={!session || !isDurationValid}
-                                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Generate Demo Video
-                            </button>
-                            {profile && profile.credits < 1 && (
-                                <div className="text-center">
-                                    <p className="text-xs text-red-400 mb-2">Insufficient Credits</p>
-                                    <button onClick={onPurchase} className="text-xs font-bold text-indigo-400 underline">Buy 10 Demos for $4</button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
+                 <div className="p-6 border-t border-gray-800 flex-shrink-0 bg-gray-950">
+                     <button 
+                        onClick={onGenerate}
+                        disabled={!session || !isDurationValid}
+                        className="w-full py-3 bg-white text-black text-sm font-bold hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Generate Demo
+                    </button>
+                    {profile && profile.credits < 1 && (
+                        <button onClick={onPurchase} className="block w-full mt-4 text-center text-xs text-gray-500 hover:text-indigo-400 transition-colors">
+                            Purchase Credits
+                        </button>
+                    )}
+                 </div>
+             </div>
         </div>
     );
 };
