@@ -97,17 +97,8 @@ export default function App() {
     try {
         const { data, error } = await supabase.from('videos').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
         if (error) throw error;
-        // Merge with existing processing videos if any (keep local state for optimistic ones)
         setVideos(prev => {
             const processing = prev.filter(v => v.status === 'processing');
-            // Basic dedupe: if a processing ID exists in fetched data, remove from processing list (it completed)
-            // But usually IDs won't match as processing IDs are temp.
-            // However, the DB query will return the REAL completed video.
-            // We should just use the DB data, but maybe keep processing ones at top?
-            // Simpler: Just use DB data, but if we have local processing ones, prepend them.
-            // NOTE: This might duplicate if the DB update happens fast. For now, rely on local update logic for the flow.
-            
-            // Actually, keep local 'processing' ones, append fetched 'completed/failed' ones.
             return [...processing, ...(data || [])] as VideoProject[];
         });
     } catch(e) { console.error("Failed to fetch videos", e); }
@@ -145,7 +136,6 @@ export default function App() {
   const handleGenerate = async () => {
       if (!file || !session) return;
       
-      // Validation
       const duration = trim.end - trim.start;
       if (duration > 90) {
           setErrorMessage("Video selection must be 90 seconds or less. Please trim.");
@@ -156,14 +146,12 @@ export default function App() {
           return;
       }
       if (profile && profile.credits < 1) {
-          // Trigger scroll or alert - for now just error
           setErrorMessage("Insufficient credits. Please purchase a pack.");
           return;
       }
 
       setErrorMessage(null);
 
-      // Optimistic UI Update
       const tempId = uuidv4();
       const optimisticVideo: VideoProject = {
           id: tempId,
@@ -180,7 +168,6 @@ export default function App() {
       setCurrentView('videos');
 
       try {
-          // Call API
           const { videoUrl: resultUrl, analysis } = await processVideoRequest(
               file, crop, trim, voice.id, session.user.id,
               (step) => {
@@ -191,7 +178,6 @@ export default function App() {
               DEFAULT_TTS_STYLE
           );
           
-          // Success
           const completedVideo: VideoProject = {
               ...optimisticVideo,
               status: 'completed',
@@ -200,11 +186,7 @@ export default function App() {
           };
 
           setVideos(prev => prev.map(v => v.id === tempId ? completedVideo : v));
-          
-          // Refresh profile credits
           fetchProfile(session.user.id);
-          
-          // Auto-open
           setSelectedVideo(completedVideo);
 
       } catch (e: any) {
@@ -227,9 +209,8 @@ export default function App() {
       }
   };
 
-  // --- Render ---
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-indigo-500 selection:text-white overflow-x-hidden">
       
       {session && (
           <Sidebar 
@@ -239,53 +220,39 @@ export default function App() {
           />
       )}
 
-      {/* Auth Button for non-logged in users in Header */}
-      {!session && (
-          <div className="absolute top-6 right-8 z-50">
-              <button onClick={handleLogin} className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full font-bold hover:bg-gray-200 transition shadow-lg">
-                  <XIcon className="w-4 h-4" /><span>Sign in</span>
-              </button>
+      {/* Removed the restrictive max-w-7xl mx-auto wrapper here. 
+          Layout control is delegated to child components. */}
+      <main className={`transition-all duration-300 min-h-screen ${session ? 'ml-16' : ''}`}>
+          
+          <div className={currentView === 'home' ? 'block' : 'hidden'}>
+              <HomeView 
+                  file={file}
+                  videoUrl={videoUrl}
+                  session={session}
+                  profile={profile}
+                  crop={crop} setCrop={setCrop}
+                  trim={trim} setTrim={setTrim}
+                  voice={voice} setVoice={setVoice}
+                  appDescription={appDescription} setAppDescription={setAppDescription}
+                  errorMessage={errorMessage}
+                  onFileChange={handleFileChange}
+                  onClearFile={handleClearFile}
+                  onGenerate={handleGenerate}
+                  onPurchase={handlePurchase}
+                  showAuthModal={showAuthModal}
+                  handleLogin={handleLogin}
+                  showSuccessNotification={showSuccessNotification}
+                  setShowSuccessNotification={setShowSuccessNotification}
+              />
           </div>
-      )}
 
-      <main className={`transition-all duration-300 ${session ? 'ml-16' : ''}`}>
-        <div className="max-w-7xl mx-auto px-8 py-12">
-            
-            {/* 
-               Conditional Rendering:
-               We hide HomeView instead of unmounting it to preserve the VideoCropper state (loaded video, etc.)
-               when navigating to the Gallery during processing.
-            */}
-            <div className={currentView === 'home' ? 'block' : 'hidden'}>
-                <HomeView 
-                    file={file}
-                    videoUrl={videoUrl}
-                    session={session}
-                    profile={profile}
-                    crop={crop} setCrop={setCrop}
-                    trim={trim} setTrim={setTrim}
-                    voice={voice} setVoice={setVoice}
-                    appDescription={appDescription} setAppDescription={setAppDescription}
-                    errorMessage={errorMessage}
-                    onFileChange={handleFileChange}
-                    onClearFile={handleClearFile}
-                    onGenerate={handleGenerate}
-                    onPurchase={handlePurchase}
-                    showAuthModal={showAuthModal}
-                    handleLogin={handleLogin}
-                    showSuccessNotification={showSuccessNotification}
-                    setShowSuccessNotification={setShowSuccessNotification}
-                />
-            </div>
-
-            {currentView === 'videos' && (
-                <VideoGallery 
-                    videos={videos} 
-                    onSelectVideo={setSelectedVideo}
-                    fetchVideos={fetchVideos}
-                />
-            )}
-        </div>
+          {currentView === 'videos' && (
+              <VideoGallery 
+                  videos={videos} 
+                  onSelectVideo={setSelectedVideo}
+                  fetchVideos={fetchVideos}
+              />
+          )}
       </main>
 
       {selectedVideo && (
