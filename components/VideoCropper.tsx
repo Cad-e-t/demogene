@@ -15,23 +15,33 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({ videoUrl, onCropChan
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
   
   // Crop State (Normalized 0-1)
-  const [crop, setCrop] = useState<CropData>({ x: 0.1, y: 0.1, width: 0.8, height: 0.8 });
+  // Default to full video (0,0,1,1) instead of forcing a crop
+  const [crop, setCrop] = useState<CropData>({ x: 0, y: 0, width: 1, height: 1 });
   const [isDraggingCrop, setIsDraggingCrop] = useState<string | null>(null);
 
   // Trim State (Seconds)
   const [trim, setTrim] = useState<TrimData>({ start: 0, end: 0 });
   const [isDraggingTrim, setIsDraggingTrim] = useState<'start' | 'end' | null>(null);
 
-  const handleLoadedMetadata = () => {
-    if (videoRef.current) {
-      const dur = videoRef.current.duration;
-      setDuration(dur);
-      if (trim.end === 0) {
-        setTrim({ start: 0, end: dur });
-        onTrimChange({ start: 0, end: dur });
-      }
+  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const video = e.currentTarget;
+    const dur = video.duration;
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+
+    setDuration(dur);
+    
+    // Set aspect ratio to ensure container matches video dimensions perfectly
+    if (w && h) {
+        setAspectRatio(w / h);
+    }
+
+    if (trim.end === 0) {
+      setTrim({ start: 0, end: dur });
+      onTrimChange({ start: 0, end: dur });
     }
   };
 
@@ -213,7 +223,11 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({ videoUrl, onCropChan
         <div 
             className="relative shadow-2xl bg-black inline-flex items-center justify-center"
             ref={containerRef}
-            style={{ maxHeight: '90%', maxWidth: '90%' }}
+            style={{ 
+                maxHeight: '90%', 
+                maxWidth: '90%', 
+                aspectRatio: aspectRatio 
+            }}
         >
             <video 
                 ref={videoRef}
