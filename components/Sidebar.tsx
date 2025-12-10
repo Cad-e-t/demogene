@@ -68,9 +68,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, h
             <nav className="md:hidden fixed top-0 left-0 right-0 h-14 bg-gray-950 border-b border-gray-800 flex items-center justify-between px-4 z-50">
                 <div className="flex items-center gap-2">
                      <div className="w-7 h-7 flex items-center justify-center bg-white/5 rounded-full text-[10px] font-bold text-gray-300">
-                         DG
+                         PC
                      </div>
-                     <span className="font-bold text-sm text-gray-300">DemoGen</span>
+                     <span className="font-bold text-sm text-gray-300">ProductCam</span>
                 </div>
 
                 <button 
