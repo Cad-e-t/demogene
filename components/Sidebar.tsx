@@ -38,7 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, h
             <aside className="hidden md:flex fixed top-0 left-0 bottom-0 w-14 bg-gray-950 border-r border-gray-800 flex-col items-center z-50 pt-4">
                  {/* Logo */}
                  <div className="mb-6 w-8 h-8 flex items-center justify-center bg-white/5 rounded-full text-[10px] font-bold text-gray-300 select-none">
-                     DG
+                     PC
                  </div>
 
                  {/* Icons */}

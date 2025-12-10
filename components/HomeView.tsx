@@ -68,12 +68,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     {/* Left: Typography & Action */}
                     <div className="space-y-6 lg:space-y-8 text-center lg:text-left mt-10 lg:mt-0">
                         <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1]">
-                            Turn <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Screen Recordings</span> <br className="hidden md:block"/>
-                            Into Polished Demos.
+                            Turn <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Screen Recording</span> <br className="hidden md:block"/>
+                            Into Product Walkthroughs.
                         </h1>
                         
                         <p className="text-base sm:text-lg lg:text-xl text-gray-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                            Upload raw footage and get a clean narrated walkthrough. Perfect for demos, tutorials, and social updates.
+                            Upload a screen recording and get a clean narrated walkthrough that shows how your product works. Perfect for demos, tutorials, and social updates.
                         </p>
                         
                         <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-4">
