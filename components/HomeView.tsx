@@ -70,7 +70,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1]">
                             Generate <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Product Demos</span> <br className="hidden md:block"/>
-                            From Screen Recordings.
+                            From Your Screen Recordings.
                         </h1>
                         
                         <p className="text-base sm:text-lg lg:text-xl text-gray-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">

@@ -9,19 +9,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "child_process": "^1.0.2",
-    "react": "^19.2.1",
-    "uuid": "^13.0.0",
+    "react": "^18.3.1",
+    "uuid": "^10.0.0",
     "@google/genai": "^1.31.0",
-    "react-dom": "^19.2.1",
-    "path": "^0.12.7",
+    "react-dom": "^18.3.1",
     "@supabase/supabase-js": "^2.86.2",
-    "fs": "^0.0.1-security",
     "express": "^5.2.1",
+    "path": "^0.12.7",
+    "child_process": "^1.0.2",
     "multer": "^2.0.2",
+    "cors": "^2.8.5",
+    "fs": "^0.0.1-security",
     "url": "^0.11.4",
-    "os": "^0.1.2",
-    "cors": "^2.8.5"
+    "os": "^0.1.2"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
