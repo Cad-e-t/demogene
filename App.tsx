@@ -41,6 +41,7 @@ export default function App() {
   const [crop, setCrop] = useState<CropData>({ x: 0, y: 0, width: 1, height: 1 });
   const [trim, setTrim] = useState<TrimData>({ start: 0, end: 0 });
   const [voice, setVoice] = useState<VoiceOption>(VOICES[0]);
+  const [appName, setAppName] = useState<string>("");
   const [appDescription, setAppDescription] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
@@ -117,6 +118,7 @@ export default function App() {
       setErrorMessage(null);
       setCrop({ x: 0, y: 0, width: 1, height: 1 });
       setTrim({ start: 0, end: 0 });
+      setAppName("");
       setAppDescription("");
       
       if (!session) setShowAuthModal(true);
@@ -130,6 +132,7 @@ export default function App() {
     setErrorMessage(null);
     setCrop({ x: 0, y: 0, width: 1, height: 1 });
     setTrim({ start: 0, end: 0 });
+    setAppName("");
     setAppDescription("");
   };
 
@@ -137,12 +140,12 @@ export default function App() {
       if (!file || !session) return;
       
       const duration = trim.end - trim.start;
-      if (duration > 90) {
-          setErrorMessage("Video selection must be 90 seconds or less. Please trim.");
+      if (duration > 180) {
+          setErrorMessage("Video selection must be 3 minutes or less. Please trim.");
           return;
       }
-      if (voice.id !== 'voiceless' && !appDescription.trim()) {
-          setErrorMessage("Please provide a short description of your app for the script.");
+      if (voice.id !== 'voiceless' && (!appDescription.trim() || !appName.trim())) {
+          setErrorMessage("Please provide the app name and a short description for the script.");
           return;
       }
       if (profile && profile.credits < 1) {
@@ -173,6 +176,7 @@ export default function App() {
               (step) => {
                   setVideos(prev => prev.map(v => v.id === tempId ? { ...v, processingStep: step } : v));
               },
+              appName,
               appDescription,
               DEFAULT_SCRIPT_RULES,
               DEFAULT_TTS_STYLE
@@ -232,6 +236,7 @@ export default function App() {
                   crop={crop} setCrop={setCrop}
                   trim={trim} setTrim={setTrim}
                   voice={voice} setVoice={setVoice}
+                  appName={appName} setAppName={setAppName}
                   appDescription={appDescription} setAppDescription={setAppDescription}
                   errorMessage={errorMessage}
                   onFileChange={handleFileChange}

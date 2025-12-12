@@ -1,6 +1,6 @@
 
 
-export const getVideoAnalysisPrompt = (appDescription, scriptRules) => `
+export const getVideoAnalysisPrompt = (appName, appDescription, scriptRules) => `
 You are analyzing a screen recording of a software demo and must produce three outputs in one pass:
 
 Video segmentation (optimized for zoom-and-hold visual effects)
@@ -91,6 +91,8 @@ Return:
 Inputs:
 
 Segments from section 1.
+
+App Name: ${appName}
 
 App description:   
 

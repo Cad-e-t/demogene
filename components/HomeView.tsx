@@ -20,6 +20,8 @@ interface HomeViewProps {
     setTrim: (t: TrimData) => void;
     voice: VoiceOption;
     setVoice: (v: VoiceOption) => void;
+    appName: string;
+    setAppName: (s: string) => void;
     appDescription: string;
     setAppDescription: (s: string) => void;
     
@@ -40,7 +42,9 @@ interface HomeViewProps {
 export const HomeView: React.FC<HomeViewProps> = ({
     file, videoUrl, session, profile,
     crop, setCrop, trim, setTrim,
-    voice, setVoice, appDescription, setAppDescription,
+    voice, setVoice, 
+    appName, setAppName,
+    appDescription, setAppDescription,
     onFileChange, onClearFile, onGenerate, onPurchase,
     showAuthModal, handleLogin,
     showSuccessNotification, setShowSuccessNotification,
@@ -49,7 +53,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const duration = trim.end - trim.start;
-    const isDurationValid = duration <= 90;
+    const isDurationValid = duration <= 180;
 
     // Mobile Editor State
     const [mobileTab, setMobileTab] = useState<'preview' | 'settings'>('preview');
@@ -220,7 +224,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       {/* Floating Warning */}
                       {!isDurationValid && (
                             <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg z-30 whitespace-nowrap">
-                                Max limit 90s. Current: {duration.toFixed(1)}s
+                                Max limit 3m. Current: {duration.toFixed(1)}s
                             </div>
                       )}
                  </div>
@@ -278,19 +282,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
                          </div>
                      </div>
 
-                     {/* Description Input */}
+                     {/* App Name and Description Input */}
                      {voice.id !== 'voiceless' && (
-                        <div className="space-y-3">
-                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wider flex justify-between">
-                                App Description<span className="text-indigo-400">*</span>
-                            </label>
-                            <textarea 
-                                className="w-full bg-gray-900 border border-gray-800 p-3 text-sm text-gray-300 focus:border-gray-600 focus:outline-none transition-colors min-h-[120px] resize-none placeholder-gray-700 leading-relaxed rounded-md"
-                                placeholder="Supabase is a Postgres..."
-                                value={appDescription}
-                                onChange={(e) => setAppDescription(e.target.value)}
-                            />
-                        </div>
+                        <>
+                            <div className="space-y-3">
+                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider flex justify-between">
+                                    App Name<span className="text-indigo-400">*</span>
+                                </label>
+                                <input 
+                                    type="text"
+                                    className="w-full bg-gray-900 border border-gray-800 p-3 text-sm text-gray-300 focus:border-gray-600 focus:outline-none transition-colors rounded-md placeholder-gray-700"
+                                    placeholder="e.g. TrustMRR"
+                                    value={appName}
+                                    onChange={(e) => setAppName(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider flex justify-between">
+                                    App Description<span className="text-indigo-400">*</span>
+                                </label>
+                                <textarea 
+                                    className="w-full bg-gray-900 border border-gray-800 p-3 text-sm text-gray-300 focus:border-gray-600 focus:outline-none transition-colors min-h-[120px] resize-none placeholder-gray-700 leading-relaxed rounded-md"
+                                    placeholder="Supabase is a Postgres..."
+                                    value={appDescription}
+                                    onChange={(e) => setAppDescription(e.target.value)}
+                                />
+                            </div>
+                        </>
                      )}
 
                      {errorMessage && (

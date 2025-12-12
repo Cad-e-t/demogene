@@ -1,5 +1,3 @@
-
-
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -67,7 +65,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
   try {
     const file = req.file;
     // Parse body fields
-    let { crop, trim, voiceId, userId, appDescription, scriptRules, stylePrompt } = req.body;
+    let { crop, trim, voiceId, userId, appName, appDescription, scriptRules, stylePrompt } = req.body;
     
     if (!userId) {
         return res.status(401).send('Unauthorized: Missing User ID');
@@ -104,9 +102,9 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     // If user provided valid trim, verify that range.
     if (trim && typeof trim.end === 'number' && typeof trim.start === 'number' && trim.end > trim.start) {
         const requestedDuration = trim.end - trim.start;
-        if (requestedDuration > 90) {
+        if (requestedDuration > 180) {
             cleanup(filesToDelete);
-            return res.status(400).json({ error: 'Video duration exceeds 90 seconds limit. Please trim the video.' });
+            return res.status(400).json({ error: 'Video duration exceeds 3 minutes limit. Please trim the video.' });
         }
     }
 
@@ -126,9 +124,9 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
 
     // Check 3: Final physical file duration (Double check)
     const actualDuration = getDuration(cleanInputPath);
-    if (actualDuration > 90.5) { // 0.5s tolerance
+    if (actualDuration > 180.5) { // 0.5s tolerance
         cleanup(filesToDelete);
-        return res.status(400).json({ error: 'Processed video duration exceeds 90 seconds. Please trim further.' });
+        return res.status(400).json({ error: 'Processed video duration exceeds 3 minutes. Please trim further.' });
     }
 
     // =======================================================
@@ -167,7 +165,8 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
         prompt = VIDEO_ANALYSIS_NO_SCRIPT_PROMPT;
     } else {
         const desc = appDescription || "A software application";
-        prompt = getVideoAnalysisPrompt(desc, scriptRules);
+        const name = appName || "The App";
+        prompt = getVideoAnalysisPrompt(name, desc, scriptRules);
     }
 
     const analysis = await analyzeVideo(cleanFileBase64, 'video/mp4', prompt); 

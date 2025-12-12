@@ -11,6 +11,7 @@ export async function processVideoRequest(
   voiceId: string,
   userId: string,
   onStatusUpdate: (status: ProcessingStatus['step']) => void,
+  appName?: string,
   appDescription?: string,
   scriptRules?: string,
   stylePrompt?: string
@@ -22,6 +23,10 @@ export async function processVideoRequest(
   formData.append('voiceId', voiceId);
   formData.append('userId', userId);
   
+  if (appName) {
+    formData.append('appName', appName);
+  }
+
   if (appDescription) {
     formData.append('appDescription', appDescription);
   }
