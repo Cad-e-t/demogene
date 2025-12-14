@@ -313,9 +313,9 @@ async function applyMultiZoomEffect(inPath, outPath, events, workDir) {
 // ==========================================
 // PREPROCESS (For initial crop/trim in server.js)
 // ==========================================
-export async function preprocessVideo(inputPath, crop, trim, outputPath) {
+export async function preprocessVideo(inputPath, crop, trim, segments, outputPath) {
     const { width, height } = getResolution(inputPath);
-    let filterChain = [];
+    let cropFilter = "";
     
     if (crop) {
         const cx = crop.x || 0;
@@ -326,22 +326,69 @@ export async function preprocessVideo(inputPath, crop, trim, outputPath) {
         const pixelH = Math.floor(height * ch);
         const pixelX = Math.floor(width * cx);
         const pixelY = Math.floor(height * cy);
-        filterChain.push(`crop=${pixelW}:${pixelH}:${pixelX}:${pixelY}`);
+        cropFilter = `crop=${pixelW}:${pixelH}:${pixelX}:${pixelY}`;
     }
 
-    const args = [];
-    if (trim && trim.end > 0) {
-        args.push('-ss', trim.start.toString());
-        args.push('-t', (trim.end - trim.start).toString());
-    }
-    args.push('-i', inputPath);
-    if (filterChain.length > 0) {
-        args.push('-vf', filterChain.join(','));
-    }
-    args.push(...FF_FLAGS);
-    args.push('-y', outputPath);
+    // Logic: If segments exist, we concat them. If only trim exists, simple trim.
+    
+    if (segments && Array.isArray(segments) && segments.length > 0) {
+        // Advanced Multi-Segment Logic
+        const workDir = path.join(os.tmpdir(), 'pre_' + uuidv4());
+        if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
 
-    await runFFmpeg(args);
+        try {
+            const partPaths = [];
+            // Sort segments by start time just in case
+            const sortedSegments = [...segments].sort((a, b) => a.start - b.start);
+
+            for (let i = 0; i < sortedSegments.length; i++) {
+                const seg = sortedSegments[i];
+                const partPath = path.join(workDir, `part_${i}.mp4`);
+                const segArgs = [];
+                
+                // Cut segment
+                segArgs.push('-ss', seg.start.toString());
+                segArgs.push('-to', seg.end.toString());
+                segArgs.push('-i', inputPath);
+
+                // Apply crop here to each segment to ensure uniformity
+                if (cropFilter) {
+                    segArgs.push('-vf', cropFilter);
+                }
+                
+                segArgs.push(...FF_FLAGS);
+                segArgs.push('-y', partPath);
+
+                await runFFmpeg(segArgs);
+                partPaths.push(partPath);
+            }
+
+            // Concat
+            const listPath = path.join(workDir, 'list.txt');
+            fs.writeFileSync(listPath, partPaths.map(p => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
+            await runFFmpeg(['-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', '-y', outputPath]);
+
+        } finally {
+             // Cleanup temp workdir
+             try { fs.rmSync(workDir, { recursive: true, force: true }); } catch(e) {}
+        }
+
+    } else {
+        // Simple Trim Logic (Legacy)
+        const args = [];
+        if (trim && trim.end > 0) {
+            args.push('-ss', trim.start.toString());
+            args.push('-to', trim.end.toString()); // Use -to for clearer end point
+        }
+        args.push('-i', inputPath);
+        if (cropFilter) {
+            args.push('-vf', cropFilter);
+        }
+        args.push(...FF_FLAGS);
+        args.push('-y', outputPath);
+        await runFFmpeg(args);
+    }
+
     return outputPath;
 }
 
@@ -400,13 +447,17 @@ export async function processVideoPipeline(
             const visualDur = getDuration(currentSource);
             const finalSegPath = path.join(workDir, `proc_${i}.mp4`);
             
-            if (visualDur < audioDur) {
-                // Freeze last frame
-                const freezeTime = audioDur - visualDur;
-                console.log(`  -> Visual shorter. Freezing last frame for ${freezeTime.toFixed(2)}s`);
-                await runFFmpeg(['-i', currentSource, '-vf', `tpad=stop_mode=clone:stop_duration=${freezeTime}`, '-an', ...FF_FLAGS, '-y', finalSegPath]);
+            const timeDiff = audioDur - visualDur;
+
+            // Updated logic to handle precision and valid padding
+            if (timeDiff > 0.02) {
+                // Visual is significantly shorter than audio -> Pad it
+                const freezeTime = timeDiff;
+                console.log(`  -> Visual shorter. Freezing last frame for ${freezeTime.toFixed(3)}s`);
+                // Use .toFixed(3) to prevent scientific notation (e.g. 1e-15) which crashes ffmpeg
+                await runFFmpeg(['-i', currentSource, '-vf', `tpad=stop_mode=clone:stop_duration=${freezeTime.toFixed(3)}`, '-an', ...FF_FLAGS, '-y', finalSegPath]);
             } else {
-                // Remove motionless frames or trim
+                // Visual is longer or roughly equal -> Trim or Decimate
                 const motionlessPath = path.join(workDir, `motionless_${i}.mp4`);
                 try {
                     // Try to decimate duplicate frames
@@ -418,6 +469,7 @@ export async function processVideoPipeline(
                         await runFFmpeg(['-i', motionlessPath, '-t', audioDur.toString(), '-an', ...FF_FLAGS, '-y', finalSegPath]);
                     } else {
                          console.log(`  -> Motionless too short. Trimming original.`);
+                         // Ensure we don't trim if original is already effectively equal or shorter (though we are in else block, so visualDur >= audioDur - 0.02)
                          await runFFmpeg(['-i', currentSource, '-t', audioDur.toString(), '-an', ...FF_FLAGS, '-y', finalSegPath]);
                     }
                 } catch (e) {

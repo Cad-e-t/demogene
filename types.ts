@@ -11,6 +11,12 @@ export interface TrimData {
   end: number; // Seconds
 }
 
+export interface TimeRange {
+  id: string;
+  start: number;
+  end: number;
+}
+
 export interface VideoSegment {
   start_time: string | number;
   end_time: string | number;

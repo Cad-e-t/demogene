@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { Session } from '@supabase/supabase-js';
@@ -8,7 +9,7 @@ import { HomeView } from './components/HomeView';
 import { VideoGallery } from './components/VideoGallery';
 import { VideoModal } from './components/VideoModal';
 
-import { CropData, TrimData, VoiceOption, VideoProject } from './types';
+import { CropData, TrimData, VoiceOption, VideoProject, TimeRange } from './types';
 import { VOICES } from './constants';
 import { processVideoRequest, createCheckoutSession } from './frontend-api';
 import { DEFAULT_SCRIPT_RULES, DEFAULT_TTS_STYLE } from './scriptStyles';
@@ -136,11 +137,15 @@ export default function App() {
     setAppDescription("");
   };
 
-  const handleGenerate = async () => {
+  // Accepting optional segments if advanced editor was used
+  const handleGenerate = async (segments?: TimeRange[]) => {
       if (!file || !session) return;
       
-      const duration = trim.end - trim.start;
-      if (duration > 180) {
+      const effectiveDuration = segments 
+        ? segments.reduce((acc, s) => acc + (s.end - s.start), 0)
+        : trim.end - trim.start;
+
+      if (effectiveDuration > 180) {
           setErrorMessage("Video selection must be 3 minutes or less. Please trim.");
           return;
       }
@@ -179,7 +184,8 @@ export default function App() {
               appName,
               appDescription,
               DEFAULT_SCRIPT_RULES,
-              DEFAULT_TTS_STYLE
+              DEFAULT_TTS_STYLE,
+              segments // Pass new segments param
           );
           
           const completedVideo: VideoProject = {

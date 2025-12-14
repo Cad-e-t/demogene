@@ -1,5 +1,6 @@
 
 
+
 export const getVideoAnalysisPrompt = (appName, appDescription, scriptRules) => `
 You are analyzing a screen recording of a software demo and must produce three outputs in one pass:
 
@@ -64,17 +65,31 @@ For instant actions: Do NOT set to 0. Set a minimum "smoothness buffer" (e.g., 0
 
 Based on dominant UI colors in the viewport:
 
-Select a soft two-color gradient.
+Select a soft two-color gradient on the opposite overall brightness range of the UI.
 
-Maintain 20–30% contrast.
+Dark UI → background must be light
 
-Shift hue ±20–40° from the dominant UI color.
+Light UI → background must be dark
 
-Keep saturation 20–50%.
+Reject any background whose overall brightness is visually similar to the UI.
 
-Avoid matching accent colors; only complement them.
+Within the gradient, introduce depth variation:
 
-Use valid HEX codes.
+one color should be slightly denser (deeper / richer)
+
+the other slightly softer or more open
+
+both colors must remain on the same overall brightness side
+
+never choose two colors of equal depth
+
+If the UI is dark and chromatic, choose background hues from a contrasting color family (complementary or split-complementary), not the same or adjacent hue range.
+
+Avoid monochromatic backgrounds unless the UI is low-contrast.
+
+Use chromatic colors (not gray, white, or black).
+
+Use valid HEX codes only.
 
 Return:
 
@@ -106,7 +121,9 @@ ${scriptRules}
 Final Combined Output Format (Strict)
 ────────────────────────────────────────────────────────
 
-The number of segments must exactly match the number of script_lines.
+- The number of segments must exactly match the number of script_lines.
+- Each segment's narration in the script_lines should be complete. Don't break sentences between narrations. if you must do so don't use "..." dotted lines to show continuation.
+{
 
 {
 "background_gradient": {
@@ -213,17 +230,31 @@ For instant actions: Do NOT set to 0. Set a minimum "smoothness buffer" (e.g., 0
 
 Based on dominant UI colors in the viewport:
 
-Select a soft two-color gradient.
+Select a soft two-color gradient on the opposite overall brightness range of the UI.
 
-Maintain 20–30% contrast.
+Dark UI → background must be light
 
-Shift hue ±20–40° from the dominant UI color.
+Light UI → background must be dark
 
-Keep saturation 20–50%.
+Reject any background whose overall brightness is visually similar to the UI.
 
-Avoid matching accent colors; only complement them.
+Within the gradient, introduce depth variation:
 
-Use valid HEX codes.
+one color should be slightly denser (deeper / richer)
+
+the other slightly softer or more open
+
+both colors must remain on the same overall brightness side
+
+never choose two colors of equal depth
+
+If the UI is dark and chromatic, choose background hues from a contrasting color family (complementary or split-complementary), not the same or adjacent hue range.
+
+Avoid monochromatic backgrounds unless the UI is low-contrast.
+
+Use chromatic colors (not gray, white, or black).
+
+Use valid HEX codes only.
 
 Return:
 
@@ -263,8 +294,6 @@ The number of segments must exactly match the number of script_lines.
 "purpose": "Observing the dashboard results",
 "mouse_activity": null
 }
-],
 ]
-}
 }
 `;

@@ -1,3 +1,4 @@
+
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -65,7 +66,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
   try {
     const file = req.file;
     // Parse body fields
-    let { crop, trim, voiceId, userId, appName, appDescription, scriptRules, stylePrompt } = req.body;
+    let { crop, trim, segments, voiceId, userId, appName, appDescription, scriptRules, stylePrompt } = req.body;
     
     if (!userId) {
         return res.status(401).send('Unauthorized: Missing User ID');
@@ -74,6 +75,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     // Parse JSON strings if necessary
     try { if (typeof crop === 'string') crop = JSON.parse(crop); } catch(e){}
     try { if (typeof trim === 'string') trim = JSON.parse(trim); } catch(e){}
+    try { if (typeof segments === 'string') segments = JSON.parse(segments); } catch(e){}
     
     if (!file) return res.status(400).send('No file uploaded');
     filesToDelete.push(file.path);
@@ -98,14 +100,23 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
         return res.status(402).json({ error: 'Insufficient credits. Please purchase a pack.' });
     }
 
-    // Check 2: Duration (Approx based on trim first)
-    // If user provided valid trim, verify that range.
-    if (trim && typeof trim.end === 'number' && typeof trim.start === 'number' && trim.end > trim.start) {
-        const requestedDuration = trim.end - trim.start;
-        if (requestedDuration > 180) {
-            cleanup(filesToDelete);
-            return res.status(400).json({ error: 'Video duration exceeds 3 minutes limit. Please trim the video.' });
-        }
+    // Check 2: Duration calculation
+    let effectiveDuration = 0;
+    
+    if (segments && Array.isArray(segments) && segments.length > 0) {
+        // Calculate duration based on active segments
+        effectiveDuration = segments.reduce((acc, s) => acc + (s.end - s.start), 0);
+    } else if (trim && typeof trim.end === 'number' && typeof trim.start === 'number') {
+        // Fallback to simple trim
+        effectiveDuration = trim.end - trim.start;
+    } else {
+        // Fallback to full video if needed, but client should prevent this
+        effectiveDuration = getDuration(file.path);
+    }
+
+    if (effectiveDuration > 180) {
+        cleanup(filesToDelete);
+        return res.status(400).json({ error: 'Processed video duration exceeds 3 minutes limit.' });
     }
 
     const isVoiceless = voiceId === 'voiceless';
@@ -113,14 +124,15 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     console.log(`[${new Date().toISOString()}] Processing ${file.originalname} for user ${userId}... Mode: ${isVoiceless ? 'Voiceless' : 'Narrated'}`);
 
     // =======================================================
-    // 1. Preprocessing: Apply User Crop/Trim
+    // 1. Preprocessing: Apply User Crop/Trim OR Segments
     // =======================================================
-    console.log('--- Preprocessing Video (Crop/Trim) ---');
+    console.log('--- Preprocessing Video (Crop/Cut/Trim) ---');
     // Use temp dir for intermediate files
     const cleanInputPath = path.join(TEMP_DIR, `clean_${file.filename}.mp4`);
     filesToDelete.push(cleanInputPath);
     
-    await preprocessVideo(file.path, crop, trim, cleanInputPath);
+    // Updated preprocess logic handles segments if present, or fallback to trim
+    await preprocessVideo(file.path, crop, trim, segments, cleanInputPath);
 
     // Check 3: Final physical file duration (Double check)
     const actualDuration = getDuration(cleanInputPath);

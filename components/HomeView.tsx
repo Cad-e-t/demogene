@@ -1,6 +1,8 @@
+
 import React, { useRef, useState } from 'react';
 import { VideoCropper } from './VideoCropper';
-import { CropData, TrimData, VoiceOption } from '../types';
+import { AdvancedEditorModal } from './AdvancedEditorModal';
+import { CropData, TrimData, VoiceOption, TimeRange } from '../types';
 import { VOICES } from '../constants';
 
 const XIcon = ({ className }: { className?: string }) => (
@@ -27,7 +29,7 @@ interface HomeViewProps {
     
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onClearFile: () => void;
-    onGenerate: () => void;
+    onGenerate: (segments?: TimeRange[]) => void;
     onPurchase: () => void;
     
     showAuthModal: boolean;
@@ -52,11 +54,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
     
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const duration = trim.end - trim.start;
-    const isDurationValid = duration <= 180;
+    const duration = trim.end - trim.start; // This is naive duration if no advanced edits
+    
+    // Advanced Editing State
+    const [showAdvancedEditor, setShowAdvancedEditor] = useState(false);
+    const [segments, setSegments] = useState<TimeRange[] | null>(null);
+
+    // Calc effective duration based on segments if present
+    const effectiveDuration = segments 
+        ? segments.reduce((acc, s) => acc + (s.end - s.start), 0)
+        : duration;
+
+    const isDurationValid = effectiveDuration <= 180;
 
     // Mobile Editor State
     const [mobileTab, setMobileTab] = useState<'preview' | 'settings'>('preview');
+
+    const handleClear = () => {
+        setSegments(null);
+        onClearFile();
+    };
+
+    const triggerGenerate = () => {
+        // Pass segments if they exist, otherwise backend will use trim
+        onGenerate(segments || undefined);
+    };
 
     // --- LANDING PAGE VIEW (No File Selected) ---
     if (!file) {
@@ -156,16 +178,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
 
     // --- APP EDITOR VIEW (File Selected) ---
-    // Layout: 
-    // Desktop: Row (Video Left, Settings Right)
-    // Mobile: Column (Header -> Tab Content)
     return (
         <div className="h-[calc(100vh-3.5rem)] md:h-screen w-full flex flex-col md:flex-row bg-gray-950 text-gray-300 font-sans overflow-hidden">
              
              {/* HEADER BAR (Mobile Only) with Tab Switcher */}
              <div className="md:hidden h-14 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 shrink-0 z-20">
                  <button 
-                     onClick={onClearFile}
+                     onClick={handleClear}
                      className="text-gray-400 hover:text-white"
                  >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -191,14 +210,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
              </div>
 
              {/* LEFT PANEL: Video Canvas Area */}
-             {/* Hidden on mobile if tab is 'settings' */}
              <div className={`flex-1 flex flex-col min-w-0 relative ${mobileTab === 'settings' ? 'hidden md:flex' : 'flex'}`}>
                  
                  {/* Desktop Toolbar */}
                  <div className="hidden md:flex h-14 border-b border-gray-800 items-center justify-between px-6 bg-gray-950 flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <button 
-                            onClick={onClearFile}
+                            onClick={handleClear}
                             className="text-gray-500 hover:text-white transition-colors p-1"
                             title="Close Project"
                         >
@@ -206,25 +224,49 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         </button>
                         <span className="text-sm font-medium text-white truncate max-w-md">{file?.name}</span>
                     </div>
-                    <div className="text-xs font-mono text-gray-500">
-                        {duration.toFixed(1)}s Selected
+                    <div className="text-xs font-mono text-gray-500 flex items-center gap-2">
+                        {segments && (
+                            <span className="text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded">Advanced Edits Applied</span>
+                        )}
+                        <span>{effectiveDuration.toFixed(1)}s Total</span>
                     </div>
                  </div>
 
                  {/* Canvas Content */}
-                 <div className="flex-1 bg-black/20 relative flex flex-col min-h-0">
+                 <div className="flex-1 bg-black/20 relative flex flex-col min-h-0 items-center justify-center p-8">
                       {videoUrl && (
-                          <VideoCropper 
-                             videoUrl={videoUrl}
-                             onCropChange={setCrop}
-                             onTrimChange={setTrim}
-                          />
+                          <div className="relative w-full h-full flex flex-col items-center">
+                              {/* Video Player Wrapper */}
+                              <div className="flex-1 w-full flex items-center justify-center min-h-0">
+                                  <VideoCropper 
+                                     videoUrl={videoUrl}
+                                     onCropChange={setCrop}
+                                     onTrimChange={setTrim}
+                                     onAdvancedEdit={() => setShowAdvancedEditor(true)}
+                                     hideTimeline={true}
+                                     segments={segments || undefined}
+                                  />
+                              </div>
+
+                              {/* Action Bar (Below Video) */}
+                              <div className="w-full flex justify-center py-4 shrink-0">
+                                  <button 
+                                      onClick={() => setShowAdvancedEditor(true)}
+                                      className="flex items-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-full font-medium text-sm transition-all border border-gray-700 hover:border-gray-600 shadow-lg"
+                                  >
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                      </svg>
+                                      Edit Video
+                                  </button>
+                              </div>
+                          </div>
                       )}
                       
                       {/* Floating Warning */}
                       {!isDurationValid && (
-                            <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg z-30 whitespace-nowrap">
-                                Max limit 3m. Current: {duration.toFixed(1)}s
+                            <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur text-white px-6 py-3 rounded-full text-xs font-bold shadow-xl z-30 text-center max-w-[90%] md:max-w-md border border-red-400/50">
+                                Video exceeds 3m limit. Please use the "Edit Video" tool to trim and clip unwanted parts.
                             </div>
                       )}
                  </div>
@@ -246,7 +288,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
              </div>
 
              {/* RIGHT PANEL: Settings Sidebar */}
-             {/* Hidden on mobile if tab is 'preview' */}
              <div className={`w-full md:w-80 md:border-l border-gray-800 bg-gray-950 flex flex-col z-10 flex-shrink-0 ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex h-full'}`}>
                  
                  <div className="h-14 border-b border-gray-800 flex items-center px-6 flex-shrink-0">
@@ -321,7 +362,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                  <div className="p-6 border-t border-gray-800 flex-shrink-0 bg-gray-950 pb-safe">
                      <button 
-                        onClick={onGenerate}
+                        onClick={triggerGenerate}
                         disabled={!session || !isDurationValid}
                         className="w-full py-3.5 bg-white text-black text-sm font-bold rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-white/5"
                     >
@@ -334,6 +375,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     )}
                  </div>
              </div>
+
+             {/* Advanced Editor Modal */}
+             {showAdvancedEditor && videoUrl && (
+                 <AdvancedEditorModal 
+                    videoUrl={videoUrl}
+                    initialSegments={segments}
+                    duration={trim.end === 0 ? 1 : trim.end} // Fallback
+                    onClose={() => setShowAdvancedEditor(false)}
+                    onSave={(newSegments) => {
+                        setSegments(newSegments);
+                        setShowAdvancedEditor(false);
+                    }}
+                 />
+             )}
         </div>
     );
 };

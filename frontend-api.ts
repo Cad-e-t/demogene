@@ -1,4 +1,5 @@
-import { AnalysisResult, CropData, ProcessingStatus, TrimData } from './types';
+
+import { AnalysisResult, CropData, ProcessingStatus, TrimData, TimeRange } from './types';
 import { supabase } from './supabaseClient';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'https://demo-maker-417540185411.us-central1.run.app' ;
@@ -14,7 +15,8 @@ export async function processVideoRequest(
   appName?: string,
   appDescription?: string,
   scriptRules?: string,
-  stylePrompt?: string
+  stylePrompt?: string,
+  segments?: TimeRange[] // New optional parameter
 ): Promise<{ videoUrl: string; analysis: AnalysisResult }> {
   const formData = new FormData();
   formData.append('video', file);
@@ -22,6 +24,10 @@ export async function processVideoRequest(
   formData.append('trim', JSON.stringify(trim));
   formData.append('voiceId', voiceId);
   formData.append('userId', userId);
+  
+  if (segments) {
+    formData.append('segments', JSON.stringify(segments));
+  }
   
   if (appName) {
     formData.append('appName', appName);
