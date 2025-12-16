@@ -15,47 +15,49 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-indigo-900/10 rounded-full blur-[120px] pointer-events-none" />
             
             {/* --- HERO SECTION --- */}
-            <div className="relative z-10 w-full max-w-4xl mx-auto px-6 pt-24 pb-16 text-center flex flex-col items-center">
+            <div className="relative z-10 w-full max-w-5xl mx-auto px-6 pt-32 pb-20 text-center flex flex-col items-center">
 
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1] mb-6">
-                    Turn Screen Recordings Into <br className="hidden md:block"/>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400 animate-gradient-x">Polished Product Demos.</span>
+                <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white leading-tight mb-10">
+                    Turn Screen Recordings Into <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400 animate-gradient-x">Polished Product Demos.</span>
                 </h1>
                 
-                <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed mb-10">
+                <p className="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto leading-relaxed mb-16">
                     Skip editors. Upload a screen recording of your app and get a narrated demo with script, voiceover, zooms, and pacing automatically. Perfect for launches, onboarding, and sharing.
                 </p>
                 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full sm:w-auto">
                     <label className="group relative cursor-pointer w-full sm:w-auto">
                         <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl blur opacity-60 group-hover:opacity-100 transition duration-200"></div>
-                        <div className="relative flex items-center justify-center gap-2 px-8 py-4 bg-white text-black rounded-xl hover:bg-gray-50 transition shadow-xl transform active:scale-[0.98] duration-200">
-                            <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="relative flex items-center justify-center gap-3 px-10 py-5 bg-white text-black rounded-xl hover:bg-gray-50 transition shadow-xl transform active:scale-[0.98] duration-200">
+                            <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                             </svg>
-                            <span className="font-bold text-lg">Upload Video</span>
+                            <span className="font-bold text-xl">Upload Video</span>
                         </div>
                         <input type="file" className="hidden" accept="video/*" onChange={onFileChange} />
                     </label>
                     
                     <button 
                         onClick={handleLogin} 
-                        className="px-8 py-4 rounded-xl font-semibold text-gray-300 hover:text-white border border-gray-800 hover:bg-gray-800 transition w-full sm:w-auto flex items-center justify-center gap-2"
+                        className="px-10 py-5 rounded-xl font-semibold text-gray-300 hover:text-white border border-gray-800 hover:bg-gray-800 transition w-full sm:w-auto flex items-center justify-center gap-2"
                     >
-                         <span>Sign in</span>
+                         <span className="text-lg">Sign in</span>
                     </button>
                 </div>
             </div>
 
+            {/* Spacer */}
+            <div className="w-full h-24 md:h-32"></div>
+
             {/* --- COMPARISON SECTION --- */}
-            <div className="w-full max-w-7xl mx-auto px-6 pb-24 relative z-10">
+            <div className="w-full max-w-7xl mx-auto px-6 pb-32 relative z-10">
                 
-                <div className="grid md:grid-cols-2 gap-8 lg:gap-16 items-start">
+                <div className="grid md:grid-cols-2 gap-12 lg:gap-24 items-start">
                     
                     {/* Before Video */}
-                    <div className="flex flex-col gap-4 group">
+                    <div className="flex flex-col gap-6 group">
                         <div className="flex items-center justify-between px-1">
-                            <span className="text-xs font-bold text-gray-500 tracking-widest uppercase">Original Recording</span>
+                            <span className="text-sm font-bold text-gray-500 tracking-widest uppercase">Original Recording</span>
                             <span className="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded border border-gray-700">Raw Input</span>
                         </div>
                         
@@ -69,17 +71,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 preload="metadata"
                             />
                         </div>
-                        <p className="text-sm text-gray-500 px-1">
+                        <p className="text-base text-gray-500 px-1 leading-relaxed">
                             A standard raw screen capture. Static, no focus, no audio, no context.
                         </p>
                     </div>
 
                     {/* After Video */}
-                    <div className="flex flex-col gap-4 relative group">
+                    <div className="flex flex-col gap-6 relative group">
                         
                         <div className="flex items-center justify-between px-1">
-                            <span className="text-xs font-bold text-indigo-400 tracking-widest uppercase flex items-center gap-2">
-                                <svg className="w-3 h-3 text-indigo-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5 10 5 10-5-5-2.5-5 2.5z"/></svg>
+                            <span className="text-sm font-bold text-indigo-400 tracking-widest uppercase flex items-center gap-2">
+                                <svg className="w-4 h-4 text-indigo-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5 10 5 10-5-5-2.5-5 2.5z"/></svg>
                                 Polished Demo
                             </span>
                             <span className="text-[10px] bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/20 shadow-[0_0_10px_rgba(99,102,241,0.2)]">Output</span>
@@ -97,7 +99,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 preload="metadata"
                             />
                         </div>
-                        <p className="text-sm text-gray-400 px-1">
+                        <p className="text-base text-gray-400 px-1 leading-relaxed">
                             Zoomed for clarity, smooth cursor motion, professional voiceover, and pacing.
                         </p>
                     </div>

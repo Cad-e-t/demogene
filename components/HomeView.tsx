@@ -93,37 +93,46 @@ export const HomeView: React.FC<HomeViewProps> = ({
             );
         }
 
-        // Sub-case: Logged In -> Show Dashboard Upload State
+        // Sub-case: Logged In -> Show Dashboard Upload State (Flat Layout)
         return (
-            <div className="relative w-full min-h-screen flex flex-col items-center justify-center bg-gray-950 p-6 md:ml-0 md:pl-0">
-                {/* Dashboard Content */}
-                <div className="w-full max-w-2xl bg-gray-900 border border-gray-800 rounded-2xl p-10 md:p-16 text-center shadow-2xl relative overflow-hidden animate-fade-in">
+            <div className="relative w-full min-h-screen flex flex-col items-center justify-center bg-gray-950 p-6 md:ml-0 md:pl-0 overflow-hidden">
+                
+                {/* Background Decor */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-900/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+                {/* Content */}
+                <div className="relative z-10 w-full max-w-3xl mx-auto text-center animate-fade-in flex flex-col gap-10">
                     
-                    {/* Decorative Background inside card */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px] pointer-events-none"></div>
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/5 rounded-full blur-[80px] pointer-events-none"></div>
+                    <div className="space-y-4">
+                        <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">Create New Demo</h1>
+                        <p className="text-xl text-gray-400 leading-relaxed max-w-xl mx-auto">
+                            Upload a new screen recording to start the AI generation process. 
+                            Make sure your recording is clear and under 3 minutes.
+                        </p>
+                    </div>
 
-                    <h1 className="text-3xl font-bold text-white mb-3">Create New Demo</h1>
-                    <p className="text-gray-400 mb-10 max-w-md mx-auto">
-                        Upload a new screen recording to start the AI generation process. 
-                        Make sure your recording is clear and under 3 minutes.
-                    </p>
-
-                    <label className="group relative cursor-pointer inline-block">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl blur opacity-60 group-hover:opacity-100 transition duration-200"></div>
-                        <div className="relative flex items-center justify-center gap-3 px-10 py-5 bg-gray-950 border border-gray-800 text-white rounded-xl hover:bg-gray-900 transition shadow-xl">
-                            <svg className="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                            </svg>
-                            <span className="font-bold text-lg">Select Recording</span>
-                        </div>
-                        <input type="file" className="hidden" accept="video/*" onChange={onFileChange} />
-                    </label>
+                    <div className="flex justify-center">
+                        <label className="group relative cursor-pointer inline-block transform hover:scale-[1.02] transition-transform duration-200">
+                            <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-200"></div>
+                            <div className="relative flex items-center justify-center gap-4 px-12 py-8 bg-gray-950 border border-gray-800 text-white rounded-2xl hover:bg-gray-900 transition shadow-2xl">
+                                <div className="p-3 bg-indigo-500/10 rounded-full text-indigo-400">
+                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                </div>
+                                <span className="font-bold text-2xl">Select Recording</span>
+                            </div>
+                            <input type="file" className="hidden" accept="video/*" onChange={onFileChange} />
+                        </label>
+                    </div>
 
                     {profile && profile.credits < 1 && (
-                         <div className="mt-8 pt-6 border-t border-gray-800 flex flex-col items-center gap-2">
-                             <span className="text-sm text-red-400 bg-red-950/20 px-3 py-1 rounded-full border border-red-900/30">Out of credits</span>
-                             <button onClick={onPurchase} className="text-sm text-gray-400 hover:text-white underline decoration-gray-600 hover:decoration-white underline-offset-4">
+                         <div className="flex flex-col items-center gap-3 animate-fade-in">
+                             <div className="flex items-center gap-2 text-sm text-red-400 bg-red-950/30 px-4 py-1.5 rounded-full border border-red-900/50">
+                                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                                Out of credits
+                             </div>
+                             <button onClick={onPurchase} className="text-sm text-gray-500 hover:text-white underline decoration-gray-700 hover:decoration-white underline-offset-4 transition-colors">
                                  Get 10 Demos for $4
                              </button>
                          </div>
@@ -132,7 +141,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                 {/* Success Notification */}
                 {showSuccessNotification && (
-                    <div className="fixed bottom-8 right-8 bg-green-900/90 border border-green-500/30 rounded-xl p-4 flex items-center gap-4 shadow-xl z-50 animate-fade-in">
+                    <div className="fixed bottom-8 right-8 bg-green-900/90 border border-green-500/30 rounded-xl p-4 flex items-center gap-4 shadow-xl z-50 animate-fade-in backdrop-blur-md">
                         <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center text-green-400 shrink-0">✓</div>
                         <div>
                             <h3 className="font-bold text-white text-sm">Payment Successful</h3>
