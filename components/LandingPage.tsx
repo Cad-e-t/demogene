@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface LandingPageProps {
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -7,17 +7,100 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+            setIsMenuOpen(false);
+        }
+    };
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setIsMenuOpen(false);
+    };
+
     return (
-        <div className="relative w-full min-h-screen flex flex-col items-center bg-white overflow-x-hidden selection:bg-green-500 selection:text-white font-sans text-gray-900">
+        <div className="relative w-full min-h-screen flex flex-col items-center bg-white overflow-x-hidden selection:bg-green-500 selection:text-white font-sans text-gray-900 pt-14">
             
+            {/* --- STICKY NAVBAR --- */}
+            <nav className="fixed top-0 left-0 right-0 h-14 bg-white/95 backdrop-blur-sm border-b border-gray-200 flex items-center justify-between px-4 md:px-8 z-50">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={scrollToTop}>
+                     <div className="w-7 h-7 flex items-center justify-center bg-green-50 rounded-full text-[10px] font-bold text-green-700 border border-green-100">
+                         PC
+                     </div>
+                     <span className="font-bold text-sm text-gray-900">ProductCam</span>
+                </div>
+
+                {/* Desktop Menu */}
+                <div className="hidden md:flex items-center gap-6">
+                    <button 
+                        onClick={() => scrollToSection('how-it-works')} 
+                        className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                        How it Works
+                    </button>
+                    <button 
+                        onClick={() => scrollToSection('example')} 
+                        className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                        See Example
+                    </button>
+                    <button 
+                        onClick={scrollToTop} 
+                        className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition border border-gray-800"
+                    >
+                        Create Demo
+                    </button>
+                </div>
+
+                {/* Mobile Menu Icon */}
+                <button 
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="md:hidden p-2 text-gray-600 hover:text-black"
+                >
+                    {isMenuOpen ? (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    ) : (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    )}
+                </button>
+
+                {/* Mobile Dropdown */}
+                {isMenuOpen && (
+                    <div className="absolute top-14 left-0 right-0 bg-white border-b border-gray-200 shadow-xl flex flex-col p-4 gap-2 animate-fade-in md:hidden">
+                        <button 
+                            onClick={() => scrollToSection('how-it-works')}
+                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
+                        >
+                            How it Works
+                        </button>
+                        <button 
+                            onClick={() => scrollToSection('example')}
+                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
+                        >
+                            See Example
+                        </button>
+                        <button 
+                            onClick={scrollToTop}
+                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold text-gray-900 bg-gray-50 border border-gray-100"
+                        >
+                            Create Demo
+                        </button>
+                    </div>
+                )}
+            </nav>
+
             {/* Background Ambience */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-green-500/5 rounded-full blur-[120px] pointer-events-none" />
             
             {/* --- HERO SECTION --- */}
-            <div className="relative z-10 w-full max-w-5xl mx-auto px-6 pt-32 pb-20 text-center flex flex-col items-center">
+            <div className="relative z-10 w-full max-w-5xl mx-auto px-6 pt-24 pb-20 text-center flex flex-col items-center">
 
                 <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 leading-tight mb-10">
-                    Turn Screen Recordings Into <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 via-emerald-500 to-green-600 animate-gradient-x">Polished Product Demos.</span>
+                    Turn Screen Recordings Into Product Demos.
                 </h1>
                 
                 <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-16 font-medium">
@@ -49,7 +132,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             <div className="w-full h-24 md:h-32"></div>
 
             {/* Divider & Header */}
-            <div className="w-full max-w-7xl mx-auto px-6 mb-16 animate-fade-in">
+            <div id="example" className="w-full max-w-7xl mx-auto px-6 mb-16 animate-fade-in scroll-mt-24">
                 <div className="w-full h-px bg-gray-200 mb-16"></div>
                 <h2 className="text-4xl font-bold text-center text-gray-900 tracking-tight">See Example</h2>
             </div>
@@ -114,7 +197,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             </div>
 
             {/* --- How it works --- */}
-            <div className="w-full bg-gray-50 border-t border-gray-200 py-32">
+            <div id="how-it-works" className="w-full bg-gray-50 border-t border-gray-200 py-32 scroll-mt-14">
                 <div className="max-w-4xl mx-auto px-6 flex flex-col items-center text-center">
                     <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-20 tracking-tight">How it works</h2>
                     
@@ -155,6 +238,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </div>
             </div>
 
+            {/* --- CTA Section --- */}
+            <div className="w-full bg-white py-32 flex flex-col items-center justify-center border-t border-gray-200 px-6">
+                <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-12 tracking-tight text-center">
+                    Ready to create your first demo?
+                </h2>
+                
+                <button 
+                    onClick={handleLogin}
+                    className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] transition-transform duration-200"
+                >
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-emerald-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200"></div>
+                    <div className="relative flex items-center justify-center gap-3 px-10 py-5 bg-gray-900 text-white rounded-xl hover:bg-black transition shadow-xl">
+                        <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span className="font-bold text-xl">Create My Demo</span>
+                    </div>
+                </button>
+            </div>
 
             {/* Footer */}
             <div className="py-12 text-center border-t border-gray-200 w-full mt-auto bg-white">
