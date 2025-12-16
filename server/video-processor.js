@@ -9,7 +9,19 @@ import { v4 as uuidv4 } from 'uuid';
 // ==========================================
 // CONFIGURATION
 // ==========================================
+// Standard flags for fast generation steps (Zoom/Effects)
 const FF_FLAGS = ["-c:v", "libx264", "-preset", "fast", "-r", "30", "-pix_fmt", "yuv420p"];
+
+// High Quality flags for initial preprocessing (Upload)
+const PREPROCESS_FLAGS = [
+    "-c:v", "libx264",
+    "-preset", "slow",
+    "-crf", "24",
+    "-r", "30",
+    "-pix_fmt", "yuv420p",
+    "-movflags", "+faststart",
+    "-an" // Remove audio
+];
 
 // ==========================================
 // HELPERS
@@ -329,66 +341,54 @@ export async function preprocessVideo(inputPath, crop, trim, segments, outputPat
         cropFilter = `crop=${pixelW}:${pixelH}:${pixelX}:${pixelY}`;
     }
 
-    // Logic: If segments exist, we concat them. If only trim exists, simple trim.
+    const args = [];
     
     if (segments && Array.isArray(segments) && segments.length > 0) {
-        // Advanced Multi-Segment Logic
-        const workDir = path.join(os.tmpdir(), 'pre_' + uuidv4());
-        if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
-
-        try {
-            const partPaths = [];
-            // Sort segments by start time just in case
-            const sortedSegments = [...segments].sort((a, b) => a.start - b.start);
-
-            for (let i = 0; i < sortedSegments.length; i++) {
-                const seg = sortedSegments[i];
-                const partPath = path.join(workDir, `part_${i}.mp4`);
-                const segArgs = [];
-                
-                // Cut segment
-                segArgs.push('-ss', seg.start.toString());
-                segArgs.push('-to', seg.end.toString());
-                segArgs.push('-i', inputPath);
-
-                // Apply crop here to each segment to ensure uniformity
-                if (cropFilter) {
-                    segArgs.push('-vf', cropFilter);
-                }
-                
-                segArgs.push(...FF_FLAGS);
-                segArgs.push('-y', partPath);
-
-                await runFFmpeg(segArgs);
-                partPaths.push(partPath);
-            }
-
-            // Concat
-            const listPath = path.join(workDir, 'list.txt');
-            fs.writeFileSync(listPath, partPaths.map(p => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
-            await runFFmpeg(['-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', '-y', outputPath]);
-
-        } finally {
-             // Cleanup temp workdir
-             try { fs.rmSync(workDir, { recursive: true, force: true }); } catch(e) {}
+        // Unified Segment Processing: Input Seeking + Concat Filter + Crop + Encode
+        const sorted = [...segments].sort((a, b) => a.start - b.start);
+        
+        // 1. Inputs (Multiple seeks on same file)
+        for (const seg of sorted) {
+            args.push('-ss', seg.start.toString());
+            args.push('-to', seg.end.toString());
+            args.push('-i', inputPath);
         }
+
+        // 2. Filter Complex
+        const filters = [];
+        let inputsMap = "";
+        for (let i = 0; i < sorted.length; i++) inputsMap += `[${i}:v]`;
+        
+        // Concat video only (v=1, a=0)
+        let currentLabel = "[vconcat]";
+        filters.push(`${inputsMap}concat=n=${sorted.length}:v=1:a=0${currentLabel}`);
+        
+        if (cropFilter) {
+            filters.push(`${currentLabel}${cropFilter}[vcrop]`);
+            currentLabel = "[vcrop]";
+        }
+        
+        args.push('-filter_complex', filters.join(';'));
+        args.push('-map', currentLabel);
 
     } else {
-        // Simple Trim Logic (Legacy)
-        const args = [];
+        // Simple Trim
         if (trim && trim.end > 0) {
             args.push('-ss', trim.start.toString());
-            args.push('-to', trim.end.toString()); // Use -to for clearer end point
+            args.push('-to', trim.end.toString());
         }
         args.push('-i', inputPath);
+        
         if (cropFilter) {
             args.push('-vf', cropFilter);
         }
-        args.push(...FF_FLAGS);
-        args.push('-y', outputPath);
-        await runFFmpeg(args);
     }
 
+    // Apply High Quality Encoding Flags (Includes -an)
+    args.push(...PREPROCESS_FLAGS);
+    args.push('-y', outputPath);
+
+    await runFFmpeg(args);
     return outputPath;
 }
 

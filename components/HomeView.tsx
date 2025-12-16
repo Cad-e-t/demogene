@@ -2,6 +2,7 @@
 import React, { useRef, useState } from 'react';
 import { VideoCropper } from './VideoCropper';
 import { AdvancedEditorModal } from './AdvancedEditorModal';
+import { LandingPage } from './LandingPage';
 import { CropData, TrimData, VoiceOption, TimeRange } from '../types';
 import { VOICES } from '../constants';
 
@@ -80,104 +81,71 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onGenerate(segments || undefined);
     };
 
-    // --- LANDING PAGE VIEW (No File Selected) ---
+    // --- CASE 1: NO FILE SELECTED ---
     if (!file) {
+        // Sub-case: Not Logged In -> Show Full Landing Page
+        if (!session) {
+            return (
+                <LandingPage 
+                    onFileChange={onFileChange} 
+                    handleLogin={handleLogin} 
+                />
+            );
+        }
+
+        // Sub-case: Logged In -> Show Dashboard Upload State
         return (
-            <div className="relative w-full min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gray-950 pb-20 md:pb-0">
-                
-                {/* Background Ambience */}
-                <div className="absolute top-0 left-1/4 w-[300px] lg:w-[500px] h-[300px] lg:h-[500px] bg-indigo-600/10 rounded-full blur-[80px] lg:blur-[128px] pointer-events-none" />
-                <div className="absolute bottom-0 right-1/4 w-[300px] lg:w-[600px] h-[300px] lg:h-[600px] bg-purple-600/5 rounded-full blur-[80px] lg:blur-[128px] pointer-events-none" />
-
-                <div className="container mx-auto px-6 lg:px-12 relative z-10 grid lg:grid-cols-2 gap-10 lg:gap-16 items-center min-h-[80vh]">
+            <div className="relative w-full min-h-screen flex flex-col items-center justify-center bg-gray-950 p-6 md:ml-0 md:pl-0">
+                {/* Dashboard Content */}
+                <div className="w-full max-w-2xl bg-gray-900 border border-gray-800 rounded-2xl p-10 md:p-16 text-center shadow-2xl relative overflow-hidden animate-fade-in">
                     
-                    {/* Left: Typography & Action */}
-                    <div className="space-y-6 lg:space-y-8 text-center lg:text-left mt-10 lg:mt-0">
-                        <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1]">
-                            Generate <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Product Demos</span> <br className="hidden md:block"/>
-                            From Your Screen Recordings.
-                        </h1>
-                        
-                        <p className="text-base sm:text-lg lg:text-xl text-gray-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                            Upload a screen recording - get a narrated demo that shows how your product works. Great for launches and social sharing.
-                        </p>
-                        
-                        <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-4">
-                            <label className="group relative cursor-pointer w-full sm:w-auto">
-                                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-200"></div>
-                                <div className="relative flex items-center justify-center gap-3 px-8 py-4 bg-white text-black rounded-xl hover:bg-gray-100 transition shadow-xl transform active:scale-95">
-                                    <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                    </svg>
-                                    <span className="font-bold text-lg">Upload Video</span>
-                                </div>
-                                <input type="file" className="hidden" accept="video/*" onChange={onFileChange} />
-                            </label>
-                            
-                            {!session && (
-                                <button onClick={handleLogin} className="flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-gray-300 hover:text-white border border-transparent hover:border-gray-700 hover:bg-gray-800 transition w-full sm:w-auto">
-                                    <XIcon className="w-5 h-5" />
-                                    <span>Sign in</span>
-                                </button>
-                            )}
+                    {/* Decorative Background inside card */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px] pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/5 rounded-full blur-[80px] pointer-events-none"></div>
+
+                    <h1 className="text-3xl font-bold text-white mb-3">Create New Demo</h1>
+                    <p className="text-gray-400 mb-10 max-w-md mx-auto">
+                        Upload a new screen recording to start the AI generation process. 
+                        Make sure your recording is clear and under 3 minutes.
+                    </p>
+
+                    <label className="group relative cursor-pointer inline-block">
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl blur opacity-60 group-hover:opacity-100 transition duration-200"></div>
+                        <div className="relative flex items-center justify-center gap-3 px-10 py-5 bg-gray-950 border border-gray-800 text-white rounded-xl hover:bg-gray-900 transition shadow-xl">
+                            <svg className="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <span className="font-bold text-lg">Select Recording</span>
                         </div>
+                        <input type="file" className="hidden" accept="video/*" onChange={onFileChange} />
+                    </label>
 
-                         {/* Notification */}
-                         {showSuccessNotification && (
-                            <div className="mt-8 bg-green-900/20 border border-green-500/30 rounded-xl p-4 flex items-center gap-4 max-w-md mx-auto lg:mx-0 animate-fade-in text-left">
-                                <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center text-green-400 shrink-0">✓</div>
-                                <div>
-                                    <h3 className="font-bold text-white text-sm">Purchase Successful</h3>
-                                    <p className="text-green-200/80 text-xs">Credits added to account.</p>
-                                </div>
-                                <button onClick={() => setShowSuccessNotification(false)} className="ml-auto text-gray-400 hover:text-white">✕</button>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Right: Abstract UI Visualization */}
-                    <div className="relative hidden lg:block">
-                         <div className="relative z-10 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl overflow-hidden aspect-video transform rotate-1 hover:rotate-0 transition-transform duration-700">
-                             <div className="h-10 border-b border-gray-800 bg-gray-900/50 flex items-center px-4 gap-2">
-                                 <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
-                                 <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-                                 <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
-                             </div>
-                             <div className="p-8 grid grid-cols-12 gap-6 h-full bg-gradient-to-br from-gray-900 to-black">
-                                 <div className="col-span-4 space-y-4">
-                                     <div className="h-8 w-3/4 bg-gray-800 rounded animate-pulse"></div>
-                                     <div className="h-4 w-full bg-gray-800/50 rounded"></div>
-                                     <div className="h-4 w-5/6 bg-gray-800/50 rounded"></div>
-                                 </div>
-                                 <div className="col-span-8 bg-gray-800/30 rounded-lg border border-gray-700/50 p-4 relative">
-                                     <div className="absolute inset-0 flex items-center justify-center">
-                                         <div className="w-16 h-16 bg-white/10 rounded-full backdrop-blur flex items-center justify-center border border-white/20">
-                                            <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[18px] border-l-white border-b-[10px] border-b-transparent ml-1"></div>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
+                    {profile && profile.credits < 1 && (
+                         <div className="mt-8 pt-6 border-t border-gray-800 flex flex-col items-center gap-2">
+                             <span className="text-sm text-red-400 bg-red-950/20 px-3 py-1 rounded-full border border-red-900/30">Out of credits</span>
+                             <button onClick={onPurchase} className="text-sm text-gray-400 hover:text-white underline decoration-gray-600 hover:decoration-white underline-offset-4">
+                                 Get 10 Demos for $4
+                             </button>
                          </div>
-                    </div>
+                    )}
                 </div>
 
-                {/* Footer Credits Prompt */}
-                {session && profile && profile.credits < 1 && (
-                     <div className="w-full bg-gray-900 border-t border-gray-800 py-4 absolute bottom-0 z-20">
-                         <div className="container mx-auto px-6 flex items-center justify-between">
-                            <span className="text-xs sm:text-sm text-gray-400">You are out of credits.</span>
-                            <button onClick={onPurchase} className="text-xs sm:text-sm font-bold text-indigo-400 hover:text-indigo-300">
-                                Get 10 Demos for $4 →
-                            </button>
-                         </div>
-                     </div>
+                {/* Success Notification */}
+                {showSuccessNotification && (
+                    <div className="fixed bottom-8 right-8 bg-green-900/90 border border-green-500/30 rounded-xl p-4 flex items-center gap-4 shadow-xl z-50 animate-fade-in">
+                        <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center text-green-400 shrink-0">✓</div>
+                        <div>
+                            <h3 className="font-bold text-white text-sm">Payment Successful</h3>
+                            <p className="text-green-200/80 text-xs">Credits have been added to your account.</p>
+                        </div>
+                        <button onClick={() => setShowSuccessNotification(false)} className="ml-auto text-gray-400 hover:text-white">✕</button>
+                    </div>
                 )}
             </div>
         );
     }
 
-    // --- APP EDITOR VIEW (File Selected) ---
+    // --- CASE 2: EDITOR VIEW (File Selected) ---
     return (
         <div className="h-[calc(100vh-3.5rem)] md:h-screen w-full flex flex-col md:flex-row bg-gray-950 text-gray-300 font-sans overflow-hidden">
              
