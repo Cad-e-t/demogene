@@ -9,7 +9,7 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
     return (
-        <div className="relative w-full min-h-screen flex flex-col items-center bg-gray-950 overflow-x-hidden selection:bg-indigo-500 selection:text-white">
+        <div className="relative w-full min-h-screen flex flex-col items-center bg-gray-950 overflow-x-hidden selection:bg-indigo-500 selection:text-white font-sans">
             
             {/* Background Ambience */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-indigo-900/10 rounded-full blur-[120px] pointer-events-none" />
@@ -108,8 +108,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
             </div>
 
-            {/* Footer / Trust / Additional Info could go here */}
-            <div className="py-12 text-center border-t border-gray-800 w-full mt-auto">
+            {/* --- How it works --- */}
+            <div className="w-full bg-gray-900 border-t border-gray-800 py-32">
+                <div className="max-w-4xl mx-auto px-6 flex flex-col items-center text-center">
+                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-20 tracking-tight">How it works</h2>
+                    
+                    <div className="space-y-20 w-full max-w-2xl relative">
+                        {/* Connecting Line */}
+                        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-800 -translate-x-1/2 hidden md:block z-0"></div>
+
+                        <div className="flex flex-col items-center gap-6 relative z-10 bg-gray-900 md:px-4">
+                            <div className="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-2xl border border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.15)]">1</div>
+                            <h3 className="text-2xl font-semibold text-white">Record your screen</h3>
+                            <p className="text-lg text-gray-400 leading-relaxed max-w-md">
+                                Just click through your product like you'd normally use it.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col items-center gap-6 relative z-10 bg-gray-900 md:px-4">
+                            <div className="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-2xl border border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.15)]">2</div>
+                            <h3 className="text-2xl font-semibold text-white">We turn it into a demo</h3>
+                            <p className="text-lg text-gray-400 leading-relaxed">
+                                Your recording is broken into clear steps with:
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left bg-gray-950 p-6 rounded-2xl border border-gray-800 w-full md:w-auto">
+                                <div className="flex items-center gap-3 text-gray-300"><span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span> Auto-generated script</div>
+                                <div className="flex items-center gap-3 text-gray-300"><span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span> Natural voiceover</div>
+                                <div className="flex items-center gap-3 text-gray-300"><span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span> Smart zooms & pauses</div>
+                                <div className="flex items-center gap-3 text-gray-300"><span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span> Clean pacing</div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col items-center gap-6 relative z-10 bg-gray-900 md:px-4">
+                            <div className="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-2xl border border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.15)]">3</div>
+                            <h3 className="text-2xl font-semibold text-white">Download</h3>
+                            <p className="text-lg text-gray-400 leading-relaxed max-w-md">
+                                Download a ready-to-use SaaS demo you can ship with immediately.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            {/* Footer */}
+            <div className="py-12 text-center border-t border-gray-800 w-full mt-auto bg-gray-950">
                 <p className="text-gray-600 text-sm">ProductCam AI © 2025</p>
             </div>
         </div>
