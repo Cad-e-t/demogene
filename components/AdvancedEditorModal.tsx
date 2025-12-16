@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { TimeRange } from '../types';
@@ -408,7 +407,7 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
         {/* Header */}
         <div className="h-16 border-b border-gray-800 flex items-center justify-between px-6 bg-gray-900 shrink-0">
             <h2 className="font-bold text-white text-lg flex items-center gap-2">
-                <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm8.486-8.486a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243z" /></svg>
+                <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm8.486-8.486a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243z" /></svg>
                 Advanced Editor
             </h2>
             <div className="flex items-center gap-3">
@@ -425,7 +424,7 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
                  <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition">Cancel</button>
                  <button 
                     onClick={() => onSave(segments)}
-                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition shadow-lg shadow-indigo-500/20"
+                    className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-lg transition shadow-lg shadow-green-500/20"
                 >
                     Save Changes
                  </button>
@@ -543,8 +542,8 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
                                 }}
                                 className={`absolute bottom-0 top-2 rounded-md overflow-visible group/segment border-2 cursor-pointer
                                     ${selectedSegmentId === item.segment.id 
-                                        ? 'bg-indigo-600/80 border-white z-20 shadow-lg' 
-                                        : 'bg-indigo-900/40 border-indigo-500/30 hover:bg-indigo-800/60 z-10'
+                                        ? 'bg-green-600/80 border-white z-20 shadow-lg' 
+                                        : 'bg-green-900/40 border-green-500/30 hover:bg-green-800/60 z-10'
                                     }`}
                                 onClick={(e) => {
                                     e.stopPropagation();

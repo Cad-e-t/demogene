@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { Session } from '@supabase/supabase-js';
@@ -220,7 +219,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-green-500 selection:text-white overflow-x-hidden">
       
       {session && (
           <Sidebar 

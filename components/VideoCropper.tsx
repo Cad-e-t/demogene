@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { CropData, TrimData, TimeRange } from '../types';
 
@@ -324,7 +323,7 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({
                 <div className="flex items-center gap-3">
                     <button 
                         onClick={togglePlay}
-                        className="w-10 h-10 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-500 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-green-600 hover:bg-green-500 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-green-500/50"
                     >
                         {isPlaying ? (
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
@@ -369,11 +368,11 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({
                     </div>
 
                     <div 
-                        className="absolute h-1.5 bg-indigo-500/50 pointer-events-none"
+                        className="absolute h-1.5 bg-green-500/50 pointer-events-none"
                         style={{ left: `${startPct}%`, width: `${widthPct}%` }}
                     />
                     <div 
-                        className="absolute top-1 bottom-1 border-t-2 border-b-2 border-indigo-500 opacity-30 pointer-events-none"
+                        className="absolute top-1 bottom-1 border-t-2 border-b-2 border-green-500 opacity-30 pointer-events-none"
                         style={{ left: `${startPct}%`, width: `${widthPct}%` }}
                     />
 
@@ -383,7 +382,7 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({
                         className="absolute w-6 h-8 -top-1 bg-transparent cursor-ew-resize z-20 flex items-center justify-center group/handle"
                         style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
                     >
-                        <div className="w-4 h-6 bg-indigo-500 rounded-sm shadow border border-white/20 flex items-center justify-center group-hover/handle:scale-110 transition-transform">
+                        <div className="w-4 h-6 bg-green-500 rounded-sm shadow border border-white/20 flex items-center justify-center group-hover/handle:scale-110 transition-transform">
                             <div className="w-0.5 h-3 bg-white/50"></div>
                         </div>
                     </div>
@@ -394,7 +393,7 @@ export const VideoCropper: React.FC<VideoCropperProps> = ({
                         className="absolute w-6 h-8 -top-1 bg-transparent cursor-ew-resize z-20 flex items-center justify-center group/handle"
                         style={{ left: `${endPct}%`, transform: 'translateX(-50%)' }}
                     >
-                        <div className="w-4 h-6 bg-indigo-500 rounded-sm shadow border border-white/20 flex items-center justify-center group-hover/handle:scale-110 transition-transform">
+                        <div className="w-4 h-6 bg-green-500 rounded-sm shadow border border-white/20 flex items-center justify-center group-hover/handle:scale-110 transition-transform">
                             <div className="w-0.5 h-3 bg-white/50"></div>
                         </div>
                     </div>
