@@ -4,10 +4,11 @@ import { VideoProject, ProcessingStatus } from '../types';
 interface VideoGalleryProps {
     videos: VideoProject[];
     onSelectVideo: (video: VideoProject) => void;
+    onDeleteVideo: (video: VideoProject) => void;
     fetchVideos: () => void;
 }
 
-export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVideo, fetchVideos }) => {
+export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVideo, onDeleteVideo, fetchVideos }) => {
     
     const getStatusText = (step?: ProcessingStatus['step']) => {
         switch(step) {
@@ -15,6 +16,14 @@ export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVide
             case 'generating_audio': return 'Generating Voiceover...';
             case 'rendering': return 'Rendering Video...';
             default: return 'Processing...';
+        }
+    };
+
+    const handleDelete = (e: React.MouseEvent, vid: VideoProject) => {
+        // Prevent opening the video modal when clicking delete
+        e.stopPropagation();
+        if (window.confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+            onDeleteVideo(vid);
         }
     };
 
@@ -29,12 +38,25 @@ export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVide
                     <div 
                         key={vid.id} 
                         onClick={() => vid.status === 'completed' ? onSelectVideo(vid) : null} 
-                        className={`group bg-white border rounded-2xl overflow-hidden transition-all duration-300 shadow-sm hover:shadow-xl
+                        className={`group bg-white border rounded-2xl overflow-hidden transition-all duration-300 shadow-sm hover:shadow-xl relative
                             ${vid.status === 'completed' 
                                 ? 'border-gray-200 hover:border-green-500/50 cursor-pointer hover:-translate-y-1' 
                                 : 'border-green-100 cursor-default'
                             }`}
                     >
+                        {/* Delete Button overlay - visible on hover, hidden during processing */}
+                        {vid.status !== 'processing' && (
+                            <button 
+                                onClick={(e) => handleDelete(e, vid)}
+                                className="absolute top-3 right-3 z-20 p-2 bg-white/90 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 border border-gray-100 cursor-pointer"
+                                title="Delete Video"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        )}
+
                         {vid.status === 'processing' ? (
                              <div className="aspect-video bg-gray-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
                                  {/* Animated Processing Background */}
@@ -59,7 +81,7 @@ export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVide
                                     onMouseOver={e => e.currentTarget.play()} 
                                     onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                                 />
-                                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur px-2 py-1 rounded text-xs font-bold text-white border border-white/10">
+                                <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur px-2 py-1 rounded text-xs font-bold text-white border border-white/10">
                                     {vid.voice_id === 'voiceless' ? 'No Voice' : 'Narrated'}
                                 </div>
                             </div>

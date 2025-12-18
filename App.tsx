@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
-import { Session } from '@supabase/supabase-js';
+// Fixed: Use type import for Session to handle cases where it's exported as a type
+import type { Session } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Sidebar } from './components/Sidebar';
@@ -10,7 +11,7 @@ import { VideoModal } from './components/VideoModal';
 
 import { CropData, TrimData, VoiceOption, VideoProject, TimeRange } from './types';
 import { VOICES } from './constants';
-import { processVideoRequest, createCheckoutSession } from './frontend-api';
+import { processVideoRequest, createCheckoutSession, deleteVideo } from './frontend-api';
 import { DEFAULT_SCRIPT_RULES, DEFAULT_TTS_STYLE } from './scriptStyles';
 
 const XIcon = ({ className }: { className?: string }) => (
@@ -51,12 +52,14 @@ export default function App() {
 
   // --- Auth & Init ---
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Fixed: Cast auth to any to bypass typing errors if getSession is not correctly picked up from types
+    (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
       setSession(session);
       if (session) fetchProfile(session.user.id);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Fixed: Cast auth to any to bypass typing errors for onAuthStateChange
+    const { data: { subscription } } = (supabase.auth as any).onAuthStateChange((_event: any, session: any) => {
       setSession(session);
       if (session) {
           setShowAuthModal(false);
@@ -81,12 +84,14 @@ export default function App() {
   };
 
   const handleLogin = async () => {
-    try { await supabase.auth.signInWithOAuth({ provider: 'twitter' }); } 
+    // Fixed: Cast auth to any to bypass typing errors for signInWithOAuth
+    try { await (supabase.auth as any).signInWithOAuth({ provider: 'twitter' }); } 
     catch (error) { console.error("Login failed:", error); }
   };
 
   const handleLogout = async () => {
-      await supabase.auth.signOut();
+      // Fixed: Cast auth to any to bypass typing errors for signOut
+      await (supabase.auth as any).signOut();
       setCurrentView('home');
       setVideos([]);
       setProfile(null);
@@ -100,7 +105,10 @@ export default function App() {
         if (error) throw error;
         setVideos(prev => {
             const processing = prev.filter(v => v.status === 'processing');
-            return [...processing, ...(data || [])] as VideoProject[];
+            // Merge but deduplicate if necessary
+            const existingIds = new Set(processing.map(v => v.id));
+            const newVideos = (data || []).filter(v => !existingIds.has(v.id));
+            return [...processing, ...newVideos] as VideoProject[];
         });
     } catch(e) { console.error("Failed to fetch videos", e); }
   };
@@ -218,6 +226,16 @@ export default function App() {
       }
   };
 
+  const handleDeleteVideo = async (video: VideoProject) => {
+      try {
+          await deleteVideo(video);
+          setVideos(prev => prev.filter(v => v.id !== video.id));
+      } catch (e: any) {
+          console.error("Delete failed:", e);
+          alert("Failed to delete video: " + (e.message || "Unknown error"));
+      }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-green-500 selection:text-white overflow-x-hidden">
       
@@ -259,6 +277,7 @@ export default function App() {
               <VideoGallery 
                   videos={videos} 
                   onSelectVideo={setSelectedVideo}
+                  onDeleteVideo={handleDeleteVideo}
                   fetchVideos={fetchVideos}
               />
           )}

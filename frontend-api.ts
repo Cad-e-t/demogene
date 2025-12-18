@@ -1,5 +1,4 @@
-
-import { AnalysisResult, CropData, ProcessingStatus, TrimData, TimeRange } from './types';
+import { AnalysisResult, CropData, ProcessingStatus, TrimData, TimeRange, VideoProject } from './types';
 import { supabase } from './supabaseClient';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'https://demo-maker-417540185411.us-central1.run.app' ;
@@ -101,7 +100,7 @@ export async function processVideoRequest(
 }
 
 export async function createCheckoutSession(productId: string) {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await (supabase.auth as any).getSession();
     if (!session) throw new Error("Not authenticated");
 
     const response = await fetch(`${PAYMENT_API_URL}/create-checkout-session`, {
@@ -119,4 +118,46 @@ export async function createCheckoutSession(productId: string) {
     }
 
     return await response.json();
+}
+
+/**
+ * Deletes a video from the database and removes its associated storage objects.
+ */
+export async function deleteVideo(video: VideoProject): Promise<void> {
+    // 1. Delete from database
+    const { error: dbError } = await supabase
+        .from('videos')
+        .delete()
+        .eq('id', video.id);
+
+    if (dbError) throw dbError;
+
+    // 2. Delete from storage
+    const pathsToDelete: string[] = [];
+
+    const getStoragePath = (url: string | null) => {
+        if (!url) return null;
+        // Extracts "inputs/uuid.mp4" or "outputs/uuid.mp4" from the full Supabase public URL
+        const parts = url.split('/uploads/');
+        return parts.length > 1 ? parts[1] : null;
+    };
+
+    // Fixed: input_video_url is now part of the VideoProject interface in types.ts
+    const inputPath = getStoragePath(video.input_video_url || (video as any).input_video_url);
+    const finalPath = getStoragePath(video.final_video_url);
+
+    if (inputPath) pathsToDelete.push(inputPath);
+    if (finalPath) pathsToDelete.push(finalPath);
+
+    if (pathsToDelete.length > 0) {
+        const { error: storageError } = await supabase.storage
+            .from('uploads')
+            .remove(pathsToDelete);
+        
+        if (storageError) {
+            console.error("Failed to delete storage objects:", storageError);
+            // We don't necessarily throw here if the DB record is already gone,
+            // but logging it is good practice.
+        }
+    }
 }

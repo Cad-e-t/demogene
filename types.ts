@@ -62,6 +62,7 @@ export interface VoiceOption {
 export interface VideoProject {
     id: string;
     title: string;
+    input_video_url?: string | null; // Added to fix frontend-api.ts property access error
     final_video_url: string | null;
     created_at: string;
     status: 'processing' | 'completed' | 'failed';

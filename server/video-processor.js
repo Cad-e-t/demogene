@@ -1,5 +1,4 @@
 
-
 import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -15,7 +14,7 @@ const FF_FLAGS = ["-c:v", "libx264", "-preset", "fast", "-r", "30", "-pix_fmt", 
 // High Quality flags for initial preprocessing (Upload)
 const PREPROCESS_FLAGS = [
     "-c:v", "libx264",
-    "-preset", "slow",
+    "-preset", "ultrafast", 
     "-crf", "24",
     "-r", "30",
     "-pix_fmt", "yuv420p",
@@ -121,6 +120,7 @@ async function createGradientBackground(width, height, startColor, endColor, sty
 
 async function prepareBackgroundVideo(inputVideo, outputVideo, analysis, workDir) {
     const { width: origW, height: origH } = getResolution(inputVideo);
+    const videoDuration = getDuration(inputVideo);
     
     // Dynamic Canvas Sizing Logic
     const padding = 60;
@@ -133,7 +133,7 @@ async function prepareBackgroundVideo(inputVideo, outputVideo, analysis, workDir
     const bgW = vidW + (padding * 2);
     const bgH = vidH + (padding * 2);
     
-    console.log(`Dynamic Res: ${bgW}x${bgH}, Video Scaled: ${vidW}x${vidH}`);
+    console.log(`Dynamic Res: ${bgW}x${bgH}, Video Scaled: ${vidW}x${vidH}, Duration: ${videoDuration}s`);
     
     // Create Assets
     const tempId = uuidv4();
@@ -149,14 +149,17 @@ async function prepareBackgroundVideo(inputVideo, outputVideo, analysis, workDir
     // Filter Complex: Scale -> Mask -> Overlay
     const filterComplex = `[0:v]setpts=PTS-STARTPTS,scale=${vidW}:${vidH}[scaled];[scaled][1:v]alphamerge[rounded];[2:v][rounded]overlay=${padding}:${padding}`;
     
-    // Trimming 0.5s from start as per Python requirement
+    // FIX: To prevent hangs, we explicitly set the duration for the looped image inputs using -t.
+    // Relying on -shortest with -loop 1 often causes FFmpeg to wait indefinitely for an end-of-stream signal that never comes from the images.
     await runFFmpeg([
         '-i', inputVideo,
-        '-loop', '1', '-i', maskPath,
-        '-loop', '1', '-i', bgPath,
+        '-loop', '1', '-t', videoDuration.toString(), '-i', maskPath,
+        '-loop', '1', '-t', videoDuration.toString(), '-i', bgPath,
         '-filter_complex', filterComplex,
-        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', '-c:a', 'copy',
-        '-shortest', '-ss', '0.5', '-y', outputVideo
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', 
+        '-an', 
+        '-ss', '0.5', // Trimming 0.5s from start as per design requirement
+        '-y', outputVideo
     ]);
     
     // Cleanup assets
@@ -201,7 +204,6 @@ function transformSegmentData(segments, params) {
                     else act.time = adjustedTime;
                     
                     // Transform Coordinates
-                    // Mocks.js uses coordinates object
                     let cx = act.coordinates ? act.coordinates.x : act.x;
                     let cy = act.coordinates ? act.coordinates.y : act.y;
                     
@@ -359,7 +361,6 @@ export async function preprocessVideo(inputPath, crop, trim, segments, outputPat
         let inputsMap = "";
         for (let i = 0; i < sorted.length; i++) inputsMap += `[${i}:v]`;
         
-        // Concat video only (v=1, a=0)
         let currentLabel = "[vconcat]";
         filters.push(`${inputsMap}concat=n=${sorted.length}:v=1:a=0${currentLabel}`);
         
@@ -384,7 +385,6 @@ export async function preprocessVideo(inputPath, crop, trim, segments, outputPat
         }
     }
 
-    // Apply High Quality Encoding Flags (Includes -an)
     args.push(...PREPROCESS_FLAGS);
     args.push('-y', outputPath);
 
@@ -428,11 +428,9 @@ export async function processVideoPipeline(
             
             console.log(`Processing Scene ${i}: Visual ${duration.toFixed(2)}s, Audio ${audioDur.toFixed(2)}s`);
             
-            // 1. Extract raw segment
             const rawSegPath = path.join(workDir, `raw_${i}.mp4`);
             await runFFmpeg(['-ss', start.toString(), '-t', duration.toString(), '-i', intermediateStyled, '-an', ...FF_FLAGS, '-y', rawSegPath]);
             
-            // 2. Apply Zoom (Multiple zooms supported)
             const zoomEvents = getZoomEvents(seg, start, end);
             let currentSource = rawSegPath;
             
@@ -443,24 +441,18 @@ export async function processVideoPipeline(
                 currentSource = zoomedPath;
             }
             
-            // 3. Sync Duration (Freeze or Trim/Decimate)
             const visualDur = getDuration(currentSource);
             const finalSegPath = path.join(workDir, `proc_${i}.mp4`);
             
             const timeDiff = audioDur - visualDur;
 
-            // Updated logic to handle precision and valid padding
             if (timeDiff > 0.02) {
-                // Visual is significantly shorter than audio -> Pad it
                 const freezeTime = timeDiff;
                 console.log(`  -> Visual shorter. Freezing last frame for ${freezeTime.toFixed(3)}s`);
-                // Use .toFixed(3) to prevent scientific notation (e.g. 1e-15) which crashes ffmpeg
                 await runFFmpeg(['-i', currentSource, '-vf', `tpad=stop_mode=clone:stop_duration=${freezeTime.toFixed(3)}`, '-an', ...FF_FLAGS, '-y', finalSegPath]);
             } else {
-                // Visual is longer or roughly equal -> Trim or Decimate
                 const motionlessPath = path.join(workDir, `motionless_${i}.mp4`);
                 try {
-                    // Try to decimate duplicate frames
                     await runFFmpeg(['-i', currentSource, '-vf', 'mpdecimate,setpts=N/FRAME_RATE/TB', '-an', ...FF_FLAGS, '-y', motionlessPath]);
                     const mdur = getDuration(motionlessPath);
                     
@@ -469,11 +461,9 @@ export async function processVideoPipeline(
                         await runFFmpeg(['-i', motionlessPath, '-t', audioDur.toString(), '-an', ...FF_FLAGS, '-y', finalSegPath]);
                     } else {
                          console.log(`  -> Motionless too short. Trimming original.`);
-                         // Ensure we don't trim if original is already effectively equal or shorter (though we are in else block, so visualDur >= audioDur - 0.02)
                          await runFFmpeg(['-i', currentSource, '-t', audioDur.toString(), '-an', ...FF_FLAGS, '-y', finalSegPath]);
                     }
                 } catch (e) {
-                    // Fallback to simple trim
                      await runFFmpeg(['-i', currentSource, '-t', audioDur.toString(), '-an', ...FF_FLAGS, '-y', finalSegPath]);
                 }
             }
@@ -481,13 +471,11 @@ export async function processVideoPipeline(
             processedPaths.push(finalSegPath);
         }
         
-        // 4. Concat Visuals
         const listPath = path.join(workDir, 'list.txt');
         fs.writeFileSync(listPath, processedPaths.map(p => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
         const syncedVideo = path.join(workDir, 'synced.mp4');
         await runFFmpeg(['-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', '-y', syncedVideo]);
         
-        // 5. Merge with Master Audio (IF AUDIO EXISTS)
         console.log("--- Pipeline Step 4: Final Merge ---");
         if (fullAudioPath) {
             await runFFmpeg(['-i', syncedVideo, '-i', fullAudioPath, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-y', finalOutputPath]);

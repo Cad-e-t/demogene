@@ -1,5 +1,4 @@
 
-
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
@@ -68,13 +67,12 @@ create policy "Users can insert own videos" on public.videos
     for insert with check (auth.uid() = user_id);
 create policy "Users can update own videos" on public.videos
     for update using (auth.uid() = user_id);
+create policy "Users can delete own videos" on public.videos
+    for delete using (auth.uid() = user_id);
 
 -- Profiles
 create policy "Users can view own profile" on public.profiles
     for select using (auth.uid() = id);
--- Only service role should update credits generally, but we allow users to update non-sensitive fields if needed.
--- For now, strictly limit updates to service role or special triggers? 
--- Let's stick to SELECT for users.
     
 -- Credit Transactions
 create policy "Users can view own transactions" on public.credit_transactions
@@ -82,29 +80,38 @@ create policy "Users can view own transactions" on public.credit_transactions
 
 
 -- Storage Bucket Setup
--- 1. Go to Storage in Supabase Dashboard
--- 2. Create a new public bucket named "uploads"
+insert into storage.buckets (id, name, public) 
+values ('uploads', 'uploads', true)
+on conflict (id) do nothing;
 
--- Storage Policies (SQL representation)
-begin;
-  insert into storage.buckets (id, name, public) 
-  values ('uploads', 'uploads', true)
-  on conflict (id) do nothing;
-  
-  insert into storage.policies (name, definition, bucket_id, read, write, create)
-  values 
-  ('Authenticated Access', 'bucket_id = ''uploads'' AND auth.role() = ''authenticated''', 'uploads', true, true, true)
-  on conflict (name) do nothing;
-commit;
+-- Policies for storage.objects (Authenticated Access for 'uploads' bucket)
+create policy "Authenticated users can upload to uploads"
+on storage.objects for insert
+to authenticated
+with check (bucket_id = 'uploads');
+
+create policy "Authenticated users can read from uploads"
+on storage.objects for select
+to authenticated
+using (bucket_id = 'uploads');
+
+create policy "Authenticated users can update in uploads"
+on storage.objects for update
+to authenticated
+using (bucket_id = 'uploads');
+
+create policy "Authenticated users can delete from uploads"
+on storage.objects for delete
+to authenticated
+using (bucket_id = 'uploads');
+
 
 -- FUNCTIONS & TRIGGERS
-
--- 1. Handle New User -> Create Profile
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
   insert into public.profiles (id, credits)
-  values (new.id, 0); -- Start with 0 credits
+  values (new.id, 0); 
   return new;
 end;
 $$ language plpgsql security definer;
@@ -114,7 +121,6 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 2. Grant Credits (Called by Payment Server)
 create or replace function grant_credits_from_purchase(
   p_user_id uuid,
   p_credits_to_add int,
@@ -126,19 +132,16 @@ language plpgsql
 security definer
 as $$
 begin
-  -- Update Profile
   update public.profiles
   set credits = credits + p_credits_to_add,
       updated_at = now()
   where id = p_user_id;
 
-  -- Log Transaction
   insert into public.credit_transactions (user_id, amount, type, description, metadata)
   values (p_user_id, p_credits_to_add, 'purchase', p_description, p_metadata);
 end;
 $$;
 
--- 3. Charge Credit (Called by Video Server)
 create or replace function charge_credit(
   p_user_id uuid
 )
