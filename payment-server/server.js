@@ -23,7 +23,25 @@ if (!DODO_PAYMENTS_API_KEY || !DODO_WEBHOOK_SECRET || !SUPABASE_URL || !SUPABASE
 }
 
 // --- MIDDLEWARE ---
-app.use(cors({ origin: '*' })); // Allow all for demo
+const allowedOrigins = new Set([
+  'https://productcam.site',
+  'https://demogene.vercel.app',
+  'https://www.productcam.site',
+  'http://localhost:3000'
+]);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // allow server-to-server or tools like curl/postman
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.has(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
 
 // --- CLIENTS ---
 const supabase = createClient(SUPABASE_URL || '', SUPABASE_SERVICE_ROLE_KEY || '');

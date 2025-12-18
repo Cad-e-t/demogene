@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { VideoCropper } from './VideoCropper';
 import { AdvancedEditorModal } from './AdvancedEditorModal';
@@ -157,36 +158,39 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return (
         <div className="h-[calc(100vh-3.5rem)] md:h-screen w-full flex flex-col md:flex-row bg-white text-gray-900 font-sans overflow-hidden">
              
-             {/* HEADER BAR (Mobile Only) with Tab Switcher */}
+             {/* HEADER BAR (Mobile Only) */}
              <div className="md:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 z-20">
                  <button 
                      onClick={handleClear}
-                     className="text-gray-500 hover:text-black"
+                     className="flex items-center gap-2 text-gray-500 hover:text-black font-bold text-sm"
                  >
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    Back
                  </button>
-                 
-                 {/* Mobile Segmented Control */}
-                 <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
+                 <span className="text-xs font-bold text-gray-400 truncate max-w-[150px] uppercase tracking-wider">{file?.name}</span>
+                 <div className="w-10"></div>
+             </div>
+
+             {/* BOTTOM TAB NAV (Mobile Only) */}
+             <div className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-gray-200 flex items-center justify-center px-6 z-40 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+                 <div className="flex bg-gray-100 rounded-xl p-1 border border-gray-200 w-full">
                      <button 
                         onClick={() => setMobileTab('preview')}
-                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${mobileTab === 'preview' ? 'bg-white text-black shadow-sm' : 'text-gray-500'}`}
+                        className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${mobileTab === 'preview' ? 'bg-white text-black shadow-sm' : 'text-gray-500'}`}
                      >
                         Preview
                      </button>
                      <button 
                         onClick={() => setMobileTab('settings')}
-                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${mobileTab === 'settings' ? 'bg-white text-black shadow-sm' : 'text-gray-500'}`}
+                        className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${mobileTab === 'settings' ? 'bg-white text-black shadow-sm' : 'text-gray-500'}`}
                      >
-                        Settings
+                        Continue
                      </button>
                  </div>
-
-                 <div className="w-5"></div> {/* Spacer for center alignment */}
              </div>
 
              {/* LEFT PANEL: Video Canvas Area */}
-             <div className={`flex-1 flex flex-col min-w-0 relative ${mobileTab === 'settings' ? 'hidden md:flex' : 'flex'}`}>
+             <div className={`flex-1 flex flex-col min-w-0 relative pb-20 md:pb-0 ${mobileTab === 'settings' ? 'hidden md:flex' : 'flex'}`}>
                  
                  {/* Desktop Toolbar */}
                  <div className="hidden md:flex h-14 border-b border-gray-200 items-center justify-between px-6 bg-white flex-shrink-0 z-10">
@@ -263,7 +267,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
              </div>
 
              {/* RIGHT PANEL: Settings Sidebar */}
-             <div className={`w-full md:w-80 md:border-l border-gray-200 bg-white flex flex-col z-10 flex-shrink-0 ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex h-full'}`}>
+             <div className={`w-full md:w-80 md:border-l border-gray-200 bg-white flex flex-col z-10 flex-shrink-0 pb-20 md:pb-0 ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex h-full'}`}>
                  
                  <div className="h-14 border-b border-gray-200 flex items-center px-6 flex-shrink-0 bg-gray-50/50">
                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Configuration</h3>
