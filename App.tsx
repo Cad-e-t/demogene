@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 // Fixed: Use type import for Session to handle cases where it's exported as a type
@@ -32,6 +33,7 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [showFailureNotification, setShowFailureNotification] = useState(false);
   
   // Navigation
   const [currentView, setCurrentView] = useState<'home' | 'videos'>('home');
@@ -70,9 +72,13 @@ export default function App() {
     });
 
     const params = new URLSearchParams(window.location.search);
-    if (params.get('payment_status') === 'success') {
+    const paymentStatus = params.get('payment_status');
+    if (paymentStatus === 'success') {
         window.history.replaceState({}, document.title, window.location.pathname);
         setShowSuccessNotification(true);
+    } else if (paymentStatus === 'failed') {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setShowFailureNotification(true);
     }
     return () => subscription.unsubscribe();
   }, []);
@@ -270,6 +276,8 @@ export default function App() {
                   handleLogin={handleLogin}
                   showSuccessNotification={showSuccessNotification}
                   setShowSuccessNotification={setShowSuccessNotification}
+                  showFailureNotification={showFailureNotification}
+                  setShowFailureNotification={setShowFailureNotification}
               />
           </div>
 

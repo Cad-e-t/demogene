@@ -1,3 +1,4 @@
+
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
@@ -158,7 +159,7 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
 
         if (!dodo) throw new Error("Dodo client not initialized");
 
-        // Logic for "10 Demos for $4"
+        // Logic for "10 Demos for $3"
         // In real DodoPayments, you create a product in their dashboard and use that ID.
         // Here we simulate or use a dynamic/real ID.
         let amount = 400; // $4.00 USD (in cents)
@@ -175,7 +176,7 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
         const checkoutPayload = {
             product_cart: [{ product_id: finalProductId, quantity: 1 }], 
             billing_currency: 'USD',
-            return_url: `${FRONTEND_URL}/?payment_status=success`, // Redirects to home with param
+            return_url: `${FRONTEND_URL}/?payment_status={status}`, // Redirects to home with param
             metadata: {
                 user_id: user.id,
                 credits_to_add: String(credits),

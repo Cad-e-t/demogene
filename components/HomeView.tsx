@@ -38,6 +38,8 @@ interface HomeViewProps {
     
     showSuccessNotification: boolean;
     setShowSuccessNotification: (b: boolean) => void;
+    showFailureNotification: boolean;
+    setShowFailureNotification: (b: boolean) => void;
     
     errorMessage: string | null;
 }
@@ -51,6 +53,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     onFileChange, onClearFile, onGenerate, onPurchase,
     showAuthModal, handleLogin,
     showSuccessNotification, setShowSuccessNotification,
+    showFailureNotification, setShowFailureNotification,
     errorMessage
 }) => {
     
@@ -148,6 +151,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             <p className="text-green-200/80 text-xs">Credits have been added to your account.</p>
                         </div>
                         <button onClick={() => setShowSuccessNotification(false)} className="ml-auto text-gray-400 hover:text-white">✕</button>
+                    </div>
+                )}
+
+                {/* Failure Notification */}
+                {showFailureNotification && (
+                    <div className="fixed bottom-8 right-8 bg-red-900 border border-red-700 rounded-xl p-4 flex items-center gap-4 shadow-xl z-50 animate-fade-in">
+                        <div className="w-8 h-8 bg-red-500/20 rounded-full flex items-center justify-center text-red-400 shrink-0">✕</div>
+                        <div>
+                            <h3 className="font-bold text-white text-sm">Payment Failed</h3>
+                            <p className="text-red-200/80 text-xs">Please check your payment details and try again.</p>
+                        </div>
+                        <button onClick={() => setShowFailureNotification(false)} className="ml-auto text-gray-400 hover:text-white">✕</button>
                     </div>
                 )}
             </div>
