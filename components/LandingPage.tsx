@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface LandingPageProps {
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -8,6 +8,21 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    useEffect(() => {
+        // SEO: Set Title
+        document.title = "ProductCam | Turn Screen Recordings Into Product Demos";
+        
+        // SEO: Set Meta Description
+        const descriptionText = "Turn Screen Recordings Into Product Demos Automatically. Skip editors. Upload a screen recording of your app and get a narrated demo with script, voiceover, zooms, and pacing. Perfect for launches, onboarding, and sharing.";
+        let metaDesc = document.querySelector('meta[name="description"]');
+        if (!metaDesc) {
+            metaDesc = document.createElement('meta');
+            metaDesc.setAttribute('name', 'description');
+            document.head.appendChild(metaDesc);
+        }
+        metaDesc.setAttribute('content', descriptionText);
+    }, []);
 
     const scrollToSection = (id: string) => {
         const element = document.getElementById(id);
