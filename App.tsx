@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+// Fixed: Use type import for Session to handle cases where it's exported as a type
 import type { Session } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -14,6 +14,12 @@ import { VOICES } from './constants';
 import { processVideoRequest, createCheckoutSession, deleteVideo } from './frontend-api';
 import { DEFAULT_SCRIPT_RULES, DEFAULT_TTS_STYLE } from './scriptStyles';
 
+const XIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+  </svg>
+);
+
 interface UserProfile {
     id: string;
     credits: number;
@@ -25,14 +31,13 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  
-  // Notification States
-  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info', message: string, description: string } | null>(null);
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [showFailureNotification, setShowFailureNotification] = useState(false);
   
   // Navigation
   const [currentView, setCurrentView] = useState<'home' | 'videos'>('home');
   
-  // Home View State
+  // Home View State (Lifted Up)
   const [file, setFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [crop, setCrop] = useState<CropData>({ x: 0, y: 0, width: 1, height: 1 });
@@ -46,13 +51,15 @@ export default function App() {
   const [videos, setVideos] = useState<VideoProject[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<VideoProject | null>(null);
 
-  // --- Auth & Payment Init ---
+  // --- Auth & Init ---
   useEffect(() => {
+    // Fixed: Cast auth to any to bypass typing errors if getSession is not correctly picked up from types
     (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
       setSession(session);
       if (session) fetchProfile(session.user.id);
     });
 
+    // Fixed: Cast auth to any to bypass typing errors for onAuthStateChange
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange((_event: any, session: any) => {
       setSession(session);
       if (session) {
@@ -63,42 +70,21 @@ export default function App() {
       }
     });
 
-    // Payment Status Parsing
     const params = new URLSearchParams(window.location.search);
-    const paymentStatus = params.get('payment_status')?.toLowerCase();
-    
-    if (paymentStatus) {
-        // Clean URL immediately
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        if (paymentStatus === 'success') {
-            setNotification({
-                type: 'success',
-                message: 'Payment Successful',
-                description: 'Your credits have been added to your account.'
-            });
-        } else if (paymentStatus === 'failed' || paymentStatus === 'error') {
-            setNotification({
-                type: 'error',
-                message: 'Payment Failed',
-                description: 'We couldn\'t process your transaction. Please try again.'
-            });
-        } else if (paymentStatus === 'cancelled') {
-            setNotification({
-                type: 'info',
-                message: 'Payment Cancelled',
-                description: 'Your transaction was cancelled and no charges were made.'
-            });
-        }
-        
-        // Auto-dismiss after 10s
-        const timer = setTimeout(() => setNotification(null), 10000);
-        return () => {
-            subscription.unsubscribe();
-            clearTimeout(timer);
-        };
-    }
+    const paymentStatusIndicator = params.get('payment_status');
+    const outcome = params.get('status');
 
+    if (paymentStatusIndicator === 'success') {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        if (outcome === 'succeeded') {
+            setShowSuccessNotification(true);
+        } else if (outcome === 'failed') {
+            setShowFailureNotification(true);
+        } else {
+            // Default to success if status param is missing for backward compatibility
+            setShowSuccessNotification(true);
+        }
+    }
     return () => subscription.unsubscribe();
   }, []);
 
@@ -109,17 +95,20 @@ export default function App() {
   };
 
   const handleLogin = async () => {
+    // Fixed: Cast auth to any to bypass typing errors for signInWithOAuth
     try { await (supabase.auth as any).signInWithOAuth({ provider: 'twitter' }); } 
     catch (error) { console.error("Login failed:", error); }
   };
 
   const handleLogout = async () => {
+      // Fixed: Cast auth to any to bypass typing errors for signOut
       await (supabase.auth as any).signOut();
       setCurrentView('home');
       setVideos([]);
       setProfile(null);
   };
 
+  // --- Video Logic ---
   const fetchVideos = async () => {
     if (!session?.user) return;
     try {
@@ -127,6 +116,7 @@ export default function App() {
         if (error) throw error;
         setVideos(prev => {
             const processing = prev.filter(v => v.status === 'processing');
+            // Merge but deduplicate if necessary
             const existingIds = new Set(processing.map(v => v.id));
             const newVideos = (data || []).filter(v => !existingIds.has(v.id));
             return [...processing, ...newVideos] as VideoProject[];
@@ -149,6 +139,7 @@ export default function App() {
       setTrim({ start: 0, end: 0 });
       setAppName("");
       setAppDescription("");
+      
       if (!session) setShowAuthModal(true);
     }
   };
@@ -164,8 +155,10 @@ export default function App() {
     setAppDescription("");
   };
 
+  // Accepting optional segments if advanced editor was used
   const handleGenerate = async (segments?: TimeRange[]) => {
       if (!file || !session) return;
+      
       const effectiveDuration = segments 
         ? segments.reduce((acc, s) => acc + (s.end - s.start), 0)
         : trim.end - trim.start;
@@ -184,6 +177,7 @@ export default function App() {
       }
 
       setErrorMessage(null);
+
       const tempId = uuidv4();
       const optimisticVideo: VideoProject = {
           id: tempId,
@@ -209,7 +203,7 @@ export default function App() {
               appDescription,
               DEFAULT_SCRIPT_RULES,
               DEFAULT_TTS_STYLE,
-              segments
+              segments // Pass new segments param
           );
           
           const completedVideo: VideoProject = {
@@ -264,6 +258,7 @@ export default function App() {
           />
       )}
 
+      {/* Responsive Margin: Left on Desktop, Top on Mobile */}
       <main className={`transition-all duration-300 min-h-screen ${session ? 'md:ml-14 mt-14 md:mt-0' : ''}`}>
           
           <div className={currentView === 'home' ? 'block' : 'hidden'}>
@@ -284,6 +279,10 @@ export default function App() {
                   onPurchase={handlePurchase}
                   showAuthModal={showAuthModal}
                   handleLogin={handleLogin}
+                  showSuccessNotification={showSuccessNotification}
+                  setShowSuccessNotification={setShowSuccessNotification}
+                  showFailureNotification={showFailureNotification}
+                  setShowFailureNotification={setShowFailureNotification}
               />
           </div>
 
@@ -296,28 +295,6 @@ export default function App() {
               />
           )}
       </main>
-
-      {/* Global Notifications */}
-      {notification && (
-          <div className={`fixed bottom-8 right-8 z-[200] border rounded-xl p-4 flex items-center gap-4 shadow-2xl animate-fade-in max-w-sm w-full ${
-              notification.type === 'success' ? 'bg-green-900 border-green-700' : 
-              notification.type === 'error' ? 'bg-red-900 border-red-700' : 
-              'bg-blue-900 border-blue-700'
-          }`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                  notification.type === 'success' ? 'bg-green-500/20 text-green-400' : 
-                  notification.type === 'error' ? 'bg-red-500/20 text-red-400' : 
-                  'bg-blue-500/20 text-blue-400'
-              }`}>
-                  {notification.type === 'success' ? '✓' : notification.type === 'error' ? '✕' : 'ℹ'}
-              </div>
-              <div className="flex-1">
-                  <h3 className="font-bold text-white text-sm">{notification.message}</h3>
-                  <p className="text-white/70 text-xs mt-0.5">{notification.description}</p>
-              </div>
-              <button onClick={() => setNotification(null)} className="ml-auto text-white/40 hover:text-white transition">✕</button>
-          </div>
-      )}
 
       {selectedVideo && (
           <VideoModal 

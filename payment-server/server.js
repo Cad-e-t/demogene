@@ -176,7 +176,7 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
         const checkoutPayload = {
             product_cart: [{ product_id: finalProductId, quantity: 1 }], 
             billing_currency: 'USD',
-            return_url: `${FRONTEND_URL}/?payment_status={status}`, // Redirects to home with param
+            return_url: `${FRONTEND_URL}/?payment_status=success`, // Redirects to home with param
             metadata: {
                 user_id: user.id,
                 credits_to_add: String(credits),
