@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 
 interface BlogViewProps {
     onSelectPost: (slug: string) => void;
@@ -7,6 +7,17 @@ interface BlogViewProps {
 }
 
 export const BlogView: React.FC<BlogViewProps> = ({ onSelectPost, onGoHome }) => {
+    useEffect(() => {
+        document.title = "Product Demo Guides & Blog | ProductCam";
+        let metaDesc = document.querySelector('meta[name="description"]');
+        if (!metaDesc) {
+            metaDesc = document.createElement('meta');
+            metaDesc.setAttribute('name', 'description');
+            document.head.appendChild(metaDesc);
+        }
+        metaDesc.setAttribute('content', "Insights, tutorials, and best practices on turning raw screen recordings into effective product storytelling and high-converting demos.");
+    }, []);
+
     const posts = [
         {
             title: "How to Turn a Screen Recording Into a Product Demo",

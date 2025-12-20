@@ -36,9 +36,14 @@ export default function App() {
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [selectedPostSlug, setSelectedPostSlug] = useState<string | null>(null);
 
-  // Helper to parse location
+  // Helper to parse location from window URL
   const parseLocation = useCallback(() => {
-    const path = window.location.pathname;
+    let path = window.location.pathname;
+    // Normalize path by removing trailing slash (except for root)
+    if (path.length > 1 && path.endsWith('/')) {
+        path = path.slice(0, -1);
+    }
+
     if (path === '/videos') return { view: 'videos' as ViewType, slug: null };
     if (path === '/blog') return { view: 'blog' as ViewType, slug: null };
     if (path.startsWith('/blog/')) {
@@ -47,7 +52,7 @@ export default function App() {
     return { view: 'home' as ViewType, slug: null };
   }, []);
 
-  // Navigation Function
+  // Navigation Function using History API
   const navigateTo = useCallback((view: ViewType, slug: string | null = null) => {
     let path = '/';
     if (view === 'videos') path = '/videos';
@@ -62,7 +67,7 @@ export default function App() {
     window.scrollTo(0, 0);
   }, []);
 
-  // Sync state on mount and popstate
+  // Sync state on mount and when browser back/forward buttons are pressed
   useEffect(() => {
     const { view, slug } = parseLocation();
     setCurrentView(view);
