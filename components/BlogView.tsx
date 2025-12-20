@@ -1,6 +1,5 @@
 
-import React, { useEffect } from 'react';
-import { BLOG_POSTS } from '../blogData';
+import React from 'react';
 
 interface BlogViewProps {
     onSelectPost: (slug: string) => void;
@@ -8,19 +7,18 @@ interface BlogViewProps {
 }
 
 export const BlogView: React.FC<BlogViewProps> = ({ onSelectPost, onGoHome }) => {
-    useEffect(() => {
-        document.title = "Product Demo Guides & Blog | ProductCam";
-        const descriptionText = "Learn how to create effective product demos, turn screen recordings into stories, and showcase your software without manual editing. Explore our guides and tips.";
-        let metaDesc = document.querySelector('meta[name="description"]');
-        if (!metaDesc) {
-            metaDesc = document.createElement('meta');
-            metaDesc.setAttribute('name', 'description');
-            document.head.appendChild(metaDesc);
+    const posts = [
+        {
+            title: "How to Turn a Screen Recording Into a Product Demo",
+            slug: "how-to-turn-screen-recording-into-demo",
+            description: "Learn how to transform a raw screen recording into a clear, narrated product demo."
+        },
+        {
+            title: "How to Create a Product Demo Without Video Editing",
+            slug: "how-to-create-product-demo-without-video-editing",
+            description: "Video editing is the main reason teams delay demos. Here is how to skip it entirely."
         }
-        metaDesc.setAttribute('content', descriptionText);
-    }, []);
-
-    const posts = Object.values(BLOG_POSTS);
+    ];
 
     return (
         <div className="max-w-3xl mx-auto px-6 py-20 animate-fade-in">
@@ -38,16 +36,12 @@ export const BlogView: React.FC<BlogViewProps> = ({ onSelectPost, onGoHome }) =>
 
             <div className="space-y-12">
                 {posts.map((post) => (
-                    <article 
+                    <div 
                         key={post.slug} 
                         className="group cursor-pointer border-b border-gray-100 pb-12"
                         onClick={() => onSelectPost(post.slug)}
                     >
-                        <div className="flex items-center gap-3 mb-3">
-                             <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100 uppercase tracking-widest">{post.category}</span>
-                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{post.readTime}</span>
-                        </div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-green-600 transition-colors leading-tight">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-green-600 transition-colors">
                             {post.title}
                         </h2>
                         <p className="text-gray-600 leading-relaxed font-medium mb-4">
@@ -59,7 +53,7 @@ export const BlogView: React.FC<BlogViewProps> = ({ onSelectPost, onGoHome }) =>
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                             </svg>
                         </span>
-                    </article>
+                    </div>
                 ))}
             </div>
             

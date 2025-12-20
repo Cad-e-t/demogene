@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -32,9 +32,51 @@ export default function App() {
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [showFailureNotification, setShowFailureNotification] = useState(false);
   
-  // Navigation
+  // Routing State
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [selectedPostSlug, setSelectedPostSlug] = useState<string | null>(null);
+
+  // Helper to parse location
+  const parseLocation = useCallback(() => {
+    const path = window.location.pathname;
+    if (path === '/videos') return { view: 'videos' as ViewType, slug: null };
+    if (path === '/blog') return { view: 'blog' as ViewType, slug: null };
+    if (path.startsWith('/blog/')) {
+        return { view: 'blog-post' as ViewType, slug: path.replace('/blog/', '') };
+    }
+    return { view: 'home' as ViewType, slug: null };
+  }, []);
+
+  // Navigation Function
+  const navigateTo = useCallback((view: ViewType, slug: string | null = null) => {
+    let path = '/';
+    if (view === 'videos') path = '/videos';
+    else if (view === 'blog') path = '/blog';
+    else if (view === 'blog-post' && slug) path = `/blog/${slug}`;
+    
+    if (window.location.pathname !== path) {
+        window.history.pushState({}, '', path);
+    }
+    setCurrentView(view);
+    setSelectedPostSlug(slug);
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Sync state on mount and popstate
+  useEffect(() => {
+    const { view, slug } = parseLocation();
+    setCurrentView(view);
+    setSelectedPostSlug(slug);
+
+    const handlePopState = () => {
+        const loc = parseLocation();
+        setCurrentView(loc.view);
+        setSelectedPostSlug(loc.slug);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [parseLocation]);
   
   // Home View State (Lifted Up)
   const [file, setFile] = useState<File | null>(null);
@@ -97,7 +139,7 @@ export default function App() {
 
   const handleLogout = async () => {
       await (supabase.auth as any).signOut();
-      setCurrentView('home');
+      navigateTo('home');
       setVideos([]);
       setProfile(null);
   };
@@ -134,7 +176,7 @@ export default function App() {
       setAppDescription("");
       
       if (!session) setShowAuthModal(true);
-      setCurrentView('home');
+      navigateTo('home');
     }
   };
 
@@ -184,7 +226,7 @@ export default function App() {
       };
 
       setVideos(prev => [optimisticVideo, ...prev]);
-      setCurrentView('videos');
+      navigateTo('videos');
 
       try {
           const { videoUrl: resultUrl, analysis } = await processVideoRequest(
@@ -240,19 +282,13 @@ export default function App() {
       }
   };
 
-  const navigateToPost = (slug: string) => {
-      setSelectedPostSlug(slug);
-      setCurrentView('blog-post');
-      window.scrollTo(0, 0);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-green-500 selection:text-white overflow-x-hidden">
       
       {session && (
           <Sidebar 
             currentView={currentView} 
-            setCurrentView={setCurrentView} 
+            navigateTo={navigateTo} 
             handleLogout={handleLogout} 
           />
       )}
@@ -281,7 +317,7 @@ export default function App() {
                   setShowSuccessNotification={setShowSuccessNotification}
                   showFailureNotification={showFailureNotification}
                   setShowFailureNotification={setShowFailureNotification}
-                  onNavigateToBlog={() => setCurrentView('blog')}
+                  onNavigateToBlog={() => navigateTo('blog')}
               />
           )}
 
@@ -296,16 +332,16 @@ export default function App() {
 
           {currentView === 'blog' && (
               <BlogView 
-                onSelectPost={navigateToPost} 
-                onGoHome={() => setCurrentView('home')} 
+                onSelectPost={(slug) => navigateTo('blog-post', slug)} 
+                onGoHome={() => navigateTo('home')} 
               />
           )}
 
           {currentView === 'blog-post' && selectedPostSlug && (
               <BlogPostView 
                 slug={selectedPostSlug} 
-                onBack={() => setCurrentView('blog')} 
-                onGoHome={() => setCurrentView('home')}
+                onBack={() => navigateTo('blog')} 
+                onGoHome={() => navigateTo('home')}
               />
           )}
       </main>

@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { VideoCropper } from './VideoCropper';
 import { AdvancedEditorModal } from './AdvancedEditorModal';
 import { LandingPage } from './LandingPage';
@@ -65,19 +65,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
     const isDurationValid = effectiveDuration <= 180;
     const [mobileTab, setMobileTab] = useState<'preview' | 'settings'>('preview');
-
-    useEffect(() => {
-        if (session) {
-            document.title = "Create New Demo | ProductCam";
-            let metaDesc = document.querySelector('meta[name="description"]');
-            if (!metaDesc) {
-                metaDesc = document.createElement('meta');
-                metaDesc.setAttribute('name', 'description');
-                document.head.appendChild(metaDesc);
-            }
-            metaDesc.setAttribute('content', "Upload and configure your product demo. Set voice narration, app details, and edit your recording for a perfect launch video.");
-        }
-    }, [session]);
 
     const handleClear = () => {
         setSegments(null);
