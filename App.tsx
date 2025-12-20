@@ -1,6 +1,6 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+// Fixed: Use type import for Session to handle cases where it's exported as a type
 import type { Session } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -8,13 +8,17 @@ import { Sidebar } from './components/Sidebar';
 import { HomeView } from './components/HomeView';
 import { VideoGallery } from './components/VideoGallery';
 import { VideoModal } from './components/VideoModal';
-import { BlogView } from './components/BlogView';
-import { BlogPostView } from './components/BlogPostView';
 
 import { CropData, TrimData, VoiceOption, VideoProject, TimeRange } from './types';
 import { VOICES } from './constants';
 import { processVideoRequest, createCheckoutSession, deleteVideo } from './frontend-api';
 import { DEFAULT_SCRIPT_RULES, DEFAULT_TTS_STYLE } from './scriptStyles';
+
+const XIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+  </svg>
+);
 
 interface UserProfile {
     id: string;
@@ -23,8 +27,6 @@ interface UserProfile {
 
 const PRODUCT_10_DEMOS = "pdt_2LwDVRweVv9iX22U5RDSW"; 
 
-export type ViewType = 'home' | 'videos' | 'blog' | 'blog-post';
-
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -32,56 +34,8 @@ export default function App() {
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [showFailureNotification, setShowFailureNotification] = useState(false);
   
-  // Routing State
-  const [currentView, setCurrentView] = useState<ViewType>('home');
-  const [selectedPostSlug, setSelectedPostSlug] = useState<string | null>(null);
-
-  // Helper to parse location from window URL
-  const parseLocation = useCallback(() => {
-    let path = window.location.pathname;
-    // Normalize path by removing trailing slash (except for root)
-    if (path.length > 1 && path.endsWith('/')) {
-        path = path.slice(0, -1);
-    }
-
-    if (path === '/videos') return { view: 'videos' as ViewType, slug: null };
-    if (path === '/blog') return { view: 'blog' as ViewType, slug: null };
-    if (path.startsWith('/blog/')) {
-        return { view: 'blog-post' as ViewType, slug: path.replace('/blog/', '') };
-    }
-    return { view: 'home' as ViewType, slug: null };
-  }, []);
-
-  // Navigation Function using History API
-  const navigateTo = useCallback((view: ViewType, slug: string | null = null) => {
-    let path = '/';
-    if (view === 'videos') path = '/videos';
-    else if (view === 'blog') path = '/blog';
-    else if (view === 'blog-post' && slug) path = `/blog/${slug}`;
-    
-    if (window.location.pathname !== path) {
-        window.history.pushState({}, '', path);
-    }
-    setCurrentView(view);
-    setSelectedPostSlug(slug);
-    window.scrollTo(0, 0);
-  }, []);
-
-  // Sync state on mount and when browser back/forward buttons are pressed
-  useEffect(() => {
-    const { view, slug } = parseLocation();
-    setCurrentView(view);
-    setSelectedPostSlug(slug);
-
-    const handlePopState = () => {
-        const loc = parseLocation();
-        setCurrentView(loc.view);
-        setSelectedPostSlug(loc.slug);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [parseLocation]);
+  // Navigation
+  const [currentView, setCurrentView] = useState<'home' | 'videos'>('home');
   
   // Home View State (Lifted Up)
   const [file, setFile] = useState<File | null>(null);
@@ -99,11 +53,13 @@ export default function App() {
 
   // --- Auth & Init ---
   useEffect(() => {
+    // Fixed: Cast auth to any to bypass typing errors if getSession is not correctly picked up from types
     (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
       setSession(session);
       if (session) fetchProfile(session.user.id);
     });
 
+    // Fixed: Cast auth to any to bypass typing errors for onAuthStateChange
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange((_event: any, session: any) => {
       setSession(session);
       if (session) {
@@ -125,6 +81,7 @@ export default function App() {
         } else if (outcome === 'failed') {
             setShowFailureNotification(true);
         } else {
+            // Default to success if status param is missing for backward compatibility
             setShowSuccessNotification(true);
         }
     }
@@ -138,13 +95,15 @@ export default function App() {
   };
 
   const handleLogin = async () => {
+    // Fixed: Cast auth to any to bypass typing errors for signInWithOAuth
     try { await (supabase.auth as any).signInWithOAuth({ provider: 'twitter' }); } 
     catch (error) { console.error("Login failed:", error); }
   };
 
   const handleLogout = async () => {
+      // Fixed: Cast auth to any to bypass typing errors for signOut
       await (supabase.auth as any).signOut();
-      navigateTo('home');
+      setCurrentView('home');
       setVideos([]);
       setProfile(null);
   };
@@ -157,6 +116,7 @@ export default function App() {
         if (error) throw error;
         setVideos(prev => {
             const processing = prev.filter(v => v.status === 'processing');
+            // Merge but deduplicate if necessary
             const existingIds = new Set(processing.map(v => v.id));
             const newVideos = (data || []).filter(v => !existingIds.has(v.id));
             return [...processing, ...newVideos] as VideoProject[];
@@ -181,7 +141,6 @@ export default function App() {
       setAppDescription("");
       
       if (!session) setShowAuthModal(true);
-      navigateTo('home');
     }
   };
 
@@ -196,6 +155,7 @@ export default function App() {
     setAppDescription("");
   };
 
+  // Accepting optional segments if advanced editor was used
   const handleGenerate = async (segments?: TimeRange[]) => {
       if (!file || !session) return;
       
@@ -231,7 +191,7 @@ export default function App() {
       };
 
       setVideos(prev => [optimisticVideo, ...prev]);
-      navigateTo('videos');
+      setCurrentView('videos');
 
       try {
           const { videoUrl: resultUrl, analysis } = await processVideoRequest(
@@ -243,7 +203,7 @@ export default function App() {
               appDescription,
               DEFAULT_SCRIPT_RULES,
               DEFAULT_TTS_STYLE,
-              segments
+              segments // Pass new segments param
           );
           
           const completedVideo: VideoProject = {
@@ -293,14 +253,15 @@ export default function App() {
       {session && (
           <Sidebar 
             currentView={currentView} 
-            navigateTo={navigateTo} 
+            setCurrentView={setCurrentView} 
             handleLogout={handleLogout} 
           />
       )}
 
+      {/* Responsive Margin: Left on Desktop, Top on Mobile */}
       <main className={`transition-all duration-300 min-h-screen ${session ? 'md:ml-14 mt-14 md:mt-0' : ''}`}>
           
-          {currentView === 'home' && (
+          <div className={currentView === 'home' ? 'block' : 'hidden'}>
               <HomeView 
                   file={file}
                   videoUrl={videoUrl}
@@ -322,9 +283,8 @@ export default function App() {
                   setShowSuccessNotification={setShowSuccessNotification}
                   showFailureNotification={showFailureNotification}
                   setShowFailureNotification={setShowFailureNotification}
-                  onNavigateToBlog={() => navigateTo('blog')}
               />
-          )}
+          </div>
 
           {currentView === 'videos' && (
               <VideoGallery 
@@ -332,21 +292,6 @@ export default function App() {
                   onSelectVideo={setSelectedVideo}
                   onDeleteVideo={handleDeleteVideo}
                   fetchVideos={fetchVideos}
-              />
-          )}
-
-          {currentView === 'blog' && (
-              <BlogView 
-                onSelectPost={(slug) => navigateTo('blog-post', slug)} 
-                onGoHome={() => navigateTo('home')} 
-              />
-          )}
-
-          {currentView === 'blog-post' && selectedPostSlug && (
-              <BlogPostView 
-                slug={selectedPostSlug} 
-                onBack={() => navigateTo('blog')} 
-                onGoHome={() => navigateTo('home')}
               />
           )}
       </main>
