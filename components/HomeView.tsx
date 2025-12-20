@@ -1,15 +1,10 @@
-import React, { useRef, useState } from 'react';
+
+import React, { useRef, useState, useEffect } from 'react';
 import { VideoCropper } from './VideoCropper';
 import { AdvancedEditorModal } from './AdvancedEditorModal';
 import { LandingPage } from './LandingPage';
 import { CropData, TrimData, VoiceOption, TimeRange } from '../types';
 import { VOICES } from '../constants';
-
-const XIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
-  </svg>
-);
 
 interface HomeViewProps {
     file: File | null;
@@ -41,6 +36,7 @@ interface HomeViewProps {
     setShowFailureNotification: (b: boolean) => void;
     
     errorMessage: string | null;
+    onNavigateToBlog: () => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -53,25 +49,35 @@ export const HomeView: React.FC<HomeViewProps> = ({
     showAuthModal, handleLogin,
     showSuccessNotification, setShowSuccessNotification,
     showFailureNotification, setShowFailureNotification,
-    errorMessage
+    errorMessage,
+    onNavigateToBlog
 }) => {
     
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const duration = trim.end - trim.start; // This is naive duration if no advanced edits
+    const duration = trim.end - trim.start;
     
-    // Advanced Editing State
     const [showAdvancedEditor, setShowAdvancedEditor] = useState(false);
     const [segments, setSegments] = useState<TimeRange[] | null>(null);
 
-    // Calc effective duration based on segments if present
     const effectiveDuration = segments 
         ? segments.reduce((acc, s) => acc + (s.end - s.start), 0)
         : duration;
 
     const isDurationValid = effectiveDuration <= 180;
-
-    // Mobile Editor State
     const [mobileTab, setMobileTab] = useState<'preview' | 'settings'>('preview');
+
+    useEffect(() => {
+        if (session) {
+            document.title = "Create New Demo | ProductCam";
+            let metaDesc = document.querySelector('meta[name="description"]');
+            if (!metaDesc) {
+                metaDesc = document.createElement('meta');
+                metaDesc.setAttribute('name', 'description');
+                document.head.appendChild(metaDesc);
+            }
+            metaDesc.setAttribute('content', "Upload and configure your product demo. Set voice narration, app details, and edit your recording for a perfect launch video.");
+        }
+    }, [session]);
 
     const handleClear = () => {
         setSegments(null);
@@ -79,32 +85,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
     };
 
     const triggerGenerate = () => {
-        // Pass segments if they exist, otherwise backend will use trim
         onGenerate(segments || undefined);
     };
 
-    // --- CASE 1: NO FILE SELECTED ---
     if (!file) {
-        // Sub-case: Not Logged In -> Show Full Landing Page
         if (!session) {
             return (
                 <LandingPage 
                     onFileChange={onFileChange} 
                     handleLogin={handleLogin} 
+                    onNavigateToBlog={onNavigateToBlog}
                 />
             );
         }
 
-        // Sub-case: Logged In -> Show Dashboard Upload State (Flat Layout)
         return (
             <div className="relative w-full min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 md:ml-0 md:pl-0 overflow-hidden">
-                
-                {/* Background Decor */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-green-500/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-                {/* Content */}
                 <div className="relative z-10 w-full max-w-3xl mx-auto text-center animate-fade-in flex flex-col gap-10">
-                    
                     <div className="space-y-4">
                         <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight">Create New Demo</h1>
                         <p className="text-xl text-gray-600 leading-relaxed max-w-xl mx-auto font-medium">
@@ -139,9 +138,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
                              </button>
                          </div>
                     )}
+                    
+                    <button 
+                        onClick={onNavigateToBlog}
+                        className="mt-8 text-sm font-bold text-gray-400 hover:text-gray-900 transition-colors"
+                    >
+                        Read our guides on effective demos
+                    </button>
                 </div>
 
-                {/* Success Notification */}
                 {showSuccessNotification && (
                     <div className="fixed bottom-8 right-8 bg-green-900 border border-green-700 rounded-xl p-4 flex items-center gap-4 shadow-xl z-50 animate-fade-in">
                         <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center text-green-400 shrink-0">✓</div>
@@ -153,7 +158,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </div>
                 )}
 
-                {/* Failure Notification */}
                 {showFailureNotification && (
                     <div className="fixed bottom-8 right-8 bg-red-900 border border-red-700 rounded-xl p-4 flex items-center gap-4 shadow-xl z-50 animate-fade-in">
                         <div className="w-8 h-8 bg-red-500/20 rounded-full flex items-center justify-center text-red-400 shrink-0">✕</div>
@@ -168,11 +172,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         );
     }
 
-    // --- CASE 2: EDITOR VIEW (File Selected) ---
     return (
         <div className="h-[calc(100vh-3.5rem)] md:h-screen w-full flex flex-col md:flex-row bg-white text-gray-900 font-sans overflow-hidden">
-             
-             {/* HEADER BAR (Mobile Only) */}
              <div className="md:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 z-20">
                  <button 
                      onClick={handleClear}
@@ -185,7 +186,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                  <div className="w-10"></div>
              </div>
 
-             {/* BOTTOM TAB NAV (Mobile Only) */}
              <div className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-gray-200 flex items-center justify-center px-6 z-40 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
                  <div className="flex bg-gray-100 rounded-xl p-1 border border-gray-200 w-full">
                      <button 
@@ -203,10 +203,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                  </div>
              </div>
 
-             {/* LEFT PANEL: Video Canvas Area */}
              <div className={`flex-1 flex flex-col min-w-0 relative pb-20 md:pb-0 ${mobileTab === 'settings' ? 'hidden md:flex' : 'flex'}`}>
-                 
-                 {/* Desktop Toolbar */}
                  <div className="hidden md:flex h-14 border-b border-gray-200 items-center justify-between px-6 bg-white flex-shrink-0 z-10">
                     <div className="flex items-center gap-4">
                         <button 
@@ -226,11 +223,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </div>
                  </div>
 
-                 {/* Canvas Content */}
                  <div className="flex-1 bg-gray-50/80 relative flex flex-col min-h-0 items-center justify-center p-8 border-r border-gray-200">
                       {videoUrl && (
                           <div className="relative w-full h-full flex flex-col items-center">
-                              {/* Video Player Wrapper */}
                               <div className="flex-1 w-full flex items-center justify-center min-h-0 bg-white shadow-xl rounded-lg border border-gray-200 overflow-hidden">
                                   <VideoCropper 
                                      videoUrl={videoUrl}
@@ -242,7 +237,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                   />
                               </div>
 
-                              {/* Action Bar (Below Video) */}
                               <div className="w-full flex justify-center py-6 shrink-0">
                                   <button 
                                       onClick={() => setShowAdvancedEditor(true)}
@@ -257,7 +251,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           </div>
                       )}
                       
-                      {/* Floating Warning */}
                       {!isDurationValid && (
                             <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-100 text-red-700 px-6 py-3 rounded-full text-xs font-bold shadow-xl z-30 text-center max-w-[90%] md:max-w-md border border-red-200">
                                 Video exceeds 3m limit. Please use the "Edit Video" tool to trim and clip unwanted parts.
@@ -265,7 +258,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       )}
                  </div>
 
-                 {/* Auth Modal Overlay */}
                  {showAuthModal && (
                     <div className="absolute inset-0 z-50 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
                         <h3 className="text-xl font-bold text-gray-900 mb-2">Login Required</h3>
@@ -280,9 +272,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                  )}
              </div>
 
-             {/* RIGHT PANEL: Settings Sidebar */}
              <div className={`w-full md:w-80 md:border-l border-gray-200 bg-white flex flex-col z-10 flex-shrink-0 pb-20 md:pb-0 ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex h-full'}`}>
-                 
                  <div className="h-14 border-b border-gray-200 flex items-center px-6 flex-shrink-0 bg-gray-50/50">
                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Configuration</h3>
                      <div className="ml-auto">
@@ -295,7 +285,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                  </div>
 
                  <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                     {/* Voice Selector */}
                      <div className="space-y-3">
                          <label className="text-xs font-bold text-gray-900 uppercase tracking-wider">Voice</label>
                          <div className="space-y-1">
@@ -316,7 +305,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                          </div>
                      </div>
 
-                     {/* App Name and Description Input */}
                      {voice.id !== 'voiceless' && (
                         <>
                             <div className="space-y-3">
@@ -369,12 +357,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                  </div>
              </div>
 
-             {/* Advanced Editor Modal */}
              {showAdvancedEditor && videoUrl && (
                  <AdvancedEditorModal 
                     videoUrl={videoUrl}
                     initialSegments={segments}
-                    duration={trim.end === 0 ? 1 : trim.end} // Fallback
+                    duration={trim.end === 0 ? 1 : trim.end}
                     onClose={() => setShowAdvancedEditor(false)}
                     onSave={(newSegments) => {
                         setSegments(newSegments);

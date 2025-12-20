@@ -1,19 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 
 interface LandingPageProps {
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleLogin: () => void;
-    showAuthModal?: boolean; 
+    onNavigateToBlog: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin, onNavigateToBlog }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     useEffect(() => {
-        // SEO: Set Title
         document.title = "ProductCam | Turn Screen Recordings Into Product Demos";
-        
-        // SEO: Set Meta Description
         const descriptionText = "Turn Screen Recordings Into Product Demos Automatically. Skip editors. Upload a screen recording of your app and get a narrated demo with script, voiceover, zooms, and pacing. Perfect for launches, onboarding, and sharing.";
         let metaDesc = document.querySelector('meta[name="description"]');
         if (!metaDesc) {
@@ -51,24 +49,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
                 {/* Desktop Menu */}
                 <div className="hidden md:flex items-center gap-6">
-                    <button 
-                        onClick={() => scrollToSection('how-it-works')} 
-                        className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                        How it Works
-                    </button>
-                    <button 
-                        onClick={() => scrollToSection('example')} 
-                        className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                        See Example
-                    </button>
-                    <button 
-                        onClick={scrollToTop} 
-                        className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition border border-gray-800"
-                    >
-                        Create Demo
-                    </button>
+                    <button onClick={() => scrollToSection('how-it-works')} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">How it Works</button>
+                    <button onClick={onNavigateToBlog} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Blog</button>
+                    <button onClick={scrollToTop} className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition border border-gray-800">Create Demo</button>
                 </div>
 
                 {/* Mobile Menu Icon */}
@@ -86,154 +69,76 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 {/* Mobile Dropdown */}
                 {isMenuOpen && (
                     <div className="absolute top-14 left-0 right-0 bg-white border-b border-gray-200 shadow-xl flex flex-col p-4 gap-2 animate-fade-in md:hidden">
-                        <button 
-                            onClick={() => scrollToSection('how-it-works')}
-                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                            How it Works
-                        </button>
-                        <button 
-                            onClick={() => scrollToSection('example')}
-                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                            See Example
-                        </button>
-                        <button 
-                            onClick={scrollToTop}
-                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold text-gray-900 bg-gray-50 border border-gray-100"
-                        >
-                            Create Demo
-                        </button>
+                        <button onClick={() => scrollToSection('how-it-works')} className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">How it Works</button>
+                        <button onClick={onNavigateToBlog} className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Guides & Blog</button>
+                        <button onClick={scrollToTop} className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold text-gray-900 bg-gray-50 border border-gray-100">Create Demo</button>
                     </div>
                 )}
             </nav>
 
-            {/* Background Ambience */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-green-500/5 rounded-full blur-[120px] pointer-events-none" />
             
             {/* --- HERO SECTION --- */}
             <div className="relative z-10 w-full max-w-5xl mx-auto px-6 pt-24 pb-20 text-center flex flex-col items-center">
-
-                <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 leading-tight mb-10">
-                    Turn Screen Recordings Into Product Demos.
-                </h1>
-                
-                <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-16 font-medium">
-                    Skip editors. Upload a screen recording of your app and get a narrated demo with script, voiceover, zooms, and pacing. Perfect for launches, onboarding, and sharing.
-                </p>
-                
+                <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 leading-tight mb-10">Turn Screen Recordings Into Product Demos.</h1>
+                <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-16 font-medium">Skip editors. Upload a screen recording of your app and get a narrated demo with script, voiceover, zooms, and pacing.</p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full sm:w-auto">
                     <label className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] transition-transform duration-200">
                         <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-emerald-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200"></div>
                         <div className="relative flex items-center justify-center gap-3 px-10 py-5 bg-gray-900 text-white rounded-xl hover:bg-black transition shadow-xl">
-                            <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                            </svg>
+                            <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                             <span className="font-bold text-xl">Upload Video</span>
                         </div>
                         <input type="file" className="hidden" accept="video/*" onChange={onFileChange} />
                     </label>
-                    
-                    <button 
-                        onClick={handleLogin} 
-                        className="px-10 py-5 rounded-xl font-bold text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-gray-900 hover:bg-gray-50 transition w-full sm:w-auto flex items-center justify-center gap-2 transform hover:scale-[1.02] duration-200"
-                    >
-                         <span className="text-lg">Sign in</span>
-                    </button>
+                    <button onClick={handleLogin} className="px-10 py-5 rounded-xl font-bold text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-gray-900 hover:bg-gray-50 transition w-full sm:w-auto flex items-center justify-center gap-2 transform hover:scale-[1.02] duration-200">Sign in</button>
                 </div>
             </div>
 
-            {/* Spacer */}
             <div className="w-full h-24 md:h-32"></div>
 
-            {/* Divider & Header */}
-            <div id="example" className="w-full max-w-7xl mx-auto px-6 mb-16 animate-fade-in scroll-mt-24">
+            <div id="example" className="w-full max-w-7xl mx-auto px-6 mb-16 scroll-mt-24">
                 <div className="w-full h-px bg-gray-200 mb-16"></div>
                 <h2 className="text-4xl font-bold text-center text-gray-900 tracking-tight">See Example</h2>
             </div>
 
-            {/* --- COMPARISON SECTION --- */}
             <div className="w-full max-w-7xl mx-auto px-6 pb-32 relative z-10">
-                
                 <div className="grid md:grid-cols-2 gap-12 lg:gap-24 items-start">
-                    
-                    {/* Before Video */}
                     <div className="flex flex-col gap-6 group">
                         <div className="flex items-center justify-between px-1">
                             <span className="text-sm font-bold text-gray-500 tracking-widest uppercase">Original Recording</span>
-                            <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-bold">Raw Input</span>
                         </div>
-                        
                         <div className="relative aspect-video bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-sm group-hover:border-gray-300 transition-colors">
-                            <video 
-                                src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/input.mp4" 
-                                className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                                controls
-                                muted
-                                playsInline
-                                preload="metadata"
-                            />
+                            <video src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/input.mp4" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" controls muted playsInline />
                         </div>
-                        <p className="text-lg text-gray-600 px-1 leading-relaxed font-medium">
-                            A standard raw screen capture. Static, no focus, no audio, no context.
-                        </p>
+                        <p className="text-lg text-gray-600 px-1 leading-relaxed font-medium">A standard raw screen capture. Static, no focus, no audio, no context.</p>
                     </div>
-
-                    {/* After Video */}
                     <div className="flex flex-col gap-6 relative group">
-                        
                         <div className="flex items-center justify-between px-1">
-                            <span className="text-sm font-bold text-green-600 tracking-widest uppercase flex items-center gap-2">
-                                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5 10 5 10-5-5-2.5-5 2.5z"/></svg>
-                                Polished Demo
-                            </span>
-                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200 shadow-sm font-bold">Output</span>
+                            <span className="text-sm font-bold text-green-600 tracking-widest uppercase flex items-center gap-2">Polished Demo</span>
                         </div>
-
-                        {/* Glow Effect */}
-                        <div className="absolute top-10 inset-0 bg-green-500/10 blur-3xl -z-10 rounded-full opacity-0 group-hover:opacity-75 transition-opacity duration-500"></div>
-
-                        <div className="relative aspect-video bg-gray-900 rounded-2xl border-2 border-green-500/20 overflow-hidden shadow-xl shadow-green-900/5 transition-all ring-1 ring-black/5 group-hover:border-green-500/50">
-                            <video 
-                                src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/demo.mp4" 
-                                className="w-full h-full object-cover"
-                                controls
-                                playsInline
-                                preload="metadata"
-                            />
+                        <div className="relative aspect-video bg-gray-900 rounded-2xl border-2 border-green-500/20 overflow-hidden shadow-xl shadow-green-900/5 transition-all group-hover:border-green-500/50">
+                            <video src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/demo.mp4" className="w-full h-full object-cover" controls playsInline />
                         </div>
-                        <p className="text-lg text-gray-800 px-1 leading-relaxed font-medium">
-                            Zoomed for clarity, smooth cursor motion, professional voiceover, and pacing.
-                        </p>
+                        <p className="text-lg text-gray-800 px-1 leading-relaxed font-medium">Zoomed for clarity, smooth cursor motion, professional voiceover, and pacing.</p>
                     </div>
-
                 </div>
-
             </div>
 
-            {/* --- How it works --- */}
             <div id="how-it-works" className="w-full bg-gray-50 border-t border-gray-200 py-32 scroll-mt-14">
                 <div className="max-w-4xl mx-auto px-6 flex flex-col items-center text-center">
                     <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-20 tracking-tight">How it works</h2>
-                    
                     <div className="space-y-20 w-full max-w-2xl relative">
-                        {/* Connecting Line */}
                         <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-300 -translate-x-1/2 hidden md:block z-0"></div>
-
                         <div className="flex flex-col items-center gap-6 relative z-10 bg-gray-50 md:px-4">
                             <div className="w-16 h-16 rounded-full bg-white text-green-600 flex items-center justify-center font-bold text-2xl border border-gray-200 shadow-lg">1</div>
                             <h3 className="text-2xl font-bold text-gray-900">Record your screen</h3>
-                            <p className="text-xl text-gray-600 leading-relaxed max-w-md font-medium">
-                                Just click through your product like you'd normally use it.
-                            </p>
+                            <p className="text-xl text-gray-600 leading-relaxed max-w-md font-medium">Just click through your product like you'd normally use it.</p>
                         </div>
-
                         <div className="flex flex-col items-center gap-6 relative z-10 bg-gray-50 md:px-4">
                             <div className="w-16 h-16 rounded-full bg-white text-green-600 flex items-center justify-center font-bold text-2xl border border-gray-200 shadow-lg">2</div>
                             <h3 className="text-2xl font-bold text-gray-900">We turn it into a demo</h3>
-                            <p className="text-xl text-gray-600 leading-relaxed font-medium">
-                                Your recording is broken into clear steps with:
-                            </p>
+                            <p className="text-xl text-gray-600 leading-relaxed font-medium">Your recording is broken into clear steps with:</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left bg-white p-8 rounded-2xl border border-gray-200 w-full md:w-auto shadow-sm">
                                 <div className="flex items-center gap-3 text-gray-700 font-medium"><span className="w-2 h-2 bg-green-500 rounded-full"></span> Auto-generated script</div>
                                 <div className="flex items-center gap-3 text-gray-700 font-medium"><span className="w-2 h-2 bg-green-500 rounded-full"></span> Natural voiceover</div>
@@ -241,41 +146,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 <div className="flex items-center gap-3 text-gray-700 font-medium"><span className="w-2 h-2 bg-green-500 rounded-full"></span> Clean pacing</div>
                             </div>
                         </div>
-
-                        <div className="flex flex-col items-center gap-6 relative z-10 bg-gray-50 md:px-4">
-                            <div className="w-16 h-16 rounded-full bg-white text-green-600 flex items-center justify-center font-bold text-2xl border border-gray-200 shadow-lg">3</div>
-                            <h3 className="text-2xl font-bold text-gray-900">Download</h3>
-                            <p className="text-xl text-gray-600 leading-relaxed max-w-md font-medium">
-                                Download a ready-to-use SaaS demo you can ship with immediately.
-                            </p>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* --- CTA Section --- */}
             <div className="w-full bg-white py-32 flex flex-col items-center justify-center border-t border-gray-200 px-6">
-                <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-12 tracking-tight text-center">
-                    Ready to create your first demo?
-                </h2>
-                
-                <button 
-                    onClick={handleLogin}
-                    className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] transition-transform duration-200"
-                >
+                <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-12 tracking-tight text-center">Ready to create your first demo?</h2>
+                <button onClick={scrollToTop} className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] transition-transform duration-200">
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-emerald-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200"></div>
                     <div className="relative flex items-center justify-center gap-3 px-10 py-5 bg-gray-900 text-white rounded-xl hover:bg-black transition shadow-xl">
-                        <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
+                        <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         <span className="font-bold text-xl">Create My Demo</span>
                     </div>
                 </button>
+                <button onClick={onNavigateToBlog} className="mt-8 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors">Read our Product Demo Blog</button>
             </div>
 
-            {/* Footer */}
-            <div className="py-12 text-center border-t border-gray-200 w-full mt-auto bg-white">
-                <p className="text-gray-500 text-sm font-medium">ProductCam AI © 2025</p>
+            <div className="py-12 text-center border-t border-gray-200 w-full mt-auto bg-white flex flex-col items-center gap-4">
+                <div className="flex gap-6">
+                    <button onClick={onNavigateToBlog} className="text-xs text-gray-500 hover:text-gray-900 font-medium">Blog</button>
+                    <button onClick={onNavigateToBlog} className="text-xs text-gray-500 hover:text-gray-900 font-medium">Guides</button>
+                </div>
+                <p className="text-gray-400 text-xs font-medium">ProductCam AI © 2025</p>
             </div>
         </div>
     );
