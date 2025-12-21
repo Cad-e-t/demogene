@@ -31,8 +31,7 @@ export const HowToTurnScreenRecording = () => (
       <p className="mb-4">Most teams do this:</p>
       <p className="mb-4">Record themselves using the product recording tools - with developer by the side (picture-in-picture) and app interface as the background</p>
       <p className="mb-4">This can work but the video is slow, boring to watch, and sometimes inaudible.</p>
-      <p className="mb-4">Some teams hirer editors and have to wait days for the video to be ready before they can launch</p>
-      <p className="mb-4">Moreover the demos are flashier than they are clear since hired editors care more about visuals than the product itself.</p>
+      <p className="mb-4">Some teams hirer editors and have to wait days for the video to be ready before they can launch. The demo in turn ends up flashier then clear since hired editors care more about visuals than the product itself.</p>
     </section>
 
     <section>
@@ -45,7 +44,6 @@ export const HowToTurnScreenRecording = () => (
         <li>Voiceover is added automatically</li>
         <li>Zooms and pacing are applied where attention matters</li>
       </ul>
-      <p className="mb-4">Now you can introduce your tool naturally:</p>
       <p className="mb-4 font-medium">Productcam follows this approach. You upload a screen recording and receive a polished demo without editing timelines or hiring editors</p>
     </section>
 

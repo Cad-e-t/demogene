@@ -81,16 +81,6 @@ export const BlogPostView: React.FC<BlogPostViewProps> = ({ slug }) => {
                     </section>
 
                     <footer className="mt-32 pt-12 border-t border-gray-100 flex flex-col items-start gap-8">
-                        <div className="w-full">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">Build your product demo</h3>
-                            <p className="text-gray-500 mb-6">Upload a screen recording and get a narrated demo in minutes.</p>
-                            <a 
-                                href="#/"
-                                className="inline-block px-8 py-3 bg-black text-white font-bold hover:bg-gray-800 transition"
-                            >
-                                Get Started
-                            </a>
-                        </div>
                         <div className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em]">
                             ProductCam Blog © 2025
                         </div>
