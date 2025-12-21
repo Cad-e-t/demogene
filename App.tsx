@@ -7,6 +7,8 @@ import { Sidebar } from './components/Sidebar';
 import { HomeView } from './components/HomeView';
 import { VideoGallery } from './components/VideoGallery';
 import { VideoModal } from './components/VideoModal';
+import { BlogView } from './components/BlogView';
+import { BlogPostView } from './components/BlogPostView';
 
 import { CropData, TrimData, VoiceOption, VideoProject, TimeRange } from './types';
 import { VOICES } from './constants';
@@ -25,9 +27,12 @@ const useHashPath = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Return derived view
-  if (hash === '#/videos') return 'videos';
-  return 'home';
+  if (hash.startsWith('#/blog/')) {
+    return { view: 'blog-post', slug: hash.replace('#/blog/', '') };
+  }
+  if (hash === '#/blog') return { view: 'blog', slug: null };
+  if (hash === '#/videos') return { view: 'videos', slug: null };
+  return { view: 'home', slug: null };
 };
 
 interface UserProfile {
@@ -37,8 +42,8 @@ interface UserProfile {
 
 const PRODUCT_10_DEMOS = "pdt_2LwDVRweVv9iX22U5RDSW"; 
 
-const navigateTo = (path: 'home' | 'videos') => {
-  window.location.hash = path === 'home' ? '#/' : '#/videos';
+const navigateTo = (path: string) => {
+  window.location.hash = path;
 };
 
 export default function App() {
@@ -49,7 +54,8 @@ export default function App() {
   const [showFailureNotification, setShowFailureNotification] = useState(false);
   
   // URL-based Navigation
-  const currentView = useHashPath();
+  const route = useHashPath();
+  const currentView = route.view;
   
   // Home View State (Lifted Up)
   const [file, setFile] = useState<File | null>(null);
@@ -112,7 +118,7 @@ export default function App() {
 
   const handleLogout = async () => {
       await (supabase.auth as any).signOut();
-      navigateTo('home');
+      navigateTo('#/');
       setVideos([]);
       setProfile(null);
   };
@@ -199,7 +205,7 @@ export default function App() {
       };
 
       setVideos(prev => [optimisticVideo, ...prev]);
-      navigateTo('videos');
+      navigateTo('#/videos');
 
       try {
           const { videoUrl: resultUrl, analysis } = await processVideoRequest(
@@ -255,20 +261,24 @@ export default function App() {
       }
   };
 
+  // Hide sidebar if we are on blog pages or not logged in
+  const isPublicReaderView = currentView === 'blog' || currentView === 'blog-post';
+  const showSidebar = session && !isPublicReaderView;
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-green-500 selection:text-white overflow-x-hidden">
       
-      {session && (
+      {showSidebar && (
           <Sidebar 
-            currentView={currentView} 
-            setCurrentView={navigateTo} 
+            currentView={currentView as any} 
+            setCurrentView={(v) => navigateTo(`#/${v}`)} 
             handleLogout={handleLogout} 
           />
       )}
 
-      <main className={`transition-all duration-300 min-h-screen ${session ? 'md:ml-14 mt-14 md:mt-0' : ''}`}>
+      <main className={`transition-all duration-300 min-h-screen ${showSidebar ? 'md:ml-14 mt-14 md:mt-0' : ''}`}>
           
-          <div className={currentView === 'home' ? 'block' : 'hidden'}>
+          {currentView === 'home' && (
               <HomeView 
                   file={file}
                   videoUrl={videoUrl}
@@ -291,7 +301,10 @@ export default function App() {
                   showFailureNotification={showFailureNotification}
                   setShowFailureNotification={setShowFailureNotification}
               />
-          </div>
+          )}
+
+          {currentView === 'blog' && <BlogView />}
+          {currentView === 'blog-post' && <BlogPostView slug={route.slug || ''} />}
 
           {currentView === 'videos' && (
               <VideoGallery 
@@ -313,5 +326,3 @@ export default function App() {
     </div>
   );
 }
-
-

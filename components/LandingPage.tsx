@@ -49,7 +49,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         See Example
                     </button>
                     <a 
-                        href="/blog/" 
+                        href="#/blog" 
                         className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                     >
                         Blog
@@ -90,7 +90,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             See Example
                         </button>
                         <a 
-                            href="/blog/"
+                            href="#/blog"
                             className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
                         >
                             Blog
@@ -181,7 +181,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         
                         <div className="flex items-center justify-between px-1">
                             <span className="text-sm font-bold text-green-600 tracking-widest uppercase flex items-center gap-2">
-                                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5 10 5 10-5-5-2.5-5 2.5z"/></svg>
+                                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5-10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5 10 5 10-5-5-2.5-5 2.5z"/></svg>
                                 Polished Demo
                             </span>
                             <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200 shadow-sm font-bold">Output</span>
