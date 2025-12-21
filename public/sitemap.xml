@@ -6,17 +6,17 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://www.productcam.site/blog/</loc>
+    <loc>https://www.productcam.site/#/blog</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.productcam.site/blog/how-to-turn-screen-recording-into-demo/</loc>
+    <loc>https://www.productcam.site/#/blog/how-to-turn-screen-recording-into-demo</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.productcam.site/blog/how-to-create-product-demo-without-video-editing/</loc>
+    <loc>https://www.productcam.site/#/blog/how-to-create-product-demo-without-video-editing</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

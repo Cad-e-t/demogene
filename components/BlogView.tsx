@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 export const BlogView: React.FC = () => {
     useEffect(() => {
         window.scrollTo(0, 0);
+        document.title = "Blog - Product Demo Guides | ProductCam";
     }, []);
 
     const posts = [
@@ -23,49 +24,45 @@ export const BlogView: React.FC = () => {
     ];
 
     return (
-        <div className="bg-gray-50 min-h-screen text-gray-900 antialiased selection:bg-green-500 selection:text-white">
-            <div className="max-w-3xl mx-auto px-6 py-20">
-                <header className="mb-16">
+        <div className="bg-white min-h-screen text-gray-900 antialiased selection:bg-green-500 selection:text-white">
+            <div className="max-w-2xl mx-auto px-6 py-20">
+                <header className="mb-20">
                     <a 
                         href="#/"
-                        className="text-sm font-bold text-gray-500 hover:text-gray-900 mb-8 flex items-center gap-2 transition-colors inline-flex"
+                        className="text-xs font-bold text-gray-400 hover:text-gray-900 mb-12 flex items-center gap-2 transition-colors inline-flex uppercase tracking-widest"
                     >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                        Back to Home
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                        Back
                     </a>
-                    <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight mb-4">Product Demo Guides</h1>
-                    <p className="text-xl text-gray-600 font-medium">Insights and tutorials on turning screen recordings into effective product storytelling.</p>
+                    <h1 className="text-5xl font-bold text-gray-900 tracking-tight mb-6">Blog</h1>
+                    <p className="text-lg text-gray-500 leading-relaxed">Guides on product storytelling, demo automation, and sharing software effectively.</p>
                 </header>
 
-                <div className="space-y-12">
+                <div className="space-y-20">
                     {posts.map((post) => (
-                        <a 
-                            key={post.slug}
-                            href={`#/blog/${post.slug}`}
-                            className="block group border-b border-gray-100 pb-12"
-                        >
-                            <div className="flex items-center gap-3 mb-3">
-                                <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100 uppercase tracking-widest">{post.category}</span>
+                        <article key={post.slug} className="group">
+                            <div className="flex items-center gap-4 mb-4">
+                                <span className="text-[10px] font-black text-green-600 uppercase tracking-[0.2em]">{post.category}</span>
+                                <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{post.readTime}</span>
                             </div>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-green-600 transition-colors leading-tight">
-                                {post.title}
-                            </h2>
-                            <p className="text-gray-600 leading-relaxed font-medium mb-4">
-                                {post.description}
-                            </p>
-                            <span className="text-sm font-bold text-green-600 flex items-center gap-2">
-                                Read Guide 
-                                <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                </svg>
-                            </span>
-                        </a>
+                            <a href={`#/blog/${post.slug}`} className="block">
+                                <h2 className="text-3xl font-bold text-gray-900 mb-4 group-hover:text-green-600 transition-colors leading-tight">
+                                    {post.title}
+                                </h2>
+                                <p className="text-gray-500 leading-relaxed mb-6 max-w-xl">
+                                    {post.description}
+                                </p>
+                                <span className="text-sm font-bold text-gray-900 border-b-2 border-gray-100 group-hover:border-green-500 transition-all pb-1">
+                                    Read Article
+                                </span>
+                            </a>
+                        </article>
                     ))}
                 </div>
                 
-                <footer className="mt-20 pt-10 border-t border-gray-100 text-center">
-                    <p className="text-gray-500 text-sm font-medium">ProductCam Blog © 2025</p>
+                <footer className="mt-32 pt-12 border-t border-gray-100">
+                    <p className="text-gray-400 text-xs font-medium uppercase tracking-widest">ProductCam © 2025</p>
                 </footer>
             </div>
         </div>
