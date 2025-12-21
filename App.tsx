@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
-// Fixed: Use type import for Session to handle cases where it's exported as a type
 import type { Session } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -14,11 +13,22 @@ import { VOICES } from './constants';
 import { processVideoRequest, createCheckoutSession, deleteVideo } from './frontend-api';
 import { DEFAULT_SCRIPT_RULES, DEFAULT_TTS_STYLE } from './scriptStyles';
 
-const XIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
-  </svg>
-);
+// Custom Minimal Router Hook
+const useHashPath = () => {
+  const [hash, setHash] = useState(window.location.hash);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setHash(window.location.hash);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Return derived view
+  if (hash === '#/videos') return 'videos';
+  return 'home';
+};
 
 interface UserProfile {
     id: string;
@@ -27,6 +37,10 @@ interface UserProfile {
 
 const PRODUCT_10_DEMOS = "pdt_2LwDVRweVv9iX22U5RDSW"; 
 
+const navigateTo = (path: 'home' | 'videos') => {
+  window.location.hash = path === 'home' ? '#/' : '#/videos';
+};
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -34,8 +48,8 @@ export default function App() {
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [showFailureNotification, setShowFailureNotification] = useState(false);
   
-  // Navigation
-  const [currentView, setCurrentView] = useState<'home' | 'videos'>('home');
+  // URL-based Navigation
+  const currentView = useHashPath();
   
   // Home View State (Lifted Up)
   const [file, setFile] = useState<File | null>(null);
@@ -53,13 +67,11 @@ export default function App() {
 
   // --- Auth & Init ---
   useEffect(() => {
-    // Fixed: Cast auth to any to bypass typing errors if getSession is not correctly picked up from types
     (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
       setSession(session);
       if (session) fetchProfile(session.user.id);
     });
 
-    // Fixed: Cast auth to any to bypass typing errors for onAuthStateChange
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange((_event: any, session: any) => {
       setSession(session);
       if (session) {
@@ -81,7 +93,6 @@ export default function App() {
         } else if (outcome === 'failed') {
             setShowFailureNotification(true);
         } else {
-            // Default to success if status param is missing for backward compatibility
             setShowSuccessNotification(true);
         }
     }
@@ -95,15 +106,13 @@ export default function App() {
   };
 
   const handleLogin = async () => {
-    // Fixed: Cast auth to any to bypass typing errors for signInWithOAuth
     try { await (supabase.auth as any).signInWithOAuth({ provider: 'twitter' }); } 
     catch (error) { console.error("Login failed:", error); }
   };
 
   const handleLogout = async () => {
-      // Fixed: Cast auth to any to bypass typing errors for signOut
       await (supabase.auth as any).signOut();
-      setCurrentView('home');
+      navigateTo('home');
       setVideos([]);
       setProfile(null);
   };
@@ -116,7 +125,6 @@ export default function App() {
         if (error) throw error;
         setVideos(prev => {
             const processing = prev.filter(v => v.status === 'processing');
-            // Merge but deduplicate if necessary
             const existingIds = new Set(processing.map(v => v.id));
             const newVideos = (data || []).filter(v => !existingIds.has(v.id));
             return [...processing, ...newVideos] as VideoProject[];
@@ -155,7 +163,6 @@ export default function App() {
     setAppDescription("");
   };
 
-  // Accepting optional segments if advanced editor was used
   const handleGenerate = async (segments?: TimeRange[]) => {
       if (!file || !session) return;
       
@@ -187,11 +194,12 @@ export default function App() {
           status: 'processing',
           processingStep: 'analyzing',
           voice_id: voice.id,
-          user_id: session.user.id
+          user_id: session.user.id,
+          input_video_url: null
       };
 
       setVideos(prev => [optimisticVideo, ...prev]);
-      setCurrentView('videos');
+      navigateTo('videos');
 
       try {
           const { videoUrl: resultUrl, analysis } = await processVideoRequest(
@@ -203,7 +211,7 @@ export default function App() {
               appDescription,
               DEFAULT_SCRIPT_RULES,
               DEFAULT_TTS_STYLE,
-              segments // Pass new segments param
+              segments 
           );
           
           const completedVideo: VideoProject = {
@@ -253,12 +261,11 @@ export default function App() {
       {session && (
           <Sidebar 
             currentView={currentView} 
-            setCurrentView={setCurrentView} 
+            setCurrentView={navigateTo} 
             handleLogout={handleLogout} 
           />
       )}
 
-      {/* Responsive Margin: Left on Desktop, Top on Mobile */}
       <main className={`transition-all duration-300 min-h-screen ${session ? 'md:ml-14 mt-14 md:mt-0' : ''}`}>
           
           <div className={currentView === 'home' ? 'block' : 'hidden'}>
@@ -306,3 +313,5 @@ export default function App() {
     </div>
   );
 }
+
+

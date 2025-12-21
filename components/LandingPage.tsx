@@ -48,6 +48,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     >
                         See Example
                     </button>
+                    <a 
+                        href="/blog/" 
+                        className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                        Blog
+                    </a>
                     <button 
                         onClick={scrollToTop} 
                         className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition border border-gray-800"
@@ -83,6 +89,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         >
                             See Example
                         </button>
+                        <a 
+                            href="/blog/"
+                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
+                        >
+                            Blog
+                        </a>
                         <button 
                             onClick={scrollToTop}
                             className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold text-gray-900 bg-gray-50 border border-gray-100"
@@ -169,7 +181,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         
                         <div className="flex items-center justify-between px-1">
                             <span className="text-sm font-bold text-green-600 tracking-widest uppercase flex items-center gap-2">
-                                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5 10 5 10-5-5-2.5-5 2.5z"/></svg>
+                                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5 10 5 10-5-5-2.5-5 2.5z"/></svg>
                                 Polished Demo
                             </span>
                             <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200 shadow-sm font-bold">Output</span>
@@ -245,7 +257,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </h2>
                 
                 <button 
-                    onClick={handleLogin}
+                    onClick={scrollToTop}
                     className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] transition-transform duration-200"
                 >
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-emerald-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200"></div>
