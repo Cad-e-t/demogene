@@ -95,68 +95,94 @@ export const HomeView: React.FC<HomeViewProps> = ({
             );
         }
 
-        // Sub-case: Logged In -> Show Dashboard Upload State (Flat Layout)
+        // Sub-case: Logged In -> Show Dashboard Upload State
         return (
-            <div className="relative w-full min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 md:ml-0 md:pl-0 overflow-hidden">
+            <div className="relative w-full min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 md:p-12 overflow-hidden">
                 
                 {/* Background Decor */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-green-500/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-                {/* Content */}
-                <div className="relative z-10 w-full max-w-3xl mx-auto text-center animate-fade-in flex flex-col gap-10">
+                {/* Content Container - Responsive Layout */}
+                <div className={`relative z-10 w-full animate-fade-in ${profile && profile.credits < 1 ? 'max-w-6xl' : 'max-w-3xl'} mx-auto`}>
                     
-                    <div className="space-y-4">
-                        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight">Create New Demo</h1>
-                        <p className="text-xl text-gray-600 leading-relaxed max-w-xl mx-auto font-medium">
-                            Upload a new screen recording to start the AI generation process. 
-                            Make sure your recording is clear and under 3 minutes.
-                        </p>
-                    </div>
-
-                    <div className="flex justify-center">
-                        <label className="group relative cursor-pointer inline-block transform hover:scale-[1.02] transition-transform duration-200">
-                            <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-emerald-600 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-200"></div>
-                            <div className="relative flex items-center justify-center gap-4 px-12 py-8 bg-white border border-gray-200 text-gray-900 rounded-2xl hover:border-green-300 transition shadow-xl">
-                                <div className="p-3 bg-green-50 rounded-full text-green-600">
-                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                    </svg>
-                                </div>
-                                <span className="font-bold text-2xl">Select Recording</span>
+                    <div className={`flex flex-col gap-12 md:gap-20 ${profile && profile.credits < 1 ? 'md:flex-row md:items-center md:justify-between' : 'items-center text-center'}`}>
+                        
+                        {/* Main Upload Content */}
+                        <div className={`flex-1 space-y-10 ${profile && profile.credits < 1 ? 'text-center md:text-left' : 'text-center'}`}>
+                            <div className="space-y-4">
+                                <h1 className="text-4xl md:text-6xl font-bold text-gray-900 tracking-tight">Create New Demo</h1>
+                                <p className={`text-xl text-gray-600 leading-relaxed font-medium ${profile && profile.credits < 1 ? 'max-w-xl mx-auto md:mx-0' : 'max-w-xl mx-auto'}`}>
+                                    Upload a new screen recording to start the AI generation process. 
+                                    Make sure your recording is clear and under 3 minutes.
+                                </p>
                             </div>
-                            <input type="file" className="hidden" accept="video/*" onChange={onFileChange} />
-                        </label>
-                    </div>
 
-                    {profile && profile.credits < 1 && (
-                         <div className="flex flex-col items-center gap-6 animate-fade-in max-w-sm mx-auto">
-                             <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 px-4 py-1.5 rounded-full border border-red-200">
-                                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                                Out of credits
-                             </div>
-                             
-                             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm w-full text-center">
-                                <button 
-                                    onClick={onPurchase} 
-                                    className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-lg hover:bg-black transition-colors mb-4"
-                                >
-                                    Get a demo for $9
-                                </button>
-                                
-                                <div className="space-y-2 text-sm text-gray-600 font-medium">
-                                    <p className="text-green-600 font-bold">+2 bonus demos on your first purchase</p>
-                                    <p className="text-gray-900">+1 bonus demo on future purchases</p>
-                                    <p className="text-gray-400 italic">— test different angles and pick the one you like best.</p>
+                            <div className={`flex ${profile && profile.credits < 1 ? 'justify-center md:justify-start' : 'justify-center'}`}>
+                                <label className="group relative cursor-pointer inline-block transform hover:scale-[1.02] transition-transform duration-200">
+                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-emerald-600 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-200"></div>
+                                    <div className="relative flex items-center justify-center gap-4 px-10 py-6 md:px-12 md:py-8 bg-white border border-gray-200 text-gray-900 rounded-2xl hover:border-green-300 transition shadow-xl">
+                                        <div className="p-3 bg-green-50 rounded-full text-green-600">
+                                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                            </svg>
+                                        </div>
+                                        <span className="font-bold text-2xl">Select Recording</span>
+                                    </div>
+                                    <input type="file" className="hidden" accept="video/*" onChange={onFileChange} />
+                                </label>
+                            </div>
+
+                            {/* Credit Status for Users who HAVE credits */}
+                            {profile && profile.credits >= 1 && (
+                                <div className="pt-4">
+                                    <span className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 bg-white border border-gray-200 px-4 py-2 rounded-full shadow-sm">
+                                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                        {profile.credits} Demo Credits Remaining
+                                    </span>
                                 </div>
-                                
-                                <div className="mt-6 pt-6 border-t border-gray-100">
-                                    <p className="text-xs text-gray-400 leading-relaxed">
-                                        If your demo doesn’t clearly show your product or fails to work as described, we’ll refund your purchase.
-                                    </p>
-                                </div>
+                            )}
+                        </div>
+
+                        {/* Side Panel: Pricing Card for Users with 0 credits */}
+                        {profile && profile.credits < 1 && (
+                             <div className="flex flex-col items-center md:items-start gap-6 animate-fade-in w-full max-w-sm mx-auto md:mx-0 shrink-0">
+                                 <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 px-4 py-1.5 rounded-full border border-red-200">
+                                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                                    You are out of credits
+                                 </div>
+                                 
+                                 <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-sm w-full text-center md:text-left">
+                                    <button 
+                                        onClick={onPurchase} 
+                                        className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold text-xl hover:bg-black transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 mb-6"
+                                    >
+                                        Get a demo for $9
+                                    </button>
+                                    
+                                    <div className="space-y-4 text-sm text-gray-600 font-medium">
+                                        <div className="flex items-start gap-3">
+                                            <span className="mt-1 w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center shrink-0">✓</span>
+                                            <p><span className="text-green-600 font-bold">+2 bonus demos</span> on your first purchase</p>
+                                        </div>
+                                        <div className="flex items-start gap-3">
+                                            <span className="mt-1 w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center shrink-0">✓</span>
+                                            <p><span className="text-gray-900 font-bold">+1 bonus demo</span> on future purchases</p>
+                                        </div>
+                                        <p className="text-gray-400 italic text-xs pt-2">Test different angles and pick the best version.</p>
+                                    </div>
+                                    
+                                    <div className="mt-8 pt-6 border-t border-gray-100">
+                                        <p className="text-[10px] text-gray-400 leading-relaxed uppercase tracking-wider font-bold">
+                                            Satisfaction Guaranteed
+                                        </p>
+                                        <p className="text-xs text-gray-400 leading-relaxed mt-1">
+                                            If your demo doesn’t meet quality standards, we’ll refund your purchase.
+                                        </p>
+                                    </div>
+                                 </div>
                              </div>
-                         </div>
-                    )}
+                        )}
+                    </div>
                 </div>
 
                 {/* Success Notification */}
