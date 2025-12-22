@@ -5,16 +5,12 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { analyzeVideo, generateVoiceover } from './gemini.js';
 import { processVideoPipeline, preprocessVideo, calculateAudioLineDurations } from './video-processor.js';
 import { supabase } from './supabase.js';
 import { execSync } from 'child_process';
 import { getVideoAnalysisPrompt, VIDEO_ANALYSIS_NO_SCRIPT_PROMPT } from './prompts.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 

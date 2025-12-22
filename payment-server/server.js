@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
@@ -10,12 +9,11 @@ const PORT = process.env.PORT || 8087;
 
 // --- CONFIGURATION ---
 // In production, these should come from process.env
-// For demo purposes, they are pulled from env if available
 const DODO_PAYMENTS_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
 const DODO_WEBHOOK_SECRET = process.env.DODO_WEBHOOK_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'; // Or wherever frontend is hosted
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'; 
 const MODE = process.env.MODE || 'test_mode';
 
 
@@ -33,9 +31,7 @@ const allowedOrigins = new Set([
 
 app.use(cors({
   origin: (origin, callback) => {
-    // allow server-to-server or tools like curl/postman
     if (!origin) return callback(null, true);
-
     if (allowedOrigins.has(origin)) {
       callback(null, true);
     } else {
@@ -85,7 +81,6 @@ const processWebhookAsync = async (data) => {
 
     switch (type) {
         case 'payment.succeeded':
-            // Update profile with payment info if needed
             const { billing, currency, card_last_four, customer, customer_id } = eventData;
             const profileUpdateData = {
                  billing_address: billing,
@@ -97,25 +92,22 @@ const processWebhookAsync = async (data) => {
                 profileUpdateData.dodo_customer_id = customer_id || customer?.customer_id;
             }
             if (customer?.phone_number) profileUpdateData.phone_number = customer.phone_number;
-            
-            // Save Name and Email from Webhook to Profile so we can reuse them for future checkouts
             if (customer?.email) profileUpdateData.customer_email = customer.email;
             if (customer?.name) profileUpdateData.customer_name = customer.name;
 
             await supabase.from('profiles').update(profileUpdateData).eq('id', userId);
 
-            // Grant Credits
-            // We trust metadata from our checkout session creation
-            const credits = parseInt(metadata.credits_to_add || '0');
+            // Grant Credits using the RPC function which handles bonus logic
+            const credits = parseInt(metadata.credits_to_add || '1');
             if (credits > 0) {
                 const { error } = await supabase.rpc('grant_credits_from_purchase', {
                     p_user_id: userId,
-                    p_credits_to_add: credits,
-                    p_description: `Purchase of ${credits} demos`,
+                    p_credits_to_add: credits, // Base credit is 1
+                    p_description: `Purchase of demo credits`,
                     p_metadata: eventData
                 });
                 if (error) console.error("RPC Error:", error);
-                else console.log(`Granted ${credits} credits to ${userId}`);
+                else console.log(`Processed purchase for user ${userId}`);
             }
             break;
         
@@ -159,14 +151,11 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
 
         if (!dodo) throw new Error("Dodo client not initialized");
 
-        // Logic for "10 Demos for $3"
-        // In real DodoPayments, you create a product in their dashboard and use that ID.
-        // Here we simulate or use a dynamic/real ID.
-        let amount = 400; // $4.00 USD (in cents)
-        let credits = parseInt(process.env.CREDITS_PER_PACK || '10');
+        // Updated Pricing: $9 for a demo (Base credits = 1)
+        let amount = 900; // $9.00 USD
+        let credits = 1; // Base credit; SQL handles first-time (+2) vs repeat (+1) bonus
         let finalProductId = productId;
 
-        // Fetch profile to see if returning customer
         const { data: profile } = await supabase
             .from('profiles')
             .select('dodo_customer_id, billing_address, customer_email, customer_name')
@@ -176,24 +165,20 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
         const checkoutPayload = {
             product_cart: [{ product_id: finalProductId, quantity: 1 }], 
             billing_currency: 'USD',
-            return_url: `${FRONTEND_URL}/?payment_status=success`, // Redirects to home with param
+            return_url: `${FRONTEND_URL}/?payment_status=success`, 
             metadata: {
                 user_id: user.id,
                 credits_to_add: String(credits),
                 product_id: finalProductId
             }
-            // Customer object is purposely omitted here for first-time users.
-            // DodoPayments will collect it on the checkout page.
         };
 
-        // If returning customer, inject the stored ID, Name, and Email
         if (profile?.dodo_customer_id) {
              checkoutPayload.customer = {
                  customer_id: profile.dodo_customer_id
              };
              if (profile.customer_email) checkoutPayload.customer.email = profile.customer_email;
              if (profile.customer_name) checkoutPayload.customer.name = profile.customer_name;
-             
              if (profile.billing_address) checkoutPayload.billing_address = profile.billing_address;
         }
 

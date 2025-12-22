@@ -129,14 +129,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </div>
 
                     {profile && profile.credits < 1 && (
-                         <div className="flex flex-col items-center gap-3 animate-fade-in">
+                         <div className="flex flex-col items-center gap-6 animate-fade-in max-w-sm mx-auto">
                              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 px-4 py-1.5 rounded-full border border-red-200">
                                 <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                                 Out of credits
                              </div>
-                             <button onClick={onPurchase} className="text-sm text-gray-500 hover:text-green-600 underline decoration-gray-300 hover:decoration-green-500 underline-offset-4 transition-colors">
-                                 Get 10 Demos for $4
-                             </button>
+                             
+                             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm w-full text-center">
+                                <button 
+                                    onClick={onPurchase} 
+                                    className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-lg hover:bg-black transition-colors mb-4"
+                                >
+                                    Get a demo for $9
+                                </button>
+                                
+                                <div className="space-y-2 text-sm text-gray-600 font-medium">
+                                    <p className="text-green-600 font-bold">+2 bonus demos on your first purchase</p>
+                                    <p className="text-gray-900">+1 bonus demo on future purchases</p>
+                                    <p className="text-gray-400 italic">— test different angles and pick the one you like best.</p>
+                                </div>
+                                
+                                <div className="mt-6 pt-6 border-t border-gray-100">
+                                    <p className="text-xs text-gray-400 leading-relaxed">
+                                        If your demo doesn’t clearly show your product or fails to work as described, we’ll refund your purchase.
+                                    </p>
+                                </div>
+                             </div>
                          </div>
                     )}
                 </div>
@@ -363,7 +381,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </button>
                     {profile && profile.credits < 1 && (
                         <button onClick={onPurchase} className="block w-full mt-4 text-center text-xs font-bold text-gray-500 hover:text-green-600 transition-colors">
-                            Purchase Credits
+                            Get a demo for $9 (+bonus)
                         </button>
                     )}
                  </div>

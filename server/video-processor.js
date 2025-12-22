@@ -14,7 +14,7 @@ const FF_FLAGS = ["-c:v", "libx264", "-preset", "fast", "-r", "30", "-pix_fmt", 
 // High Quality flags for initial preprocessing (Upload)
 const PREPROCESS_FLAGS = [
     "-c:v", "libx264",
-    "-preset", "ultrafast", 
+    "-preset", "slow", 
     "-crf", "24",
     "-r", "30",
     "-pix_fmt", "yuv420p",

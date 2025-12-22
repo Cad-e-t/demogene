@@ -131,14 +131,32 @@ returns void
 language plpgsql
 security definer
 as $$
+declare
+  purchase_count int;
+  bonus_credits int;
+  total_to_add int;
 begin
+  -- Count previous successful purchases
+  select count(*) into purchase_count 
+  from public.credit_transactions 
+  where user_id = p_user_id and type = 'purchase';
+
+  -- Logic: First purchase gets +2 bonus, subsequent get +1 bonus
+  if purchase_count = 0 then
+    bonus_credits := 2;
+  else
+    bonus_credits := 1;
+  end if;
+
+  total_to_add := p_credits_to_add + bonus_credits;
+
   update public.profiles
-  set credits = credits + p_credits_to_add,
+  set credits = credits + total_to_add,
       updated_at = now()
   where id = p_user_id;
 
   insert into public.credit_transactions (user_id, amount, type, description, metadata)
-  values (p_user_id, p_credits_to_add, 'purchase', p_description, p_metadata);
+  values (p_user_id, total_to_add, 'purchase', p_description || ' (incl. ' || bonus_credits || ' bonus)', p_metadata);
 end;
 $$;
 
