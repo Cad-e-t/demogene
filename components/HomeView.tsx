@@ -176,7 +176,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                             Satisfaction Guaranteed
                                         </p>
                                         <p className="text-xs text-gray-400 leading-relaxed mt-1">
-                                            If your demo doesn’t meet quality standards, we’ll refund your purchase.
+                                            If your demo fails to work as described, we’ll refund your purchase.
                                         </p>
                                     </div>
                                  </div>
