@@ -112,7 +112,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             <div className="space-y-4">
                                 <h1 className="text-4xl md:text-6xl font-bold text-gray-900 tracking-tight">Create New Demo</h1>
                                 <p className={`text-xl text-gray-600 leading-relaxed font-medium ${profile && profile.credits < 1 ? 'max-w-xl mx-auto md:mx-0' : 'max-w-xl mx-auto'}`}>
-                                    Upload a new screen recording to start the AI generation process. 
+                                    Upload a new screen recording to start the generation process. 
                                     Make sure your recording is clear and under 3 minutes.
                                 </p>
                             </div>
