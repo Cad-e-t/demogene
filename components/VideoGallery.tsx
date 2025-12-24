@@ -27,6 +27,33 @@ export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVide
         }
     };
 
+    const handleDownload = async (e: React.MouseEvent, url: string | null, title: string) => {
+        e.stopPropagation();
+        if (!url) return;
+
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            // Ensure filename has .mp4 extension
+            const filename = title.toLowerCase().endsWith('.mp4') ? title : `${title}.mp4`;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Clean up
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        } catch (error) {
+            console.error('Download failed:', error);
+            // Fallback to opening in new tab if fetch fails
+            window.open(url, '_blank');
+        }
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-6 py-12 animate-fade-in">
              <div className="flex items-center justify-between mb-10">
@@ -44,17 +71,28 @@ export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVide
                                 : 'border-green-100 cursor-default'
                             }`}
                     >
-                        {/* Delete Button overlay - visible on hover, hidden during processing */}
-                        {vid.status !== 'processing' && (
-                            <button 
-                                onClick={(e) => handleDelete(e, vid)}
-                                className="absolute top-3 right-3 z-20 p-2 bg-white/90 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 border border-gray-100 cursor-pointer"
-                                title="Delete Video"
-                            >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
+                        {/* Overlay Actions - visible on hover, hidden during processing */}
+                        {vid.status === 'completed' && (
+                            <div className="absolute top-3 right-3 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                <button 
+                                    onClick={(e) => handleDownload(e, vid.final_video_url, vid.title)}
+                                    className="p-2 bg-white/90 hover:bg-green-50 text-gray-400 hover:text-green-600 rounded-full shadow-sm border border-gray-100 cursor-pointer"
+                                    title="Download Video"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                </button>
+                                <button 
+                                    onClick={(e) => handleDelete(e, vid)}
+                                    className="p-2 bg-white/90 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-full shadow-sm border border-gray-100 cursor-pointer"
+                                    title="Delete Video"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
                         )}
 
                         {vid.status === 'processing' ? (
