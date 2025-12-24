@@ -181,7 +181,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         
                         <div className="flex items-center justify-between px-1">
                             <span className="text-sm font-bold text-green-600 tracking-widest uppercase flex items-center gap-2">
-                                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5-10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5 10 5 10-5-5-2.5-5 2.5z"/></svg>
+                                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5-10-5-10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5 10 5 10-5-5-2.5-5 2.5z"/></svg>
                                 Polished Demo
                             </span>
                             <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200 shadow-sm font-bold">Output</span>
@@ -250,10 +250,121 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </div>
             </div>
 
-            {/* --- CTA Section --- */}
+            {/* --- Extension: Try It Now --- */}
+            <section className="w-full bg-white py-24 border-t border-gray-100 flex flex-col items-center text-center px-6">
+                <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-8 tracking-tight">Try It now.</h2>
+                <p className="text-xl text-gray-600 mb-12 max-w-2xl font-medium">Create a product demo people actually understand.</p>
+                <button onClick={scrollToTop} className="group relative cursor-pointer transform hover:scale-[1.02] transition-transform duration-200">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-emerald-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200"></div>
+                    <div className="relative flex items-center justify-center gap-3 px-10 py-5 bg-gray-900 text-white rounded-xl hover:bg-black transition shadow-xl">
+                        <span className="font-bold text-xl">Create My Demo</span>
+                    </div>
+                </button>
+            </section>
+
+            {/* --- Extension: What Can You Use This Tool For? --- */}
+            <section className="w-full bg-gray-50 py-32 border-t border-gray-200">
+                <div className="max-w-5xl mx-auto px-6">
+                    <h2 className="text-4xl font-bold text-gray-900 mb-8 tracking-tight text-center md:text-left">What Can You Use This Tool For?</h2>
+                    <p className="text-xl text-gray-600 mb-12 font-medium text-center md:text-left">This tool is built for people searching for better ways to explain software without editing video manually.</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {[
+                            "Create a SaaS product demo video for your landing page",
+                            "Turn a Loom or screen recording into a narrated demo",
+                            "Generate onboarding walkthroughs from existing recordings",
+                            "Produce a Product Hunt demo video without editing",
+                            "Share a feature explanation video with users or prospects"
+                        ].map((useCase, i) => (
+                            <div key={i} className="flex items-start gap-4 p-6 bg-white rounded-2xl border border-gray-200 shadow-sm">
+                                <div className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center font-bold shrink-0 border border-green-100">✓</div>
+                                <p className="text-lg text-gray-700 font-medium leading-tight">{useCase}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="mt-12 text-center md:text-left text-lg text-gray-500 font-medium italic">If you already have a screen recording, this replaces the rest of the workflow.</p>
+                </div>
+            </section>
+
+            {/* --- Extension: Why It Surpasses --- */}
+            <section className="w-full bg-white py-32 border-t border-gray-200">
+                <div className="max-w-5xl mx-auto px-6">
+                    <div className="bg-gray-900 rounded-[32px] p-8 md:p-16 text-white relative overflow-hidden shadow-2xl">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 rounded-full blur-[80px] -mr-32 -mt-32"></div>
+                        <div className="relative z-10">
+                            <h2 className="text-3xl md:text-5xl font-bold mb-8 tracking-tight">Why It Surpasses Traditional Product Demo Tools</h2>
+                            <p className="text-xl text-green-400 mb-12 font-bold uppercase tracking-wider">Making product demos used to require multiple steps:</p>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
+                                {["Video editing", "Scriptwriting", "Recording voiceovers"].map((step, i) => (
+                                    <div key={i} className="flex flex-col gap-2 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
+                                        <span className="text-white/40 font-mono text-sm">Step 0{i+1}</span>
+                                        <span className="font-bold text-lg">{step}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="space-y-6 text-xl text-gray-300 leading-relaxed font-medium">
+                                <p><span className="text-white font-bold">ProductCam replaces all that.</span> Instead of spending hours stitching everything together, you upload once and get a finished demo automatically.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- Extension: Stop Shipping / Start Shipping --- */}
+            <section className="w-full bg-gray-50 py-32 border-t border-gray-200">
+                <div className="max-w-5xl mx-auto px-6">
+                    <div className="grid md:grid-cols-2 gap-12 lg:gap-20">
+                        {/* Stop */}
+                        <div className="space-y-8">
+                            <h3 className="text-3xl font-bold text-red-600 flex items-center gap-3">
+                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Stop shipping:
+                            </h3>
+                            <div className="space-y-4">
+                                {[
+                                    "Silent screen recordings that confuse users",
+                                    "Low-quality or rushed voiceovers",
+                                    "Awkward pauses, “uhms,” and \"ahs\"",
+                                    "Demos that show what you clicked, not why it matters"
+                                ].map((item, i) => (
+                                    <div key={i} className="flex items-center gap-4 text-gray-500 font-medium">
+                                        <span className="w-1.5 h-1.5 bg-red-400 rounded-full"></span>
+                                        {item}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Start */}
+                        <div className="space-y-8">
+                            <h3 className="text-3xl font-bold text-green-600 flex items-center gap-3">
+                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Start shipping:
+                            </h3>
+                            <div className="space-y-4">
+                                {[
+                                    "Clear, narrated product walkthroughs",
+                                    "Demos that explain the value as users watch",
+                                    "A single video that onboards, explains, and sells",
+                                    "A demo that’s ready the moment you need it."
+                                ].map((item, i) => (
+                                    <div key={i} className="flex items-center gap-4 text-gray-900 font-bold">
+                                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                                        {item}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- Extension: Final CTA --- */}
             <div className="w-full bg-white py-32 flex flex-col items-center justify-center border-t border-gray-200 px-6">
                 <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-12 tracking-tight text-center">
-                    Ready to create your first demo?
+                    Ready to Create Your First Demo?
                 </h2>
                 
                 <button 
