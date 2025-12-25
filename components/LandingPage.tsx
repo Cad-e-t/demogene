@@ -192,7 +192,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
                         <div className="relative aspect-video bg-gray-900 rounded-2xl border-2 border-green-500/20 overflow-hidden shadow-xl shadow-green-900/5 transition-all ring-1 ring-black/5 group-hover:border-green-500/50">
                             <video 
-                                src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/demo.mp4" 
+                                src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/738a626d-03f9-479a-9988-5db34b6f425b.mp4" 
                                 className="w-full h-full object-cover"
                                 controls
                                 playsInline
