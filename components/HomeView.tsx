@@ -1,9 +1,11 @@
-import React, { useRef, useState } from 'react';
+
+import React, { useRef, useState, useEffect } from 'react';
 import { VideoCropper } from './VideoCropper';
 import { AdvancedEditorModal } from './AdvancedEditorModal';
 import { LandingPage } from './LandingPage';
 import { CropData, TrimData, VoiceOption, TimeRange } from '../types';
 import { VOICES } from '../constants';
+import { VOICE_SAMPLES } from '../voiceSamples';
 
 const XIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
@@ -57,6 +59,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
     
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
     const duration = trim.end - trim.start; // This is naive duration if no advanced edits
     
     // Advanced Editing State
@@ -82,6 +86,35 @@ export const HomeView: React.FC<HomeViewProps> = ({
         // Pass segments if they exist, otherwise backend will use trim
         onGenerate(segments || undefined);
     };
+
+    const toggleVoiceSample = (e: React.MouseEvent, voiceId: string) => {
+        e.stopPropagation();
+        const sampleUrl = VOICE_SAMPLES[voiceId];
+        if (!sampleUrl) return;
+
+        if (playingVoiceId === voiceId) {
+            audioRef.current?.pause();
+            setPlayingVoiceId(null);
+        } else {
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+            const audio = new Audio(sampleUrl);
+            audioRef.current = audio;
+            audio.play();
+            setPlayingVoiceId(voiceId);
+            audio.onended = () => setPlayingVoiceId(null);
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+        };
+    }, []);
 
     // --- CASE 1: NO FILE SELECTED ---
     if (!file) {
@@ -176,7 +209,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                             Satisfaction Guaranteed
                                         </p>
                                         <p className="text-xs text-gray-400 leading-relaxed mt-1">
-                                            If your demo fails to work as described, we’ll refund your purchase.
+                                           Script, pacing, zooms, and editing are automatically applied to turn your raw screen recording into a finished demo.
                                         </p>
                                     </div>
                                  </div>
@@ -295,7 +328,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                       </svg>
-                                      Edit Video
+                                      Trim Video
                                   </button>
                               </div>
                           </div>
@@ -347,13 +380,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                  <button
                                     key={v.id}
                                     onClick={() => setVoice(v)}
-                                    className={`w-full flex items-center justify-between px-3 py-3 md:py-2.5 text-sm border rounded-lg transition-all duration-200 ${
+                                    className={`w-full flex items-center justify-between px-3 py-3 md:py-2.5 text-sm border rounded-lg transition-all duration-200 group relative ${
                                         voice.id === v.id
                                         ? 'bg-green-50 text-green-800 border-green-500 shadow-sm ring-1 ring-green-500'
                                         : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                     }`}
                                  >
-                                     <span className="font-bold">{v.name}</span>
+                                     <div className="flex items-center gap-2">
+                                         <span className="font-bold">{v.name}</span>
+                                         {VOICE_SAMPLES[v.id] && (
+                                             <button 
+                                                onClick={(e) => toggleVoiceSample(e, v.id)}
+                                                className={`p-1 rounded-full transition-colors ${playingVoiceId === v.id ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
+                                                title="Preview Sample"
+                                             >
+                                                {playingVoiceId === v.id ? (
+                                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                                ) : (
+                                                    <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                )}
+                                             </button>
+                                         )}
+                                     </div>
                                      <span className="opacity-70 text-[10px] uppercase font-semibold">{v.gender}</span>
                                  </button>
                              ))}
