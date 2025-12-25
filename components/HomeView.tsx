@@ -383,23 +383,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                         : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                     }`}
                                  >
-                                     <div className="flex items-center gap-2">
-                                         <span className="font-bold">{v.name}</span>
-                                         {VOICE_SAMPLES[v.id] && (
-                                             <button 
-                                                onClick={(e) => toggleVoiceSample(e, v.id)}
-                                                className={`p-1 rounded-full transition-colors ${playingVoiceId === v.id ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
-                                                title="Preview Sample"
-                                             >
-                                                {playingVoiceId === v.id ? (
-                                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                                                ) : (
-                                                    <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                )}
-                                             </button>
-                                         )}
-                                     </div>
-                                     <span className="opacity-70 text-[10px] uppercase font-semibold">{v.gender}</span>
+                                     <span className="font-bold">{v.name}</span>
+                                     {VOICE_SAMPLES[v.id] && (
+                                         <button 
+                                            onClick={(e) => toggleVoiceSample(e, v.id)}
+                                            className={`p-1.5 rounded-full transition-colors ${playingVoiceId === v.id ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
+                                            title="Preview Sample"
+                                         >
+                                            {playingVoiceId === v.id ? (
+                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                            ) : (
+                                                <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                            )}
+                                         </button>
+                                     )}
                                  </button>
                              ))}
                          </div>
