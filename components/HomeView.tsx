@@ -206,7 +206,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                     
                                     <div className="mt-8 pt-6 border-t border-gray-100">
                                         <p className="text-[10px] text-gray-400 leading-relaxed uppercase tracking-wider font-bold">
-                                           Script, pacing, zooms, and editing are automatically applied to turn your raw screen recording into a finished demo.
+                                           Script, pacing, zooms, and editing are automatically applied to turn your raw screen recording into a finished product demo.
                                         </p>
                                     </div>
                                  </div>
