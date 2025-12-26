@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -191,6 +192,9 @@ export default function App() {
 
       setErrorMessage(null);
 
+      // NAVIGATE FIRST to prevent duplicate clicks and ensure UI transition
+      navigateTo('#/videos');
+
       const tempId = uuidv4();
       const optimisticVideo: VideoProject = {
           id: tempId,
@@ -205,7 +209,6 @@ export default function App() {
       };
 
       setVideos(prev => [optimisticVideo, ...prev]);
-      navigateTo('#/videos');
 
       try {
           const { videoUrl: resultUrl, analysis } = await processVideoRequest(
