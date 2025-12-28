@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface LandingPageProps {
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -8,6 +8,15 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    // Trigger Twitter widget reload on mount/update
+    useEffect(() => {
+        // @ts-ignore
+        if (window.twttr && window.twttr.widgets) {
+            // @ts-ignore
+            window.twttr.widgets.load();
+        }
+    }, []);
 
     const scrollToSection = (id: string) => {
         const element = document.getElementById(id);
@@ -370,6 +379,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     </div>
                 </button>
             </div>
+
+            {/* --- TESTIMONIALS SECTION --- */}
+            <section className="w-full bg-gray-50 py-32 border-t border-gray-200 flex flex-col items-center">
+                <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-20 tracking-tight text-center px-6">
+                    See What Builders Are Saying About Us
+                </h2>
+                
+                <div className="w-full flex overflow-x-auto gap-8 px-6 pb-12 snap-x snap-mandatory no-scrollbar scroll-smooth">
+                    <div className="shrink-0 snap-center w-[90%] md:w-[450px] bg-white rounded-2xl shadow-sm border border-gray-200 p-2">
+                        <blockquote className="twitter-tweet">
+                            <p lang="en" dir="ltr">This tool is a game changer for a high school founder like me<br/><br/>I can&#39;t afford to hire a design team right now so I need speed<br/><br/>This means I can spend less time making demos and more time coding the next feature for my app</p>
+                            &mdash; Ben Head (@BenHeadGPT) 
+                            <a href="https://twitter.com/BenHeadGPT/status/2000280774667629046?ref_src=twsrc%5Etfw">December 14, 2025</a>
+                        </blockquote>
+                    </div>
+                    
+                    <div className="shrink-0 snap-center w-[90%] md:w-[450px] bg-white rounded-2xl shadow-sm border border-gray-200 p-2">
+                        <blockquote className="twitter-tweet">
+                            <p lang="en" dir="ltr">Product demos used to feel like pulling teeth... this looks like a real shortcut.</p>
+                            &mdash; Tejas (@TWadpillewar) 
+                            <a href="https://twitter.com/TWadpillewar/status/2000519427188527482?ref_src=twsrc%5Etfw">December 15, 2025</a>
+                        </blockquote>
+                    </div>
+                </div>
+            </section>
 
             {/* Footer */}
             <div className="py-12 text-center border-t border-gray-200 w-full mt-auto bg-white">
