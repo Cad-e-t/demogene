@@ -253,7 +253,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             {/* --- Extension: Try It Now --- */}
             <section className="w-full bg-white py-24 border-t border-gray-100 flex flex-col items-center text-center px-6">
                 <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-8 tracking-tight">Try It now.</h2>
-                <p className="text-xl text-gray-600 mb-12 max-w-2xl font-medium">Create a product demo people actually understand.</p>
+                <p className="text-xl text-gray-600 mb-12 max-w-2xl font-medium">Create a launch-ready product demo in seconds without editing.</p>
                 <button onClick={scrollToTop} className="group relative cursor-pointer transform hover:scale-[1.02] transition-transform duration-200">
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-emerald-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200"></div>
                     <div className="relative flex items-center justify-center gap-3 px-10 py-5 bg-gray-900 text-white rounded-xl hover:bg-black transition shadow-xl">
@@ -292,20 +292,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     <div className="bg-gray-900 rounded-[32px] p-8 md:p-16 text-white relative overflow-hidden shadow-2xl">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 rounded-full blur-[80px] -mr-32 -mt-32"></div>
                         <div className="relative z-10">
-                            <h2 className="text-3xl md:text-5xl font-bold mb-8 tracking-tight">Why It Surpasses Traditional Product Demo Tools</h2>
-                            <p className="text-xl text-green-400 mb-12 font-bold uppercase tracking-wider">Making product demos used to require multiple steps:</p>
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
-                                {["Video editing", "Scriptwriting", "Recording voiceovers"].map((step, i) => (
-                                    <div key={i} className="flex flex-col gap-2 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
-                                        <span className="text-white/40 font-mono text-sm">Step 0{i+1}</span>
-                                        <span className="font-bold text-lg">{step}</span>
-                                    </div>
-                                ))}
-                            </div>
+                            <h2 className="text-xl text-green-400 mb-12 font-bold uppercase tracking-wider">Making product demos used to require multiple steps:</h2>
 
                             <div className="space-y-6 text-xl text-gray-300 leading-relaxed font-medium">
-                                <p><span className="text-white font-bold">ProductCam replaces all that.</span> Instead of spending hours stitching everything together, you upload once and get a finished demo automatically.</p>
+                                <p className="text-white font-bold">ProductCam replaces all that. Instead of spending hours stitching everything together, you upload once and get a finished demo automatically.</p>
                             </div>
                         </div>
                     </div>
