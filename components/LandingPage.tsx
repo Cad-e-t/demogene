@@ -253,7 +253,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             {/* --- Extension: Try It Now --- */}
             <section className="w-full bg-white py-24 border-t border-gray-100 flex flex-col items-center text-center px-6">
                 <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-8 tracking-tight">Try It now.</h2>
-                <p className="text-xl text-gray-600 mb-12 max-w-2xl font-medium">Create a launch-ready product demo in seconds without editing.</p>
+                <p className="text-xl text-gray-600 mb-12 max-w-2xl font-medium">Create a launch 🚀 product demo in seconds without editing.</p>
                 <button onClick={scrollToTop} className="group relative cursor-pointer transform hover:scale-[1.02] transition-transform duration-200">
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-emerald-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200"></div>
                     <div className="relative flex items-center justify-center gap-3 px-10 py-5 bg-gray-900 text-white rounded-xl hover:bg-black transition shadow-xl">
