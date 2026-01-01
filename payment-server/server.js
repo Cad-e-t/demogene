@@ -1,3 +1,4 @@
+
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
@@ -98,16 +99,16 @@ const processWebhookAsync = async (data) => {
             await supabase.from('profiles').update(profileUpdateData).eq('id', userId);
 
             // Grant Credits using the RPC function which handles bonus logic
-            const credits = parseInt(metadata.credits_to_add || '1');
+            const credits = parseInt(metadata.credits_to_add || '0');
             if (credits > 0) {
                 const { error } = await supabase.rpc('grant_credits_from_purchase', {
                     p_user_id: userId,
-                    p_credits_to_add: credits, // Base credit is 1
-                    p_description: `Purchase of demo credits`,
+                    p_credits_to_add: credits,
+                    p_description: `Purchase of ${credits} demo credit${credits > 1 ? 's' : ''}`,
                     p_metadata: eventData
                 });
                 if (error) console.error("RPC Error:", error);
-                else console.log(`Processed purchase for user ${userId}`);
+                else console.log(`Processed purchase of ${credits} credits for user ${userId}`);
             }
             break;
         
@@ -151,10 +152,13 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
 
         if (!dodo) throw new Error("Dodo client not initialized");
 
-        // Updated Pricing: $9 for a demo (Base credits = 1)
-        let amount = 900; // $9.00 USD
-        let credits = 1; // Base credit; SQL handles first-time (+2) vs repeat (+1) bonus
-        let finalProductId = productId;
+        // Logic to determine credits based on productId
+        let credits = 10; // default
+        if (productId === "pdt_0NVMGufalf98j4GMNZu1g") {
+            credits = 1;
+        } else if (productId === "pdt_2LwDVRweVv9iX22U5RDSW") {
+            credits = 10;
+        }
 
         const { data: profile } = await supabase
             .from('profiles')
@@ -163,13 +167,13 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
             .single();
 
         const checkoutPayload = {
-            product_cart: [{ product_id: finalProductId, quantity: 1 }], 
+            product_cart: [{ product_id: productId, quantity: 1 }], 
             billing_currency: 'USD',
             return_url: `${FRONTEND_URL}/?payment_status=success`, 
             metadata: {
                 user_id: user.id,
                 credits_to_add: String(credits),
-                product_id: finalProductId
+                product_id: productId
             }
         };
 

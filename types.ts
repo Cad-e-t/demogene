@@ -1,4 +1,3 @@
-
 export interface CropData {
   x: number; // Normalized 0-1
   y: number; // Normalized 0-1
@@ -40,6 +39,13 @@ export interface BackgroundGradient {
   style: 'vertical' | 'radial';
 }
 
+export interface BackgroundOption {
+  id: string;
+  name: string;
+  url?: string | null; // Optional for options like "No Background"
+  thumbnail?: string; // Made optional as some backgrounds (like "None") don't need them
+}
+
 export interface AnalysisResult {
   background_gradient: BackgroundGradient;
   segments: VideoSegment[];
@@ -62,14 +68,14 @@ export interface VoiceOption {
 export interface VideoProject {
     id: string;
     title: string;
-    input_video_url?: string | null; // Added to fix frontend-api.ts property access error
+    input_video_url?: string | null;
     final_video_url: string | null;
     created_at: string;
     status: 'processing' | 'completed' | 'failed';
     voice_id: string;
+    background_id?: string;
     analysis_result?: AnalysisResult;
     user_id: string;
-    // UI Only
     processingStep?: ProcessingStatus['step'];
     errorMessage?: string;
 }

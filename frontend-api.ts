@@ -1,3 +1,4 @@
+
 import { AnalysisResult, CropData, ProcessingStatus, TrimData, TimeRange, VideoProject } from './types';
 import { supabase } from './supabaseClient';
 
@@ -9,19 +10,21 @@ export async function processVideoRequest(
   crop: CropData,
   trim: TrimData,
   voiceId: string,
+  backgroundId: string,
   userId: string,
   onStatusUpdate: (status: ProcessingStatus['step']) => void,
   appName?: string,
   appDescription?: string,
   scriptRules?: string,
   stylePrompt?: string,
-  segments?: TimeRange[] // New optional parameter
+  segments?: TimeRange[]
 ): Promise<{ videoUrl: string; analysis: AnalysisResult }> {
   const formData = new FormData();
   formData.append('video', file);
   formData.append('crop', JSON.stringify(crop));
   formData.append('trim', JSON.stringify(trim));
   formData.append('voiceId', voiceId);
+  formData.append('backgroundId', backgroundId);
   formData.append('userId', userId);
   
   if (segments) {
@@ -44,7 +47,6 @@ export async function processVideoRequest(
     formData.append('stylePrompt', stylePrompt);
   }
 
-  // Initial status update (App.tsx might already set this, but safe to reinforce)
   onStatusUpdate('analyzing');
 
   try {
@@ -67,17 +69,14 @@ export async function processVideoRequest(
         throw new Error(errMessage);
     }
 
-    // Retrieve Video ID from header instead of potentially massive analysis JSON
     const videoId = response.headers.get('X-Video-Id');
     if (!videoId) {
       throw new Error('Missing video ID header from server');
     }
     
-    // Get the video file blob
     const blob = await response.blob();
     const videoUrl = URL.createObjectURL(blob);
 
-    // Fetch the full analysis from the database to avoid header size/character limits
     const { data: videoRecord, error: dbError } = await supabase
         .from('videos')
         .select('analysis_result')
@@ -120,11 +119,7 @@ export async function createCheckoutSession(productId: string) {
     return await response.json();
 }
 
-/**
- * Deletes a video from the database and removes its associated storage objects.
- */
 export async function deleteVideo(video: VideoProject): Promise<void> {
-    // 1. Delete from database
     const { error: dbError } = await supabase
         .from('videos')
         .delete()
@@ -132,17 +127,14 @@ export async function deleteVideo(video: VideoProject): Promise<void> {
 
     if (dbError) throw dbError;
 
-    // 2. Delete from storage
     const pathsToDelete: string[] = [];
 
     const getStoragePath = (url: string | null) => {
         if (!url) return null;
-        // Extracts "inputs/uuid.mp4" or "outputs/uuid.mp4" from the full Supabase public URL
         const parts = url.split('/uploads/');
         return parts.length > 1 ? parts[1] : null;
     };
 
-    // Fixed: input_video_url is now part of the VideoProject interface in types.ts
     const inputPath = getStoragePath(video.input_video_url || (video as any).input_video_url);
     const finalPath = getStoragePath(video.final_video_url);
 
@@ -156,8 +148,6 @@ export async function deleteVideo(video: VideoProject): Promise<void> {
         
         if (storageError) {
             console.error("Failed to delete storage objects:", storageError);
-            // We don't necessarily throw here if the DB record is already gone,
-            // but logging it is good practice.
         }
     }
 }

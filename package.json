@@ -22,7 +22,8 @@
     "fs": "^0.0.1-security",
     "url": "^0.11.4",
     "os": "^0.1.2",
-    "react-router-dom": "^7.11.0"
+    "react-router-dom": "^7.11.0",
+    "https": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

@@ -1,4 +1,4 @@
-import { VoiceOption } from "./types";
+import { VoiceOption, BackgroundOption } from "./types";
 
 export const VOICES: VoiceOption[] = [
   { id: "Puck", name: "Puck (Male)", gender: "Male" },
@@ -6,7 +6,14 @@ export const VOICES: VoiceOption[] = [
   { id: "Kore", name: "Kore (Female)", gender: "Female" },
   { id: "Fenrir", name: "Fenrir (Male)", gender: "Male" },
   { id: "Zephyr", name: "Zephyr (Female)", gender: "Female" },
-  { id: "voiceless", name: "Voiceless", gender: "Male" }, // Gender is irrelevant here but required by type
+  { id: "voiceless", name: "Voiceless", gender: "Male" },
 ];
 
-export const MODEL_NAME = "gemini-3-pro-preview"; // Use the complex reasoning model for video analysis
+export const BACKGROUNDS: BackgroundOption[] = [
+  { 
+    id: "none", 
+    name: "No Background"
+  }
+];
+
+export const MODEL_NAME = "gemini-3-pro-preview";
