@@ -11,6 +11,7 @@ interface InteractiveDemoProps {
 export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({ onClose, onFinish }) => {
   const [step, setStep] = useState<'config' | 'processing'>('config');
   const [processingStep, setProcessingStep] = useState<'analyzing' | 'generating_audio' | 'rendering'>('analyzing');
+  const [mobileTab, setMobileTab] = useState<'preview' | 'settings'>('preview');
 
   const demoConfig = {
     appName: "MonkeyFace",
@@ -56,8 +57,16 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({ onClose, onFin
         <span className="text-xs font-black text-green-600 uppercase tracking-widest">Interactive Demo</span>
       </div>
 
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-gray-200 flex items-center justify-center px-6 z-40 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+          <div className="flex bg-gray-100 rounded-xl p-1 border border-gray-200 w-full">
+              <button onClick={() => setMobileTab('preview')} className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${mobileTab === 'preview' ? 'bg-white text-black shadow-sm' : 'text-gray-500'}`}>Preview</button>
+              <button onClick={() => setMobileTab('settings')} className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${mobileTab === 'settings' ? 'bg-white text-black shadow-sm' : 'text-gray-500'}`}>Continue</button>
+          </div>
+      </div>
+
       {/* Preview Area */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
+      <div className={`flex-1 flex flex-col min-w-0 relative pb-20 md:pb-0 ${mobileTab === 'settings' ? 'hidden md:flex' : 'flex'}`}>
         <div className="hidden md:flex h-14 border-b border-gray-200 items-center justify-between px-6 bg-white flex-shrink-0 z-10">
           <div className="flex items-center gap-4">
             <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1" title="Exit Demo">
@@ -81,7 +90,7 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({ onClose, onFin
                 hideTimeline={true}
               />
             </div>
-            <div className="py-6 text-center">
+            <div className="py-6 text-center shrink-0">
               <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Simulation Only</p>
               <div className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-400 rounded-full font-bold text-sm border border-gray-200 cursor-not-allowed">
                 Removing unwanted parts disabled in demo
@@ -92,7 +101,7 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({ onClose, onFin
       </div>
 
       {/* Configuration Sidebar */}
-      <div className="w-full md:w-80 md:border-l border-gray-200 bg-white flex flex-col z-10 flex-shrink-0">
+      <div className={`w-full md:w-80 md:border-l border-gray-200 bg-white flex flex-col z-10 flex-shrink-0 pb-20 md:pb-0 ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex h-full'}`}>
         <div className="h-14 border-b border-gray-200 flex items-center px-6 flex-shrink-0 bg-gray-50/50">
           <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Pre-configured Demo</span>
         </div>
@@ -119,7 +128,7 @@ export const InteractiveDemo: React.FC<InteractiveDemoProps> = ({ onClose, onFin
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
+        <div className="p-6 border-t border-gray-200 bg-gray-50 pb-safe">
           <button 
             onClick={() => setStep('processing')}
             className="w-full py-5 bg-green-600 text-white text-lg font-black rounded-xl hover:bg-green-700 transition-all shadow-xl shadow-green-600/20 transform active:scale-[0.98] uppercase tracking-tighter"
