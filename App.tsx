@@ -169,6 +169,26 @@ export default function App() {
       else if (error?.code === 'PGRST116') setProfile({ id: userId, credits: 0 });
   };
 
+  // --- Canonical Tag Sync ---
+  useEffect(() => {
+    const baseUrl = "https://productcam.site/";
+    let path = "";
+    if (currentView === 'blog') path = "#/blog";
+    else if (currentView === 'blog-post' && route.slug) path = `#/blog/${route.slug}`;
+    else if (currentView === 'pricing') path = "#/pricing";
+    else if (currentView === 'videos') path = "#/videos";
+    
+    const canonicalUrl = baseUrl + path;
+    
+    let link: HTMLLinkElement | null = document.querySelector("link[rel='canonical']");
+    if (!link) {
+      link = document.createElement("link");
+      link.setAttribute("rel", "canonical");
+      document.head.appendChild(link);
+    }
+    link.setAttribute("href", canonicalUrl);
+  }, [currentView, route.slug]);
+
   const handleLogin = () => {
     setShowAuthSelection(true);
   };
