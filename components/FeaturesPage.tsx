@@ -71,7 +71,7 @@ export const FeaturesPage: React.FC = () => {
                     <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Ready to automate your demos?</h2>
                     <p className="text-gray-500 font-medium mb-8">Start turning your screen recordings into polished assets today.</p>
                     <a href="https://productcam.site" className="inline-block px-10 py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition shadow-xl shadow-green-600/20 uppercase tracking-tighter">
-                        Get Started for Free
+                        Get Started
                     </a>
                 </div>
 
