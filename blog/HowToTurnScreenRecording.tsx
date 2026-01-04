@@ -31,7 +31,7 @@ export const HowToTurnScreenRecording = () => (
       <p className="mb-4">Most teams do this:</p>
       <p className="mb-4">Record themselves using the product recording tools - with developer by the side (picture-in-picture) and app interface as the background</p>
       <p className="mb-4">This can work but the video is slow, boring to watch, and sometimes inaudible.</p>
-      <p className="mb-4">Some teams hirer editors and have to wait days for the video to be ready before they can launch. The demo in turn ends up flashier then clear since hired editors care more about visuals than the product itself.</p>
+      <p className="mb-4">Some teams hire editors and have to wait days for the video to be ready before they can launch. The demo in turn ends up flashier than clear since hired editors care more about visuals than the product itself.</p>
     </section>
 
     <section>
@@ -63,7 +63,7 @@ export const HowToTurnScreenRecording = () => (
     <section className="bg-gray-50 p-8 rounded-none border-l-4 border-green-500">
       <p className="text-lg font-bold mb-4">Turn your screen recording into a demo automatically.</p>
       <p className="mb-6">Upload your recording and get a narrated, focused product demo in minutes.</p>
-      <a href="#/" className="inline-block bg-black text-white px-6 py-3 font-bold hover:bg-gray-800 transition">Get started</a>
+      <a href="https://productcam.site/" className="inline-block bg-black text-white px-6 py-3 font-bold hover:bg-gray-800 transition">Get started</a>
     </section>
   </div>
 );

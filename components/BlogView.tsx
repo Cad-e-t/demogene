@@ -25,15 +25,20 @@ export const BlogView: React.FC = () => {
 
     return (
         <div className="bg-white min-h-screen text-gray-900 antialiased selection:bg-green-500 selection:text-white">
-            <div className="max-w-2xl mx-auto px-6 py-20">
-                <header className="mb-20">
-                    <a 
-                        href="#/"
-                        className="text-xs font-bold text-gray-400 hover:text-gray-900 mb-12 flex items-center gap-2 transition-colors inline-flex uppercase tracking-widest"
-                    >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                        Back
+            <div className="max-w-2xl mx-auto px-6 py-10 md:py-20">
+                <nav className="mb-16 flex items-center justify-between">
+                    <a href="https://productcam.site/" className="flex items-center gap-2 group transition-opacity hover:opacity-80">
+                         <div className="w-8 h-8 flex items-center justify-center bg-green-500/10 rounded-lg text-[10px] font-black text-green-600 border border-green-500/20 group-hover:bg-green-600 group-hover:text-white transition-all">
+                             PC
+                         </div>
+                         <span className="font-black text-lg text-gray-900 tracking-tighter uppercase">ProductCam</span>
                     </a>
+                    <a href="https://productcam.site/" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">
+                        Home
+                    </a>
+                </nav>
+
+                <header className="mb-20">
                     <h1 className="text-5xl font-bold text-gray-900 tracking-tight mb-6">Blog</h1>
                     <p className="text-lg text-gray-500 leading-relaxed">Guides on product storytelling, demo automation, and sharing software effectively.</p>
                 </header>
@@ -61,8 +66,9 @@ export const BlogView: React.FC = () => {
                     ))}
                 </div>
                 
-                <footer className="mt-32 pt-12 border-t border-gray-100">
+                <footer className="mt-32 pt-12 border-t border-gray-100 flex items-center justify-between">
                     <p className="text-gray-400 text-xs font-medium uppercase tracking-widest">ProductCam © 2025</p>
+                    <a href="https://productcam.site/" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Home</a>
                 </footer>
             </div>
         </div>

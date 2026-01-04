@@ -78,7 +78,7 @@ export const HowToCreateWithoutEditing = () => (
     <section className="bg-gray-50 p-8 rounded-none border-l-4 border-green-500">
       <p className="text-lg font-bold mb-4">Create a product demo without editing.</p>
       <p className="mb-6">Upload your screen recording and let Productcam handle the rest.</p>
-      <a href="#/" className="inline-block bg-black text-white px-6 py-3 font-bold hover:bg-gray-800 transition">Get Started</a>
+      <a href="https://productcam.site/" className="inline-block bg-black text-white px-6 py-3 font-bold hover:bg-gray-800 transition">Get Started</a>
     </section>
   </div>
 );
