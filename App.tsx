@@ -11,6 +11,9 @@ import { VideoModal } from './components/VideoModal';
 import { BlogView } from './components/BlogView';
 import { BlogPostView } from './components/BlogPostView';
 import { PricingView } from './components/PricingView';
+import { FeaturesPage } from './components/FeaturesPage';
+import { AboutPage } from './components/AboutPage';
+import { PricingPageSEO } from './components/PricingPageSEO';
 
 import { CropData, TrimData, VoiceOption, VideoProject, TimeRange, BackgroundOption } from './types';
 import { VOICES, BACKGROUNDS } from './constants';
@@ -35,6 +38,9 @@ const useHashPath = () => {
   if (hash === '#/blog') return { view: 'blog', slug: null };
   if (hash === '#/videos') return { view: 'videos', slug: null };
   if (hash === '#/pricing') return { view: 'pricing', slug: null };
+  if (hash === '#/features') return { view: 'features', slug: null };
+  if (hash === '#/about') return { view: 'about', slug: null };
+  if (hash === '#/pricing-details') return { view: 'pricing-details', slug: null };
   return { view: 'home', slug: null };
 };
 
@@ -177,6 +183,9 @@ export default function App() {
     else if (currentView === 'blog-post' && route.slug) path = `#/blog/${route.slug}`;
     else if (currentView === 'pricing') path = "#/pricing";
     else if (currentView === 'videos') path = "#/videos";
+    else if (currentView === 'features') path = "#/features";
+    else if (currentView === 'about') path = "#/about";
+    else if (currentView === 'pricing-details') path = "#/pricing-details";
     
     const canonicalUrl = baseUrl + path;
     
@@ -357,7 +366,7 @@ export default function App() {
   };
 
   // Hide sidebar if we are on blog pages, pricing, not logged in, or in the editor (file selected)
-  const isPublicReaderView = currentView === 'blog' || currentView === 'blog-post' || currentView === 'pricing';
+  const isPublicReaderView = ['blog', 'blog-post', 'pricing', 'features', 'about', 'pricing-details'].includes(currentView);
   const isInEditor = currentView === 'home' && file !== null;
   const showSidebar = session && !isPublicReaderView && !isInEditor;
 
@@ -404,6 +413,9 @@ export default function App() {
           {currentView === 'blog' && <BlogView />}
           {currentView === 'blog-post' && <BlogPostView slug={route.slug || ''} />}
           {currentView === 'pricing' && <PricingView onPurchase={handlePurchase} />}
+          {currentView === 'features' && <FeaturesPage />}
+          {currentView === 'about' && <AboutPage />}
+          {currentView === 'pricing-details' && <PricingPageSEO />}
 
           {currentView === 'videos' && (
               <VideoGallery 

@@ -472,10 +472,56 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </button>
             </div>
 
-            {/* Footer */}
-            <div className="py-20 text-center border-t border-gray-100 w-full mt-auto bg-white">
-                <p className="text-gray-400 text-sm font-black uppercase tracking-[0.3em]">ProductCam AI • Built for Builders © 2025</p>
-            </div>
+            {/* --- CRAWLABLE FOOTER NAVIGATION --- */}
+            <footer className="w-full border-t border-gray-100 bg-white py-20 px-6 md:px-12 lg:px-24">
+                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+                    <div className="flex flex-col gap-6">
+                        <div className="flex items-center gap-3">
+                             <span className="font-black text-lg text-gray-900 tracking-tighter uppercase">ProductCam</span>
+                        </div>
+                        <p className="text-gray-400 text-sm font-medium leading-relaxed">
+                            The standard for automated software demos. Turn raw captures into launch-ready assets in seconds.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col gap-6">
+                        <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs">Product</h4>
+                        <ul className="flex flex-col gap-4">
+                            <li>
+                                <a href="https://productcam.site/#/features" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Features</a>
+                            </li>
+                            <li>
+                                <a href="https://productcam.site/#/pricing-details" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Pricing Plans</a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="flex flex-col gap-6">
+                        <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs">Company</h4>
+                        <ul className="flex flex-col gap-4">
+                            <li>
+                                <a href="https://productcam.site/#/about" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">About ProductCam</a>
+                            </li>
+                            <li>
+                                <a href="https://productcam.site/#/blog" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Resources & Blog</a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="flex flex-col gap-6">
+                        <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs">Trust</h4>
+                        <div className="flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></div>
+                             <span className="text-xs font-black text-gray-900 uppercase tracking-widest">Global Operations</span>
+                        </div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">ProductCam AI • Built for Builders © 2025</p>
+                    </div>
+                </div>
+                
+                <div className="mt-20 pt-10 border-t border-gray-100 flex items-center justify-center">
+                    <a href="https://productcam.site" className="text-[10px] font-black text-gray-300 hover:text-gray-900 transition-colors uppercase tracking-[0.4em]">Home Page</a>
+                </div>
+            </footer>
             
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes bounce-x {
