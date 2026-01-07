@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { TESTIMONIALS } from '../assets';
 
 interface LandingPageProps {
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -7,17 +8,14 @@ interface LandingPageProps {
     showAuthModal?: boolean; 
 }
 
+const XIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+  </svg>
+);
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-    // Trigger Twitter widget reload on mount/update
-    useEffect(() => {
-        // @ts-ignore
-        if (window.twttr && window.twttr.widgets) {
-            // @ts-ignore
-            window.twttr.widgets.load();
-        }
-    }, []);
 
     const scrollToSection = (id: string) => {
         const element = document.getElementById(id);
@@ -38,9 +36,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             {/* --- STICKY NAVBAR --- */}
             <nav className="fixed top-0 left-0 right-0 h-20 md:h-24 bg-white/90 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-6 md:px-12 z-50">
                 <div className="flex items-center gap-3 cursor-pointer" onClick={scrollToTop}>
-                     <div className="w-10 h-10 flex items-center justify-center bg-green-500/10 rounded-full text-xs font-black text-green-600 border border-green-500/20">
-                         PC
-                     </div>
                      <span className="font-black text-xl text-gray-900 tracking-tighter uppercase">ProductCam</span>
                 </div>
 
@@ -114,19 +109,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 <h1 
                     style={{ 
                         fontFamily: "'Poppins', sans-serif", 
-                        fontWeight: 600,
-                        fontSize: 'clamp(42px, 8.5vw, 96px)'
+                        fontWeight: 700,
+                        fontSize: 'clamp(30px, 8.5vw, 70px)'
                     }}
                     className="tracking-tighter text-gray-900 leading-[1] mb-10 max-w-6xl mx-auto"
                 >
-                    Screen Recordings to <br className="hidden md:block" /> 
-                    Product Demos in Minutes
+                    Product walkthroughs in seconds with AI
                 </h1>
                 
                 <p className="text-xl md:text-2xl text-gray-500 max-w-3xl mx-auto leading-relaxed mb-16 font-medium">
-                    Turn a normal screen recording into a polished, narrated <br className="hidden md:block" />
-                    product demo automatically. No editing required. Just upload <br className="hidden md:block" />
-                    and get a demo that explains your product clearly.
+                    Turn normal screen recordings into polished, narrated <br className="hidden md:block" />
+                    demos you can use to sell, launch, and onboard users
+                   
                 </p>
                 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-8 w-full sm:w-auto">
@@ -180,7 +174,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             
                             <div className="relative aspect-video bg-white rounded-[32px] border border-gray-200 overflow-hidden shadow-xl group-hover:border-gray-300 transition-all duration-500 group-hover:shadow-2xl">
                                 <video 
-                                    src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/input.mp4" 
+                                    src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/5a400c32-c234-41a6-8227-2ac9b8e6b377.mp4" 
                                     className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                                     controls
                                     muted
@@ -209,7 +203,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
                             <div className="relative aspect-video bg-white rounded-[32px] border-4 border-green-500/10 overflow-hidden shadow-2xl shadow-green-500/10 transition-all ring-1 ring-black/[0.02] group-hover:border-green-500/40 transform group-hover:-translate-y-2">
                                 <video 
-                                    src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/738a626d-03f9-479a-9988-5db34b6f425b.mp4" 
+                                    src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/c0fb92eb-0b17-4853-a576-98b7f899248b.mp4" 
                                     className="w-full h-full object-cover"
                                     controls
                                     playsInline
@@ -298,36 +292,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </div>
             </div>
 
-            {/* --- CTA Extension --- */}
-            <section className="w-full bg-gray-50 py-32 border-t border-gray-100 flex flex-col items-center text-center px-6 relative overflow-hidden">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-green-500/[0.05] rounded-full blur-[100px] pointer-events-none"></div>
-                <div className="relative z-10">
-                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-8 tracking-tighter uppercase">Try It now.</h2>
-                    <p className="text-xl md:text-2xl text-gray-500 mb-14 max-w-3xl font-medium">Create a launch-ready 🚀 product demo in seconds <br className="hidden sm:block" /> without touching a single editing timeline.</p>
-                    <button onClick={handleLogin} className="group relative cursor-pointer transform hover:scale-[1.05] active:scale-95 transition-all duration-300">
-                        <div className="absolute -inset-2 bg-gradient-to-r from-green-400 to-emerald-600 rounded-2xl blur-2xl opacity-30 group-hover:opacity-60 transition duration-500"></div>
-                        <div className="relative flex items-center justify-center gap-4 px-16 py-7 bg-green-600 text-white rounded-2xl hover:bg-green-500 transition shadow-2xl border border-green-400/20">
-                            <span className="font-black text-2xl uppercase tracking-tighter">Create My Demo</span>
-                        </div>
-                    </button>
-                </div>
-            </section>
 
             {/* --- What Can You Use This Tool For? (Grid Reveal) --- */}
             <section className="w-full bg-white py-40">
                 <div className="max-w-7xl mx-auto px-6 md:px-12">
                     <div className="mb-20">
-                        <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-8 tracking-tighter uppercase">What Can You Use <br /> This Tool For?</h2>
-                        <p className="text-xl text-gray-500 max-w-2xl font-medium leading-relaxed">Built for creators searching for high-impact communication without the overhead of manual production.</p>
+                        <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-8 tracking-tighter uppercase">ProductCam Is Built For You</h2>
+                        <p className="text-xl text-gray-500 max-w-2xl font-medium leading-relaxed">Instant product videos for your every use case</p>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {[
-                            "Create a SaaS product demo video for your landing page",
-                            "Turn a Loom or screen recording into a narrated demo",
-                            "Generate onboarding walkthroughs from existing recordings",
-                            "Produce a Product Hunt demo video without editing",
-                            "Share a feature explanation video with users or prospects"
+                            "SaaS product demo video for sharing",
+                            "Onboarding walkthroughs to convert landing page visitors",
+                            "Product Hunt demo video whenever you need it",
+                            "Feature explanation video with users or prospects"
                         ].map((useCase, i) => (
                             <div key={i} className="group relative flex flex-col justify-between p-10 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-2xl hover:border-green-500/20 hover:-translate-y-2 transition-all duration-300">
                                 <div className="w-14 h-14 rounded-2xl bg-white text-green-600 flex items-center justify-center font-bold shrink-0 border border-gray-100 shadow-sm mb-8 group-hover:bg-green-600 group-hover:text-white transition-colors duration-300">
@@ -338,7 +317,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         ))}
                         <div className="flex flex-col justify-center p-10 bg-green-600 rounded-[32px] shadow-2xl shadow-green-600/20">
                              <p className="text-2xl text-white font-black uppercase tracking-tighter italic leading-snug">
-                                If you already have a recording, <br /> this replaces <span className="text-green-200">the rest</span> of your workflow.
+                                Record - submit <br /> we handle the rest.
                              </p>
                         </div>
                     </div>
@@ -349,107 +328,40 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             <section className="w-full bg-gray-50 py-40 border-t border-gray-100 flex flex-col items-center relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-green-500/[0.03] rounded-full blur-[140px] pointer-events-none"></div>
                 <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-24 tracking-tighter text-center px-6 uppercase relative z-10">
-                    See What Builders <br /> Are Saying About Us
+                    Loved By Builders
                 </h2>
                 
-                <div className="w-full flex overflow-x-auto gap-12 px-12 pb-12 snap-x snap-mandatory no-scrollbar scroll-smooth relative z-10">
-                    <div className="shrink-0 snap-center w-[90%] md:w-[500px] transform hover:scale-[1.02] transition-transform duration-500">
-                        <div className="bg-white rounded-[40px] shadow-2xl shadow-black/[0.05] border border-gray-100 p-4">
-                            <blockquote className="twitter-tweet" data-theme="light">
-                                <p lang="en" dir="ltr">This tool is a game changer for a high school founder like me<br/><br/>I can&#39;t afford to hire a design team right now so I need speed<br/><br/>This means I can spend less time making demos and more time coding the next feature for my app</p>
-                                &mdash; Ben Head (@BenHeadGPT) 
-                                <a href="https://twitter.com/BenHeadGPT/status/2000280774667629046?ref_src=twsrc%5Etfw">December 14, 2025</a>
-                            </blockquote>
-                        </div>
-                    </div>
-                    
-                    <div className="shrink-0 snap-center w-[90%] md:w-[500px] transform hover:scale-[1.02] transition-transform duration-500">
-                        <div className="bg-white rounded-[40px] shadow-2xl shadow-black/[0.05] border border-gray-100 p-4">
-                            <blockquote className="twitter-tweet" data-theme="light">
-                                <p lang="en" dir="ltr">Product demos used to feel like pulling teeth... this looks like a real shortcut.</p>
-                                &mdash; Tejas (@TWadpillewar) 
-                                <a href="https://twitter.com/TWadpillewar/status/2000519427188527482?ref_src=twsrc%5Etfw">December 15, 2025</a>
-                            </blockquote>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* --- Why It Surpasses --- */}
-            <section className="w-full bg-white py-40 border-t border-gray-100">
-                <div className="max-w-6xl mx-auto px-6">
-                    <div className="bg-gray-950 rounded-[64px] p-12 md:p-24 text-white relative overflow-hidden shadow-2xl">
-                        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-green-500/[0.1] rounded-full blur-[100px] translate-x-1/2 translate-y-1/2"></div>
-                        <div className="relative z-10">
-                            <h2 className="text-xl md:text-2xl text-green-500 mb-12 font-black uppercase tracking-[0.2em]">Making product demos used to require multiple steps:</h2>
-
-                            <div className="space-y-10">
-                                <p className="text-3xl md:text-5xl font-black leading-tight tracking-tighter uppercase">
-                                    ProductCam replaces all that. <br className="hidden md:block" />
-                                    Instead of spending hours <br className="hidden md:block" />
-                                    stitching everything together, <br className="hidden md:block" />
-                                    you upload once and get <br className="hidden md:block" />
-                                    a finished demo automatically.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* --- Stop Shipping / Start Shipping (Overlapping Card Design) --- */}
-            <section className="w-full bg-gray-50 py-40 px-6 md:px-12 lg:px-24">
-                <div className="grid md:grid-cols-2 gap-20 lg:gap-32 max-w-7xl mx-auto">
-                    
-                    {/* Stop */}
-                    <div className="relative">
-                        <div className="bg-white rounded-[48px] p-12 border-2 border-red-500/10 shadow-xl relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/[0.03] rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
-                            <h3 className="text-4xl font-black text-red-500 flex items-center gap-4 uppercase tracking-tighter mb-12">
-                                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                Stop shipping:
-                            </h3>
-                            <div className="space-y-8">
-                                {[
-                                    "Silent screen recordings that confuse users",
-                                    "Low-quality or rushed voiceovers",
-                                    "Awkward pauses, “uhms,” and \"ahs\"",
-                                    "Demos that show what you clicked, not why it matters"
-                                ].map((item, i) => (
-                                    <div key={i} className="flex items-start gap-5 text-gray-400 font-bold text-xl leading-tight">
-                                        <span className="w-3 h-3 bg-red-500 rounded-full shadow-[0_0_12px_#ef4444] mt-1.5 shrink-0"></span>
-                                        {item}
+                <div className="w-full flex overflow-x-auto gap-8 px-6 md:px-12 pb-12 snap-x snap-mandatory no-scrollbar scroll-smooth relative z-10">
+                    {TESTIMONIALS.map((t) => (
+                        <div key={t.id} className="shrink-0 snap-center w-[85%] md:w-[450px] transform hover:scale-[1.02] transition-all duration-500">
+                            <div className="bg-white rounded-[40px] shadow-2xl shadow-black/[0.05] border border-gray-100 p-8 md:p-10 flex flex-col h-full min-h-[320px]">
+                                <div className="flex-1">
+                                    <p className="text-xl md:text-2xl font-bold text-gray-900 leading-relaxed tracking-tight italic">
+                                        "{t.message}"
+                                    </p>
+                                </div>
+                                
+                                <div className="mt-10 flex items-center justify-between">
+                                    <div className="flex flex-col">
+                                        <span className="text-lg font-black text-gray-900 uppercase tracking-tighter">{t.name}</span>
+                                        <span className="text-sm font-bold text-green-600 uppercase tracking-widest">{t.handle}, {t.role}</span>
                                     </div>
-                                ))}
+                                    <a 
+                                        href={t.link} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="group/x flex items-center gap-3 px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-black transition-all shadow-lg shadow-black/10"
+                                    >
+                                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">View on X</span>
+                                        <XIcon className="w-4 h-4" />
+                                    </a>
+                                </div>
                             </div>
                         </div>
-                    </div>
-
-                    {/* Start */}
-                    <div className="relative mt-12 md:mt-24">
-                        <div className="bg-gray-900 rounded-[48px] p-12 border-2 border-green-500/20 shadow-2xl relative overflow-hidden group transform md:-translate-y-12 hover:scale-[1.02] transition-all duration-500">
-                            <div className="absolute top-0 right-0 w-48 h-48 bg-green-500/[0.05] rounded-full -mr-24 -mt-24 group-hover:scale-150 transition-transform duration-700"></div>
-                            <h3 className="text-4xl font-black text-green-500 flex items-center gap-4 uppercase tracking-tighter mb-12">
-                                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                Start shipping:
-                            </h3>
-                            <div className="space-y-8">
-                                {[
-                                    "Clear, narrated product walkthroughs",
-                                    "Demos that explain the value as users watch",
-                                    "A single video that onboards, explains, and sells",
-                                    "A demo that’s ready the moment you need it."
-                                ].map((item, i) => (
-                                    <div key={i} className="flex items-start gap-5 text-white font-black text-xl leading-tight">
-                                        <span className="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_12px_#22c55e] mt-1.5 shrink-0"></span>
-                                        {item}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                    ))}
                 </div>
             </section>
+
 
             {/* --- Final CTA --- */}
             <div className="w-full bg-white py-60 flex flex-col items-center justify-center border-t border-gray-100 px-6 relative overflow-hidden">

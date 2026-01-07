@@ -1,3 +1,4 @@
+
 export const EXAMPLE_VIDEOS = [
   {
     id: 'ex-1',
@@ -21,3 +22,31 @@ export const EXAMPLE_VIDEOS = [
 
 export const INTERACTIVE_DEMO_INPUT = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/05b7fa8c-9746-4b72-a038-fec7329b9c70.mp4";
 export const INTERACTIVE_DEMO_OUTPUT = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/0256a531-71d7-4e15-9a90-5cff59177b24.mp4";
+
+export interface Testimonial {
+  id: string;
+  name: string;
+  handle: string;
+  role: string;
+  message: string;
+  link: string;
+}
+
+export const TESTIMONIALS: Testimonial[] = [
+  {
+    id: 't-1',
+    name: 'Ben Head',
+    handle: '@BenHeadGPT',
+    role: 'Founder',
+    message: "This tool is a game changer for a high school founder like me. I can't afford to hire a design team right now so I need speed. This means I can spend less time making demos and more time coding the next feature for my app.",
+    link: 'https://x.com/BenHeadGPT?s=20'
+  },
+  {
+    id: 't-2',
+    name: 'Tejas',
+    handle: '@TWadpillewar',
+    role: 'Builder',
+    message: "Product demos used to feel like pulling teeth... this looks like a real shortcut.",
+    link: 'https://x.com/TWadpillewar?s=20'
+  }
+];
