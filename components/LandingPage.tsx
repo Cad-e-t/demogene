@@ -464,7 +464,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <div className="w-full md:w-1/3 flex flex-col items-start space-y-6">
                             <div className="flex items-center gap-6">
                                 <img 
-                                    src="https://x.com/Henrylabss/photo" 
+                                    src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/assets/profile.jpg"
                                     alt="Henry Labs" 
                                     className="w-24 h-24 rounded-3xl object-cover shadow-2xl border-4 border-white rotate-[-6deg] bg-gray-200"
                                     onError={(e) => {
