@@ -31,7 +31,7 @@ export const PricingView: React.FC<PricingViewProps> = ({ onPurchase }) => {
                     
                     <div className="absolute top-6 left-1/2 -translate-x-1/2">
                         <span className="px-4 py-1.5 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-green-600/20">
-                            Most Popular • Best Value
+                            Most Popular
                         </span>
                     </div>
                     
