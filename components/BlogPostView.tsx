@@ -57,9 +57,6 @@ export const BlogPostView: React.FC<BlogPostViewProps> = ({ slug }) => {
             <div className="max-w-2xl mx-auto px-6 py-10 md:py-20">
                 <nav className="mb-12 flex items-center justify-between">
                     <a href="https://productcam.site/" className="flex items-center gap-2 group transition-opacity hover:opacity-80">
-                         <div className="w-8 h-8 flex items-center justify-center bg-green-500/10 rounded-lg text-[10px] font-black text-green-600 border border-green-500/20 group-hover:bg-green-600 group-hover:text-white transition-all">
-                             PC
-                         </div>
                          <span className="font-black text-lg text-gray-900 tracking-tighter uppercase">ProductCam</span>
                     </a>
                     <div className="flex items-center gap-4">
