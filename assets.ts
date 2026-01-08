@@ -15,8 +15,8 @@ export const EXAMPLE_VIDEOS = [
     {
     id: 'ex-3',
     title: 'Product Launch V2',
-    url: 'https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/c07c7f76-4f06-4a5b-b143-f29950a15bfb.mp4',
-    category: 'Public sharing'
+    url: 'https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/c0fb92eb-0b17-4853-a576-98b7f899248b.mp4',
+    category: 'Landing Page Video'
   }
 ];
 
