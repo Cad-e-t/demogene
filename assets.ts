@@ -48,5 +48,24 @@ export const TESTIMONIALS: Testimonial[] = [
     role: 'Builder',
     message: "Product demos used to feel like pulling teeth... this looks like a real shortcut.",
     link: 'https://x.com/TWadpillewar?s=20'
+  },
+   {
+    id: 't-3',
+    name: 'Maciej Nienaltowski',
+    handle: '@mnienaltowski',
+    role: 'Builder',
+    message: "Demo videos close deals faster than pitch decks, this kills the friction between build and first sale.",
+    link: 'https://x.com/mnienaltowski?s=20'
+  },
+  {
+    id: 't-5',
+    name: 'Rohan',
+    handle: '@rohan360d',
+    role: 'Builder',
+    message: "Absolutely fantastic job my friend 😍",
+    link: 'https://x.com/rohan360d?s=20'
   }
+
+
+  
 ];

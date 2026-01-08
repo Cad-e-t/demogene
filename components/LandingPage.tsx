@@ -14,8 +14,30 @@ const XIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const FAQItem = ({ question, answer, isOpen, onClick }: { question: string, answer: string, isOpen: boolean, onClick: () => void }) => (
+    <div className="border-b border-gray-100 last:border-0">
+        <button 
+            onClick={onClick}
+            className="w-full py-6 flex items-center justify-between text-left group"
+        >
+            <span className={`text-xl font-black uppercase tracking-tighter transition-colors ${isOpen ? 'text-green-600' : 'text-gray-900 group-hover:text-green-600'}`}>
+                {question}
+            </span>
+            <div className={`shrink-0 ml-4 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${isOpen ? 'bg-green-600 border-green-600 text-white rotate-45' : 'border-gray-200 text-gray-400 group-hover:border-green-600 group-hover:text-green-600'}`}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+            </div>
+        </button>
+        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] pb-8' : 'max-h-0'}`}>
+            <p className="text-lg text-gray-500 font-medium leading-relaxed">
+                {answer}
+            </p>
+        </div>
+    </div>
+);
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
     const scrollToSection = (id: string) => {
         const element = document.getElementById(id);
@@ -29,6 +51,57 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setIsMenuOpen(false);
     };
+
+    const faqs = [
+        {
+            q: "What is ProductCam?",
+            a: "ProductCam is an AI-powered production tool that transforms normal screen recordings into polished, narrated product demos. It handles segmentation, scripting, voiceover, and professional visual effects like smart zooms automatically."
+        },
+        {
+            q: "What problem does ProductCam solve?",
+            a: "It eliminates the friction of manual video production. Traditionally, creating a high-quality demo takes hours of complex editing or expensive freelancers. ProductCam automates this entire pipeline into a process that takes just a few minutes."
+        },
+        {
+            q: "Why do I need Product Demos for my SaaS?",
+            a: "Demos are the most effective way to show, not just tell, the value of your software. They increase conversion rates on landing pages, improve user onboarding, and help close deals faster by providing instant clarity."
+        },
+        {
+            q: "When should I use ProductCam?",
+            a: "Use it whenever you need to explain your product's value: landing pages, onboarding sequences, feature announcements, social media updates, investor decks, or Product Hunt launches."
+        },
+        {
+            q: "When is ProductCam not a good fit?",
+            a: "ProductCam is optimized for high-speed software walkthroughs. If you need cinematic brand commercials with real actors, 3D character animation, or complex lifestyle photography, traditional manual editing is still the best route."
+        },
+        {
+            q: "How long does it take to create a demo?",
+            a: "From the moment you upload your recording, it usually takes less than 5 minutes for our AI to analyze, script, and render your final demo."
+        },
+        {
+            q: "Do I need to write a script or record my voice?",
+            a: "No. Our AI 'watches' your screen recording to understand the actions you're taking, writes a matching narrative script, and uses professional-grade AI voices to narrate the walkthrough."
+        },
+        {
+            q: "Can I reuse the demo content?",
+            a: "Absolutely. Once you download your demo, you own the MP4 file. You can use it across your website, YouTube channel, X (Twitter) profile, and within your app's documentation."
+        },
+        {
+            q: "Will this work for my type of product?",
+            a: "ProductCam is specifically designed for web applications, software dashboards, SaaS tools, and digital workflows that can be demonstrated via a screen capture."
+        },
+        {
+            q: "How much does it cost?",
+            a: "We offer simple credit-based pricing. A single demo costs $2, or you can purchase a pack of 10 demos for $12. No monthly subscriptions or hidden fees."
+        },
+        {
+            q: "Can I update a demo when my product changes?",
+            a: "Yes. Since the process is automated and cost-effective, you can simply record the new workflow and generate a fresh demo in minutes whenever your UI or features change."
+        },
+        {
+            q: "Is there a watermark?",
+            a: "No. Your generated demos are completely clean and professional, with no watermarks, ready for use on your official brand channels."
+        }
+    ];
 
     return (
         <div className="relative w-full min-h-screen flex flex-col bg-white overflow-x-hidden selection:bg-green-500 selection:text-white font-sans text-gray-900 pt-20 md:pt-24">
@@ -303,10 +376,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {[
-                            "SaaS product demo video for sharing",
-                            "Onboarding walkthroughs to convert landing page visitors",
-                            "Product Hunt demo video whenever you need it",
-                            "Feature explanation video with users or prospects"
+                            "Landing page video to boost conversions.",
+                            "Onboarding walkthroughs to educate new users.",
+                            "Product Hunt videos whenever you need it.",
+                            "Feature announcements to highlight new capabilities."
                         ].map((useCase, i) => (
                             <div key={i} className="group relative flex flex-col justify-between p-10 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-2xl hover:border-green-500/20 hover:-translate-y-2 transition-all duration-300">
                                 <div className="w-14 h-14 rounded-2xl bg-white text-green-600 flex items-center justify-center font-bold shrink-0 border border-gray-100 shadow-sm mb-8 group-hover:bg-green-600 group-hover:text-white transition-colors duration-300">
@@ -383,6 +456,81 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     </div>
                 </button>
             </div>
+
+            {/* --- WHY I BUILT PRODUCTCAM --- */}
+            <section className="w-full bg-gray-50 py-40 border-t border-b border-gray-100 relative overflow-hidden">
+                <div className="max-w-7xl mx-auto px-6 md:px-12">
+                    <div className="flex flex-col md:flex-row gap-16 items-start">
+                        <div className="w-full md:w-1/3 flex flex-col items-start space-y-6">
+                            <div className="flex items-center gap-6">
+                                <img 
+                                    src="https://x.com/Henrylabss/photo" 
+                                    alt="Henry Labs" 
+                                    className="w-24 h-24 rounded-3xl object-cover shadow-2xl border-4 border-white rotate-[-6deg] bg-gray-200"
+                                    onError={(e) => {
+                                        e.currentTarget.src = "https://ui-avatars.com/api/?name=Henry+Labs&background=22c55e&color=fff&size=200";
+                                    }}
+                                />
+                                <div className="flex flex-col">
+                                    <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Henry Labs</h3>
+                                    <a 
+                                        href="https://x.com/Henrylabss" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-green-600 font-bold hover:underline"
+                                    >
+                                        @Henrylabss
+                                    </a>
+                                </div>
+                            </div>
+                            <div className="pt-4">
+                                <a 
+                                    href="https://x.com/Henrylabss" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 rounded-xl text-sm font-black uppercase tracking-widest text-gray-900 hover:shadow-xl hover:border-green-500 transition-all"
+                                >
+                                    <XIcon className="w-4 h-4" />
+                                    View on X
+                                </a>
+                            </div>
+                        </div>
+                        <div className="w-full md:w-2/3">
+                            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-10 tracking-tighter uppercase">Why I built ProductCam</h2>
+                            <div className="space-y-6">
+                                <p className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight tracking-tight">
+                                    I built ProductCam because explaining my SaaS was harder than building it.
+                                </p>
+                                <p className="text-xl text-gray-500 font-medium leading-relaxed">
+                                    ProductCam creates narrated demos that show the value of your app quickly, so users understand your product and want to try it. Use this for landing pages, onboarding, launches, social posts, or investor decks.  If clarity is slowing your growth, ProductCam fixes that.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- FAQS SECTION --- */}
+            <section className="w-full bg-white py-40">
+                <div className="max-w-4xl mx-auto px-6 md:px-12">
+                    <div className="text-center mb-24">
+                        <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase mb-6">Frequently Asked</h2>
+                        <div className="w-20 h-2 bg-green-500 mx-auto rounded-full"></div>
+                    </div>
+
+                    <div className="flex flex-col">
+                        {faqs.map((faq, idx) => (
+                            <FAQItem 
+                                key={idx}
+                                question={faq.q}
+                                answer={faq.a}
+                                isOpen={openFaqIndex === idx}
+                                onClick={() => setOpenFaqIndex(openFaqIndex === idx ? null : idx)}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </section>
 
             {/* --- CRAWLABLE FOOTER NAVIGATION --- */}
             <footer className="w-full border-t border-gray-100 bg-white py-20 px-6 md:px-12 lg:px-24">
