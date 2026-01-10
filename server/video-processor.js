@@ -1,3 +1,4 @@
+
 import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -361,7 +362,8 @@ export async function processVideoPipeline(
     audioDurations,
     analysis, 
     finalOutputPath,
-    backgroundId
+    backgroundId,
+    disableZoom = false
 ) {
     const workDir = path.join(os.tmpdir(), 'temp_' + uuidv4());
     if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
@@ -390,13 +392,17 @@ export async function processVideoPipeline(
             const rawSegPath = path.join(workDir, `raw_${i}.mp4`);
             await runFFmpeg(['-ss', start.toString(), '-t', duration.toString(), '-i', intermediateStyled, '-an', ...FF_FLAGS, '-y', rawSegPath]);
             
-            const zoomEvents = getZoomEvents(seg, start, end);
             let currentSource = rawSegPath;
-            if (zoomEvents.length > 0) {
-                console.log(`[Scene ${i}] Applying zoom effects...`);
-                const zoomedPath = path.join(workDir, `zoomed_${i}.mp4`);
-                await applyMultiZoomEffect(rawSegPath, zoomedPath, zoomEvents, workDir);
-                currentSource = zoomedPath;
+            if (!disableZoom) {
+                const zoomEvents = getZoomEvents(seg, start, end);
+                if (zoomEvents.length > 0) {
+                    console.log(`[Scene ${i}] Applying zoom effects...`);
+                    const zoomedPath = path.join(workDir, `zoomed_${i}.mp4`);
+                    await applyMultiZoomEffect(rawSegPath, zoomedPath, zoomEvents, workDir);
+                    currentSource = zoomedPath;
+                }
+            } else {
+                console.log(`[Scene ${i}] Skipping zoom effects (disabled)...`);
             }
             
             const visualDur = getDuration(currentSource);

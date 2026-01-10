@@ -10,7 +10,7 @@ import { analyzeVideo, generateVoiceover } from './gemini.js';
 import { processVideoPipeline, preprocessVideo, calculateAudioLineDurations } from './video-processor.js';
 import { supabase } from './supabase.js';
 import { execSync } from 'child_process';
-import { getVideoAnalysisPrompt, VIDEO_ANALYSIS_NO_SCRIPT_PROMPT } from './prompts.js';
+import { getVideoAnalysisPrompt } from './prompts.js';
 
 const app = express();
 
@@ -56,7 +56,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
   const filesToDelete = [];
   try {
     const file = req.file;
-    let { crop, trim, segments, voiceId, backgroundId, userId, appName, appDescription, scriptRules, stylePrompt } = req.body;
+    let { crop, trim, segments, voiceId, backgroundId, userId, appName, appDescription, scriptRules, stylePrompt, disableZoom } = req.body;
     
     if (!userId) {
         return res.status(401).send('Unauthorized: Missing User ID');
@@ -98,9 +98,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
         return res.status(400).json({ error: "The video's duration exceeds the required amount. You could use the 'Remove sections' to cut away unnecessary parts before continuing with the process." });
     }
 
-    const isVoiceless = voiceId === 'voiceless';
-    
-    console.log(`[${new Date().toISOString()}] Processing ${file.originalname} for user ${userId}... Mode: ${isVoiceless ? 'Voiceless' : 'Narrated'}, Background: ${backgroundId}`);
+    console.log(`[${new Date().toISOString()}] Processing ${file.originalname} for user ${userId}... Mode: Narrated, Background: ${backgroundId}`);
 
     console.log('--- Preprocessing Video (Crop/Cut/Trim) ---');
     const cleanInputPath = path.join(TEMP_DIR, `clean_${file.filename}.mp4`);
@@ -137,14 +135,9 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     const cleanFileBase64 = cleanFileBuffer.toString('base64');
     
     console.log('--- Analyzing Video with Gemini ---');
-    let prompt;
-    if (isVoiceless) {
-        prompt = VIDEO_ANALYSIS_NO_SCRIPT_PROMPT;
-    } else {
-        const desc = appDescription || "A software application";
-        const name = appName || "The App";
-        prompt = getVideoAnalysisPrompt(name, desc, scriptRules);
-    }
+    const desc = appDescription || "A software application";
+    const name = appName || "The App";
+    const prompt = getVideoAnalysisPrompt(name, desc, scriptRules);
 
     const analysis = await analyzeVideo(cleanFileBase64, 'video/mp4', prompt); 
     console.log('Analysis complete. Segments:', analysis.segments.length);
@@ -154,7 +147,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     
     const hasScript = analysis.script && analysis.script.script_lines && analysis.script.script_lines.length > 0;
 
-    if (!isVoiceless && hasScript) {
+    if (hasScript) {
         console.log('--- Generating Voiceover (Single File) ---');
         const { audioBuffer, linesToSpeak } = await generateVoiceover(analysis.script.script_lines, voiceId, stylePrompt);
         
@@ -182,7 +175,7 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     } 
     
     if (!fullAudioPath) {
-        console.log('--- Voiceless Mode (or fallback): Calculating visual durations ---');
+        console.log('--- Fallback: Calculating visual durations ---');
         audioLineDurations = analysis.segments.map(seg => {
             const start = parseTime(seg.start_time);
             const end = parseTime(seg.end_time);
@@ -196,14 +189,16 @@ app.post('/process-video', upload.single('video'), async (req, res) => {
     const outputPath = path.join(TEMP_DIR, `final_${Date.now()}.mp4`);
     console.log('--- Starting Video Pipeline ---');
     
-    // Pass backgroundId to pipeline
+    const isZoomDisabled = disableZoom === 'true' || disableZoom === true;
+
     await processVideoPipeline(
         cleanInputPath,
         fullAudioPath,
         audioLineDurations,
         analysis,
         outputPath,
-        backgroundId
+        backgroundId,
+        isZoomDisabled
     );
     console.log('--- Pipeline Complete ---');
 

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { VideoProject, ProcessingStatus } from '../types';
 
@@ -120,7 +121,7 @@ export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVide
                                     onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                                 />
                                 <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur px-2 py-1 rounded text-xs font-bold text-white border border-white/10">
-                                    {vid.voice_id === 'voiceless' ? 'No Voice' : 'Narrated'}
+                                    Narrated
                                 </div>
                             </div>
                         )}

@@ -33,7 +33,7 @@ interface HomeViewProps {
     
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onClearFile: () => void;
-    onGenerate: (segments?: TimeRange[], backgroundId?: string) => void;
+    onGenerate: (segments?: TimeRange[], backgroundId?: string, disableZoom?: boolean) => void;
     onPurchase: () => void;
     
     showAuthModal: boolean;
@@ -71,6 +71,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const [activeSelection, setActiveSelection] = useState<'main' | 'voice' | 'background'>('main');
     
     const [background, setBackground] = useState<BackgroundOption>(backgroundOptions[0] || BACKGROUNDS[0]);
+    const [addZooms, setAddZooms] = useState(true);
     const [showAdvancedEditor, setShowAdvancedEditor] = useState(false);
     const [segments, setSegments] = useState<TimeRange[] | null>(null);
     
@@ -90,7 +91,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         : duration;
 
     const isDurationValid = effectiveDuration <= 300; // Updated to 5 minutes
-    const isConfigComplete = background.id !== undefined && voice.id !== undefined && (voice.id === 'voiceless' || (appName.trim() && appDescription.trim()));
+    const isConfigComplete = background.id !== undefined && voice.id !== undefined && appName.trim() && appDescription.trim();
     const outOfCredits = profile && profile.credits < 1;
 
     // Mobile Editor State
@@ -102,7 +103,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     };
 
     const triggerGenerate = () => {
-        onGenerate(segments || undefined, background.id);
+        // disableZoom server parameter is the inverse of our addZooms toggle
+        onGenerate(segments || undefined, background.id, !addZooms);
     };
 
     const toggleVoiceSample = (e: React.MouseEvent, voiceId: string) => {
@@ -433,30 +435,39 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                     </div>
                                 </button>
 
-                                {voice.id !== 'voiceless' && (
-                                    <>
-                                        <div className="flex flex-col gap-2">
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">App Name</span>
-                                            <input 
-                                                type="text"
-                                                className="w-full bg-white border border-gray-200 p-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none rounded-xl font-bold shadow-sm"
-                                                placeholder="e.g. TrustMRR"
-                                                value={appName}
-                                                onChange={(e) => setAppName(e.target.value)}
-                                            />
-                                        </div>
+                                <div className="flex items-center justify-between p-4 border rounded-xl bg-white shadow-sm">
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold text-gray-900">Add Zooms</span>
+                                        <span className="text-[10px] font-medium text-gray-400">Not recommended for mobile screen</span>
+                                    </div>
+                                    <button 
+                                        onClick={() => setAddZooms(!addZooms)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${addZooms ? 'bg-green-600' : 'bg-gray-200'}`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${addZooms ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
 
-                                        <div className="flex flex-col gap-2">
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">App Description</span>
-                                            <textarea 
-                                                className="w-full bg-white border border-gray-200 p-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none rounded-xl font-medium shadow-sm min-h-[120px] resize-none"
-                                                placeholder="What does your app do?"
-                                                value={appDescription}
-                                                onChange={(e) => setAppDescription(e.target.value)}
-                                            />
-                                        </div>
-                                    </>
-                                )}
+                                <div className="flex flex-col gap-2">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">App Name</span>
+                                    <input 
+                                        type="text"
+                                        className="w-full bg-white border border-gray-200 p-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none rounded-xl font-bold shadow-sm"
+                                        placeholder="e.g. TrustMRR"
+                                        value={appName}
+                                        onChange={(e) => setAppName(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">App Description</span>
+                                    <textarea 
+                                        className="w-full bg-white border border-gray-200 p-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none rounded-xl font-medium shadow-sm min-h-[120px] resize-none"
+                                        placeholder="What does your app do?"
+                                        value={appDescription}
+                                        onChange={(e) => setAppDescription(e.target.value)}
+                                    />
+                                </div>
                             </div>
                         </div>
                      )}

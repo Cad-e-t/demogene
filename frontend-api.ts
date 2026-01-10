@@ -17,7 +17,8 @@ export async function processVideoRequest(
   appDescription?: string,
   scriptRules?: string,
   stylePrompt?: string,
-  segments?: TimeRange[]
+  segments?: TimeRange[],
+  disableZoom?: boolean
 ): Promise<{ videoUrl: string; analysis: AnalysisResult }> {
   const formData = new FormData();
   formData.append('video', file);
@@ -26,6 +27,7 @@ export async function processVideoRequest(
   formData.append('voiceId', voiceId);
   formData.append('backgroundId', backgroundId);
   formData.append('userId', userId);
+  formData.append('disableZoom', String(!!disableZoom));
   
   if (segments) {
     formData.append('segments', JSON.stringify(segments));

@@ -265,7 +265,7 @@ export default function App() {
     setIsForcedAuth(false);
   };
 
-  const handleGenerate = async (segments?: TimeRange[], backgroundId?: string) => {
+  const handleGenerate = async (segments?: TimeRange[], backgroundId?: string, disableZoom?: boolean) => {
       if (!file || !session) return;
       
       const effectiveDuration = segments 
@@ -320,7 +320,8 @@ export default function App() {
               appDescription,
               DEFAULT_SCRIPT_RULES,
               DEFAULT_TTS_STYLE,
-              segments 
+              segments,
+              disableZoom 
           );
           
           const completedVideo: VideoProject = {
