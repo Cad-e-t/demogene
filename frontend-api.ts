@@ -5,8 +5,25 @@ import { supabase } from './supabaseClient';
 const API_BASE_URL = process.env.API_BASE_URL || 'https://demo-maker-417540185411.us-central1.run.app' ;
 const PAYMENT_API_URL = process.env.PAYMENT_API_URL || 'https://dodo-payments-service-417540185411.us-central1.run.app';
 
+export async function generateUploadUrl(fileName: string, fileType: string): Promise<{ uploadUrl: string, publicUrl: string, key: string }> {
+    const response = await fetch(`${API_BASE_URL}/generate-upload-url`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fileName, fileType }),
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to generate upload URL');
+    }
+
+    return await response.json();
+}
+
 export async function processVideoRequest(
-  file: File,
+  videoId: string,
+  segments: TimeRange[] | undefined,
   crop: CropData,
   trim: TrimData,
   voiceId: string,
@@ -17,44 +34,35 @@ export async function processVideoRequest(
   appDescription?: string,
   scriptRules?: string,
   stylePrompt?: string,
-  segments?: TimeRange[],
-  disableZoom?: boolean
-): Promise<{ videoUrl: string; analysis: AnalysisResult }> {
-  const formData = new FormData();
-  formData.append('video', file);
-  formData.append('crop', JSON.stringify(crop));
-  formData.append('trim', JSON.stringify(trim));
-  formData.append('voiceId', voiceId);
-  formData.append('backgroundId', backgroundId);
-  formData.append('userId', userId);
-  formData.append('disableZoom', String(!!disableZoom));
+  disableZoom?: boolean,
+  onIdAssigned?: (newId: string) => void
+): Promise<{ videoId: string, videoUrl: string; analysis: AnalysisResult }> {
   
-  if (segments) {
-    formData.append('segments', JSON.stringify(segments));
-  }
-  
-  if (appName) {
-    formData.append('appName', appName);
-  }
-
-  if (appDescription) {
-    formData.append('appDescription', appDescription);
-  }
-
-  if (scriptRules) {
-    formData.append('scriptRules', scriptRules);
-  }
-
-  if (stylePrompt) {
-    formData.append('stylePrompt', stylePrompt);
-  }
+  const payload = {
+      videoId,
+      crop,
+      trim,
+      voiceId,
+      backgroundId,
+      userId,
+      disableZoom: !!disableZoom,
+      segments: segments || null,
+      appName: appName || undefined,
+      appDescription: appDescription || undefined,
+      scriptRules: scriptRules || undefined,
+      stylePrompt: stylePrompt || undefined
+  };
 
   onStatusUpdate('analyzing');
 
   try {
+    // 1. Initiate Background Job
     const response = await fetch(`${API_BASE_URL}/process-video`, {
       method: 'POST',
-      body: formData,
+      headers: {
+          'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -71,28 +79,64 @@ export async function processVideoRequest(
         throw new Error(errMessage);
     }
 
-    const videoId = response.headers.get('X-Video-Id');
-    if (!videoId) {
-      throw new Error('Missing video ID header from server');
-    }
-    
-    const blob = await response.blob();
-    const videoUrl = URL.createObjectURL(blob);
+    // 2. Parse response to get the NEW video ID created by server
+    const responseData = await response.json();
+    const processingVideoId = responseData.videoId || videoId;
 
-    const { data: videoRecord, error: dbError } = await supabase
-        .from('videos')
-        .select('analysis_result')
-        .eq('id', videoId)
-        .single();
-
-    if (dbError || !videoRecord) {
-        throw new Error('Failed to retrieve analysis results from database');
+    if (onIdAssigned) {
+        onIdAssigned(processingVideoId);
     }
 
-    const analysis: AnalysisResult = videoRecord.analysis_result as AnalysisResult;
+    // 3. Poll Supabase for Completion of the NEW video
+    // We poll every 3 seconds to check the video status
+    return new Promise((resolve, reject) => {
+        const pollInterval = setInterval(async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('videos')
+                    .select('status, final_video_url, analysis_result')
+                    .eq('id', processingVideoId) // Poll the new ID
+                    .single();
+                
+                if (error) {
+                    console.error("Polling Error:", error);
+                    // Don't reject immediately on transient network error, wait for next poll? 
+                    // For now, let's keep retrying unless it's a fatal DB error (rare).
+                    return; 
+                }
 
-    onStatusUpdate('complete');
-    return { videoUrl, analysis };
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    onStatusUpdate('complete');
+                    
+                    if (!data.final_video_url) {
+                        reject(new Error("Video marked completed but missing URL"));
+                        return;
+                    }
+
+                    resolve({
+                        videoId: processingVideoId,
+                        videoUrl: data.final_video_url,
+                        analysis: data.analysis_result as AnalysisResult
+                    });
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    reject(new Error("Video processing failed. Please try again."));
+                } else if (data.status === 'processing') {
+                    // Infer progress step based on data presence
+                    if (data.analysis_result) {
+                        onStatusUpdate('rendering'); // If analysis exists, we are likely rendering or doing TTS
+                    } else {
+                        onStatusUpdate('analyzing');
+                    }
+                }
+            } catch (e) {
+                // If critical polling logic fails (e.g. auth lost), stop and reject
+                clearInterval(pollInterval);
+                reject(e);
+            }
+        }, 3000);
+    });
 
   } catch (error) {
     onStatusUpdate('error');
@@ -122,34 +166,16 @@ export async function createCheckoutSession(productId: string) {
 }
 
 export async function deleteVideo(video: VideoProject): Promise<void> {
-    const { error: dbError } = await supabase
-        .from('videos')
-        .delete()
-        .eq('id', video.id);
+    const response = await fetch(`${API_BASE_URL}/videos/${video.id}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId: video.user_id })
+    });
 
-    if (dbError) throw dbError;
-
-    const pathsToDelete: string[] = [];
-
-    const getStoragePath = (url: string | null) => {
-        if (!url) return null;
-        const parts = url.split('/uploads/');
-        return parts.length > 1 ? parts[1] : null;
-    };
-
-    const inputPath = getStoragePath(video.input_video_url || (video as any).input_video_url);
-    const finalPath = getStoragePath(video.final_video_url);
-
-    if (inputPath) pathsToDelete.push(inputPath);
-    if (finalPath) pathsToDelete.push(finalPath);
-
-    if (pathsToDelete.length > 0) {
-        const { error: storageError } = await supabase.storage
-            .from('uploads')
-            .remove(pathsToDelete);
-        
-        if (storageError) {
-            console.error("Failed to delete storage objects:", storageError);
-        }
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete video');
     }
 }

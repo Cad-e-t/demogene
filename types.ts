@@ -1,3 +1,4 @@
+
 export interface CropData {
   x: number; // Normalized 0-1
   y: number; // Normalized 0-1
@@ -71,7 +72,7 @@ export interface VideoProject {
     input_video_url?: string | null;
     final_video_url: string | null;
     created_at: string;
-    status: 'processing' | 'completed' | 'failed';
+    status: 'uploaded' | 'processing' | 'completed' | 'failed';
     voice_id: string;
     background_id?: string;
     analysis_result?: AnalysisResult;

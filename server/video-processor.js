@@ -8,10 +8,20 @@ import { v4 as uuidv4 } from 'uuid';
 
 const FF_FLAGS = ["-c:v", "libx264", "-preset", "fast", "-r", "30", "-pix_fmt", "yuv420p"];
 
-const PREPROCESS_FLAGS = [
+export const PREPROCESS_FLAGS = [
     "-c:v", "libx264",
     "-preset", "slow", 
     "-crf", "24",
+    "-r", "30",
+    "-pix_fmt", "yuv420p",
+    "-movflags", "+faststart",
+    "-an"
+];
+
+export const HIGH_QUALITY_FLAGS = [
+    "-c:v", "libx264",
+    "-preset", "fast", 
+    "-crf", "18",
     "-r", "30",
     "-pix_fmt", "yuv420p",
     "-movflags", "+faststart",
@@ -308,7 +318,7 @@ async function applyMultiZoomEffect(inPath, outPath, events, workDir) {
     }
 }
 
-export async function preprocessVideo(inputPath, crop, trim, segments, outputPath) {
+export async function preprocessVideo(inputPath, crop, trim, segments, outputPath, flags = PREPROCESS_FLAGS) {
     const { width, height } = getResolution(inputPath);
     let cropFilter = "";
     if (crop) {
@@ -350,7 +360,7 @@ export async function preprocessVideo(inputPath, crop, trim, segments, outputPat
         args.push('-i', inputPath);
         if (cropFilter) args.push('-vf', cropFilter);
     }
-    args.push(...PREPROCESS_FLAGS);
+    args.push(...flags);
     args.push('-y', outputPath);
     await runFFmpeg(args);
     return outputPath;

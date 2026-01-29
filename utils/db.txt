@@ -18,10 +18,12 @@ create table public.videos (
   final_video_url text,
   
   -- Processing status
-  status text default 'processing' check (status in ('processing', 'completed', 'failed')),
+  -- Updated to include 'uploaded' for the new asset library workflow
+  status text default 'processing' check (status in ('uploaded', 'processing', 'completed', 'failed')),
   
   -- Store metadata used for generation
   voice_id text,
+  background_id text, -- Added for background persistence
   crop_data jsonb, -- {x, y, width, height}
   trim_data jsonb, -- {start, end}
   
@@ -167,3 +169,18 @@ begin
   values (p_user_id, -1, 'usage', 'Video Generation');
 end;
 $$;
+
+-- AUTOMATIC CLEANUP (Requires pg_cron)
+-- Delete raw uploads from the videos table 7 days after creation
+-- This keeps the database in sync with the storage bucket retention policy.
+create extension if not exists pg_cron;
+
+select cron.schedule(
+  'cleanup-old-uploads',
+  '0 0 * * *', -- Run daily at midnight
+  $$
+    delete from public.videos 
+    where status = 'uploaded' 
+    and created_at < now() - interval '7 days';
+  $$
+);

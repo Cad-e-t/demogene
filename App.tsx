@@ -265,23 +265,23 @@ export default function App() {
     setIsForcedAuth(false);
   };
 
-  const handleGenerate = async (segments?: TimeRange[], backgroundId?: string, disableZoom?: boolean) => {
-      if (!file || !session) return;
+  const handleGenerate = async (videoId: string, segments?: TimeRange[], backgroundId?: string, disableZoom?: boolean) => {
+      if (!session) return;
       
       const effectiveDuration = segments 
         ? segments.reduce((acc, s) => acc + (s.end - s.start), 0)
         : trim.end - trim.start;
 
       if (effectiveDuration > 300) {
-          setErrorMessage("The video's duration exceeds the required amount. You could use the 'Remove sections' to cut away unnecessary parts before continuing with the process.");
+          setErrorMessage("The video's duration exceeds the 5-minute limit. Please shorten your recording or remove sections.");
           return;
       }
       if (voice.id !== 'voiceless' && (!appDescription.trim() || !appName.trim())) {
-          setErrorMessage("Please provide the app name and a short description for the script.");
+          setErrorMessage("Please provide the app name and a short description so the AI can write the script.");
           return;
       }
       if (profile && profile.credits < 1) {
-          setErrorMessage("Insufficient credits. Please purchase a pack.");
+          setErrorMessage("You don't have enough credits. Please purchase a pack to continue.");
           return;
       }
 
@@ -290,58 +290,91 @@ export default function App() {
       // NAVIGATE FIRST to prevent duplicate clicks and ensure UI transition
       navigateTo('#/videos');
 
-      const tempId = uuidv4();
-      const optimisticVideo: VideoProject = {
-          id: tempId,
-          title: file.name,
-          final_video_url: null,
-          created_at: new Date().toISOString(),
-          status: 'processing',
-          processingStep: 'analyzing',
-          voice_id: voice.id,
-          user_id: session.user.id,
-          input_video_url: null
-      };
-
-      setVideos(prev => [optimisticVideo, ...prev]);
+      // Find original title for better UX
+      const sourceVideo = videos.find(v => v.id === videoId);
+      const sourceTitle = sourceVideo ? sourceVideo.title : "New Project";
+      // Ensure we don't double append "(Demo)"
+      const demoTitle = sourceTitle.endsWith('(Demo)') ? sourceTitle : `${sourceTitle} (Demo)`;
+      
+      // Track the ID to update status updates correctly
+      let processingId: string | null = null;
 
       try {
-          const { videoUrl: resultUrl, analysis } = await processVideoRequest(
-              file, 
+          const { videoId: finalId, videoUrl: resultUrl, analysis } = await processVideoRequest(
+              videoId,
+              segments,
               crop, 
               trim, 
               voice.id, 
               backgroundId || 'none', 
               session.user.id,
               (step) => {
-                  setVideos(prev => prev.map(v => v.id === tempId ? { ...v, processingStep: step } : v));
+                  if (processingId) {
+                       setVideos(prev => prev.map(v => v.id === processingId ? { ...v, processingStep: step } : v));
+                  }
               },
               appName,
               appDescription,
               DEFAULT_SCRIPT_RULES,
               DEFAULT_TTS_STYLE,
-              segments,
-              disableZoom 
+              disableZoom,
+              (newId) => {
+                  processingId = newId;
+                  const optimisticVideo: VideoProject = {
+                      id: newId,
+                      title: demoTitle,
+                      final_video_url: null,
+                      created_at: new Date().toISOString(),
+                      status: 'processing',
+                      processingStep: 'analyzing',
+                      voice_id: voice.id,
+                      user_id: session.user.id,
+                      input_video_url: null
+                  };
+                  // Add new optimistic video to list, keeping the source video
+                  setVideos(prev => [optimisticVideo, ...prev]);
+              }
           );
           
           const completedVideo: VideoProject = {
-              ...optimisticVideo,
-              status: 'completed',
+              id: finalId,
+              title: demoTitle,
               final_video_url: resultUrl,
+              created_at: new Date().toISOString(),
+              status: 'completed',
+              voice_id: voice.id,
+              user_id: session.user.id,
+              input_video_url: null,
               analysis_result: analysis
           };
 
-          setVideos(prev => prev.map(v => v.id === tempId ? completedVideo : v));
+          setVideos(prev => prev.map(v => v.id === finalId ? completedVideo : v));
           fetchProfile(session.user.id);
           setSelectedVideo(completedVideo);
 
       } catch (e: any) {
           console.error(e);
-          setVideos(prev => prev.map(v => v.id === tempId ? { 
-              ...v, 
-              status: 'failed', 
-              errorMessage: e.message || "Unknown Error" 
-          } : v));
+          // Professional Error Mapping
+          let friendlyMsg = "We ran into an issue creating your demo. Please try again.";
+          const rawMsg = e.message ? e.message.toLowerCase() : "";
+          
+          if (rawMsg.includes("duration") || rawMsg.includes("exceeds")) {
+              friendlyMsg = "Video is too long. Please use a recording under 5 minutes.";
+          } else if (rawMsg.includes("credits") || rawMsg.includes("insufficient")) {
+               friendlyMsg = "Insufficient credits. Please top up to continue.";
+          } else if (rawMsg.includes("fetch") || rawMsg.includes("network")) {
+               friendlyMsg = "Connection issue. Please check your internet.";
+          } else if (rawMsg.includes("ffmpeg")) {
+               friendlyMsg = "There was a problem processing your video file format. Please ensure it is a valid MP4/MOV.";
+          }
+
+          if (processingId) {
+               setVideos(prev => prev.map(v => v.id === processingId ? { 
+                   ...v, 
+                   status: 'failed', 
+                   errorMessage: friendlyMsg 
+               } : v));
+          }
       }
   };
 
@@ -352,7 +385,7 @@ export default function App() {
           window.location.href = checkout_url;
       } catch (e) {
           console.error(e);
-          alert("Failed to initiate checkout");
+          alert("We couldn't initiate the secure checkout. Please try again later.");
       }
   };
 
@@ -362,14 +395,20 @@ export default function App() {
           setVideos(prev => prev.filter(v => v.id !== video.id));
       } catch (e: any) {
           console.error("Delete failed:", e);
-          alert("Failed to delete video: " + (e.message || "Unknown error"));
+          alert("We couldn't delete this video. Please try again.");
       }
   };
 
-  // Hide sidebar if we are on blog pages, pricing, not logged in, or in the editor (file selected)
+  // Hide sidebar if we are on blog pages, pricing, not logged in, or in the editor (active video is null is technically home)
+  // Logic update: show sidebar if logged in and not in public pages.
+  // The 'editor' view is now part of HomeView but we typically hide sidebar when actively editing to maximize space.
   const isPublicReaderView = ['blog', 'blog-post', 'pricing', 'features', 'about', 'pricing-details'].includes(currentView);
-  const isInEditor = currentView === 'home' && file !== null;
-  const showSidebar = session && !isPublicReaderView && !isInEditor;
+  const isInEditor = currentView === 'home' && videoUrl !== null; 
+  // Note: HomeView now manages 'activeVideo'. If activeVideo is set, we are in editor mode.
+  // But videoUrl state in App.tsx is for the *landing page dropzone*. 
+  // Let's rely on session check mostly.
+  
+  const showSidebar = session && !isPublicReaderView; 
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-green-500 selection:text-white overflow-x-hidden">
@@ -387,7 +426,7 @@ export default function App() {
           
           {currentView === 'home' && (
               <HomeView 
-                  file={file}
+                  file={file} // Pass legacy file for landing page
                   videoUrl={videoUrl}
                   session={session}
                   profile={profile}

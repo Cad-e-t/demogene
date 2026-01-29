@@ -4,10 +4,14 @@ import { VideoCropper } from './VideoCropper';
 import { AdvancedEditorModal } from './AdvancedEditorModal';
 import { LandingPage } from './LandingPage';
 import { InteractiveDemo } from './InteractiveDemo';
+import { AssetLibrary } from './AssetLibrary';
 import { CropData, TrimData, VoiceOption, BackgroundOption, TimeRange, VideoProject } from '../types';
 import { VOICES, BACKGROUNDS } from '../constants';
 import { VOICE_SAMPLES } from '../voiceSamples';
 import { EXAMPLE_VIDEOS } from '../assets';
+import { generateUploadUrl } from '../frontend-api';
+import { supabase } from '../supabaseClient';
+import { v4 as uuidv4 } from 'uuid';
 
 const XIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
@@ -33,7 +37,7 @@ interface HomeViewProps {
     
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onClearFile: () => void;
-    onGenerate: (segments?: TimeRange[], backgroundId?: string, disableZoom?: boolean) => void;
+    onGenerate: (videoId: string, segments?: TimeRange[], backgroundId?: string, disableZoom?: boolean) => void;
     onPurchase: () => void;
     
     showAuthModal: boolean;
@@ -49,7 +53,7 @@ interface HomeViewProps {
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
-    file, videoUrl, session, profile,
+    file, videoUrl: initialVideoUrl, session, profile,
     crop, setCrop, trim, setTrim,
     voice, setVoice, 
     appName, setAppName,
@@ -62,7 +66,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
     backgroundOptions
 }) => {
     
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    // New State for Upload First Workflow
+    const [activeVideo, setActiveVideo] = useState<VideoProject | null>(null);
+    const [showAssetLibrary, setShowAssetLibrary] = useState(false);
+
+    // Background Upload State
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
     const duration = trim.end - trim.start;
@@ -86,25 +97,126 @@ export const HomeView: React.FC<HomeViewProps> = ({
         }
     }, [backgroundOptions]);
 
+    useEffect(() => {
+        if (initialVideoUrl && !activeVideo) {
+            // This case handles legacy drag/drop from LandingPage before login
+        }
+    }, [initialVideoUrl]);
+
     const effectiveDuration = segments 
         ? segments.reduce((acc, s) => acc + (s.end - s.start), 0)
         : duration;
 
-    const isDurationValid = effectiveDuration <= 300; // Updated to 5 minutes
+    const isDurationValid = effectiveDuration <= 300; 
     const isConfigComplete = background.id !== undefined && voice.id !== undefined && appName.trim() && appDescription.trim();
     const outOfCredits = profile && profile.credits < 1;
 
-    // Mobile Editor State
     const [mobileTab, setMobileTab] = useState<'preview' | 'settings'>('preview');
 
     const handleClear = () => {
         setSegments(null);
+        setActiveVideo(null);
         onClearFile();
+        setCrop({ x: 0, y: 0, width: 1, height: 1 });
+        setTrim({ start: 0, end: 0 });
+        setAppName("");
+        setAppDescription("");
+        setIsUploading(false);
+        setUploadProgress(0);
+    };
+
+    const handleVideoSelection = (vid: VideoProject) => {
+        setActiveVideo(vid);
+        setShowAssetLibrary(false);
+        setCrop({ x: 0, y: 0, width: 1, height: 1 });
+        setTrim({ start: 0, end: 0 });
+        setSegments(null);
+    };
+
+    // Handle Upload from AssetLibrary
+    const handleFileUploadStart = async (file: File) => {
+        // 1. Set Optimistic State
+        const tempId = uuidv4();
+        const tempUrl = URL.createObjectURL(file);
+        
+        const optimisticVideo: VideoProject = {
+            id: tempId,
+            user_id: session.user.id,
+            title: file.name,
+            input_video_url: tempUrl,
+            status: 'uploaded',
+            created_at: new Date().toISOString(),
+            final_video_url: null,
+            voice_id: voice.id
+        };
+        
+        setActiveVideo(optimisticVideo);
+        setShowAssetLibrary(false);
+        setIsUploading(true);
+        setUploadProgress(0);
+
+        // Reset editor state
+        setCrop({ x: 0, y: 0, width: 1, height: 1 });
+        setTrim({ start: 0, end: 0 });
+        setSegments(null);
+
+        try {
+            // 2. Start Upload
+            const { uploadUrl, publicUrl } = await generateUploadUrl(file.name, file.type);
+            
+            await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', uploadUrl);
+                xhr.setRequestHeader('Content-Type', file.type);
+                
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        setUploadProgress(percent);
+                    }
+                };
+                
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) resolve();
+                    else reject(new Error('Upload failed'));
+                };
+                xhr.onerror = () => reject(new Error('Network error'));
+                xhr.send(file);
+            });
+
+            // 3. Database Insert
+            const realId = uuidv4();
+             const { data: videoData, error: dbError } = await supabase
+                .from('videos')
+                .insert({
+                    id: realId,
+                    user_id: session.user.id,
+                    title: file.name,
+                    input_video_url: publicUrl,
+                    status: 'uploaded',
+                    created_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+            if(dbError) throw dbError;
+
+            // 4. Update with Real Data
+            setActiveVideo(videoData as VideoProject);
+
+        } catch (e) {
+            console.error(e);
+            alert("Upload failed. Please check your connection.");
+            setIsUploading(false);
+        } finally {
+            setIsUploading(false);
+            setUploadProgress(0);
+        }
     };
 
     const triggerGenerate = () => {
-        // disableZoom server parameter is the inverse of our addZooms toggle
-        onGenerate(segments || undefined, background.id, !addZooms);
+        if (!activeVideo || isUploading) return;
+        onGenerate(activeVideo.id, segments || undefined, background.id, !addZooms);
     };
 
     const toggleVoiceSample = (e: React.MouseEvent, voiceId: string) => {
@@ -136,11 +248,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
         };
     }, []);
 
-    // Interactive Demo Finish Handler
     const handleDemoFinish = (videoUrl: string) => {
       setDemoResultVideo(videoUrl);
       setIsDemoMode(false);
     };
+
+    if (!activeVideo && !session) {
+        return <LandingPage onFileChange={onFileChange} handleLogin={handleLogin} />;
+    }
 
     if (isDemoMode) {
       return <InteractiveDemo onClose={() => setIsDemoMode(false)} onFinish={handleDemoFinish} />;
@@ -161,28 +276,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
               >
                 Back to Dashboard
               </button>
-              <label className="px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition cursor-pointer">
-                Create with your own recording
-                <input type="file" className="hidden" accept="video/*" onChange={(e) => { setDemoResultVideo(null); onFileChange(e); }} />
-              </label>
             </div>
           </div>
         </div>
       );
     }
 
-    if (!file) {
-        if (!session) {
-            return <LandingPage onFileChange={onFileChange} handleLogin={handleLogin} />;
-        }
-
+    // MAIN DASHBOARD
+    if (!activeVideo) {
         return (
             <div className="relative w-full min-h-screen flex flex-col items-center bg-gray-50 p-6 md:p-12 overflow-x-hidden overflow-y-auto">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-green-500/[0.03] rounded-full blur-[120px] pointer-events-none"></div>
                 
                 <div className="relative z-10 w-full max-w-6xl mx-auto space-y-20 py-10">
                     
-                    {/* Main Header & Upload Section */}
                     <div className="flex flex-col items-center text-center space-y-12">
                         <div className="space-y-4">
                             <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">Create New Demo</h1>
@@ -192,24 +299,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         </div>
 
                         <div className="w-full flex flex-col md:flex-row items-stretch justify-center gap-6">
-                            {/* Primary Upload Action */}
-                            <label className="flex-1 max-w-lg group relative cursor-pointer transform hover:scale-[1.01] transition-all duration-300">
+                            <button 
+                                onClick={() => setShowAssetLibrary(true)}
+                                className="flex-1 max-w-lg group relative cursor-pointer transform hover:scale-[1.01] transition-all duration-300 text-left"
+                            >
                                 <div className="absolute -inset-0.5 bg-gradient-to-br from-green-400 to-emerald-600 rounded-[32px] blur-lg opacity-20 group-hover:opacity-40 transition duration-500"></div>
-                                <div className="relative flex flex-col items-center justify-center gap-6 px-10 py-16 bg-white border-2 border-gray-100 rounded-[32px] shadow-2xl hover:border-green-300 transition-colors">
+                                <div className="relative flex flex-col items-center justify-center gap-6 px-10 py-16 bg-white border-2 border-gray-100 rounded-[32px] shadow-2xl hover:border-green-300 transition-colors h-full">
                                     <div className="p-5 bg-green-50 rounded-3xl text-green-600 ring-8 ring-green-50/50 group-hover:scale-110 transition-transform duration-300">
                                         <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                         </svg>
                                     </div>
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 text-center">
                                         <span className="block font-black text-3xl text-gray-900 tracking-tight uppercase">Select Recording</span>
-                                        <span className="block text-sm font-bold text-gray-400 uppercase tracking-widest">MP4, MOV up to 300MB</span>
+                                        <span className="block text-sm font-bold text-gray-400 uppercase tracking-widest">Upload New or Choose Existing</span>
                                     </div>
                                 </div>
-                                <input type="file" className="hidden" accept="video/*" onChange={onFileChange} />
-                            </label>
+                            </button>
 
-                            {/* Secondary Actions Card */}
                             <div className="flex-1 max-w-lg flex flex-col gap-4">
                                 <button 
                                     onClick={() => setIsDemoMode(true)}
@@ -242,18 +349,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                                 <span className="text-xl font-black text-gray-900">{profile.credits} Demo{profile.credits !== 1 ? 's' : ''}</span>
                                             </div>
                                         </div>
-                                        {profile.credits === 0 ? (
-                                            <button onClick={() => window.location.hash = '#/pricing'} className="px-6 py-3 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 uppercase text-xs tracking-wider">Top Up</button>
-                                        ) : (
-                                            <div className="px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Plan</div>
-                                        )}
+                                        <button 
+                                            onClick={() => window.location.hash = '#/pricing'} 
+                                            className="px-6 py-3 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 uppercase text-xs tracking-wider"
+                                        >
+                                            Top Up
+                                        </button>
                                     </div>
                                 )}
                             </div>
                         </div>
                     </div>
 
-                    {/* Trust/Gallery Section */}
                     <div className="space-y-10 pt-10">
                         <div className="flex flex-col items-center text-center space-y-2">
                             <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">Example Generations</h2>
@@ -296,33 +403,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </div>
                 </div>
 
-                {/* Example Modal Overlay */}
-                {selectedExample && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-10" onClick={() => setSelectedExample(null)}>
-                        <div className="relative w-full max-w-5xl aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/10" onClick={e => e.stopPropagation()}>
-                            <button 
-                                onClick={() => setSelectedExample(null)}
-                                className="absolute top-6 right-6 z-10 p-2 bg-black/50 hover:bg-black text-white rounded-full transition-colors"
-                            >
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                            <video 
-                                src={selectedExample.url} 
-                                controls 
-                                autoPlay 
-                                className="w-full h-full object-contain"
-                            />
-                            <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
-                                <h3 className="text-2xl font-black text-white uppercase tracking-tighter">{selectedExample.title}</h3>
-                                <p className="text-green-400 font-bold uppercase tracking-widest text-xs">{selectedExample.category}</p>
-                            </div>
-                        </div>
-                    </div>
+                {showAssetLibrary && (
+                    <AssetLibrary 
+                        session={session}
+                        onSelect={handleVideoSelection}
+                        onUpload={handleFileUploadStart}
+                        onClose={() => setShowAssetLibrary(false)}
+                    />
                 )}
             </div>
         );
     }
 
+    // EDITOR VIEW
     return (
         <div className="h-[calc(100vh-3.5rem)] md:h-screen w-full flex flex-col md:flex-row bg-white text-gray-900 font-sans overflow-hidden">
              
@@ -331,7 +424,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     Back
                  </button>
-                 <span className="text-xs font-bold text-gray-400 truncate max-w-[150px] uppercase tracking-wider">{file?.name}</span>
+                 <span className="text-xs font-bold text-gray-400 truncate max-w-[150px] uppercase tracking-wider">{activeVideo.title}</span>
                  <div className="w-10"></div>
              </div>
 
@@ -346,7 +439,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                  <div className="hidden md:flex h-14 border-b border-gray-200 items-center justify-between px-6 bg-white flex-shrink-0 z-10">
                     <div className="flex items-center gap-4">
                         <button onClick={handleClear} className="text-gray-400 hover:text-gray-900 transition-colors p-1" title="Close Project"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-                        <span className="text-sm font-bold text-gray-900 truncate max-w-md">{file?.name}</span>
+                        <span className="text-sm font-bold text-gray-900 truncate max-w-md">{activeVideo.title}</span>
                     </div>
                     <div className="text-xs font-mono text-gray-500 flex items-center gap-2 font-bold">
                         {segments && <span className="text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded">Advanced Edits Applied</span>}
@@ -355,7 +448,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                  </div>
 
                  <div className="flex-1 bg-gray-50/80 relative flex flex-col min-h-0 items-center justify-center p-8 border-r border-gray-200">
-                      {videoUrl && (
+                      {activeVideo.input_video_url && (
                           <div className="relative w-full h-full flex flex-col items-center">
                               <div 
                                 className="flex-1 w-full flex items-center justify-center min-h-0 bg-white shadow-xl rounded-lg border border-gray-200 overflow-hidden relative"
@@ -365,8 +458,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                     backgroundPosition: 'center'
                                 }}
                               >
+                                  {/* Upload Progress Overlay */}
+                                  {isUploading && (
+                                    <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                                        <div className="relative w-24 h-24 flex items-center justify-center mb-4">
+                                             <svg className="w-full h-full text-gray-700 animate-spin" viewBox="0 0 100 100">
+                                                 <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" />
+                                             </svg>
+                                             <svg className="absolute w-full h-full text-green-500 animate-spin" viewBox="0 0 100 100" style={{ strokeDasharray: 283, strokeDashoffset: 283 - (283 * uploadProgress / 100) }}>
+                                                 <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" transform="rotate(-90 50 50)" />
+                                             </svg>
+                                             <span className="absolute text-xl font-black text-white">{uploadProgress}%</span>
+                                        </div>
+                                        <div className="bg-gray-900 px-4 py-2 rounded-xl shadow-sm border border-gray-700 text-sm font-bold text-white animate-pulse">
+                                            Uploading Video...
+                                        </div>
+                                    </div>
+                                  )}
+                                  
                                   <VideoCropper 
-                                     videoUrl={videoUrl}
+                                     videoUrl={activeVideo.input_video_url}
                                      onCropChange={setCrop}
                                      onTrimChange={setTrim}
                                      onAdvancedEdit={() => setShowAdvancedEditor(true)}
@@ -375,7 +486,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                   />
                               </div>
                               <div className="w-full flex justify-center py-6 shrink-0">
-                                  <button onClick={() => setShowAdvancedEditor(true)} className="flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white rounded-full font-bold text-sm transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+                                  <button onClick={() => setShowAdvancedEditor(true)} disabled={isUploading} className="flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white rounded-full font-bold text-sm transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
                                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                       Remove unwanted parts (optional)
                                   </button>
@@ -526,10 +637,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                      )}
                      <button 
                         onClick={triggerGenerate}
-                        disabled={!session || !isDurationValid || !isConfigComplete || outOfCredits}
+                        disabled={!session || !isDurationValid || !isConfigComplete || outOfCredits || isUploading}
                         className="w-full py-4 bg-green-600 text-white text-base font-bold rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg transform active:scale-[0.98]"
                     >
-                        Generate Demo
+                        {isUploading ? 'Waiting for Upload...' : 'Generate Demo'}
                     </button>
                     {profile && (
                         <button 
@@ -542,9 +653,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                  </div>
              </div>
 
-             {showAdvancedEditor && videoUrl && (
+             {showAdvancedEditor && activeVideo.input_video_url && (
                  <AdvancedEditorModal 
-                    videoUrl={videoUrl}
+                    videoUrl={activeVideo.input_video_url}
                     initialSegments={segments}
                     duration={trim.end === 0 ? 1 : trim.end}
                     onClose={() => setShowAdvancedEditor(false)}

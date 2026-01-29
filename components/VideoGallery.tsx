@@ -103,7 +103,7 @@ export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVide
                                  
                                  <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4 z-10"></div>
                                  <p className="text-green-700 font-bold z-10 animate-pulse">{getStatusText(vid.processingStep)}</p>
-                                 <p className="text-xs text-gray-500 mt-2 z-10 font-medium">This may take a minute</p>
+                                 <p className="text-xs text-gray-500 mt-2 z-10 font-medium">This could take a few minute</p>
                              </div>
                         ) : vid.status === 'failed' ? (
                             <div className="aspect-video bg-red-50 flex flex-col items-center justify-center p-6">
