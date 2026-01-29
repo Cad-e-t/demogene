@@ -20,10 +20,10 @@ const FAQItem = ({ question, answer, isOpen, onClick }: { question: string, answ
             onClick={onClick}
             className="w-full py-6 flex items-center justify-between text-left group"
         >
-            <span className={`text-xl font-black uppercase tracking-tighter transition-colors ${isOpen ? 'text-sky-600' : 'text-gray-900 group-hover:text-sky-600'}`}>
+            <span className={`text-xl font-black uppercase tracking-tighter transition-colors ${isOpen ? 'text-green-600' : 'text-gray-900 group-hover:text-green-600'}`}>
                 {question}
             </span>
-            <div className={`shrink-0 ml-4 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${isOpen ? 'bg-sky-600 border-sky-600 text-white rotate-45' : 'border-gray-200 text-gray-400 group-hover:border-sky-600 group-hover:text-sky-600'}`}>
+            <div className={`shrink-0 ml-4 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${isOpen ? 'bg-green-600 border-green-600 text-white rotate-45' : 'border-gray-200 text-gray-400 group-hover:border-green-600 group-hover:text-green-600'}`}>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
             </div>
         </button>
@@ -125,7 +125,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     <div className="flex items-center gap-6">
                         <button 
                             onClick={handleLogin} 
-                            className="group relative px-7 py-2.5 bg-green-600 text-white text-xs font-black rounded-full hover:bg-green-500 transition-all duration-300 border border-green-500/10 uppercase tracking-widest shadow-[0_10px_20px_-5px_rgba(34,197,94,0.4)] hover:shadow-[0_15px_30px_-5px_rgba(34,197,94,0.6)] hover:-translate-y-0.5"
+                            className="hidden md:group md:relative md:px-7 md:py-2.5 md:bg-green-600 md:text-white md:text-xs md:font-black md:rounded-full md:hover:bg-green-500 md:transition-all md:duration-300 md:border md:border-green-500/10 md:uppercase md:tracking-widest md:shadow-[0_10px_20px_-5px_rgba(34,197,94,0.4)] md:hover:shadow-[0_15px_30px_-5px_rgba(34,197,94,0.6)] md:hover:-translate-y-0.5"
                         >
                             Try It Now
                         </button>
@@ -133,7 +133,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         {/* Mobile Menu Icon */}
                         <button 
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="md:hidden p-2 text-gray-400 hover:text-black transition-colors"
+                            className="p-2 text-gray-400 hover:text-black transition-colors"
                         >
                             {isMenuOpen ? (
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -206,7 +206,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             </h1>
                             
                             <p className="text-xl md:text-2xl text-white/90 max-w-lg leading-relaxed mb-14 font-medium tracking-tight opacity-90">
-                                Turn raw screen recordings into videos that attract, sell, and onboard users. No editing required. 
+                                Turn raw screen recordings into polished demos you can use to attract, sell, and onboard users. No editing required. 
                             </p>
                             
                             <button 
@@ -225,7 +225,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
                         {/* Hero Video/Image Column */}
                         <div className="w-full md:w-1/2 relative px-4 md:px-0">
-                            <div className="relative aspect-video bg-white/10 rounded-[48px] border-[12px] border-white/20 overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.4)] backdrop-blur-sm group transition-transform duration-700 hover:rotate-1">
+                            <div className="relative aspect-video group transition-transform duration-700 hover:rotate-1">
                                 <img 
                                  src="hero.png" 
                                  alt="Product Screenshot" 
@@ -493,7 +493,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             <h3 className="text-4xl md:text-5xl font-black text-gray-900 mb-10 tracking-tighter uppercase"> I built ProductCam because selling my SaaS was harder than building it</h3>
                             <div className="space-y-6">
                                 <p className="text-xl text-gray-500 font-medium leading-relaxed">
-                                    ProductCam creates narrated demos that show the value of your app quickly so users understand your product and want to try it. Use this for landing pages, onboarding, launches, social posts, & investor decks. Showing > Telling
+                                    ProductCam creates narrated demos that show the value of your app quickly so users understand your product and want to try it. Use this for landing pages, onboarding, launches, social posts, & investor decks. {'Showing > Telling'}
                                 </p>
                             </div>
                         </div>
