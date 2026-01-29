@@ -72,9 +72,9 @@ export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVide
                                 : 'border-green-100 cursor-default'
                             }`}
                     >
-                        {/* Overlay Actions - visible on hover, hidden during processing */}
-                        {vid.status === 'completed' && (
-                            <div className="absolute top-3 right-3 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                        {/* Overlay Actions - visible on hover for all statuses */}
+                        <div className="absolute top-3 right-3 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                            {vid.final_video_url && (
                                 <button 
                                     onClick={(e) => handleDownload(e, vid.final_video_url, vid.title)}
                                     className="p-2 bg-white/90 hover:bg-green-50 text-gray-400 hover:text-green-600 rounded-full shadow-sm border border-gray-100 cursor-pointer"
@@ -84,17 +84,17 @@ export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVide
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0L8 8m4-4v12" />
                                     </svg>
                                 </button>
-                                <button 
-                                    onClick={(e) => handleDelete(e, vid)}
-                                    className="p-2 bg-white/90 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-full shadow-sm border border-gray-100 cursor-pointer"
-                                    title="Delete Video"
-                                >
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
-                            </div>
-                        )}
+                            )}
+                            <button 
+                                onClick={(e) => handleDelete(e, vid)}
+                                className="p-2 bg-white/90 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-full shadow-sm border border-gray-100 cursor-pointer"
+                                title="Delete Video"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
 
                         {vid.status === 'processing' ? (
                              <div className="aspect-video bg-gray-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -103,7 +103,7 @@ export const VideoGallery: React.FC<VideoGalleryProps> = ({ videos, onSelectVide
                                  
                                  <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4 z-10"></div>
                                  <p className="text-green-700 font-bold z-10 animate-pulse">{getStatusText(vid.processingStep)}</p>
-                                 <p className="text-xs text-gray-500 mt-2 z-10 font-medium">This could take a few minute</p>
+                                 <p className="text-xs text-gray-500 mt-2 z-10 font-medium">This could take a few minutes</p>
                              </div>
                         ) : vid.status === 'failed' ? (
                             <div className="aspect-video bg-red-50 flex flex-col items-center justify-center p-6">

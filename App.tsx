@@ -224,11 +224,43 @@ export default function App() {
     try {
         const { data, error } = await supabase.from('videos').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
         if (error) throw error;
+        
         setVideos(prev => {
-            const processing = prev.filter(v => v.status === 'processing');
-            const existingIds = new Set(processing.map(v => v.id));
-            const newVideos = (data || []).filter(v => !existingIds.has(v.id));
-            return [...processing, ...newVideos] as VideoProject[];
+            const localProcessing = prev.filter(v => v.status === 'processing');
+            const finalVideos: VideoProject[] = [];
+            const processedIds = new Set<string>();
+
+            // 1. Process DB Videos (Source of Truth)
+            const dbVideos = (data || []) as VideoProject[];
+            
+            for (const dbVid of dbVideos) {
+                const localVid = localProcessing.find(lv => lv.id === dbVid.id);
+                
+                if (localVid) {
+                    // We have a local optimistic version. Check status.
+                    // If DB is still processing, keep local (to show steps like 'analyzing').
+                    // If DB is completed/failed, accept DB version (it finished!).
+                    if (dbVid.status === 'processing' || dbVid.status === 'uploaded') {
+                        finalVideos.push(localVid);
+                    } else {
+                        finalVideos.push(dbVid);
+                    }
+                } else {
+                    // No local version, take DB version.
+                    finalVideos.push(dbVid);
+                }
+                processedIds.add(dbVid.id);
+            }
+
+            // 2. Add any local processing videos that haven't appeared in DB yet
+            for (const localVid of localProcessing) {
+                if (!processedIds.has(localVid.id)) {
+                    finalVideos.push(localVid);
+                }
+            }
+            
+            // Sort by creation time
+            return finalVideos.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         });
     } catch(e) { console.error("Failed to fetch videos", e); }
   };

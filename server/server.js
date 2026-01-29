@@ -1,4 +1,3 @@
-
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -10,7 +9,7 @@ import { analyzeVideo, generateVoiceover } from './gemini.js';
 import { processVideoPipeline, preprocessVideo, calculateAudioLineDurations, PREPROCESS_FLAGS, HIGH_QUALITY_FLAGS } from './video-processor.js';
 import { supabase } from './supabase.js';
 import { execSync } from 'child_process';
-import { getVideoAnalysisPrompt, VIDEO_ANALYSIS_NO_SCRIPT_PROMPT } from './prompts.js';
+import { getVideoAnalysisPrompt } from './prompts.js';
 import https from 'https';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
