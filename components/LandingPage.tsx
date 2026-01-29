@@ -125,7 +125,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     <div className="flex items-center gap-6">
                         <button 
                             onClick={handleLogin} 
-                            className="hidden md:group md:relative md:px-7 md:py-2.5 md:bg-green-600 md:text-white md:text-xs md:font-black md:rounded-full md:hover:bg-green-500 md:transition-all md:duration-300 md:border md:border-green-500/10 md:uppercase md:tracking-widest md:shadow-[0_10px_20px_-5px_rgba(34,197,94,0.4)] md:hover:shadow-[0_15px_30px_-5px_rgba(34,197,94,0.6)] md:hover:-translate-y-0.5"
+                            className="hidden md:block md:relative md:px-7 md:py-2.5 md:bg-green-600 md:text-white md:text-xs md:font-black md:rounded-full md:hover:bg-green-500 md:transition-all md:duration-300 md:border md:border-green-500/10 md:uppercase md:tracking-widest md:shadow-[0_10px_20px_-5px_rgba(34,197,94,0.4)] md:hover:shadow-[0_15px_30px_-5px_rgba(34,197,94,0.6)] md:hover:-translate-y-0.5"
                         >
                             Try It Now
                         </button>
@@ -133,7 +133,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         {/* Mobile Menu Icon */}
                         <button 
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="p-2 text-gray-400 hover:text-black transition-colors"
+                            className="p-2 text-gray-400 hover:text-black transition-colors md:hidden"
                         >
                             {isMenuOpen ? (
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -170,7 +170,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             </nav>
 
             {/* --- HERO SECTION (WIDE & ACCESSIBLE NAV) --- */}
-            <div className="relative z-10 w-full bg-sky-500 text-white overflow-hidden">
+            <div className="relative z-10 w-full bg-black text-white overflow-hidden">
                 <div className="max-w-[1700px] mx-auto px-6 md:px-12 pt-20 pb-32 md:pb-56 flex flex-col items-center">
                     
                     {/* Hero-Embedded Navigation Row (Left Aligned) */}
@@ -227,7 +227,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <div className="w-full md:w-1/2 relative px-4 md:px-0">
                             <div className="relative aspect-video group transition-transform duration-700 hover:rotate-1">
                                 <img 
-                                 src="hero.png" 
+                                 src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=2426&q=80" 
                                  alt="Product Screenshot" 
                                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                 />
