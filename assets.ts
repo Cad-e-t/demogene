@@ -20,7 +20,7 @@ export const EXAMPLE_VIDEOS = [
   }
 ];
 
-export const INTERACTIVE_DEMO_INPUT = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/05b7fa8c-9746-4b72-a038-fec7329b9c70.mp4";
+export const INTERACTIVE_DEMO_INPUT = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/output.mp4";
 export const INTERACTIVE_DEMO_OUTPUT = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/0256a531-71d7-4e15-9a90-5cff59177b24.mp4";
 
 export interface Testimonial {
