@@ -1,3 +1,4 @@
+
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -14,6 +15,7 @@ import https from 'https';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+// Fixed: Removed duplicate declaration of 'app'
 const app = express();
 
 const TEMP_DIR = os.tmpdir();
@@ -51,16 +53,29 @@ app.use((req, res, next) => {
 
 function getDuration(filePath) {
   try {
+      const out = execSync(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of json "${filePath}"`);
+      const json = JSON.parse(out.toString());
+      return { width: json.streams[0].width, height: json.streams[0].height };
+  } catch(e) {
+      console.warn("ffprobe resolution fetch failed, defaulting to 1920x1080", e.message);
+      return { width: 1920, height: 1080 };
+  }
+}
+
+function getDurationValue(filePath) {
+  try {
       const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`);
       const val = parseFloat(out.toString().trim());
       return isNaN(val) ? 0.0 : val;
   } catch (e) {
+      console.warn("ffprobe duration fetch failed, defaulting to 0", e.message);
       return 0.0;
   }
 }
 
 function parseTime(t) {
     if (typeof t === 'number') return t;
+    if (!t) return 0;
     const parts = t.toString().split(':').map(parseFloat);
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     if (parts.length === 2) return parts[0] * 60 + parts[1];
@@ -222,7 +237,7 @@ async function runVideoProcessing(jobData) {
         } else if (trim && typeof trim.end === 'number' && typeof trim.start === 'number') {
             effectiveDuration = trim.end - trim.start;
         } else {
-            effectiveDuration = getDuration(localInputPath);
+            effectiveDuration = getDurationValue(localInputPath);
         }
 
         if (effectiveDuration > 300) {
@@ -249,7 +264,7 @@ async function runVideoProcessing(jobData) {
         console.log('--- Analyzing Video with Gemini ---');
         const desc = appDescription || "A software application";
         const name = appName || "The App";
-        const prompt = getVideoAnalysisPrompt(name, desc, scriptRules);
+        const prompt = getVideoAnalysisPrompt(name, desc, scriptRules, effectiveDuration);
 
         const analysis = await analyzeVideo(cleanFileBase64, 'video/mp4', prompt); 
         console.log('Analysis complete.');
@@ -282,7 +297,7 @@ async function runVideoProcessing(jobData) {
             }
 
             if (fullAudioPath) {
-                const totalAudioDuration = getDuration(fullAudioPath);
+                const totalAudioDuration = getDurationValue(fullAudioPath);
                 audioLineDurations = calculateAudioLineDurations(linesToSpeak, totalAudioDuration);
             }
         } 
