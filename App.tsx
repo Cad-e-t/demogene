@@ -222,7 +222,13 @@ export default function App() {
   const fetchVideos = async () => {
     if (!session?.user) return;
     try {
-        const { data, error } = await supabase.from('videos').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
+        const { data, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .neq('status', 'uploaded') // Only fetch projects, not raw uploads
+            .order('created_at', { ascending: false });
+        
         if (error) throw error;
         
         setVideos(prev => {
