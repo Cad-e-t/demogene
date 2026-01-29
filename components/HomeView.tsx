@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect } from 'react';
 import { VideoCropper } from './VideoCropper';
 import { AdvancedEditorModal } from './AdvancedEditorModal';
@@ -207,7 +206,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         } catch (e) {
             console.error(e);
             alert("Upload failed. Please check your connection.");
-            setIsUploading(false);
+            setActiveVideo(null);
+            setShowAssetLibrary(true);
         } finally {
             setIsUploading(false);
             setUploadProgress(0);
