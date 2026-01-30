@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -47,6 +46,7 @@ const useHashPath = () => {
 interface UserProfile {
     id: string;
     credits: number;
+    dodo_customer_id?: string;
 }
 
 const PRODUCT_10_DEMOS = "pdt_2LwDVRweVv9iX22U5RDSW"; 

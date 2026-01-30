@@ -284,6 +284,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       );
     }
 
+    const hasPurchaseHistory = profile && !!profile.dodo_customer_id;
+    const isZeroCreditsUser = profile && !hasCredits && !hasPurchaseHistory;
+
     // MAIN DASHBOARD
     if (!activeVideo) {
         return (
@@ -293,20 +296,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <div className="relative z-10 w-full max-w-6xl mx-auto space-y-20 py-10">
                     
                     <div className="flex flex-col items-center text-center space-y-12">
-                        <div className="space-y-4">
-                            <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">Create New Demo</h1>
-                            <p className="text-xl text-gray-500 font-medium max-w-xl mx-auto leading-relaxed">
-                                Upload a screen recording to turn it into a polished narrated demo automatically
-                            </p>
-                        </div>
+                        
+                        {!isZeroCreditsUser && (
+                            <div className="space-y-4">
+                                <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">Create New Demo</h1>
+                                <p className="text-xl text-gray-500 font-medium max-w-xl mx-auto leading-relaxed">
+                                    Upload a screen recording to turn it into a polished narrated demo automatically
+                                </p>
+                            </div>
+                        )}
 
                         <div className="w-full flex flex-col md:flex-row items-stretch justify-center gap-6">
                             
                             {!profile ? (
                                 // Loading State
                                 <div className="flex-1 max-w-lg h-[320px] bg-gray-100 rounded-[32px] animate-pulse border border-gray-200"></div>
-                            ) : hasCredits ? (
-                                // NORMAL STATE: Upload Button
+                            ) : !isZeroCreditsUser ? (
+                                // NORMAL STATE: Upload Button (Shown for users with credits OR prior purchase)
                                 <button 
                                     onClick={() => setShowAssetLibrary(true)}
                                     className="flex-1 max-w-lg group relative cursor-pointer transform hover:scale-[1.01] transition-all duration-300 text-left"
@@ -325,29 +331,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                     </div>
                                 </button>
                             ) : (
-                                // ZERO CREDITS STATE: Top Up Card
-                                <div className="flex-1 max-w-lg group relative">
-                                    <div className="absolute -inset-0.5 bg-gradient-to-br from-green-400 to-emerald-600 rounded-[32px] blur-lg opacity-20"></div>
-                                    <div className="relative flex flex-col items-center justify-center gap-8 px-8 py-12 md:py-16 bg-white border-2 border-green-500 rounded-[32px] shadow-2xl h-full text-center hover:shadow-green-500/10 transition-shadow">
-                                        <div className="w-20 h-20 bg-green-50 rounded-full text-green-600 flex items-center justify-center ring-8 ring-green-50/50">
-                                            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                                // ZERO CREDITS STATE: Friendly Nudge (Only for new users with 0 credits and no purchase history)
+                                <button 
+                                    onClick={() => window.location.hash = '#/pricing'}
+                                    className="flex-1 max-w-lg group relative cursor-pointer transform hover:scale-[1.01] transition-all duration-300"
+                                >
+                                    <div className="absolute -inset-0.5 bg-gradient-to-br from-gray-100 to-gray-200 rounded-[32px] blur-lg opacity-50 group-hover:opacity-80 transition duration-500"></div>
+                                    <div className="relative flex flex-col items-center justify-center gap-6 px-8 py-16 bg-white border-2 border-dashed border-gray-200 hover:border-green-400 rounded-[32px] shadow-lg h-full transition-colors text-center">
+                                        
+                                        <div className="p-4 bg-gray-50 rounded-full group-hover:bg-green-50 text-gray-400 group-hover:text-green-600 transition-colors">
+                                             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                             </svg>
                                         </div>
-                                        <div className="space-y-3">
-                                            <h3 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">Ready to Create?</h3>
-                                            <p className="text-lg text-gray-500 font-medium px-4">
-                                                Top up your credits to start generating automated product demos.
-                                            </p>
+
+                                        <div className="space-y-1">
+                                            <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Ready to create?</h3>
+                                            <p className="text-sm font-medium text-gray-500">Unlock your studio to start generating.</p>
                                         </div>
-                                        <button 
-                                            onClick={() => window.location.hash = '#/pricing'}
-                                            className="w-full max-w-xs py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition shadow-xl shadow-green-600/30 uppercase tracking-widest text-sm transform hover:-translate-y-0.5"
-                                        >
+                                        
+                                        <div className="mt-2 px-8 py-3 bg-black text-white rounded-xl font-bold text-sm shadow-xl group-hover:bg-green-600 transition-colors">
                                             Get Credits
-                                        </button>
+                                        </div>
                                     </div>
-                                </div>
+                                </button>
                             )}
 
                             <div className="flex-1 max-w-lg flex flex-col gap-4">
