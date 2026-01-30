@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect } from 'react';
-import { TESTIMONIALS } from '../assets';
+import { TESTIMONIALS, LANDING_GALLERY_VIDEOS } from '../assets';
 
 interface LandingPageProps {
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -127,7 +128,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             onClick={handleLogin} 
                             className="hidden md:block md:relative md:px-7 md:py-2.5 md:bg-green-600 md:text-white md:text-xs md:font-black md:rounded-full md:hover:bg-green-500 md:transition-all md:duration-300 md:border md:border-green-500/10 md:uppercase md:tracking-widest md:shadow-[0_10px_20px_-5px_rgba(34,197,94,0.4)] md:hover:shadow-[0_15px_30px_-5px_rgba(34,197,94,0.6)] md:hover:-translate-y-0.5"
                         >
-                            Try It Now
+                            Sign up for free
                         </button>
                         
                         {/* Mobile Menu Icon */}
@@ -241,7 +242,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </div>
             </div>
 
-             {/* --- TESTIMONIALS SECTION (MOVED UP) --- */}
+             {/* --- TESTIMONIALS SECTION --- */}
             <section className="w-full bg-gray-50 py-40 border-t border-gray-100 flex flex-col items-center relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-green-500/[0.03] rounded-full blur-[140px] pointer-events-none"></div>
                 <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-24 tracking-tighter text-center px-6 uppercase relative z-10">
@@ -259,9 +260,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 </div>
                                 
                                 <div className="mt-10 flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                        <span className="text-lg font-black text-gray-900 uppercase tracking-tighter">{t.name}</span>
-                                        <span className="text-sm font-bold text-green-600 uppercase tracking-widest">{t.handle}, {t.role}</span>
+                                    <div className="flex items-center gap-4">
+                                        <img src={t.photo} alt={t.name} className="w-12 h-12 rounded-full object-cover border border-gray-100 shadow-sm" />
+                                        <div className="flex flex-col">
+                                            <span className="text-lg font-black text-gray-900 uppercase tracking-tighter">{t.name}</span>
+                                            <span className="text-sm font-bold text-green-600 uppercase tracking-widest">{t.handle}, {t.role}</span>
+                                        </div>
                                     </div>
                                     <a 
                                         href={t.link} 
@@ -282,48 +286,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             {/* Floating Visual Elements Placeholder Space */}
             <div className="w-full h-12 md:h-24"></div>
 
-            {/* --- SEE EXAMPLE SECTION --- */}
+            {/* --- SEE EXAMPLE SECTION (FOCUSED SINGLE ITEM) --- */}
             <div id="example" className="w-full bg-gray-50/50 pt-32 pb-40 scroll-mt-24 border-t border-b border-gray-100 relative overflow-hidden">
-                <div className="w-full px-6 md:px-12 lg:px-24 mb-20">
+                <div className="w-full px-6 md:px-12 lg:px-24 mb-16 flex flex-col items-center text-center">
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">See Example</h2>
                     <div className="w-24 h-2 bg-green-500 mt-6 rounded-full"></div>
                 </div>
 
-                <div className="w-full px-6 md:px-12 lg:px-24 relative z-10">
-                    <div className="flex flex-col lg:flex-row gap-16 lg:gap-32 items-center">
-                        
-                        {/* Before Video */}
-                        <div className="w-full lg:w-1/2 flex flex-col gap-4 group">
-                            <span className="text-sm font-black text-gray-400 uppercase tracking-widest px-1">Input</span>
-                            <div className="relative aspect-video bg-white rounded-[32px] border border-gray-200 overflow-hidden shadow-xl group-hover:border-gray-300 transition-all duration-500 group-hover:shadow-2xl">
+                <div className="w-full max-w-6xl mx-auto px-6 md:px-12">
+                     {LANDING_GALLERY_VIDEOS.length > 0 && (
+                        <div className="w-full group cursor-pointer">
+                            <div className="relative aspect-video bg-black rounded-[32px] overflow-hidden shadow-2xl border border-gray-200 group-hover:shadow-green-500/10 transition-all duration-500">
                                 <video 
-                                    src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/8b6f6fb1-3df0-425e-82ef-3d150d06491a.mp4" 
-                                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                                    controls
-                                    muted
-                                    playsInline
-                                    preload="metadata"
-                                />
-                            </div>
-                        </div>
-
-                        {/* After Video */}
-                        <div className="w-full lg:w-1/2 flex flex-col gap-4 relative group">
-                            <span className="text-sm font-black text-green-600 uppercase tracking-widest px-1">Output</span>
-                            {/* Glow Effect */}
-                            <div className="absolute top-20 inset-0 bg-green-500/[0.08] blur-[120px] -z-10 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
-
-                            <div className="relative aspect-video bg-white rounded-[32px] border-4 border-green-500/10 overflow-hidden shadow-2xl shadow-green-500/10 transition-all ring-1 ring-black/[0.02] group-hover:border-green-500/40 transform group-hover:-translate-y-2">
-                                <video 
-                                    src="https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/c0fb92eb-0b17-4853-a576-98b7f899248b.mp4" 
+                                    src={LANDING_GALLERY_VIDEOS[0].url} 
                                     className="w-full h-full object-cover"
                                     controls
                                     playsInline
                                     preload="metadata"
                                 />
                             </div>
+                            <div className="mt-8 flex items-center justify-between px-4">
+                                <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">{LANDING_GALLERY_VIDEOS[0].title}</h3>
+                            </div>
                         </div>
-                    </div>
+                     )}
                 </div>
             </div>
 
