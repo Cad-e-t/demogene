@@ -24,7 +24,6 @@ export const EXAMPLE_VIDEOS = [
 export const LANDING_GALLERY_VIDEOS = [
   {
     id: 'gal-3',
-    title: 'Landing page demo',
     url: 'https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/c0fb92eb-0b17-4853-a576-98b7f899248b.mp4'
   }
 ];

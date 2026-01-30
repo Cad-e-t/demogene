@@ -88,7 +88,7 @@ export const PricingView: React.FC<PricingViewProps> = ({ onPurchase }) => {
                     <h2 className="text-2xl font-black text-gray-500 uppercase tracking-tighter mt-4 mb-4">Single Demo</h2>
                     
                     <div className="flex items-baseline gap-1 mb-10">
-                        <span className="text-5xl md:text-7xl font-black text-gray-900">$2</span>
+                        <span className="text-5xl md:text-7xl font-black text-gray-900">$3</span>
                         <span className="text-xl text-gray-400 font-bold uppercase tracking-widest">/One</span>
                     </div>
 

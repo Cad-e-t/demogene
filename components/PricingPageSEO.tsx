@@ -48,7 +48,7 @@ export const PricingPageSEO: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-32">
                     <div className="p-8 border-2 border-gray-100 rounded-[40px] hover:border-green-500/20 transition-all">
                         <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Single Demo</h2>
-                        <div className="text-4xl font-black text-gray-900 mb-6">$2 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">per demo</span></div>
+                        <div className="text-4xl font-black text-gray-900 mb-6">$3 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">per demo</span></div>
                         <ul className="space-y-4 mb-8">
                             <li className="flex items-center gap-3 font-medium text-gray-600">
                                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>

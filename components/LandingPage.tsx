@@ -92,7 +92,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
         },
         {
             q: "How much does it cost?",
-            a: "We offer simple credit-based pricing. A single demo costs $2, or you can purchase a pack of 10 demos for $12. No monthly subscriptions or hidden fees."
+            a: "We offer simple credit-based pricing. A single demo costs $3, or you can purchase a pack of 10 demos for $12. No monthly subscriptions or hidden fees."
         },
         {
             q: "Can I update a demo when my product changes?",
@@ -207,7 +207,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             </h1>
                             
                             <p className="text-xl md:text-2xl text-white/90 max-w-lg leading-relaxed mb-14 font-medium tracking-tight opacity-90">
-                                Turn raw screen recordings into polished demos you can use to attract, sell, and onboard users. No editing required. 
+                               Create professional videos and guides for any product in minutes, with just a simple screen recording.
                             </p>
                             
                             <button 
