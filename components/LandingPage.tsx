@@ -9,6 +9,8 @@ interface LandingPageProps {
     showAuthModal?: boolean; 
 }
 
+const INPUT_DEMO_URL = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/8b6f6fb1-3df0-425e-82ef-3d150d06491a.mp4";
+
 const XIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
@@ -39,6 +41,7 @@ const FAQItem = ({ question, answer, isOpen, onClick }: { question: string, answ
 export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+    const [demoMode, setDemoMode] = useState<'input' | 'output'>('output');
 
     const scrollToSection = (id: string) => {
         const element = document.getElementById(id);
@@ -283,9 +286,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </div>
             </section>
 
-            {/* Floating Visual Elements Placeholder Space */}
-            <div className="w-full h-12 md:h-24"></div>
-
             {/* --- SEE EXAMPLE SECTION (FOCUSED SINGLE ITEM) --- */}
             <div id="example" className="w-full bg-gray-50/50 pt-32 pb-40 scroll-mt-24 border-t border-b border-gray-100 relative overflow-hidden">
                 <div className="w-full px-6 md:px-12 lg:px-24 mb-16 flex flex-col items-center text-center">
@@ -293,20 +293,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     <div className="w-24 h-2 bg-green-500 mt-6 rounded-full"></div>
                 </div>
 
-                <div className="w-full max-w-6xl mx-auto px-6 md:px-12">
+                <div className="w-full max-w-5xl mx-auto px-6 md:px-12 flex flex-col items-center">
                      {LANDING_GALLERY_VIDEOS.length > 0 && (
-                        <div className="w-full group cursor-pointer">
-                            <div className="relative aspect-video bg-black rounded-[32px] overflow-hidden shadow-2xl border border-gray-200 group-hover:shadow-green-500/10 transition-all duration-500">
+                        <div className="w-full group cursor-pointer flex flex-col items-center">
+                            <div className="relative aspect-video bg-black rounded-[32px] overflow-hidden shadow-2xl border border-gray-200 group-hover:shadow-green-500/10 transition-all duration-500 w-full">
                                 <video 
-                                    src={LANDING_GALLERY_VIDEOS[0].url} 
+                                    key={demoMode}
+                                    src={demoMode === 'input' ? INPUT_DEMO_URL : LANDING_GALLERY_VIDEOS[0].url} 
                                     className="w-full h-full object-cover"
                                     controls
                                     playsInline
+                                    muted={demoMode === 'input'}
                                     preload="metadata"
                                 />
                             </div>
-                            <div className="mt-8 flex items-center justify-between px-4">
-                                <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">{LANDING_GALLERY_VIDEOS[0].title}</h3>
+                            
+                            <div className="mt-10 flex p-1.5 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                <button 
+                                    onClick={() => setDemoMode('input')}
+                                    className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${demoMode === 'input' ? 'bg-gray-900 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'}`}
+                                >
+                                    Raw Input
+                                </button>
+                                <button 
+                                    onClick={() => setDemoMode('output')}
+                                    className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${demoMode === 'output' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'}`}
+                                >
+                                    Polished Output
+                                </button>
                             </div>
                         </div>
                      )}
