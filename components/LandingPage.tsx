@@ -47,7 +47,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
     // SEO Optimization
     useEffect(() => {
-        document.title = "AI Product Demo Video Generator | Turn Screen Recordings Into SaaS Demos Automatically";
+        document.title = "AI Product Demo Video Maker for SaaS and Mobile Apps";
         
         const setMeta = (name: string, content: string, attr: string = 'name') => {
             let element = document.querySelector(`meta[${attr}="${name}"]`);
@@ -59,7 +59,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             element.setAttribute('content', content);
         };
 
-        const description = "Create professional product demos in minutes. ProductCam turns raw screen recordings into polished, narrated videos with smart zooms and AI voiceovers. No video editing required.";
+        const description = "Create polished product demo videos in minutes with ProductCam. Record your screen and let our AI turn it into a professional walkthrough automatically. No editing required.";
+
         const ogImage = "https://assets.productcam.site/productcam-walkthrough.mp4"; // Using a video thumbnail would be ideal, falling back to a representative asset if static image is preferred. Using gallery video for now or specific OG image.
         const siteUrl = "https://productcam.site";
 

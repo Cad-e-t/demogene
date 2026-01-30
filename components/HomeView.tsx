@@ -360,7 +360,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             <div className="flex-1 max-w-lg flex flex-col gap-4">
                                 <button 
                                     onClick={() => setIsDemoMode(true)}
-                                    className={`flex-1 group relative p-8 bg-gray-900 text-white rounded-[32px] border border-gray-800 shadow-xl overflow-hidden hover:border-green-500/50 transition-all text-left ${(!hasCredits && profile) ? 'min-h-[300px]' : ''}`}
+                                    className={`flex-1 group relative p-8 bg-gray-900 text-white rounded-[32px] border border-gray-800 shadow-xl overflow-hidden hover:border-green-500/50 transition-all text-left ${isZeroCreditsUser ? 'min-h-[300px]' : ''}`}
                                 >
                                     <div className="relative z-10 h-full flex flex-col justify-between">
                                         <div className="space-y-2">
@@ -380,7 +380,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
                                 </button>
 
-                                {profile && hasCredits && (
+                                {profile && !isZeroCreditsUser && (
                                     <div className="p-6 bg-white border border-gray-200 rounded-[32px] flex items-center justify-between shadow-sm">
                                         <div className="flex flex-col">
                                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Available Credits</span>
