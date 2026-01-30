@@ -294,7 +294,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <div className="space-y-4">
                             <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">Create New Demo</h1>
                             <p className="text-xl text-gray-500 font-medium max-w-xl mx-auto leading-relaxed">
-                                Upload a screen recording to turn it into a polished narrated demo. Best results with recordings under 3 minutes.
+                                Upload a screen recording to turn it into a polished narrated demo automatically.
                             </p>
                         </div>
 
