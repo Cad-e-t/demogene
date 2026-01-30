@@ -260,7 +260,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             </h1>
                             
                             <p className="text-xl md:text-2xl text-white/90 max-w-lg leading-relaxed mb-14 font-medium tracking-tight opacity-90">
-                               Create professional videos and guides for any product in minutes, with just a simple screen recording.
+                               Create professional videos and guides for any product in minutes, from just a simple screen recording.
                             </p>
                             
                             <button 
