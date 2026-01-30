@@ -47,7 +47,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
     // SEO Optimization
     useEffect(() => {
-        document.title = "AI Product Demo Video Maker for SaaS and Mobile Apps";
+        document.title = "Product Demo Video Maker for SaaS and Mobile Apps - ProductCam";
         
         const setMeta = (name: string, content: string, attr: string = 'name') => {
             let element = document.querySelector(`meta[${attr}="${name}"]`);
