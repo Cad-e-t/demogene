@@ -347,7 +347,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                                         <div className="space-y-1">
                                             <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase">One Final Step</h3>
-                                            <p className="text-sm font-medium text-gray-500">Unlock your studio to start generating demos automatically.</p>
+                                            <p className="text-sm font-medium text-gray-500">Unlock your studio to start generating videos automatically.</p>
                                         </div>
                                         
                                         <div className="mt-2 px-8 py-3 bg-black text-white rounded-xl font-bold text-sm shadow-xl group-hover:bg-green-600 transition-colors">
