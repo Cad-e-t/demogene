@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect } from 'react';
 import { TESTIMONIALS, LANDING_GALLERY_VIDEOS } from '../assets';
 
@@ -42,6 +44,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
     const [demoMode, setDemoMode] = useState<'input' | 'output'>('output');
+
+    // SEO Optimization
+    useEffect(() => {
+        document.title = "ProductCam - AI Product Demo Video Generator | Narrated Walkthroughs";
+        
+        const setMeta = (name: string, content: string, attr: string = 'name') => {
+            let element = document.querySelector(`meta[${attr}="${name}"]`);
+            if (!element) {
+                element = document.createElement('meta');
+                element.setAttribute(attr, name);
+                document.head.appendChild(element);
+            }
+            element.setAttribute('content', content);
+        };
+
+        const description = "Create professional product demos in minutes. ProductCam turns raw screen recordings into polished, narrated videos with smart zooms and AI voiceovers. No video editing required.";
+        const ogImage = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/c0fb92eb-0b17-4853-a576-98b7f899248b.mp4"; // Using a video thumbnail would be ideal, falling back to a representative asset if static image is preferred. Using gallery video for now or specific OG image.
+        const siteUrl = "https://productcam.site";
+
+        setMeta('description', description);
+        setMeta('canonical', siteUrl, 'rel'); // Handling canonical link via helper is tricky if attr is rel, adjusting logic below or just manually adding if needed. Actually canonical is usually a link tag.
+        
+        // Canonical Tag
+        let link = document.querySelector("link[rel='canonical']");
+        if (!link) {
+            link = document.createElement("link");
+            link.setAttribute("rel", "canonical");
+            document.head.appendChild(link);
+        }
+        link.setAttribute("href", siteUrl);
+
+        // Open Graph
+        setMeta('og:title', 'ProductCam - Automated AI Product Demo Generator', 'property');
+        setMeta('og:description', description, 'property');
+        setMeta('og:image', 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80', 'property');
+        setMeta('og:url', siteUrl, 'property');
+        setMeta('og:type', 'website', 'property');
+
+        // Twitter
+        setMeta('twitter:card', 'summary_large_image', 'name');
+        setMeta('twitter:title', 'ProductCam - AI Product Demos', 'name');
+        setMeta('twitter:description', description, 'name');
+        setMeta('twitter:image', 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80', 'name');
+
+    }, []);
 
     const scrollToSection = (id: string) => {
         const element = document.getElementById(id);
@@ -131,7 +178,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             onClick={handleLogin} 
                             className="hidden md:block md:relative md:px-7 md:py-2.5 md:bg-green-600 md:text-white md:text-xs md:font-black md:rounded-full md:hover:bg-green-500 md:transition-all md:duration-300 md:border md:border-green-500/10 md:uppercase md:tracking-widest md:shadow-[0_10px_20px_-5px_rgba(34,197,94,0.4)] md:hover:shadow-[0_15px_30px_-5px_rgba(34,197,94,0.6)] md:hover:-translate-y-0.5"
                         >
-                            Sign up for free
+                            Sign up free
                         </button>
                         
                         {/* Mobile Menu Icon */}
@@ -151,12 +198,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 {/* Mobile Dropdown */}
                 {isMenuOpen && (
                     <div className="absolute top-20 left-0 right-0 bg-white border-b border-gray-100 shadow-2xl flex flex-col p-6 gap-4 animate-fade-in md:hidden">
-                        <button 
-                            onClick={() => scrollToSection('how-it-works')}
+                        <a 
+                            href="#how-it-works"
+                            onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }}
                             className="w-full text-left px-4 py-4 rounded-lg text-lg font-black text-gray-500 hover:bg-gray-50 uppercase tracking-widest"
                         >
                             How it Works
-                        </button>
+                        </a>
                         <a 
                             href="#/blog"
                             className="w-full text-left px-4 py-4 rounded-lg text-lg font-black text-gray-500 hover:bg-gray-50 uppercase tracking-widest"
@@ -179,12 +227,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     
                     {/* Hero-Embedded Navigation Row (Left Aligned) */}
                     <div className="w-full hidden md:flex justify-start items-center gap-12 mb-24 opacity-80">
-                        <button 
-                            onClick={() => scrollToSection('how-it-works')} 
+                        <a 
+                            href="#how-it-works"
+                            onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} 
                             className="text-xs font-black text-white/70 hover:text-white transition-colors uppercase tracking-[0.2em]"
                         >
                             How it Works
-                        </button>
+                        </a>
                         <a 
                             href="#/blog" 
                             className="text-xs font-black text-white/70 hover:text-white transition-colors uppercase tracking-[0.2em]"
@@ -206,7 +255,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 }}
                                 className="mb-10 drop-shadow-sm"
                             >
-                                Product walkthroughs in seconds with AI
+                                Product walkthroughs in minutes with AI
                             </h1>
                             
                             <p className="text-xl md:text-2xl text-white/90 max-w-lg leading-relaxed mb-14 font-medium tracking-tight opacity-90">
@@ -231,8 +280,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <div className="w-full md:w-1/2 relative px-4 md:px-0">
                             <div className="relative aspect-video group transition-transform duration-700 hover:rotate-1">
                                 <img 
-                                 src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=2426&q=80" 
-                                 alt="Product Screenshot" 
+                                 src="https://assets.productcam.site/photo/laptop-showing-product-demo.avif" 
+                                 alt="Product Demo on Screen" 
                                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-tr from-sky-900/10 via-transparent to-transparent pointer-events-none"></div>
@@ -522,6 +571,54 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     </div>
                 </div>
             </section>
+
+            {/* --- NEW FINAL CTA SECTION --- */}
+            <div className="w-full px-6 md:px-12 py-20 bg-white">
+                <div className="relative w-full max-w-[1700px] mx-auto h-[600px] rounded-[48px] overflow-hidden flex items-center shadow-2xl">
+                     {/* Background Image */}
+                     <div className="absolute inset-0 z-0">
+                         <img 
+                            src="https://assets.productcam.site/photo/laptop-image.jpg" 
+                            alt="Classic saas Laptop image" 
+                            className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-[2s]"
+                         />
+                         <div className="absolute inset-0 bg-black/60"></div>
+                     </div>
+
+                     {/* Content using Hero Layout Structure */}
+                     <div className="relative z-10 w-full px-6 md:px-12">
+                         <div className="w-full md:w-1/2 flex flex-col items-start text-left md:pl-16 lg:pl-24">
+                             <h2 
+                                style={{ 
+                                    fontFamily: "'Poppins', sans-serif", 
+                                    fontWeight: 700,
+                                    letterSpacing: '-0.04em'
+                                }}
+                                className="text-4xl md:text-6xl text-white mb-8 drop-shadow-sm leading-tight"
+                             >
+                                Start Making Beautiful Product Videos
+                             </h2>
+                             
+                             <p className="text-xl md:text-2xl text-white/90 max-w-lg leading-relaxed mb-12 font-medium tracking-tight opacity-90">
+                                Record your screen. ProductCam turns it into a polished walkthrough automatically.
+                             </p>
+                             
+                             <button 
+                                 onClick={handleLogin} 
+                                 className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] active:scale-95 transition-all duration-500"
+                             >
+                                 <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
+                                 <div className="relative flex items-center justify-center gap-5 px-14 py-6 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
+                                     <span className="font-black text-2xl uppercase tracking-tighter">Begin Now</span>
+                                     <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" />
+                                     </svg>
+                                 </div>
+                             </button>
+                         </div>
+                     </div>
+                </div>
+            </div>
 
             {/* --- CRAWLABLE FOOTER NAVIGATION --- */}
             <footer className="w-full border-t border-gray-100 bg-white py-20 px-6 md:px-12 lg:px-24">

@@ -7,12 +7,6 @@ export const EXAMPLE_VIDEOS = [
     url: 'https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/0256a531-71d7-4e15-9a90-5cff59177b24.mp4',
     category: 'Onboarding Demo'
   },
-  {
-    id: 'ex-2',
-    title: 'Product Launch',
-    url: 'https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/7b5529b3-dcfb-459c-9697-8e49444cbd7a.mp4',
-    category: 'Public sharing'
-  },
     {
     id: 'ex-3',
     title: 'Product Launch V2',
