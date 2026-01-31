@@ -1,4 +1,3 @@
-
 import { AnalysisResult, CropData, ProcessingStatus, TrimData, TimeRange, VideoProject } from './types';
 import { supabase } from './supabaseClient';
 
@@ -35,7 +34,9 @@ export async function processVideoRequest(
   scriptRules?: string,
   stylePrompt?: string,
   disableZoom?: boolean,
-  onIdAssigned?: (newId: string) => void
+  onIdAssigned?: (newId: string) => void,
+  videoType?: 'demo' | 'tutorial',
+  tutorialGoal?: string
 ): Promise<{ videoId: string, videoUrl: string; analysis: AnalysisResult }> {
   
   const payload = {
@@ -50,7 +51,9 @@ export async function processVideoRequest(
       appName: appName || undefined,
       appDescription: appDescription || undefined,
       scriptRules: scriptRules || undefined,
-      stylePrompt: stylePrompt || undefined
+      stylePrompt: stylePrompt || undefined,
+      videoType: videoType || 'demo',
+      tutorialGoal: tutorialGoal || undefined
   };
 
   onStatusUpdate('analyzing');

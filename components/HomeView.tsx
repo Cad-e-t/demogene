@@ -34,6 +34,20 @@ interface HomeViewProps {
     setAppName: (s: string) => void;
     appDescription: string;
     setAppDescription: (s: string) => void;
+    videoType: 'demo' | 'tutorial' | null;
+    setVideoType: (t: 'demo' | 'tutorial' | null) => void;
+    tutorialGoal: string;
+    setTutorialGoal: (s: string) => void;
+    
+    // Lifted props
+    activeVideo: VideoProject | null;
+    setActiveVideo: (v: VideoProject | null) => void;
+    segments: TimeRange[] | null;
+    setSegments: (s: TimeRange[] | null) => void;
+    background: BackgroundOption;
+    setBackground: (b: BackgroundOption) => void;
+    addZooms: boolean;
+    setAddZooms: (z: boolean) => void;
     
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onClearFile: () => void;
@@ -58,6 +72,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
     voice, setVoice, 
     appName, setAppName,
     appDescription, setAppDescription,
+    videoType, setVideoType,
+    tutorialGoal, setTutorialGoal,
+    
+    activeVideo, setActiveVideo,
+    segments, setSegments,
+    background, setBackground,
+    addZooms, setAddZooms,
+
     onFileChange, onClearFile, onGenerate, onPurchase,
     showAuthModal, handleLogin,
     showSuccessNotification, setShowSuccessNotification,
@@ -67,7 +89,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
     
     // New State for Upload First Workflow
-    const [activeVideo, setActiveVideo] = useState<VideoProject | null>(null);
     const [showAssetLibrary, setShowAssetLibrary] = useState(false);
 
     // Background Upload State
@@ -81,10 +102,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     // Config Panel Navigation
     const [activeSelection, setActiveSelection] = useState<'main' | 'voice' | 'background'>('main');
     
-    const [background, setBackground] = useState<BackgroundOption>(backgroundOptions[0] || BACKGROUNDS[0]);
-    const [addZooms, setAddZooms] = useState(true);
     const [showAdvancedEditor, setShowAdvancedEditor] = useState(false);
-    const [segments, setSegments] = useState<TimeRange[] | null>(null);
     
     const [isDemoMode, setIsDemoMode] = useState(false);
     const [demoResultVideo, setDemoResultVideo] = useState<string | null>(null);
@@ -108,7 +126,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         : duration;
 
     const isDurationValid = effectiveDuration <= 300; 
-    const isConfigComplete = background.id !== undefined && voice.id !== undefined && appName.trim() && appDescription.trim();
+    const isConfigComplete = videoType && background.id !== undefined && voice.id !== undefined && appName.trim() && appDescription.trim();
     const outOfCredits = profile && profile.credits < 1;
     const hasCredits = profile && profile.credits > 0;
 
@@ -500,7 +518,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               >
                                   {/* Upload Progress Overlay */}
                                   {isUploading && (
-                                    <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                                    <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center">
                                         <div className="relative w-24 h-24 flex items-center justify-center mb-4">
                                              <svg className="w-full h-full text-gray-700 animate-spin" viewBox="0 0 100 100">
                                                  <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" />
@@ -510,20 +528,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                              </svg>
                                              <span className="absolute text-xl font-black text-white">{uploadProgress}%</span>
                                         </div>
-                                        <div className="bg-gray-900 px-4 py-2 rounded-xl shadow-sm border border-gray-700 text-sm font-bold text-white animate-pulse">
-                                            Uploading Video...
-                                        </div>
                                     </div>
                                   )}
                                   
-                                  <VideoCropper 
-                                     videoUrl={activeVideo.input_video_url}
-                                     onCropChange={setCrop}
-                                     onTrimChange={setTrim}
-                                     onAdvancedEdit={() => setShowAdvancedEditor(true)}
-                                     hideTimeline={true}
-                                     segments={segments || undefined}
-                                  />
+                                  {!isUploading ? (
+                                      <VideoCropper 
+                                         videoUrl={activeVideo.input_video_url}
+                                         onCropChange={setCrop}
+                                         onTrimChange={setTrim}
+                                         onAdvancedEdit={() => setShowAdvancedEditor(true)}
+                                         hideTimeline={true}
+                                         segments={segments || undefined}
+                                      />
+                                  ) : (
+                                      <div className="w-full h-full flex items-center justify-center p-8 md:p-12">
+                                          <video 
+                                              src={activeVideo.input_video_url} 
+                                              className="max-w-full max-h-full object-contain shadow-2xl"
+                                          />
+                                      </div>
+                                  )}
                               </div>
                               <div className="w-full flex justify-center py-6 shrink-0">
                                   <button onClick={() => setShowAdvancedEditor(true)} disabled={isUploading} className="flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white rounded-full font-bold text-sm transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -537,94 +561,143 @@ export const HomeView: React.FC<HomeViewProps> = ({
              </div>
 
              <div className={`w-full md:w-80 md:border-l border-gray-200 bg-white flex flex-col z-10 flex-shrink-0 pb-20 md:pb-0 ${mobileTab === 'preview' ? 'hidden md:flex' : 'flex h-full'}`}>
-                 <div className="h-14 border-b border-gray-200 flex items-center px-6 flex-shrink-0 bg-gray-50/50 justify-between">
-                     <button 
-                        onClick={() => setActiveSelection('main')}
-                        className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${activeSelection === 'main' ? 'text-gray-500' : 'text-green-600 hover:text-green-700'}`}
-                     >
-                        {activeSelection !== 'main' && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>}
-                        {activeSelection === 'main' ? 'Configuration' : activeSelection === 'voice' ? 'Choose Voice' : 'Choose Background'}
-                     </button>
-                     {profile && (
-                        <span className="text-[10px] font-black text-green-600 bg-green-50 px-2 py-1 rounded border border-green-100 whitespace-nowrap">
-                            {profile.credits} Demo{profile.credits !== 1 ? 's' : ''} left
-                        </span>
-                     )}
-                 </div>
-
                  <div className="flex-1 overflow-y-auto relative">
                      {activeSelection === 'main' && (
                         <div className="p-6 space-y-6">
-                            {/* Dashboard Columnar Layout */}
-                            <div className="grid grid-cols-1 gap-4">
-                                <button 
-                                    onClick={() => setActiveSelection('voice')}
-                                    className="w-full flex flex-col items-start p-4 border rounded-xl hover:border-green-500 transition-all bg-white shadow-sm group"
-                                >
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Select Voice</span>
-                                    <span className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                        {voice.name}
-                                        <svg className="w-4 h-4 text-gray-300 group-hover:text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                    </span>
-                                </button>
+                            
+                            {!videoType ? (
+                                <div className="space-y-6 animate-fade-in">
+                                    <h3 className="text-xl font-bold text-gray-900 uppercase tracking-tighter">What do you want to create?</h3>
+                                    <div className="flex flex-col gap-4">
+                                        <button 
+                                            onClick={() => setVideoType('demo')} 
+                                            className="group text-left p-6 border-2 border-gray-100 rounded-2xl hover:border-green-500 hover:bg-green-50/10 transition-all bg-white relative shadow-sm hover:shadow-xl"
+                                        >
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-lg font-bold text-gray-900 uppercase tracking-tighter group-hover:text-green-700 transition-colors">Product Demo</span>
+                                                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-green-500 group-hover:text-white transition-colors">
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                                                </div>
+                                            </div>
+                                            <span className="text-sm font-medium text-gray-500 block leading-relaxed pr-8">Showcase your app’s value and how it works</span>
+                                        </button>
 
-                                <button 
-                                    onClick={() => setActiveSelection('background')}
-                                    className="w-full flex flex-col items-start p-4 border rounded-xl hover:border-green-500 transition-all bg-white shadow-sm group"
-                                >
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Choose Background</span>
-                                    <div className="w-full flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            {background.thumbnail ? (
-                                                <img src={background.thumbnail} className="w-6 h-6 rounded border border-gray-100 object-cover" />
-                                            ) : (
-                                                <div className="w-6 h-6 rounded border border-gray-100 bg-gray-50 flex items-center justify-center text-[8px] font-bold text-gray-400">Ø</div>
-                                            )}
-                                            <span className="text-sm font-bold text-gray-900">{background.name}</span>
+                                        <button 
+                                            onClick={() => setVideoType('tutorial')} 
+                                            className="group text-left p-6 border-2 border-gray-100 rounded-2xl hover:border-green-500 hover:bg-green-50/10 transition-all bg-white relative shadow-sm hover:shadow-xl"
+                                        >
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-lg font-bold text-gray-900 uppercase tracking-tighter group-hover:text-green-700 transition-colors">Tutorial Video</span>
+                                                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-green-500 group-hover:text-white transition-colors">
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                                                </div>
+                                            </div>
+                                            <span className="text-sm font-medium text-gray-500 block leading-relaxed pr-8">Teach users how to use a particular feature or complete a task</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-6 animate-fade-in">
+                                    <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                                         <button 
+                                            onClick={() => setVideoType(null)}
+                                            className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors"
+                                         >
+                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                             Back
+                                         </button>
+                                         <span className="text-xs font-black uppercase tracking-widest text-gray-600 px-3 py-1 rounded-full">
+                                            {videoType === 'demo' ? 'Product Demo' : 'Tutorial Video'}
+                                         </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button 
+                                            onClick={() => setActiveSelection('voice')}
+                                            className="flex flex-col items-start p-3 border rounded-xl hover:border-green-500 transition-all bg-white shadow-sm group text-left h-full"
+                                        >
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Voice</span>
+                                            <div className="flex items-center gap-2 mt-auto">
+                                                <span className="text-sm font-bold text-gray-900 truncate">{voice.name}</span>
+                                                <svg className="w-3 h-3 text-gray-300 group-hover:text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                            </div>
+                                        </button>
+
+                                        <button 
+                                            onClick={() => setActiveSelection('background')}
+                                            className="flex flex-col items-start p-3 border rounded-xl hover:border-green-500 transition-all bg-white shadow-sm group text-left h-full"
+                                        >
+                                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Background</span>
+                                             <div className="flex items-center gap-2 mt-auto w-full">
+                                                {background.thumbnail ? (
+                                                    <img src={background.thumbnail} className="w-5 h-5 rounded border border-gray-100 object-cover shrink-0" />
+                                                ) : (
+                                                    <div className="w-5 h-5 rounded border border-gray-100 bg-gray-50 flex items-center justify-center text-[8px] font-bold text-gray-400 shrink-0">Ø</div>
+                                                )}
+                                                <span className="text-sm font-bold text-gray-900 truncate flex-1">{background.name}</span>
+                                                <svg className="w-3 h-3 text-gray-300 group-hover:text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                            </div>
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-3 border rounded-xl bg-white shadow-sm">
+                                        <span className="text-sm font-bold text-gray-900">Smart Zooms</span>
+                                        <button 
+                                            onClick={() => setAddZooms(!addZooms)}
+                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${addZooms ? 'bg-green-600' : 'bg-gray-200'}`}
+                                        >
+                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${addZooms ? 'translate-x-5' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">App Name</label>
+                                            <input 
+                                                type="text"
+                                                className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-green-500 p-3 text-sm text-gray-900 rounded-xl font-bold transition-all outline-none"
+                                                placeholder="e.g. TrustMRR"
+                                                value={appName}
+                                                onChange={(e) => setAppName(e.target.value)}
+                                            />
                                         </div>
-                                        <svg className="w-4 h-4 text-gray-300 group-hover:text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+
+                                        <div className="flex flex-col gap-1.5">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">App Description</label>
+                                            <textarea 
+                                                className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-green-500 p-3 text-sm text-gray-900 rounded-xl font-medium min-h-[100px] resize-none transition-all outline-none"
+                                                placeholder="What does your app do?"
+                                                value={appDescription}
+                                                onChange={(e) => setAppDescription(e.target.value)}
+                                            />
+                                        </div>
+
+                                        {videoType === 'tutorial' && (
+                                            <div className="flex flex-col gap-1.5 animate-fade-in">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Tutorial Goal</label>
+                                                <textarea 
+                                                    className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-green-500 p-3 text-sm text-gray-900 rounded-xl font-bold transition-all outline-none min-h-[100px] resize-none"
+                                                    placeholder="Show how to create product tutorials with ProductCam"
+                                                    value={tutorialGoal}
+                                                    onChange={(e) => setTutorialGoal(e.target.value)}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
-                                </button>
-
-                                <div className="flex items-center justify-between p-4 border rounded-xl bg-white shadow-sm">
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-bold text-gray-900">Add Zooms</span>
-                                        <span className="text-[10px] font-medium text-gray-400">Not recommended for mobile screen</span>
-                                    </div>
-                                    <button 
-                                        onClick={() => setAddZooms(!addZooms)}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${addZooms ? 'bg-green-600' : 'bg-gray-200'}`}
-                                    >
-                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${addZooms ? 'translate-x-6' : 'translate-x-1'}`} />
-                                    </button>
                                 </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">App Name</span>
-                                    <input 
-                                        type="text"
-                                        className="w-full bg-white border border-gray-200 p-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none rounded-xl font-bold shadow-sm"
-                                        placeholder="e.g. TrustMRR"
-                                        value={appName}
-                                        onChange={(e) => setAppName(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">App Description</span>
-                                    <textarea 
-                                        className="w-full bg-white border border-gray-200 p-3 text-sm text-gray-900 focus:border-green-500 focus:outline-none rounded-xl font-medium shadow-sm min-h-[120px] resize-none"
-                                        placeholder="What does your app do?"
-                                        value={appDescription}
-                                        onChange={(e) => setAppDescription(e.target.value)}
-                                    />
-                                </div>
-                            </div>
+                            )}
                         </div>
                      )}
 
                      {activeSelection === 'voice' && (
                          <div className="p-4 space-y-2 animate-fade-in">
+                             <button 
+                                onClick={() => setActiveSelection('main')}
+                                className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-900 uppercase tracking-widest mb-4 px-1"
+                             >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                Back
+                             </button>
                              {VOICES.map(v => (
                                  <button
                                     key={v.id}
@@ -643,23 +716,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
                      )}
 
                      {activeSelection === 'background' && (
-                         <div className="p-4 grid grid-cols-2 gap-3 animate-fade-in">
-                             {backgroundOptions.map(bg => (
-                                 <button
-                                    key={bg.id}
-                                    onClick={() => { setBackground(bg); setActiveSelection('main'); }}
-                                    className={`flex flex-col gap-2 p-2 border rounded-xl transition-all ${background.id === bg.id ? 'bg-green-50 border-green-500' : 'bg-white border-gray-100 hover:border-gray-200'}`}
-                                 >
-                                     {bg.thumbnail ? (
-                                         <img src={bg.thumbnail} className="w-full aspect-video object-cover rounded-lg shadow-inner" />
-                                     ) : (
-                                         <div className="w-full aspect-video rounded-lg shadow-inner bg-gray-50 flex items-center justify-center border border-gray-100 text-gray-400 text-[10px] font-bold">
-                                             NONE
-                                         </div>
-                                     )}
-                                     <span className="text-[10px] font-bold text-gray-900 truncate px-1">{bg.name}</span>
-                                 </button>
-                             ))}
+                         <div className="p-4 space-y-4 animate-fade-in">
+                             <button 
+                                onClick={() => setActiveSelection('main')}
+                                className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-900 uppercase tracking-widest mb-4 px-1"
+                             >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                Back
+                             </button>
+                             <div className="grid grid-cols-2 gap-3">
+                                {backgroundOptions.map(bg => (
+                                    <button
+                                        key={bg.id}
+                                        onClick={() => { setBackground(bg); setActiveSelection('main'); }}
+                                        className={`flex flex-col gap-2 p-2 border rounded-xl transition-all ${background.id === bg.id ? 'bg-green-50 border-green-500' : 'bg-white border-gray-100 hover:border-gray-200'}`}
+                                    >
+                                        {bg.thumbnail ? (
+                                            <img src={bg.thumbnail} className="w-full aspect-video object-cover rounded-lg shadow-inner" />
+                                        ) : (
+                                            <div className="w-full aspect-video rounded-lg shadow-inner bg-gray-50 flex items-center justify-center border border-gray-100 text-gray-400 text-[10px] font-bold">
+                                                NONE
+                                            </div>
+                                        )}
+                                        <span className="text-[10px] font-bold text-gray-900 truncate px-1">{bg.name}</span>
+                                    </button>
+                                ))}
+                             </div>
                          </div>
                      )}
                  </div>
@@ -687,7 +769,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             onClick={() => window.location.hash = '#/pricing'} 
                             className="block w-full mt-4 text-center text-xs font-bold text-gray-500 hover:text-green-600"
                         >
-                            Get credits
+                            {profile.credits} Credits Available - Get more
                         </button>
                     )}
                  </div>

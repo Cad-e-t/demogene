@@ -153,11 +153,14 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
         if (!dodo) throw new Error("Dodo client not initialized");
 
         // Logic to determine credits based on productId
-        let credits = 10; // default
-        if (productId === "pdt_0NVMGufalf98j4GMNZu1g") {
-            credits = 1;
-        } else if (productId === "pdt_2LwDVRweVv9iX22U5RDSW") {
+        let credits = 10; // default for Basic
+        
+        if (productId === "pdt_0NXR7yFQlGXuk4YfAk8WY") {
             credits = 10;
+        } else if (productId === "pdt_0NXR7opzKCuqk7OCHV44O") {
+            credits = 30;
+        } else if (productId === "pdt_0NXR7hQfq3toyw4xmfZ9t") {
+            credits = 100;
         }
 
         const { data: profile } = await supabase

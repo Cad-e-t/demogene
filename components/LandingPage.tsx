@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect } from 'react';
 import { TESTIMONIALS, LANDING_GALLERY_VIDEOS } from '../assets';
 
@@ -143,7 +140,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
         },
         {
             q: "How much does it cost?",
-            a: "We offer simple credit-based pricing. A single demo costs $3, or you can purchase a pack of 10 demos for $12. No monthly subscriptions or hidden fees."
+            a: "We offer simple credit-based pricing starting at $15 for 10 demos. No monthly subscriptions or hidden fees."
         },
         {
             q: "Can I update a demo when my product changes?",
@@ -207,6 +204,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             How it Works
                         </a>
                         <a 
+                            href="#pricing"
+                            onClick={(e) => { e.preventDefault(); scrollToSection('pricing'); }}
+                            className="w-full text-left px-4 py-4 rounded-lg text-lg font-black text-gray-500 hover:bg-gray-50 uppercase tracking-widest"
+                        >
+                            Pricing
+                        </a>
+                        <a 
                             href="#/blog"
                             className="w-full text-left px-4 py-4 rounded-lg text-lg font-black text-gray-500 hover:bg-gray-50 uppercase tracking-widest"
                         >
@@ -236,6 +240,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             How it Works
                         </a>
                         <a 
+                            href="#pricing"
+                            onClick={(e) => { e.preventDefault(); scrollToSection('pricing'); }} 
+                            className="text-xs font-black text-white/70 hover:text-white transition-colors uppercase tracking-[0.2em]"
+                        >
+                            Pricing
+                        </a>
+                        <a 
                             href="#/blog" 
                             className="text-xs font-black text-white/70 hover:text-white transition-colors uppercase tracking-[0.2em]"
                         >
@@ -256,11 +267,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 }}
                                 className="mb-10 drop-shadow-sm"
                             >
-                                Product walkthroughs in minutes with AI
+                                App demos and  <br /> <span className="whitespace-nowrap">tutorials in minutes</span>
                             </h1>
                             
                             <p className="text-xl md:text-2xl text-white/90 max-w-lg leading-relaxed mb-14 font-medium tracking-tight opacity-90">
-                               Create professional videos and guides for any product in minutes, from just a simple screen recording.
+                              Record your screen. We turn it into a <br/> narrated walkthrough automatically
                             </p>
                             
                             <button 
@@ -269,7 +280,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             >
                                 <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
                                 <div className="relative flex items-center justify-center gap-5 px-14 py-6 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
-                                    <span className="font-black text-2xl uppercase tracking-tighter">Continue</span>
+                                    <span className="font-black text-2xl uppercase tracking-tighter">Get Started For Free</span>
                                     <svg className="w-7 h-7 animate-bounce-x" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" />
                                     </svg>
@@ -339,7 +350,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             {/* --- SEE EXAMPLE SECTION (FOCUSED SINGLE ITEM) --- */}
             <div id="example" className="w-full bg-gray-50/50 pt-32 pb-40 scroll-mt-24 border-t border-b border-gray-100 relative overflow-hidden">
                 <div className="w-full px-6 md:px-12 lg:px-24 mb-16 flex flex-col items-center text-center">
-                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">See Example</h2>
+                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">See Example From Users</h2>
                     <div className="w-24 h-2 bg-green-500 mt-6 rounded-full"></div>
                 </div>
 
@@ -480,25 +491,138 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </div>
             </section>
 
-            {/* --- Final CTA --- */}
-            <div className="w-full bg-white py-60 flex flex-col items-center justify-center border-t border-gray-100 px-6 relative overflow-hidden">
+            {/* --- Final CTA / Pricing --- */}
+            <div id="pricing" className="w-full bg-white py-32 flex flex-col items-center justify-center border-t border-gray-100 px-6 relative overflow-hidden scroll-mt-24">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-green-500/[0.05] rounded-full blur-[160px] pointer-events-none animate-pulse"></div>
-                <h2 className="text-5xl md:text-8xl font-black text-gray-900 mb-16 tracking-tighter text-center uppercase relative z-10 leading-none">
+                
+                <h2 className="text-4xl md:text-7xl font-black text-gray-900 mb-16 tracking-tighter text-center uppercase relative z-10 leading-none">
                     Ready to Create <br /> Your First Demo?
                 </h2>
                 
-                <button 
-                    onClick={handleLogin}
-                    className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.1] active:scale-95 transition-all duration-300 relative z-10"
-                >
-                    <div className="absolute -inset-4 bg-gradient-to-r from-green-400 to-emerald-600 rounded-3xl blur-3xl opacity-40 group-hover:opacity-80 transition duration-500"></div>
-                    <div className="relative flex items-center justify-center gap-6 px-16 py-8 bg-green-600 text-white rounded-3xl hover:bg-green-500 transition shadow-2xl border border-green-400/20">
-                        <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        <span className="font-black text-3xl uppercase tracking-tighter">Try It Now</span>
+                <div className="relative z-10 w-full max-w-7xl grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+                
+                    {/* BASIC PLAN */}
+                    <div className="bg-white border-2 border-gray-200 rounded-[40px] p-8 shadow-sm flex flex-col items-center text-center relative group hover:border-gray-300 transition-colors">
+                        
+                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mt-4 mb-2">Basic</h2>
+                        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">For solo founders</p>
+                        
+                        <div className="flex items-baseline gap-1 mb-8">
+                            <span className="text-5xl font-black text-gray-900">$15</span>
+                            <span className="text-base text-gray-400 font-bold uppercase tracking-widest">/Pack</span>
+                        </div>
+
+                        <div className="w-full space-y-4 mb-10 text-left">
+                            {[
+                                { text: "10 Demo Credits", bold: "Starter pack" },
+                                { text: "Full walkthrough demos", bold: "Complete" },
+                                { text: "Watermark-free export", bold: "Clean" },
+                                { text: "AI-Narrated voiceovers", bold: "Standard" },
+                                { text: "Smart zooms & pacing", bold: "Auto" },
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-center gap-3">
+                                    <div className="w-5 h-5 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center shrink-0">
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
+                                    </div>
+                                    <p className="text-sm text-gray-600 font-medium">
+                                        <span className="text-gray-900 font-bold">{item.bold}</span> - {item.text}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button 
+                            onClick={handleLogin}
+                            className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-lg hover:bg-black transition-all transform active:scale-[0.98] uppercase tracking-tighter mt-auto"
+                        >
+                            Sign in to get
+                        </button>
                     </div>
-                </button>
+
+                    {/* PREMIUM PLAN - FEATURED */}
+                    <div className="bg-white border-[3px] border-green-600 rounded-[40px] p-8 shadow-2xl shadow-green-500/10 flex flex-col items-center text-center relative overflow-hidden group scale-105 z-10">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-500"></div>
+                        
+                        <div className="absolute top-6 left-1/2 -translate-x-1/2">
+                            <span className="px-4 py-1.5 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-green-600/20">
+                                Most Popular
+                            </span>
+                        </div>
+                        
+                        <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter mt-8 mb-2">Premium</h2>
+                        <p className="text-sm font-bold text-green-600 uppercase tracking-widest mb-6">For launches & growth</p>
+                        
+                        <div className="flex items-baseline gap-1 mb-8">
+                            <span className="text-6xl font-black text-gray-900">$29</span>
+                            <span className="text-xl text-gray-400 font-bold uppercase tracking-widest">/Pack</span>
+                        </div>
+
+                        <div className="w-full space-y-4 mb-10 text-left">
+                            {[
+                                { text: "30 Demo Credits", bold: "Growth pack" },
+                                { text: "Everything in Basic", bold: "Inclusive" },
+                                { text: "Best value per demo", bold: "Economical" },
+                                { text: "Priority Processing", bold: "Fast" },
+                                { text: "Lifetime Access", bold: "Forever" },
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-center gap-3">
+                                    <div className="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0">
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
+                                    </div>
+                                    <p className="text-sm text-gray-700 font-medium">
+                                        <span className="text-gray-900 font-bold">{item.bold}</span> - {item.text}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button 
+                            onClick={handleLogin}
+                            className="w-full py-5 bg-green-600 text-white rounded-2xl font-black text-xl hover:bg-green-700 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 transform active:scale-[0.98] uppercase tracking-tighter mt-auto"
+                        >
+                            Sign in to get
+                        </button>
+                    </div>
+
+                    {/* PRO PLAN */}
+                    <div className="bg-white border-2 border-gray-200 rounded-[40px] p-8 shadow-sm flex flex-col items-center text-center relative group hover:border-gray-300 transition-colors">
+                        
+                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mt-4 mb-2">Pro</h2>
+                        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">For teams & heavy usage</p>
+                        
+                        <div className="flex items-baseline gap-1 mb-8">
+                            <span className="text-5xl font-black text-gray-900">$60</span>
+                            <span className="text-base text-gray-400 font-bold uppercase tracking-widest">/Pack</span>
+                        </div>
+
+                        <div className="w-full space-y-4 mb-10 text-left">
+                            {[
+                                { text: "100 Demo Credits", bold: "Power pack" },
+                                { text: "Everything in Premium", bold: "Inclusive" },
+                                { text: "Early feature access", bold: "Beta" },
+                                { text: "Direct Founder Support", bold: "VIP" },
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-center gap-3">
+                                    <div className="w-5 h-5 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center shrink-0">
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
+                                    </div>
+                                    <p className="text-sm text-gray-600 font-medium">
+                                        <span className="text-gray-900 font-bold">{item.bold}</span> - {item.text}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button 
+                            onClick={handleLogin}
+                            className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-lg hover:bg-black transition-all transform active:scale-[0.98] uppercase tracking-tighter mt-auto"
+                        >
+                            Sign in to get
+                        </button>
+                    </div>
+
+                </div>
+
             </div>
 
             {/* --- WHY I BUILT PRODUCTCAM --- */}
@@ -540,10 +664,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             </div>
                         </div>
                         <div className="w-full md:w-2/3">
-                            <h3 className="text-4xl md:text-5xl font-black text-gray-900 mb-10 tracking-tighter uppercase"> I built ProductCam because selling my SaaS was harder than building it</h3>
+                            <h3 className="text-4xl md:text-5xl font-black text-gray-900 mb-10 tracking-tighter uppercase"> I built ProductCam because selling my app was harder than building it</h3>
                             <div className="space-y-6">
                                 <p className="text-xl text-gray-500 font-medium leading-relaxed">
-                                    ProductCam creates narrated demos that show the value of your app quickly so users understand your product and want to try it. Use this for landing pages, onboarding, launches, social posts, & investor decks. {'Showing > Telling'}
+                                    ProductCam shows the value of your app quickly so users understand your product and want to try it. Use this for landing pages, onboarding, launches, social posts, & investor decks. {'Showing > Telling'}
                                 </p>
                             </div>
                         </div>
@@ -610,7 +734,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                              >
                                  <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
                                  <div className="relative flex items-center justify-center gap-5 px-14 py-6 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
-                                     <span className="font-black text-2xl uppercase tracking-tighter">Begin Now</span>
+                                     <span className="font-black text-2xl uppercase tracking-tighter">Get Started</span>
                                      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" />
                                      </svg>

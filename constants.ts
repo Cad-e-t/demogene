@@ -1,13 +1,6 @@
 
-import { VoiceOption, BackgroundOption } from "./types";
-
-export const VOICES: VoiceOption[] = [
-  { id: "Puck", name: "Puck (Male)", gender: "Male" },
-  { id: "Charon", name: "Charon (Male)", gender: "Male" },
-  { id: "Kore", name: "Kore (Female)", gender: "Female" },
-  { id: "Fenrir", name: "Fenrir (Male)", gender: "Male" },
-  { id: "Zephyr", name: "Zephyr (Female)", gender: "Female" },
-];
+import { BackgroundOption } from "./types";
+export { VOICES } from "./voiceConfig";
 
 export const BACKGROUNDS: BackgroundOption[] = [
   { 

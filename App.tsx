@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import type { Session } from '@supabase/supabase-js';
@@ -99,6 +100,16 @@ export default function App() {
   const [appDescription, setAppDescription] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [backgroundOptions, setBackgroundOptions] = useState<BackgroundOption[]>(BACKGROUNDS);
+
+  // Editor State Lifted for Persistence
+  const [activeVideo, setActiveVideo] = useState<VideoProject | null>(null);
+  const [segments, setSegments] = useState<TimeRange[] | null>(null);
+  const [background, setBackground] = useState<BackgroundOption>(BACKGROUNDS[0]);
+  const [addZooms, setAddZooms] = useState(true);
+
+  // New Video Type State
+  const [videoType, setVideoType] = useState<'demo' | 'tutorial' | null>(null);
+  const [tutorialGoal, setTutorialGoal] = useState<string>("");
   
   // Gallery State
   const [videos, setVideos] = useState<VideoProject[]>([]);
@@ -286,6 +297,8 @@ export default function App() {
       setTrim({ start: 0, end: 0 });
       setAppName("");
       setAppDescription("");
+      setVideoType(null);
+      setTutorialGoal("");
       
       if (!session) setIsForcedAuth(true);
     }
@@ -300,6 +313,8 @@ export default function App() {
     setTrim({ start: 0, end: 0 });
     setAppName("");
     setAppDescription("");
+    setVideoType(null);
+    setTutorialGoal("");
     setIsForcedAuth(false);
   };
 
@@ -316,6 +331,10 @@ export default function App() {
       }
       if (voice.id !== 'voiceless' && (!appDescription.trim() || !appName.trim())) {
           setErrorMessage("Please provide the app name and a short description so the AI can write the script.");
+          return;
+      }
+      if (videoType === 'tutorial' && !tutorialGoal.trim()) {
+          setErrorMessage("Please provide a goal for the tutorial.");
           return;
       }
       if (profile && profile.credits < 1) {
@@ -371,7 +390,9 @@ export default function App() {
                   };
                   // Add new optimistic video to list, keeping the source video
                   setVideos(prev => [optimisticVideo, ...prev]);
-              }
+              },
+              videoType || 'demo',
+              tutorialGoal
           );
           
           const completedVideo: VideoProject = {
@@ -473,6 +494,15 @@ export default function App() {
                   voice={voice} setVoice={setVoice}
                   appName={appName} setAppName={setAppName}
                   appDescription={appDescription} setAppDescription={setAppDescription}
+                  videoType={videoType} setVideoType={setVideoType}
+                  tutorialGoal={tutorialGoal} setTutorialGoal={setTutorialGoal}
+                  
+                  // Lifted State
+                  activeVideo={activeVideo} setActiveVideo={setActiveVideo}
+                  segments={segments} setSegments={setSegments}
+                  background={background} setBackground={setBackground}
+                  addZooms={addZooms} setAddZooms={setAddZooms}
+
                   errorMessage={errorMessage}
                   onFileChange={handleFileChange}
                   onClearFile={handleClearFile}

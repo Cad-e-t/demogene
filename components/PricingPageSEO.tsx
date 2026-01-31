@@ -10,15 +10,15 @@ export const PricingPageSEO: React.FC = () => {
     const faq = [
         {
             q: "Which plan is right for you?",
-            a: "The Single Demo plan is perfect for testing the tool or for a one-off feature launch. The 10 Demo Pack is designed for active builders who ship frequent updates and want the best value per demo."
+            a: "The Basic plan ($15) is perfect for validating ideas or one-off launches with 10 credits. The Premium plan ($29) offers the best value per credit (30 credits) for growth-stage startups. For teams needing high volume, the Pro plan ($60) provides 100 credits."
         },
         {
-            q: "What is included in the 10 Demo Pack?",
-            a: "The 10 Demo Pack gives you 10 generation credits. Each credit includes AI analysis, script generation, premium voiceovers, smart zooms, and access to all background styles. Credits never expire."
+            q: "Do credits expire?",
+            a: "No. Your credits are yours forever. You can purchase a pack today and use the credits over the next few months or years without worry."
         },
         {
             q: "Is there a free trial for ProductCam?",
-            a: "We currently operate on a pay-per-demo model to keep costs sustainable and avoid monthly subscriptions. This allows you to pay only for exactly what you need without recurring charges."
+            a: "We currently operate on a pay-per-pack model to keep costs sustainable and avoid monthly subscriptions. This allows you to pay only for exactly what you need without recurring charges."
         },
         {
             q: "How are credits charged?",
@@ -45,42 +45,52 @@ export const PricingPageSEO: React.FC = () => {
                     </p>
                 </header>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-32">
-                    <div className="p-8 border-2 border-gray-100 rounded-[40px] hover:border-green-500/20 transition-all">
-                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Single Demo</h2>
-                        <div className="text-4xl font-black text-gray-900 mb-6">$3 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">per demo</span></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-32 items-start">
+                    {/* Basic */}
+                    <div className="p-8 border-2 border-gray-100 rounded-[40px] hover:border-gray-200 transition-all">
+                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Basic</h2>
+                        <div className="text-4xl font-black text-gray-900 mb-6">$15 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
                         <ul className="space-y-4 mb-8">
                             <li className="flex items-center gap-3 font-medium text-gray-600">
                                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                1 Generation Credit
+                                10 Generation Credits
                             </li>
                             <li className="flex items-center gap-3 font-medium text-gray-600">
                                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                All AI Features Included
-                            </li>
-                            <li className="flex items-center gap-3 font-medium text-gray-600">
-                                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                Instant Download
+                                Watermark-free export
                             </li>
                         </ul>
                     </div>
 
+                    {/* Premium */}
                     <div className="p-8 border-2 border-green-600 rounded-[40px] bg-green-50/30 relative overflow-hidden">
-                        <div className="absolute top-4 right-4 bg-green-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full">Best Value</div>
-                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">10 Demo Pack</h2>
-                        <div className="text-4xl font-black text-gray-900 mb-6">$12 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">per pack</span></div>
+                        <div className="absolute top-4 right-4 bg-green-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full">Popular</div>
+                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Premium</h2>
+                        <div className="text-4xl font-black text-gray-900 mb-6">$29 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
                         <ul className="space-y-4 mb-8">
                             <li className="flex items-center gap-3 font-medium text-gray-900">
                                 <span className="w-2 h-2 bg-green-600 rounded-full"></span>
-                                10 Generation Credits
-                            </li>
-                            <li className="flex items-center gap-3 font-medium text-gray-900">
-                                <span className="w-2 h-2 bg-green-600 rounded-full"></span>
-                                Lifetime Access
+                                30 Generation Credits
                             </li>
                             <li className="flex items-center gap-3 font-medium text-gray-900">
                                 <span className="w-2 h-2 bg-green-600 rounded-full"></span>
                                 Priority Processing
+                            </li>
+                        </ul>
+                    </div>
+
+                    {/* Pro */}
+                    <div className="p-8 border-2 border-gray-100 rounded-[40px] hover:border-gray-200 transition-all">
+                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Pro</h2>
+                        <div className="text-4xl font-black text-gray-900 mb-6">$60 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
+                        <ul className="space-y-4 mb-8">
+                            <li className="flex items-center gap-3 font-medium text-gray-600">
+                                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                100 Generation Credits
+                            </li>
+                            <li className="flex items-center gap-3 font-medium text-gray-600">
+                                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                Direct Founder Support
                             </li>
                         </ul>
                     </div>
