@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 import { TESTIMONIALS, LANDING_EXAMPLES } from '../assets';
 
@@ -42,11 +39,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
     const [demoMode, setDemoMode] = useState<'input' | 'output'>('output');
     const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
+    const [autoPlay, setAutoPlay] = useState(false);
 
     const currentExample = LANDING_EXAMPLES[currentExampleIndex];
 
-    const nextExample = (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const nextExample = (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
         setCurrentExampleIndex((prev) => (prev + 1) % LANDING_EXAMPLES.length);
         setDemoMode('output');
     };
@@ -364,7 +362,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             {/* --- SEE EXAMPLE SECTION (FOCUSED SINGLE ITEM WITH SLIDES) --- */}
             <div id="example" className="w-full bg-gray-50/50 pt-32 pb-40 scroll-mt-24 border-t border-b border-gray-100 relative overflow-hidden">
                 <div className="w-full px-6 md:px-12 lg:px-24 mb-16 flex flex-col items-center text-center">
-                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">See Examples From Users</h2>
+                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">Examples From Users</h2>
                     <div className="w-24 h-2 bg-green-500 mt-6 rounded-full"></div>
                 </div>
 
@@ -374,7 +372,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             <div className="relative aspect-video bg-black rounded-[32px] overflow-hidden shadow-2xl border border-gray-200 group-hover:shadow-green-500/10 transition-all duration-500 w-full group/video">
                                 {/* Navigation Arrows */}
                                 <button 
-                                    onClick={prevExample} 
+                                    onClick={(e) => prevExample(e)} 
                                     className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white hover:scale-110 transition-all z-20 text-gray-900 opacity-0 group-hover/video:opacity-100 duration-300"
                                     title="Previous Example"
                                 >
@@ -382,7 +380,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 </button>
                                 
                                 <button 
-                                    onClick={nextExample} 
+                                    onClick={(e) => nextExample(e)} 
                                     className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white hover:scale-110 transition-all z-20 text-gray-900 opacity-0 group-hover/video:opacity-100 duration-300"
                                     title="Next Example"
                                 >
@@ -397,6 +395,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                     playsInline
                                     muted={demoMode === 'input'}
                                     preload="metadata"
+                                    autoPlay={autoPlay}
+                                    onPlay={() => setAutoPlay(true)}
+                                    onPause={() => setAutoPlay(false)}
+                                    onEnded={() => nextExample()}
                                 />
                             </div>
                             

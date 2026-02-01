@@ -52,8 +52,19 @@ export const TESTIMONIALS: Testimonial[] = [
     link: 'https://x.com/BenHeadGPT?s=20',
     photo: 'https://pbs.twimg.com/profile_images/1962024911637295104/dGSW3GFk_400x400.jpg'
   },
+
   {
     id: 't-2',
+    name: 'Curlheinz',
+    handle: '@Curlh1',
+    role: 'Founder',
+    message: "REALLY surprised how well the video turned out. I uploaded 2min of footage and got back 90seconds. Perfect, even my mother understood what I’ve building after she watched it.",
+    link: 'https://x.com/Curlh1?s=20',
+    photo: 'https://pbs.twimg.com/profile_images/1991414307968495616/6712xZiD_400x400.jpg'
+  },
+
+  {
+    id: 't-3',
     name: 'Tejas',
     handle: '@TWadpillewar',
     role: 'Builder',
@@ -62,7 +73,7 @@ export const TESTIMONIALS: Testimonial[] = [
     photo: 'https://pbs.twimg.com/profile_images/1998816660728459265/6NYcOOLI_400x400.jpg'
   },
    {
-    id: 't-3',
+    id: 't-4',
     name: 'Maciej Nienaltowski',
     handle: '@mnienaltowski',
     role: 'Builder',
