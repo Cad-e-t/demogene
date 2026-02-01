@@ -259,19 +259,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <div className="w-full md:w-1/2 flex flex-col items-start text-left md:pl-16 lg:pl-24">
                             <h1 
                                 style={{ 
-                                    fontFamily: "'Poppins', sans-serif", 
-                                    fontWeight: 700,
-                                    fontSize: 'clamp(36px, 9vw, 72px)',
-                                    lineHeight: 1.05,
-                                    letterSpacing: '-0.04em'
+                                    fontFamily: "'Inter', sans-serif", 
+                                    fontWeight: 300,
+                                    fontSize: 'clamp(44px, 9vw, 84px)',
+                                    lineHeight: 1.1,
+                                    letterSpacing: '-0.03em'
                                 }}
-                                className="mb-10 drop-shadow-sm"
+                                className="mb-10"
                             >
-                                App demos and  <br /> <span className="whitespace-nowrap">tutorials in minutes</span>
+                               Create app demos and tutorials instantly
                             </h1>
                             
                             <p className="text-xl md:text-2xl text-white/90 max-w-lg leading-relaxed mb-14 font-medium tracking-tight opacity-90">
-                              Record your screen. We turn it into a <br/> narrated walkthrough automatically
+                              Record your screen once. Get a clear. narrated walkthrough automatically. Launch, Sell, Onbaord users.
                             </p>
                             
                             <button 
@@ -350,7 +350,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             {/* --- SEE EXAMPLE SECTION (FOCUSED SINGLE ITEM) --- */}
             <div id="example" className="w-full bg-gray-50/50 pt-32 pb-40 scroll-mt-24 border-t border-b border-gray-100 relative overflow-hidden">
                 <div className="w-full px-6 md:px-12 lg:px-24 mb-16 flex flex-col items-center text-center">
-                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">See Example From Users</h2>
+                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">See Examples From Users</h2>
                     <div className="w-24 h-2 bg-green-500 mt-6 rounded-full"></div>
                 </div>
 
