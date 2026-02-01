@@ -10,7 +10,7 @@ export const PricingPageSEO: React.FC = () => {
     const faq = [
         {
             q: "Which plan is right for you?",
-            a: "The Basic plan ($15) is perfect for validating ideas or one-off launches with 10 credits. The Premium plan ($29) offers the best value per credit (30 credits) for growth-stage startups. For teams needing high volume, the Pro plan ($60) provides 100 credits."
+            a: "The Basic plan ($5) is perfect for validating ideas or one-off launches with 1 credit. The Premium plan ($19) offers the best value per credit (5 credits) for growth-stage startups. For teams needing high volume, the Pro plan ($49) provides 15 credits."
         },
         {
             q: "Do credits expire?",
@@ -49,11 +49,11 @@ export const PricingPageSEO: React.FC = () => {
                     {/* Basic */}
                     <div className="p-8 border-2 border-gray-100 rounded-[40px] hover:border-gray-200 transition-all">
                         <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Basic</h2>
-                        <div className="text-4xl font-black text-gray-900 mb-6">$15 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
+                        <div className="text-4xl font-black text-gray-900 mb-6">$5 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
                         <ul className="space-y-4 mb-8">
                             <li className="flex items-center gap-3 font-medium text-gray-600">
                                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                10 Generation Credits
+                                1 Generation Credits
                             </li>
                             <li className="flex items-center gap-3 font-medium text-gray-600">
                                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
@@ -66,11 +66,11 @@ export const PricingPageSEO: React.FC = () => {
                     <div className="p-8 border-2 border-green-600 rounded-[40px] bg-green-50/30 relative overflow-hidden">
                         <div className="absolute top-4 right-4 bg-green-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full">Popular</div>
                         <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Premium</h2>
-                        <div className="text-4xl font-black text-gray-900 mb-6">$39 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
+                        <div className="text-4xl font-black text-gray-900 mb-6">$19 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
                         <ul className="space-y-4 mb-8">
                             <li className="flex items-center gap-3 font-medium text-gray-900">
                                 <span className="w-2 h-2 bg-green-600 rounded-full"></span>
-                                30 Generation Credits
+                                5 Generation Credits
                             </li>
                             <li className="flex items-center gap-3 font-medium text-gray-900">
                                 <span className="w-2 h-2 bg-green-600 rounded-full"></span>
@@ -82,11 +82,11 @@ export const PricingPageSEO: React.FC = () => {
                     {/* Pro */}
                     <div className="p-8 border-2 border-gray-100 rounded-[40px] hover:border-gray-200 transition-all">
                         <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Pro</h2>
-                        <div className="text-4xl font-black text-gray-900 mb-6">$79 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
+                        <div className="text-4xl font-black text-gray-900 mb-6">$49 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
                         <ul className="space-y-4 mb-8">
                             <li className="flex items-center gap-3 font-medium text-gray-600">
                                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                100 Generation Credits
+                                15 Generation Credits
                             </li>
                             <li className="flex items-center gap-3 font-medium text-gray-600">
                                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>

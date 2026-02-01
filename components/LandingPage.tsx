@@ -169,7 +169,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
         },
         {
             q: "How much does it cost?",
-            a: "We offer simple credit-based pricing starting at $15 for 10 demos. No monthly subscriptions or hidden fees."
+            a: "We offer simple credit-based pricing starting at $5 for 1 full demo. No monthly subscriptions or hidden fees."
         },
         {
             q: "Can I update a demo when my product changes?",
@@ -184,6 +184,45 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
     return (
         <div className="relative w-full min-h-screen flex flex-col bg-white overflow-x-hidden selection:bg-sky-500 selection:text-white font-sans text-gray-900">
             
+            {/* FLOATING NAVBAR (Pill Shaped) - Sticky - MOVED TO ROOT FOR STACKING CONTEXT FIX */}
+            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] md:w-auto md:min-w-[600px] max-w-5xl mx-auto transition-all">
+                <div className={`backdrop-blur-md border rounded-full px-6 py-3 shadow-2xl flex items-center justify-between transition-all duration-300 ${isScrolled ? 'bg-white/90 border-gray-200' : 'bg-white/10 border-white/10'}`}>
+                        {/* Logo */}
+                    <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={scrollToTop}>
+                        <span className={`font-black text-lg tracking-tighter uppercase drop-shadow-md transition-colors duration-300 ${isScrolled ? 'text-gray-900' : 'text-white'}`}>ProductCam</span>
+                    </div>
+
+                    {/* Desktop Nav */}
+                    <div className="hidden md:flex items-center gap-5">
+                        <a href="#how-it-works" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>How it Works</a>
+                        <a href="#pricing" onClick={(e) => { e.preventDefault(); scrollToSection('pricing'); }} className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>Pricing</a>
+                        <a href="#/blog" className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>Blog</a>
+                        <button onClick={handleLogin} className={`px-5 py-2 text-xs font-black rounded-full transition-all uppercase tracking-widest shadow-lg ${isScrolled ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-white text-black hover:bg-gray-200'}`}>
+                            Get Started
+                        </button>
+                    </div>
+
+                        {/* Mobile Menu Toggle */}
+                        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`md:hidden p-1 transition-colors ${isScrolled ? 'text-gray-900' : 'text-white'}`}>
+                        {isMenuOpen ? (
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        ) : (
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        )}
+                        </button>
+                </div>
+
+                {/* Mobile Dropdown */}
+                {isMenuOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-4 bg-white rounded-2xl p-4 shadow-2xl flex flex-col gap-2 md:hidden">
+                            <a href="#how-it-works" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} className="text-gray-900 font-bold px-4 py-3 hover:bg-gray-50 rounded-xl">How it Works</a>
+                            <a href="#pricing" onClick={(e) => { e.preventDefault(); scrollToSection('pricing'); }} className="text-gray-900 font-bold px-4 py-3 hover:bg-gray-50 rounded-xl">Pricing</a>
+                            <a href="#/blog" className="text-gray-900 font-bold px-4 py-3 hover:bg-gray-50 rounded-xl">Blog</a>
+                            <button onClick={handleLogin} className="w-full text-center bg-black text-white font-black px-4 py-3 rounded-xl uppercase tracking-widest mt-2">Get Started</button>
+                    </div>
+                )}
+            </div>
+
             {/* --- HERO SECTION --- */}
             <div className="relative z-10 w-full bg-black text-white overflow-hidden flex flex-col items-center">
                 
@@ -196,45 +235,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                      />
                      <div className="absolute inset-0 bg-black/50"></div>
                      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90"></div>
-                </div>
-
-                {/* FLOATING NAVBAR (Pill Shaped) - Sticky */}
-                <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] md:w-auto md:min-w-[600px] max-w-5xl mx-auto transition-all">
-                    <div className={`backdrop-blur-md border rounded-full px-6 py-3 shadow-2xl flex items-center justify-between transition-all duration-300 ${isScrolled ? 'bg-white/90 border-gray-200' : 'bg-white/10 border-white/10'}`}>
-                         {/* Logo */}
-                        <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={scrollToTop}>
-                            <span className={`font-black text-lg tracking-tighter uppercase drop-shadow-md transition-colors duration-300 ${isScrolled ? 'text-gray-900' : 'text-white'}`}>ProductCam</span>
-                        </div>
-
-                        {/* Desktop Nav */}
-                        <div className="hidden md:flex items-center gap-5">
-                            <a href="#how-it-works" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>How it Works</a>
-                            <a href="#pricing" onClick={(e) => { e.preventDefault(); scrollToSection('pricing'); }} className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>Pricing</a>
-                            <a href="#/blog" className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>Blog</a>
-                            <button onClick={handleLogin} className={`px-5 py-2 text-xs font-black rounded-full transition-all uppercase tracking-widest shadow-lg ${isScrolled ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-white text-black hover:bg-gray-200'}`}>
-                                Get Started
-                            </button>
-                        </div>
-
-                         {/* Mobile Menu Toggle */}
-                         <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`md:hidden p-1 transition-colors ${isScrolled ? 'text-gray-900' : 'text-white'}`}>
-                            {isMenuOpen ? (
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            ) : (
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-                            )}
-                         </button>
-                    </div>
-
-                    {/* Mobile Dropdown */}
-                    {isMenuOpen && (
-                        <div className="absolute top-full left-0 right-0 mt-4 bg-white rounded-2xl p-4 shadow-2xl flex flex-col gap-2 md:hidden">
-                             <a href="#how-it-works" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} className="text-gray-900 font-bold px-4 py-3 hover:bg-gray-50 rounded-xl">How it Works</a>
-                             <a href="#pricing" onClick={(e) => { e.preventDefault(); scrollToSection('pricing'); }} className="text-gray-900 font-bold px-4 py-3 hover:bg-gray-50 rounded-xl">Pricing</a>
-                             <a href="#/blog" className="text-gray-900 font-bold px-4 py-3 hover:bg-gray-50 rounded-xl">Blog</a>
-                             <button onClick={handleLogin} className="w-full text-center bg-black text-white font-black px-4 py-3 rounded-xl uppercase tracking-widest mt-2">Get Started</button>
-                        </div>
-                    )}
                 </div>
 
                 <div className="relative z-10 max-w-[1700px] mx-auto px-6 md:px-12 pt-40 pb-24 flex flex-col items-center w-full">
@@ -254,7 +254,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         </h1>
                         
                         <p className="text-xl md:text-2xl text-white max-w-6xl leading-relaxed mb-10 font-medium tracking-tight drop-shadow-lg">
-                         Record your screen once. Get a clear narrated walkthrough automatically.
+                         Record your screen once. Get a clear narrated walkthrough automatically
                         </p>
 
                         <button 
@@ -271,40 +271,50 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         </button>
 
                         {/* --- TESTIMONIALS --- */}
-                        <div className="w-full mb-16">
+                        <div className="w-full mb-16 relative">
                             <p className="text-center text-sm font-bold text-white mb-10 uppercase tracking-widest drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">Loved by builders</p>
 
-                            
-                            <div className="w-full flex overflow-x-auto gap-6 px-4 md:px-0 pb-4 snap-x snap-mandatory no-scrollbar scroll-smooth">
-                                {TESTIMONIALS.map((t) => (
-                                    <div key={t.id} className="shrink-0 snap-center w-[300px] md:w-[400px] transform hover:scale-[1.02] transition-all duration-500">
-                                        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 flex flex-col h-full hover:bg-white/10 transition-colors shadow-lg">
-                                            <div className="flex-1 text-left">
-                                                <p className="text-lg font-medium text-gray-200 leading-relaxed italic drop-shadow-sm">
-                                                    "{t.message}"
-                                                </p>
-                                            </div>
-                                            
-                                            <div className="mt-8 flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <img src={t.photo} alt={t.name} className="w-10 h-10 rounded-full object-cover border border-white/10" />
-                                                    <div className="flex flex-col text-left">
-                                                        <span className="text-sm font-bold text-white uppercase tracking-tight drop-shadow-sm">{t.name}</span>
-                                                        <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest drop-shadow-sm">{t.handle}</span>
-                                                    </div>
+                            <div className="relative">
+                                <div className="w-full flex overflow-x-auto gap-6 px-4 md:px-0 pb-4 snap-x snap-mandatory no-scrollbar scroll-smooth">
+                                    {TESTIMONIALS.map((t) => (
+                                        <div key={t.id} className="shrink-0 snap-center w-[300px] md:w-[400px] transform hover:scale-[1.02] transition-all duration-500">
+                                            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 flex flex-col h-full hover:bg-white/10 transition-colors shadow-lg">
+                                                <div className="flex-1 text-left">
+                                                    <p className="text-lg font-medium text-gray-200 leading-relaxed italic drop-shadow-sm">
+                                                        "{t.message}"
+                                                    </p>
                                                 </div>
-                                                <a 
-                                                    href={t.link} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="text-gray-500 hover:text-white transition-colors"
-                                                >
-                                                    <XIcon className="w-4 h-4" />
-                                                </a>
+                                                
+                                                <div className="mt-8 flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <img src={t.photo} alt={t.name} className="w-10 h-10 rounded-full object-cover border border-white/10" />
+                                                        <div className="flex flex-col text-left">
+                                                            <span className="text-sm font-bold text-white uppercase tracking-tight drop-shadow-sm">{t.name}</span>
+                                                            <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest drop-shadow-sm">{t.handle}</span>
+                                                        </div>
+                                                    </div>
+                                                    <a 
+                                                        href={t.link} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="text-gray-500 hover:text-white transition-colors"
+                                                    >
+                                                        <XIcon className="w-4 h-4" />
+                                                    </a>
+                                                </div>
                                             </div>
                                         </div>
+                                    ))}
+                                </div>
+                                
+                                {/* Mobile Scroll Hint Arrow */}
+                                <div className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 md:hidden pointer-events-none">
+                                    <div className="w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-xl animate-pulse">
+                                        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                        </svg>
                                     </div>
-                                ))}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -503,15 +513,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">For solo founders</p>
                         
                         <div className="flex items-baseline gap-1 mb-8">
-                            <span className="text-5xl font-black text-gray-900">$15</span>
+                            <span className="text-5xl font-black text-gray-900">$5</span>
                             <span className="text-base text-gray-400 font-bold uppercase tracking-widest">/Pack</span>
                         </div>
 
                         <div className="w-full space-y-4 mb-10 text-left">
                             {[
-                                { text: "10 Demo Credits", bold: "Starter pack" },
-                                { text: "$1.50 per demo", bold: "Easy" },
-                                { text: "Full walkthrough demos", bold: "Complete" },
+                                { text: "1 Full Demo", bold: "Starter pack" },
                                 { text: "Watermark-free export", bold: "Clean" },
                                 { text: "AI-Narrated voiceovers", bold: "Standard" },
                                 { text: "Smart zooms & pacing", bold: "Auto" },
@@ -549,15 +557,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <p className="text-sm font-bold text-green-600 uppercase tracking-widest mb-6">For launches & growth</p>
                         
                         <div className="flex items-baseline gap-1 mb-8">
-                            <span className="text-6xl font-black text-gray-900">$39</span>
+                            <span className="text-6xl font-black text-gray-900">$19</span>
                             <span className="text-xl text-gray-400 font-bold uppercase tracking-widest">/Pack</span>
                         </div>
 
                         <div className="w-full space-y-4 mb-10 text-left">
                             {[
-                                { text: "30 Demo Credits", bold: "Growth pack" },
-                                { text: "$1.30 per demo", bold: "Best balance" },
+                                { text: "5 Demo Credits", bold: "Growth pack" },
                                 { text: "Everything in Basic", bold: "Inclusive" },
+                                { text: "Full walkthrough demos", bold: "Complete" },
+                                { text: "Create app tutorials", bold: "Tutorials" },
+                                { text: "Test different versions", bold: "Variety" },
                                 { text: "Best value per demo", bold: "Economical" },
                                 { text: "Priority Processing", bold: "Fast" },
                                 { text: "Credits never expire", bold: "Forever" },
@@ -588,14 +598,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">For teams & heavy usage</p>
                         
                         <div className="flex items-baseline gap-1 mb-8">
-                            <span className="text-5xl font-black text-gray-900">$79</span>
+                            <span className="text-5xl font-black text-gray-900">$49</span>
                             <span className="text-base text-gray-400 font-bold uppercase tracking-widest">/Pack</span>
                         </div>
 
                         <div className="w-full space-y-4 mb-10 text-left">
                             {[
-                                { text: "100 Demo Credits", bold: "Power pack" },
-                                { text: "$0.79 per demo", bold: "For heavy usage" },
+                                { text: "15 Demo Credits", bold: "Power pack" },
                                 { text: "Everything in Premium", bold: "Inclusive" },
                                 { text: "Early feature access", bold: "Beta" },
                                 { text: "Direct Founder Support", bold: "VIP" },
