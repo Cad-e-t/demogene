@@ -48,6 +48,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
     const [demoMode, setDemoMode] = useState<'input' | 'output'>('output');
     const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
     const [autoPlay, setAutoPlay] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(false);
 
     const currentExample = LANDING_EXAMPLES[currentExampleIndex];
 
@@ -62,6 +63,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
         setCurrentExampleIndex((prev) => (prev - 1 + LANDING_EXAMPLES.length) % LANDING_EXAMPLES.length);
         setDemoMode('output');
     };
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 50);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     // SEO Optimization
     useEffect(() => {
@@ -178,26 +187,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             {/* --- HERO SECTION --- */}
             <div className="relative z-10 w-full bg-black text-white overflow-hidden flex flex-col items-center">
                 
-                {/* FLOATING NAVBAR (Pill Shaped) */}
-                <div className="absolute top-8 z-50 w-[90%] md:w-auto md:min-w-[600px] max-w-5xl mx-auto">
-                    <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-6 py-3 shadow-2xl flex items-center justify-between">
+                {/* Background Image & Overlay */}
+                <div className="absolute inset-0 z-0">
+                     <img 
+                        src="https://assets.productcam.site/photo/laptop-showing-product-demo.avif" 
+                        alt="Product Demo on Laptop" 
+                        className="w-full h-full object-cover"
+                     />
+                     <div className="absolute inset-0 bg-black/50"></div>
+                     <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90"></div>
+                </div>
+
+                {/* FLOATING NAVBAR (Pill Shaped) - Sticky */}
+                <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] md:w-auto md:min-w-[600px] max-w-5xl mx-auto transition-all">
+                    <div className={`backdrop-blur-md border rounded-full px-6 py-3 shadow-2xl flex items-center justify-between transition-all duration-300 ${isScrolled ? 'bg-white/90 border-gray-200' : 'bg-white/10 border-white/10'}`}>
                          {/* Logo */}
                         <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={scrollToTop}>
-                            <span className="font-black text-lg text-white tracking-tighter uppercase">ProductCam</span>
+                            <span className={`font-black text-lg tracking-tighter uppercase drop-shadow-md transition-colors duration-300 ${isScrolled ? 'text-gray-900' : 'text-white'}`}>ProductCam</span>
                         </div>
 
                         {/* Desktop Nav */}
-                        <div className="hidden md:flex items-center gap-8">
-                            <a href="#how-it-works" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} className="text-xs font-bold text-white/80 hover:text-white uppercase tracking-widest transition-colors">How it Works</a>
-                            <a href="#pricing" onClick={(e) => { e.preventDefault(); scrollToSection('pricing'); }} className="text-xs font-bold text-white/80 hover:text-white uppercase tracking-widest transition-colors">Pricing</a>
-                            <a href="#/blog" className="text-xs font-bold text-white/80 hover:text-white uppercase tracking-widest transition-colors">Blog</a>
-                            <button onClick={handleLogin} className="px-5 py-2 bg-white text-black text-xs font-black rounded-full hover:bg-gray-200 transition-all uppercase tracking-widest">
+                        <div className="hidden md:flex items-center gap-5">
+                            <a href="#how-it-works" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>How it Works</a>
+                            <a href="#pricing" onClick={(e) => { e.preventDefault(); scrollToSection('pricing'); }} className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>Pricing</a>
+                            <a href="#/blog" className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>Blog</a>
+                            <button onClick={handleLogin} className={`px-5 py-2 text-xs font-black rounded-full transition-all uppercase tracking-widest shadow-lg ${isScrolled ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-white text-black hover:bg-gray-200'}`}>
                                 Get Started
                             </button>
                         </div>
 
                          {/* Mobile Menu Toggle */}
-                         <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden text-white p-1">
+                         <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`md:hidden p-1 transition-colors ${isScrolled ? 'text-gray-900' : 'text-white'}`}>
                             {isMenuOpen ? (
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             ) : (
@@ -217,7 +237,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     )}
                 </div>
 
-                <div className="max-w-[1700px] mx-auto px-6 md:px-12 pt-40 pb-24 flex flex-col items-center w-full">
+                <div className="relative z-10 max-w-[1700px] mx-auto px-6 md:px-12 pt-40 pb-24 flex flex-col items-center w-full">
                     <div className="w-full flex flex-col items-center text-center">
                         <h1 
                             style={{ 
@@ -225,20 +245,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 fontWeight: 300,
                                 fontSize: 'clamp(44px, 9vw, 84px)',
                                 lineHeight: 1.1,
-                                letterSpacing: '-0.03em'
+                                letterSpacing: '-0.03em',
+                                textShadow: '0 4px 20px rgba(0,0,0,0.5)'
                             }}
-                            className="mb-8 w-full max-w-none"
+                            className="mb-8 w-full max-w-none drop-shadow-2xl"
                         >
                            Create app demos and tutorials instantly
                         </h1>
                         
-                        <p className="text-xl md:text-2xl text-white/90 max-w-6xl leading-relaxed mb-10 font-medium tracking-tight opacity-90">
+                        <p className="text-xl md:text-2xl text-white max-w-6xl leading-relaxed mb-10 font-medium tracking-tight drop-shadow-lg">
                          Record your screen once. Get a clear narrated walkthrough automatically.
                         </p>
 
                         <button 
                             onClick={handleLogin} 
-                            className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] active:scale-95 transition-all duration-500 mb-20"
+                            className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] active:scale-95 transition-all duration-500 mb-20 shadow-2xl"
                         >
                             <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
                             <div className="relative flex items-center justify-center gap-5 px-14 py-6 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
@@ -251,14 +272,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
                         {/* --- TESTIMONIALS --- */}
                         <div className="w-full mb-16">
-                            <p className="text-center text-sm font-bold text-gray-500 mb-10 uppercase tracking-widest">Loved by builders</p>
+                            <p className="text-center text-sm font-bold text-white mb-10 uppercase tracking-widest drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">Loved by builders</p>
+
                             
                             <div className="w-full flex overflow-x-auto gap-6 px-4 md:px-0 pb-4 snap-x snap-mandatory no-scrollbar scroll-smooth">
                                 {TESTIMONIALS.map((t) => (
                                     <div key={t.id} className="shrink-0 snap-center w-[300px] md:w-[400px] transform hover:scale-[1.02] transition-all duration-500">
-                                        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 flex flex-col h-full hover:bg-white/10 transition-colors">
+                                        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 flex flex-col h-full hover:bg-white/10 transition-colors shadow-lg">
                                             <div className="flex-1 text-left">
-                                                <p className="text-lg font-medium text-gray-200 leading-relaxed italic">
+                                                <p className="text-lg font-medium text-gray-200 leading-relaxed italic drop-shadow-sm">
                                                     "{t.message}"
                                                 </p>
                                             </div>
@@ -267,8 +289,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                                 <div className="flex items-center gap-3">
                                                     <img src={t.photo} alt={t.name} className="w-10 h-10 rounded-full object-cover border border-white/10" />
                                                     <div className="flex flex-col text-left">
-                                                        <span className="text-sm font-bold text-white uppercase tracking-tight">{t.name}</span>
-                                                        <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest">{t.handle}</span>
+                                                        <span className="text-sm font-bold text-white uppercase tracking-tight drop-shadow-sm">{t.name}</span>
+                                                        <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest drop-shadow-sm">{t.handle}</span>
                                                     </div>
                                                 </div>
                                                 <a 
