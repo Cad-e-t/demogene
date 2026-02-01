@@ -643,7 +643,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <div className="w-full space-y-4 mb-10 text-left">
                             {[
                                 { text: "100 Demo Credits", bold: "Power pack" },
-                                { text: "$0.79 per demo", bold: "for heavy usage" },
+                                { text: "$0.79 per demo", bold: "For heavy usage" },
                                 { text: "Everything in Premium", bold: "Inclusive" },
                                 { text: "Early feature access", bold: "Beta" },
                                 { text: "Direct Founder Support", bold: "VIP" },
