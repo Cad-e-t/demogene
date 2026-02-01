@@ -29,7 +29,7 @@ export const LANDING_EXAMPLES = [
   }
 ];
 
-export const INTERACTIVE_DEMO_INPUT = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/output.mp4";
+export const INTERACTIVE_DEMO_INPUT = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/8b6f6fb1-3df0-425e-82ef-3d150d06491a.mp4";
 export const INTERACTIVE_DEMO_OUTPUT = "https://assets.productcam.site/productcam-walkthrough.mp4";
 
 export interface Testimonial {
