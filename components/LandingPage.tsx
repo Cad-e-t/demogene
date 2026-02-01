@@ -1,14 +1,14 @@
 
+
+
 import React, { useState, useEffect } from 'react';
-import { TESTIMONIALS, LANDING_GALLERY_VIDEOS } from '../assets';
+import { TESTIMONIALS, LANDING_EXAMPLES } from '../assets';
 
 interface LandingPageProps {
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleLogin: () => void;
     showAuthModal?: boolean; 
 }
-
-const INPUT_DEMO_URL = "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/8b6f6fb1-3df0-425e-82ef-3d150d06491a.mp4";
 
 const XIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
@@ -41,6 +41,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
     const [demoMode, setDemoMode] = useState<'input' | 'output'>('output');
+    const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
+
+    const currentExample = LANDING_EXAMPLES[currentExampleIndex];
+
+    const nextExample = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCurrentExampleIndex((prev) => (prev + 1) % LANDING_EXAMPLES.length);
+        setDemoMode('output');
+    };
+
+    const prevExample = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCurrentExampleIndex((prev) => (prev - 1 + LANDING_EXAMPLES.length) % LANDING_EXAMPLES.length);
+        setDemoMode('output');
+    };
 
     // SEO Optimization
     useEffect(() => {
@@ -58,11 +73,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
         const description = "Create polished product demo videos in minutes with ProductCam. Record your screen and let our AI turn it into a professional walkthrough automatically. No editing required.";
 
-        const ogImage = "https://assets.productcam.site/productcam-walkthrough.mp4"; // Using a video thumbnail would be ideal, falling back to a representative asset if static image is preferred. Using gallery video for now or specific OG image.
         const siteUrl = "https://productcam.site";
 
         setMeta('description', description);
-        setMeta('canonical', siteUrl, 'rel'); // Handling canonical link via helper is tricky if attr is rel, adjusting logic below or just manually adding if needed. Actually canonical is usually a link tag.
+        setMeta('canonical', siteUrl, 'rel'); 
         
         // Canonical Tag
         let link = document.querySelector("link[rel='canonical']");
@@ -271,7 +285,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             </h1>
                             
                             <p className="text-xl md:text-2xl text-white/90 max-w-lg leading-relaxed mb-14 font-medium tracking-tight opacity-90">
-                              Record your screen once. Get a clear. narrated walkthrough automatically. Launch, Sell, Onbaord users.
+                             Record your screen once. Get a clear narrated walkthrough automatically.
                             </p>
                             
                             <button 
@@ -347,7 +361,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </div>
             </section>
 
-            {/* --- SEE EXAMPLE SECTION (FOCUSED SINGLE ITEM) --- */}
+            {/* --- SEE EXAMPLE SECTION (FOCUSED SINGLE ITEM WITH SLIDES) --- */}
             <div id="example" className="w-full bg-gray-50/50 pt-32 pb-40 scroll-mt-24 border-t border-b border-gray-100 relative overflow-hidden">
                 <div className="w-full px-6 md:px-12 lg:px-24 mb-16 flex flex-col items-center text-center">
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">See Examples From Users</h2>
@@ -355,13 +369,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </div>
 
                 <div className="w-full max-w-5xl mx-auto px-6 md:px-12 flex flex-col items-center">
-                     {LANDING_GALLERY_VIDEOS.length > 0 && (
+                     {LANDING_EXAMPLES.length > 0 && (
                         <div className="w-full group cursor-pointer flex flex-col items-center">
-                            <div className="relative aspect-video bg-black rounded-[32px] overflow-hidden shadow-2xl border border-gray-200 group-hover:shadow-green-500/10 transition-all duration-500 w-full">
+                            <div className="relative aspect-video bg-black rounded-[32px] overflow-hidden shadow-2xl border border-gray-200 group-hover:shadow-green-500/10 transition-all duration-500 w-full group/video">
+                                {/* Navigation Arrows */}
+                                <button 
+                                    onClick={prevExample} 
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white hover:scale-110 transition-all z-20 text-gray-900 opacity-0 group-hover/video:opacity-100 duration-300"
+                                    title="Previous Example"
+                                >
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+                                </button>
+                                
+                                <button 
+                                    onClick={nextExample} 
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white hover:scale-110 transition-all z-20 text-gray-900 opacity-0 group-hover/video:opacity-100 duration-300"
+                                    title="Next Example"
+                                >
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                                </button>
+
                                 <video 
-                                    key={demoMode}
-                                    src={demoMode === 'input' ? INPUT_DEMO_URL : LANDING_GALLERY_VIDEOS[0].url} 
-                                    className="w-full h-full object-cover"
+                                    key={`${currentExample.id}-${demoMode}`}
+                                    src={demoMode === 'input' ? currentExample.inputUrl : currentExample.outputUrl} 
+                                    className="w-full h-full object-contain bg-black"
                                     controls
                                     playsInline
                                     muted={demoMode === 'input'}
@@ -369,7 +400,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 />
                             </div>
                             
-                            <div className="mt-10 flex p-1.5 bg-white border border-gray-200 rounded-xl shadow-sm">
+                            <div className="mt-10 flex p-1.5 bg-white border border-gray-200 rounded-xl shadow-sm relative">
                                 <button 
                                     onClick={() => setDemoMode('input')}
                                     className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${demoMode === 'input' ? 'bg-gray-900 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'}`}
@@ -382,6 +413,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 >
                                     Polished Output
                                 </button>
+                            </div>
+                            
+                            {/* Slide Indicator Dots */}
+                            <div className="flex gap-2 mt-6">
+                                {LANDING_EXAMPLES.map((_, idx) => (
+                                    <div 
+                                        key={idx}
+                                        className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentExampleIndex ? 'bg-green-500 w-6' : 'bg-gray-300'}`}
+                                    />
+                                ))}
                             </div>
                         </div>
                      )}

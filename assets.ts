@@ -1,5 +1,6 @@
 
 
+
 export const EXAMPLE_VIDEOS = [
   {
     id: 'ex-1',
@@ -15,10 +16,16 @@ export const EXAMPLE_VIDEOS = [
   }
 ];
 
-export const LANDING_GALLERY_VIDEOS = [
+export const LANDING_EXAMPLES = [
   {
-    id: 'gal-3',
-    url: 'https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/c0fb92eb-0b17-4853-a576-98b7f899248b.mp4'
+    id: 'example-1',
+    inputUrl: "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/8b6f6fb1-3df0-425e-82ef-3d150d06491a.mp4",
+    outputUrl: "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/c0fb92eb-0b17-4853-a576-98b7f899248b.mp4"
+  },
+  {
+    id: 'example-2',
+    inputUrl: "https://assets.productcam.site/photo/nerd-sip-input.mp4",
+    outputUrl: "https://assets.productcam.site/photo/nerd-sip-demo.mp4"
   }
 ];
 
