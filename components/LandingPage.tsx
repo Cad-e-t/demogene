@@ -285,7 +285,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             </h1>
                             
                             <p className="text-xl md:text-2xl text-white/90 max-w-lg leading-relaxed mb-14 font-medium tracking-tight opacity-90">
-                             Record your screen once. Get a clear narrated walkthrough automatically.
+                             Record your screen once. Get a clear narrated walkthrough automatically
                             </p>
                             
                             <button 
