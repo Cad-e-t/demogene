@@ -173,6 +173,7 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
             product_cart: [{ product_id: productId, quantity: 1 }], 
             billing_currency: 'USD',
             return_url: `${FRONTEND_URL}/?payment_status=success`, 
+            show_saved_payment_methods: true,
             metadata: {
                 user_id: user.id,
                 credits_to_add: String(credits),

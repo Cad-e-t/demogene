@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { TESTIMONIALS, LANDING_EXAMPLES } from '../assets';
 
@@ -13,7 +14,14 @@ const XIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const FAQItem = ({ question, answer, isOpen, onClick }: { question: string, answer: string, isOpen: boolean, onClick: () => void }) => (
+interface FAQItemProps {
+    question: string;
+    answer: string;
+    isOpen: boolean;
+    onClick: () => void;
+}
+
+const FAQItem: React.FC<FAQItemProps> = ({ question, answer, isOpen, onClick }) => (
     <div className="border-b border-gray-100 last:border-0">
         <button 
             onClick={onClick}
@@ -240,10 +248,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
             {/* --- HERO SECTION (WIDE & ACCESSIBLE NAV) --- */}
             <div className="relative z-10 w-full bg-black text-white overflow-hidden">
-                <div className="max-w-[1700px] mx-auto px-6 md:px-12 pt-20 pb-32 md:pb-56 flex flex-col items-center">
+                <div className="max-w-[1700px] mx-auto px-6 md:px-12 pt-20 pb-24 flex flex-col items-center">
                     
                     {/* Hero-Embedded Navigation Row (Left Aligned) */}
-                    <div className="w-full hidden md:flex justify-start items-center gap-12 mb-24 opacity-80">
+                    <div className="w-full hidden md:flex justify-start items-center gap-12 mb-16 opacity-80">
                         <a 
                             href="#how-it-works"
                             onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} 
@@ -266,98 +274,78 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         </a>
                     </div>
 
-                    <div className="w-full flex flex-col md:flex-row items-center gap-16 lg:gap-24">
-                        {/* Hero Text Column (Indented relative to Nav Row) */}
-                        <div className="w-full md:w-1/2 flex flex-col items-start text-left md:pl-16 lg:pl-24">
-                            <h1 
-                                style={{ 
-                                    fontFamily: "'Inter', sans-serif", 
-                                    fontWeight: 300,
-                                    fontSize: 'clamp(44px, 9vw, 84px)',
-                                    lineHeight: 1.1,
-                                    letterSpacing: '-0.03em'
-                                }}
-                                className="mb-10"
-                            >
-                               Create app demos and tutorials instantly
-                            </h1>
-                            
-                            <p className="text-xl md:text-2xl text-white/90 max-w-lg leading-relaxed mb-14 font-medium tracking-tight opacity-90">
-                             Record your screen once. Get a clear narrated walkthrough automatically
-                            </p>
-                            
-                            <button 
-                                onClick={handleLogin} 
-                                className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] active:scale-95 transition-all duration-500"
-                            >
-                                <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
-                                <div className="relative flex items-center justify-center gap-5 px-14 py-6 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
-                                    <span className="font-black text-2xl uppercase tracking-tighter">Get Started For Free</span>
-                                    <svg className="w-7 h-7 animate-bounce-x" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" />
-                                    </svg>
-                                </div>
-                            </button>
-                        </div>
+                    {/* Centered Hero Content */}
+                    <div className="w-full flex flex-col items-center text-center">
+                        <h1 
+                            style={{ 
+                                fontFamily: "'Inter', sans-serif", 
+                                fontWeight: 300,
+                                fontSize: 'clamp(44px, 9vw, 84px)',
+                                lineHeight: 1.1,
+                                letterSpacing: '-0.03em'
+                            }}
+                            className="mb-8 max-w-5xl"
+                        >
+                           Create app demos and tutorials instantly
+                        </h1>
+                        
+                        <p className="text-xl md:text-2xl text-white/90 max-w-2xl leading-relaxed mb-16 font-medium tracking-tight opacity-90">
+                         Record your screen once <br/>  Get a clear narrated walkthrough automatically
+                        </p>
 
-                        {/* Hero Video/Image Column */}
-                        <div className="w-full md:w-1/2 relative px-4 md:px-0">
-                            <div className="relative aspect-video group transition-transform duration-700 hover:rotate-1">
-                                <img 
-                                 src="https://assets.productcam.site/photo/laptop-showing-product-demo.avif" 
-                                 alt="Product Demo on Screen" 
-                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-tr from-sky-900/10 via-transparent to-transparent pointer-events-none"></div>
-                            </div>
-                            {/* Decorative background glow behind video */}
-                            <div className="absolute -inset-20 bg-white/20 blur-[120px] rounded-full -z-10 opacity-60"></div>
+                        {/* --- TESTIMONIALS (Centered) --- */}
+                        <div className="w-full mb-16">
+                            <p className="text-center text-sm font-bold text-gray-500 mb-10 uppercase tracking-widest">Loved by builders</p>
                             
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-             {/* --- TESTIMONIALS SECTION --- */}
-            <section className="w-full bg-gray-50 py-40 border-t border-gray-100 flex flex-col items-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-green-500/[0.03] rounded-full blur-[140px] pointer-events-none"></div>
-                <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-24 tracking-tighter text-center px-6 uppercase relative z-10">
-                    Loved By Builders
-                </h2>
-                
-                <div className="w-full flex overflow-x-auto gap-8 px-6 md:px-12 pb-12 snap-x snap-mandatory no-scrollbar scroll-smooth relative z-10">
-                    {TESTIMONIALS.map((t) => (
-                        <div key={t.id} className="shrink-0 snap-center w-[85%] md:w-[450px] transform hover:scale-[1.02] transition-all duration-500">
-                            <div className="bg-white rounded-[40px] shadow-2xl shadow-black/[0.05] border border-gray-100 p-8 md:p-10 flex flex-col h-full min-h-[320px]">
-                                <div className="flex-1">
-                                    <p className="text-xl md:text-2xl font-bold text-gray-900 leading-relaxed tracking-tight italic">
-                                        "{t.message}"
-                                    </p>
-                                </div>
-                                
-                                <div className="mt-10 flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <img src={t.photo} alt={t.name} className="w-12 h-12 rounded-full object-cover border border-gray-100 shadow-sm" />
-                                        <div className="flex flex-col">
-                                            <span className="text-lg font-black text-gray-900 uppercase tracking-tighter">{t.name}</span>
-                                            <span className="text-sm font-bold text-green-600 uppercase tracking-widest">{t.handle}, {t.role}</span>
+                            <div className="w-full flex overflow-x-auto gap-6 px-4 md:px-0 pb-4 snap-x snap-mandatory no-scrollbar scroll-smooth">
+                                {TESTIMONIALS.map((t) => (
+                                    <div key={t.id} className="shrink-0 snap-center w-[300px] md:w-[400px] transform hover:scale-[1.02] transition-all duration-500">
+                                        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 flex flex-col h-full hover:bg-white/10 transition-colors">
+                                            <div className="flex-1 text-left">
+                                                <p className="text-lg font-medium text-gray-200 leading-relaxed italic">
+                                                    "{t.message}"
+                                                </p>
+                                            </div>
+                                            
+                                            <div className="mt-8 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <img src={t.photo} alt={t.name} className="w-10 h-10 rounded-full object-cover border border-white/10" />
+                                                    <div className="flex flex-col text-left">
+                                                        <span className="text-sm font-bold text-white uppercase tracking-tight">{t.name}</span>
+                                                        <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest">{t.handle}</span>
+                                                    </div>
+                                                </div>
+                                                <a 
+                                                    href={t.link} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="text-gray-500 hover:text-white transition-colors"
+                                                >
+                                                    <XIcon className="w-4 h-4" />
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
-                                    <a 
-                                        href={t.link} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="group/x flex items-center gap-3 px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-black transition-all shadow-lg shadow-black/10"
-                                    >
-                                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">View on X</span>
-                                        <XIcon className="w-4 h-4" />
-                                    </a>
-                                </div>
+                                ))}
                             </div>
                         </div>
-                    ))}
+                        
+                        <button 
+                            onClick={handleLogin} 
+                            className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] active:scale-95 transition-all duration-500"
+                        >
+                            <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
+                            <div className="relative flex items-center justify-center gap-5 px-14 py-6 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
+                                <span className="font-black text-2xl uppercase tracking-tighter">Get Started For Free</span>
+                                <svg className="w-7 h-7 animate-bounce-x" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" />
+                                </svg>
+                            </div>
+                        </button>
+                    </div>
+
                 </div>
-            </section>
+            </div>
 
             {/* --- SEE EXAMPLE SECTION (FOCUSED SINGLE ITEM WITH SLIDES) --- */}
             <div id="example" className="w-full bg-gray-50/50 pt-32 pb-40 scroll-mt-24 border-t border-b border-gray-100 relative overflow-hidden">
