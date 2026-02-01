@@ -40,6 +40,7 @@ export const PricingView: React.FC<PricingViewProps> = ({ onPurchase }) => {
                     <div className="w-full space-y-4 mb-10 text-left">
                         {[
                             { text: "10 Demo Credits", bold: "Starter pack" },
+                            { text: "$1.50 per demo", bold: "Easy" },
                             { text: "Full walkthrough demos", bold: "Complete" },
                             { text: "Watermark-free export", bold: "Clean" },
                             { text: "AI-Narrated voiceovers", bold: "Standard" },
@@ -91,13 +92,14 @@ export const PricingView: React.FC<PricingViewProps> = ({ onPurchase }) => {
                     <p className="text-sm font-bold text-green-600 uppercase tracking-widest mb-6">For launches & growth</p>
                     
                     <div className="flex items-baseline gap-1 mb-8">
-                        <span className="text-6xl font-black text-gray-900">$29</span>
+                        <span className="text-6xl font-black text-gray-900">$39</span>
                         <span className="text-xl text-gray-400 font-bold uppercase tracking-widest">/Pack</span>
                     </div>
 
                     <div className="w-full space-y-4 mb-10 text-left">
                         {[
                             { text: "30 Demo Credits", bold: "Growth pack" },
+                            { text: "$1.30 per demo", bold: "Best balance" },
                             { text: "Everything in Basic", bold: "Inclusive" },
                             { text: "Best value per demo", bold: "Economical" },
                             { text: "Priority Processing", bold: "Fast" },
@@ -142,13 +144,14 @@ export const PricingView: React.FC<PricingViewProps> = ({ onPurchase }) => {
                     <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">For teams & heavy usage</p>
                     
                     <div className="flex items-baseline gap-1 mb-8">
-                        <span className="text-5xl font-black text-gray-900">$60</span>
+                        <span className="text-5xl font-black text-gray-900">$79</span>
                         <span className="text-base text-gray-400 font-bold uppercase tracking-widest">/Pack</span>
                     </div>
 
                     <div className="w-full space-y-4 mb-10 text-left">
                         {[
                             { text: "100 Demo Credits", bold: "Power pack" },
+                            { text: "$0.79 per demo", bold: "for heavy usage" },
                             { text: "Everything in Premium", bold: "Inclusive" },
                             { text: "Early feature access", bold: "Beta" },
                             { text: "Direct Founder Support", bold: "VIP" },

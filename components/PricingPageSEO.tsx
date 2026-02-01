@@ -66,7 +66,7 @@ export const PricingPageSEO: React.FC = () => {
                     <div className="p-8 border-2 border-green-600 rounded-[40px] bg-green-50/30 relative overflow-hidden">
                         <div className="absolute top-4 right-4 bg-green-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full">Popular</div>
                         <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Premium</h2>
-                        <div className="text-4xl font-black text-gray-900 mb-6">$29 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
+                        <div className="text-4xl font-black text-gray-900 mb-6">$39 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
                         <ul className="space-y-4 mb-8">
                             <li className="flex items-center gap-3 font-medium text-gray-900">
                                 <span className="w-2 h-2 bg-green-600 rounded-full"></span>
@@ -82,7 +82,7 @@ export const PricingPageSEO: React.FC = () => {
                     {/* Pro */}
                     <div className="p-8 border-2 border-gray-100 rounded-[40px] hover:border-gray-200 transition-all">
                         <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Pro</h2>
-                        <div className="text-4xl font-black text-gray-900 mb-6">$60 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
+                        <div className="text-4xl font-black text-gray-900 mb-6">$79 <span className="text-sm text-gray-400 uppercase font-bold tracking-widest">/pack</span></div>
                         <ul className="space-y-4 mb-8">
                             <li className="flex items-center gap-3 font-medium text-gray-600">
                                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
