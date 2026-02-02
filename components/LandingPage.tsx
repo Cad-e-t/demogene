@@ -42,6 +42,57 @@ const FAQItem: React.FC<FAQItemProps> = ({ question, answer, isOpen, onClick }) 
     </div>
 );
 
+const faqs = [
+    {
+        q: "What is ProductCam?",
+        a: "ProductCam is an AI-powered production tool that transforms normal screen recordings into polished, narrated product demos. It handles segmentation, scripting, voiceover, and professional visual effects like smart zooms automatically."
+    },
+    {
+        q: "What problem does ProductCam solve?",
+        a: "It eliminates the friction of manual video production. Traditionally, creating a high-quality demo takes hours of complex editing or expensive freelancers. ProductCam automates this entire pipeline into a process that takes just a few minutes."
+    },
+    {
+        q: "Why do I need Product Demos for my SaaS?",
+        a: "Demos are the most effective way to show, not just tell, the value of your software. They increase conversion rates on landing pages, improve user onboarding, and help close deals faster by providing instant clarity."
+    },
+    {
+        q: "When should I use ProductCam?",
+        a: "Use it whenever you need to explain your product's value: landing pages, onboarding sequences, feature announcements, social media updates, app store preview, investor decks, or Product Hunt launches."
+    },
+    {
+        q: "When is ProductCam not a good fit?",
+        a: "ProductCam is optimized for high-speed software walkthroughs. If you need cinematic brand commercials with real actors, 3D character animation, or complex lifestyle photography, traditional manual editing is still the best route."
+    },
+    {
+        q: "How long does it take to create a demo?",
+        a: "From the moment you upload your recording, it usually takes less than 5 minutes for our AI to analyze, script, and render your final demo."
+    },
+    {
+        q: "Do I need to write a script or record my voice?",
+        a: "No. Our AI 'watches' your screen recording to understand the actions you're taking, writes a matching narrative script, and uses professional-grade AI voices to narrate the walkthrough."
+    },
+    {
+        q: "Can I reuse the demo content?",
+        a: "Absolutely. Once you download your demo, you own the MP4 file. You can use it across your website, YouTube channel, X (Twitter) profile, and within your app's documentation."
+    },
+    {
+        q: "Will this work for my type of product?",
+        a: "ProductCam is specifically designed for web applications, software dashboards, SaaS tools, mobile apps, and digital workflows that can be demonstrated via a screen capture."
+    },
+    {
+        q: "How much does it cost?",
+        a: "We offer simple credit-based pricing starting at $5 for 1 full demo. No monthly subscriptions or hidden fees."
+    },
+    {
+        q: "Can I update a demo when my product changes?",
+        a: "Yes. Since the process is automated and cost-effective, you can simply record the new workflow and generate a fresh demo in minutes whenever your UI or features change."
+    },
+    {
+        q: "Is there a watermark?",
+        a: "No. Your generated demos are completely clean and professional, with no watermarks, ready for use on your official brand channels."
+    }
+];
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -86,7 +137,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             element.setAttribute('content', content);
         };
 
-        const description = "Create polished product demo videos in minutes with ProductCam. Record your screen and let our AI turn it into a professional walkthrough automatically. No editing required.";
+        const description = "ProductCam is an AI-powered tool that turns your screen recordings into polished product demo videos automatically. Perfect for SaaS and mobile apps, with narrated walkthroughs in minutes.";
 
         const siteUrl = "https://productcam.site";
 
@@ -117,6 +168,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
     }, []);
 
+    // FAQ Schema JSON-LD Injection
+    useEffect(() => {
+      const faqSchema = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": faqs.map(faq => ({
+          "@type": "Question",
+          "name": faq.q,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": faq.a
+          }
+        }))
+      };
+    
+      const script = document.createElement('script');
+      script.type = 'application/ld+json';
+      script.innerHTML = JSON.stringify(faqSchema);
+      document.head.appendChild(script);
+    
+      return () => {
+          if (document.head.contains(script)) {
+              document.head.removeChild(script);
+          }
+      };
+    }, []);
+
     const scrollToSection = (id: string) => {
         const element = document.getElementById(id);
         if (element) {
@@ -129,57 +207,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setIsMenuOpen(false);
     };
-
-    const faqs = [
-        {
-            q: "What is ProductCam?",
-            a: "ProductCam is an AI-powered production tool that transforms normal screen recordings into polished, narrated product demos. It handles segmentation, scripting, voiceover, and professional visual effects like smart zooms automatically."
-        },
-        {
-            q: "What problem does ProductCam solve?",
-            a: "It eliminates the friction of manual video production. Traditionally, creating a high-quality demo takes hours of complex editing or expensive freelancers. ProductCam automates this entire pipeline into a process that takes just a few minutes."
-        },
-        {
-            q: "Why do I need Product Demos for my SaaS?",
-            a: "Demos are the most effective way to show, not just tell, the value of your software. They increase conversion rates on landing pages, improve user onboarding, and help close deals faster by providing instant clarity."
-        },
-        {
-            q: "When should I use ProductCam?",
-            a: "Use it whenever you need to explain your product's value: landing pages, onboarding sequences, feature announcements, social media updates, app store preview, investor decks, or Product Hunt launches."
-        },
-        {
-            q: "When is ProductCam not a good fit?",
-            a: "ProductCam is optimized for high-speed software walkthroughs. If you need cinematic brand commercials with real actors, 3D character animation, or complex lifestyle photography, traditional manual editing is still the best route."
-        },
-        {
-            q: "How long does it take to create a demo?",
-            a: "From the moment you upload your recording, it usually takes less than 5 minutes for our AI to analyze, script, and render your final demo."
-        },
-        {
-            q: "Do I need to write a script or record my voice?",
-            a: "No. Our AI 'watches' your screen recording to understand the actions you're taking, writes a matching narrative script, and uses professional-grade AI voices to narrate the walkthrough."
-        },
-        {
-            q: "Can I reuse the demo content?",
-            a: "Absolutely. Once you download your demo, you own the MP4 file. You can use it across your website, YouTube channel, X (Twitter) profile, and within your app's documentation."
-        },
-        {
-            q: "Will this work for my type of product?",
-            a: "ProductCam is specifically designed for web applications, software dashboards, SaaS tools, mobile apps, and digital workflows that can be demonstrated via a screen capture."
-        },
-        {
-            q: "How much does it cost?",
-            a: "We offer simple credit-based pricing starting at $5 for 1 full demo. No monthly subscriptions or hidden fees."
-        },
-        {
-            q: "Can I update a demo when my product changes?",
-            a: "Yes. Since the process is automated and cost-effective, you can simply record the new workflow and generate a fresh demo in minutes whenever your UI or features change."
-        },
-        {
-            q: "Is there a watermark?",
-            a: "No. Your generated demos are completely clean and professional, with no watermarks, ready for use on your official brand channels."
-        }
-    ];
 
     return (
         <div className="relative w-full min-h-screen flex flex-col bg-white overflow-x-hidden selection:bg-sky-500 selection:text-white font-sans text-gray-900">
@@ -754,7 +781,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
 
             {/* --- CRAWLABLE FOOTER NAVIGATION --- */}
             <footer className="w-full border-t border-gray-100 bg-white py-20 px-6 md:px-12 lg:px-24">
-                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
                     <div className="flex flex-col gap-6">
                         <div className="flex items-center gap-3">
                              <span className="font-black text-lg text-gray-900 tracking-tighter uppercase">ProductCam</span>
@@ -784,6 +811,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             </li>
                             <li>
                                 <a href="https://productcam.site/#/blog" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Resources & Blog</a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="flex flex-col gap-6">
+                        <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs">Socials</h4>
+                        <ul className="flex flex-col gap-4">
+                            <li>
+                                <a href="https://www.producthunt.com/products/productcam" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Product Hunt</a>
                             </li>
                         </ul>
                     </div>
