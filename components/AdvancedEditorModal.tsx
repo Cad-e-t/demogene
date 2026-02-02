@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { TimeRange } from '../types';
 
@@ -20,7 +20,6 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
   onClose 
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const timelineContentRef = useRef<HTMLDivElement>(null);
   
@@ -30,7 +29,7 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
 
   // State
   const [segments, setSegments] = useState<TimeRange[]>([]);
-  const [currentTime, setCurrentTime] = useState(0); // Source Time
+  const [currentTime, setCurrentTime] = useState(0); 
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   
@@ -50,8 +49,10 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
   // Initialize
   useEffect(() => {
     if (initialSegments && initialSegments.length > 0) {
-      setSegments(initialSegments);
-      pushHistory(initialSegments);
+      // Deep copy to avoid reference issues
+      const deepCopy = JSON.parse(JSON.stringify(initialSegments));
+      setSegments(deepCopy);
+      pushHistory(deepCopy);
     } else {
       const initial = [{ id: uuidv4(), start: 0, end: duration }];
       setSegments(initial);
@@ -91,61 +92,50 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
     setSelectedSegmentId(null);
   };
 
-  // --- Canvas Loop ---
-  useEffect(() => {
-    let animationFrameId: number;
-    const render = () => {
-      if (videoRef.current && canvasRef.current) {
-        const ctx = canvasRef.current.getContext('2d');
-        if (ctx) {
-            // Ensure buffer matches video resolution for quality
-            if (canvasRef.current.width !== videoRef.current.videoWidth) {
-                canvasRef.current.width = videoRef.current.videoWidth;
-            }
-            if (canvasRef.current.height !== videoRef.current.videoHeight) {
-                canvasRef.current.height = videoRef.current.videoHeight;
-            }
-            ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        }
-      }
-      animationFrameId = requestAnimationFrame(render);
-    };
-    render();
-    return () => cancelAnimationFrame(animationFrameId);
-  }, []);
-
   // --- Playback Logic (Gap Skipping) ---
   useEffect(() => {
-    const checkTime = () => {
-      if (!videoRef.current || !isPlaying || isDraggingPlayhead) return;
-      
-      const t = videoRef.current.currentTime;
-      setCurrentTime(t);
+    if (!isPlaying) return;
+    
+    let animationFrameId: number;
 
-      const currentSeg = segments.find(s => t >= s.start && t < s.end);
+    const loop = () => {
+      if (videoRef.current && !isDraggingPlayhead) {
+          const t = videoRef.current.currentTime;
+          setCurrentTime(t);
 
-      if (!currentSeg) {
-        // Find next segment
-        const nextSeg = segments.find(s => s.start > t);
-        if (nextSeg) {
-          videoRef.current.currentTime = nextSeg.start;
-        } else {
-          // Loop or Stop
           if (segments.length > 0) {
-              const lastSeg = segments[segments.length - 1];
-              if (t > lastSeg.end) {
-                  setIsPlaying(false);
-                  videoRef.current.pause();
-                  videoRef.current.currentTime = segments[0].start;
-              }
+             const sortedSegments = [...segments].sort((a,b) => a.start - b.start);
+             
+             // Check if we are inside a valid segment (with small buffer at end to trigger skip early)
+             const currentSeg = sortedSegments.find(s => t >= s.start && t < s.end - 0.05);
+
+             if (!currentSeg) {
+               // We are in a gap or at end of segment
+               const nextSeg = sortedSegments.find(s => s.start > t);
+               if (nextSeg) {
+                   // Only seek if we are far enough away (prevent jitter loop)
+                   if (Math.abs(videoRef.current.currentTime - nextSeg.start) > 0.1) {
+                       videoRef.current.currentTime = nextSeg.start;
+                   }
+               } else {
+                   // End of timeline
+                   // Check if we are past the last segment's end
+                   const lastSeg = sortedSegments[sortedSegments.length - 1];
+                   if (t >= lastSeg.end - 0.1) {
+                        setIsPlaying(false);
+                        videoRef.current.pause();
+                        videoRef.current.currentTime = sortedSegments[0].start;
+                   }
+               }
+             }
           }
-        }
       }
+      animationFrameId = requestAnimationFrame(loop);
     };
 
-    const interval = setInterval(checkTime, 30);
-    return () => clearInterval(interval);
-  }, [segments, isPlaying, isDraggingPlayhead]);
+    loop();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isPlaying, isDraggingPlayhead, segments]);
 
   // --- Actions ---
 
@@ -172,6 +162,18 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
     const newSegments = segments.filter(s => s.id !== selectedSegmentId);
     updateSegments(newSegments);
     setSelectedSegmentId(null);
+    
+    // If we deleted the current segment, try to jump to a valid spot
+    if (videoRef.current && newSegments.length > 0) {
+        const t = videoRef.current.currentTime;
+        const sorted = [...newSegments].sort((a,b) => a.start - b.start);
+        const inSeg = sorted.some(s => t >= s.start && t < s.end);
+        if (!inSeg) {
+            const next = sorted.find(s => s.start > t) || sorted[0];
+            videoRef.current.currentTime = next.start;
+            setCurrentTime(next.start);
+        }
+    }
   };
 
   const handlePlayPause = () => {
@@ -181,10 +183,14 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
       setIsPlaying(false);
     } else {
       const t = videoRef.current.currentTime;
-      const inSeg = segments.some(s => t >= s.start && t < s.end);
-      if (!inSeg) {
-         const next = segments.find(s => s.start > t) || segments[0];
-         if(next) videoRef.current.currentTime = next.start;
+      const sorted = [...segments].sort((a,b) => a.start - b.start);
+      // If start from gap, jump to next
+      if (sorted.length > 0) {
+          const inSeg = sorted.some(s => t >= s.start && t < s.end - 0.05);
+          if (!inSeg) {
+              const next = sorted.find(s => s.start > t) || sorted[0];
+              videoRef.current.currentTime = next.start;
+          }
       }
       videoRef.current.play();
       setIsPlaying(true);
@@ -194,22 +200,25 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 20, 300));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 20, 20));
 
-  // --- Layout Calculation ---
-  const calculateLayout = () => {
+  // --- Layout Calculation (Memoized) ---
+  const layout = useMemo(() => {
       let currentPixelX = 0;
+      // Sort segments for display consistency
+      const sortedSegments = [...segments].sort((a,b) => a.start - b.start);
+      
       const layoutItems: Array<{ 
           segment: TimeRange, 
           left: number, 
-          width: number, 
-          isGap?: boolean 
+          width: number 
       }> = [];
 
-      segments.forEach(seg => {
+      sortedSegments.forEach(seg => {
           const segDuration = seg.end - seg.start;
           const segWidth = segDuration * zoomLevel;
           
           let visualLeft = currentPixelX;
           
+          // Gap Simulation during drag
           if (dragState && dragState.segmentId === seg.id && dragState.type === 'start') {
              const deltaSeconds = seg.start - dragState.initialStart;
              if (deltaSeconds > 0) {
@@ -229,9 +238,7 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
       });
 
       return { items: layoutItems, totalWidth: currentPixelX };
-  };
-
-  const layout = calculateLayout();
+  }, [segments, zoomLevel, dragState]);
 
   // --- Playhead Drag & Scroll ---
   const handlePlayheadMouseDown = (e: React.MouseEvent) => {
@@ -392,6 +399,8 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
   };
 
   let playheadPixelPos = 0;
+  // Determine playhead position relative to layout
+  const sortedSegs = [...segments].sort((a,b) => a.start - b.start);
   const activeLayoutItem = layout.items.find(item => 
       currentTime >= item.segment.start && currentTime <= item.segment.end
   );
@@ -435,9 +444,7 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
         <div className="flex-1 flex flex-col lg:flex-row min-h-0 bg-black/50">
              {/* Preview Area */}
              <div className="flex-1 flex flex-col items-center justify-center p-4 min-h-[300px] overflow-hidden relative">
-                <video ref={videoRef} src={videoUrl} className="hidden" muted playsInline />
-                
-                {/* Fixed Size Preview Container */}
+                {/* Replaced canvas with direct video for performance */}
                 <div 
                     className="relative shadow-2xl border border-gray-800 rounded-lg overflow-hidden bg-black flex items-center justify-center" 
                     style={{ 
@@ -448,10 +455,22 @@ export const AdvancedEditorModal: React.FC<AdvancedEditorModalProps> = ({
                         aspectRatio: '16/9' 
                     }}
                 >
-                    <canvas 
-                        ref={canvasRef} 
-                        className="w-full h-full object-contain"
+                    <video 
+                        ref={videoRef} 
+                        src={videoUrl} 
+                        className="w-full h-full object-contain" 
+                        muted 
+                        playsInline
+                        preload="auto"
+                        onClick={handlePlayPause}
                     />
+                    {!isPlaying && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="w-16 h-16 bg-black/40 backdrop-blur rounded-full flex items-center justify-center border border-white/20">
+                                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                            </div>
+                        </div>
+                    )}
                 </div>
              </div>
         </div>

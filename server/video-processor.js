@@ -1,4 +1,5 @@
 
+
 import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -448,11 +449,8 @@ export async function processVideoPipeline(
         
         if (shouldWatermark) {
              console.log("Applying watermark for free user...");
-             // Filter: Draw text on bottom right
-             // fontfile can be omitted to use default font in many builds, but safest is to check. 
-             // We will try using default font behavior or a generic sans-serif if possible.
-             // x=w-tw-40:y=h-th-40 places it 40px from bottom right
-             const filters = "drawtext=text='Made with ProductCam':fontcolor=white@0.7:fontsize=h/30:x=w-tw-40:y=h-th-40:shadowcolor=black@0.5:shadowx=2:shadowy=2";
+             // Filter: Draw text on top left, larger and more visible
+             const filters = "drawtext=text='Made with ProductCam':fontcolor=white@0.9:fontsize=h/20:x=40:y=40:shadowcolor=black@0.8:shadowx=2:shadowy=2";
              
              let args = ['-i', syncedVideo];
              if(fullAudioPath) {
