@@ -1,4 +1,3 @@
-
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -173,19 +172,6 @@ export async function runVideoProcessing(jobData) {
 
         const outputPublicUrl = `${R2_PUBLIC_URL}/${outputKey}`;
 
-        // Charge Credit
-        try {
-            const { error: chargeError } = await supabase.rpc('charge_credit', { p_user_id: userId });
-            if (chargeError) {
-                console.error("Error charging credit:", chargeError);
-                // Note: We don't fail the job if charging fails at this point, but you might want to log it for manual review.
-            } else {
-                console.log(`Credit charged for user ${userId}`);
-            }
-        } catch (e) {
-            console.error("RPC Error charging credit:", e);
-        }
-
         // Final DB Update
         const { error: dbUpdateError } = await supabase
             .from('videos')
@@ -211,8 +197,21 @@ export async function runVideoProcessing(jobData) {
         // Update DB to Failed
         await supabase
             .from('videos')
-            .update({ status: 'failed' }) // You might want to add an error_message column later
+            .update({ status: 'failed' }) 
             .eq('id', videoId);
+        
+        // Refund Credit
+        try {
+            console.log(`Refunding credit for failed job: ${videoId}`);
+            await supabase.rpc('grant_credits_from_purchase', {
+                 p_user_id: userId,
+                 p_credits_to_add: 1,
+                 p_description: 'Refund: Processing Failed',
+                 p_metadata: { videoId, error: error.message }
+            });
+        } catch (refundError) {
+            console.error("Failed to refund credit:", refundError);
+        }
             
     } finally {
         cleanup(filesToDelete);

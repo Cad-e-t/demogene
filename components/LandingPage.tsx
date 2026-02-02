@@ -50,21 +50,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
     const [autoPlay, setAutoPlay] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
 
-    // Countdown Timer State
-    const [timeLeft, setTimeLeft] = useState(() => {
-        if (typeof window === 'undefined') return 24 * 60 * 60;
-        const STORAGE_KEY = 'productcam_offer_end';
-        const saved = localStorage.getItem(STORAGE_KEY);
-        const now = Date.now();
-        if (saved && parseInt(saved, 10) > now) {
-             return Math.floor((parseInt(saved, 10) - now) / 1000);
-        }
-        // Set new time (24 hours from now)
-        const newEnd = now + 24 * 60 * 60 * 1000;
-        localStorage.setItem(STORAGE_KEY, newEnd.toString());
-        return 24 * 60 * 60;
-    });
-
     const currentExample = LANDING_EXAMPLES[currentExampleIndex];
 
     const nextExample = (e?: React.MouseEvent) => {
@@ -86,24 +71,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
-
-    // Timer Interval
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 0) return 0;
-                return prev - 1;
-            });
-        }, 1000);
-        return () => clearInterval(timer);
-    }, []);
-
-    const formatTime = (seconds: number) => {
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = seconds % 60;
-        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    };
 
     // SEO Optimization
     useEffect(() => {
@@ -286,19 +253,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                            Create app demos and tutorials instantly
                         </h1>
                         
-                        <p className="text-xl md:text-2xl text-white max-w-6xl leading-relaxed mb-10 font-medium tracking-tight drop-shadow-lg">
+                        <p className="text-xl md:text-2xl text-white max-w-6xl leading-relaxed mb-20 font-medium tracking-tight drop-shadow-lg">
                          Record your screen once. Get a clear narrated walkthrough automatically
                         </p>
-
-                        <div className="mb-8 flex items-center gap-3 animate-fade-in bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-5 py-2 shadow-lg">
-                            <span className="relative flex h-3 w-3">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                            </span>
-                            <span className="text-sm md:text-base font-bold text-white tracking-wide font-mono">
-                                Free demo credit ends in {formatTime(timeLeft)}
-                            </span>
-                        </div>
 
                         <button 
                             onClick={handleLogin} 

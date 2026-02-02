@@ -116,18 +116,11 @@ export const processVideo = async (req, res) => {
     try { if (typeof trim === 'string') trim = JSON.parse(trim); } catch(e){}
     try { if (typeof segments === 'string') segments = JSON.parse(segments); } catch(e){}
 
-    // 1. Initial Credit Check (Fast Fail)
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('credits')
-        .eq('id', userId)
-        .single();
+    // 1. Charge Credit Immediately (Prevents Race Condition)
+    const { error: chargeError } = await supabase.rpc('charge_credit', { p_user_id: userId });
     
-    if (profileError || !profile) {
-        return res.status(500).json({ error: 'Could not fetch user profile for credit check' });
-    }
-    
-    if (profile.credits < 1) {
+    if (chargeError) {
+        console.error("Credit deduction failed:", chargeError);
         return res.status(402).json({ error: 'Insufficient credits. Please purchase a pack.' });
     }
 
@@ -139,6 +132,13 @@ export const processVideo = async (req, res) => {
         .single();
 
     if (sourceError || !sourceVideo) {
+        // Refund credit if processing cannot proceed
+        await supabase.rpc('grant_credits_from_purchase', {
+             p_user_id: userId,
+             p_credits_to_add: 1,
+             p_description: 'Refund: Source video not found',
+             p_metadata: { videoId }
+        });
         return res.status(404).json({ error: 'Original video not found' });
     }
 
@@ -164,6 +164,13 @@ export const processVideo = async (req, res) => {
     
     if (insertError) {
         console.error("Failed to create new project record:", insertError);
+        // Refund credit
+        await supabase.rpc('grant_credits_from_purchase', {
+             p_user_id: userId,
+             p_credits_to_add: 1,
+             p_description: 'Refund: Project creation failed',
+             p_metadata: { error: insertError.message }
+        });
         return res.status(500).json({ error: 'Failed to create project record' });
     }
 
