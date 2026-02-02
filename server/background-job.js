@@ -1,3 +1,4 @@
+
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -136,6 +137,16 @@ export async function runVideoProcessing(jobData) {
         
         const isZoomDisabled = disableZoom === 'true' || disableZoom === true;
 
+        // Check user payment status for watermarking
+        const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('dodo_customer_id')
+            .eq('id', userId)
+            .single();
+
+        // If user has no customer ID, they are a free user and get a watermark
+        const shouldWatermark = !userProfile?.dodo_customer_id;
+
         // Use High Quality Processing File for the visual pipeline
         await processVideoPipeline(
             processingInputPath,
@@ -144,7 +155,8 @@ export async function runVideoProcessing(jobData) {
             analysis,
             outputPath,
             backgroundId,
-            isZoomDisabled
+            isZoomDisabled,
+            shouldWatermark
         );
         console.log('--- Pipeline Complete ---');
 

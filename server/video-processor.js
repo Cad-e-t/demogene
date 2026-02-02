@@ -373,7 +373,8 @@ export async function processVideoPipeline(
     analysis, 
     finalOutputPath,
     backgroundId,
-    disableZoom = false
+    disableZoom = false,
+    shouldWatermark = false
 ) {
     const workDir = path.join(os.tmpdir(), 'temp_' + uuidv4());
     if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
@@ -443,11 +444,42 @@ export async function processVideoPipeline(
         const syncedVideo = path.join(workDir, 'synced.mp4');
         await runFFmpeg(['-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', '-y', syncedVideo]);
         
-        console.log("--- Pipeline Step 5: Merging Audio ---");
-        if (fullAudioPath) {
-            await runFFmpeg(['-i', syncedVideo, '-i', fullAudioPath, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-y', finalOutputPath]);
+        console.log("--- Pipeline Step 5: Merging Audio & Watermarking ---");
+        
+        if (shouldWatermark) {
+             console.log("Applying watermark for free user...");
+             // Filter: Draw text on bottom right
+             // fontfile can be omitted to use default font in many builds, but safest is to check. 
+             // We will try using default font behavior or a generic sans-serif if possible.
+             // x=w-tw-40:y=h-th-40 places it 40px from bottom right
+             const filters = "drawtext=text='Made with ProductCam':fontcolor=white@0.7:fontsize=h/30:x=w-tw-40:y=h-th-40:shadowcolor=black@0.5:shadowx=2:shadowy=2";
+             
+             let args = ['-i', syncedVideo];
+             if(fullAudioPath) {
+                 args.push('-i', fullAudioPath);
+                 args.push('-map', '0:v', '-map', '1:a');
+                 args.push('-shortest'); // Stop when shortest stream ends
+             }
+             
+             args.push('-vf', filters);
+             // Must re-encode video when using filters
+             args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '23');
+             
+             if(fullAudioPath) {
+                 args.push('-c:a', 'aac');
+             }
+             
+             args.push('-y', finalOutputPath);
+             await runFFmpeg(args);
+             
         } else {
-            fs.copyFileSync(syncedVideo, finalOutputPath);
+            // Original logic for paid users (No Watermark)
+            if (fullAudioPath) {
+                // Use copy for video stream to avoid quality loss/time if possible
+                await runFFmpeg(['-i', syncedVideo, '-i', fullAudioPath, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-y', finalOutputPath]);
+            } else {
+                fs.copyFileSync(syncedVideo, finalOutputPath);
+            }
         }
         
         console.log(`[Pipeline] Completed successfully. Final output: ${finalOutputPath}`);
