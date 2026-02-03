@@ -822,10 +822,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 <a href="https://www.producthunt.com/products/productcam" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Product Hunt</a>
                             </li>
                             <li>
-                                <a href="https://trustmrr.com/startup/productcam" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Product Hunt</a>
+                                <a href="https://trustmrr.com/startup/productcam" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Trust MRR</a>
                             </li>
                             <li>
-                                <a href="https://x.com/productcam" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Product Hunt</a>
+                                <a href="https://x.com/productcam" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">X</a>
                             </li>
                         </ul>
                     </div>
