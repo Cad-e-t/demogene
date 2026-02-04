@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TESTIMONIALS, LANDING_EXAMPLES } from '../assets';
 
 interface LandingPageProps {
@@ -96,24 +96,9 @@ const faqs = [
 export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
-    const [demoMode, setDemoMode] = useState<'input' | 'output'>('output');
-    const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
-    const [autoPlay, setAutoPlay] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
-
-    const currentExample = LANDING_EXAMPLES[currentExampleIndex];
-
-    const nextExample = (e?: React.MouseEvent) => {
-        if (e) e.stopPropagation();
-        setCurrentExampleIndex((prev) => (prev + 1) % LANDING_EXAMPLES.length);
-        setDemoMode('output');
-    };
-
-    const prevExample = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setCurrentExampleIndex((prev) => (prev - 1 + LANDING_EXAMPLES.length) % LANDING_EXAMPLES.length);
-        setDemoMode('output');
-    };
+    const [activeExampleTab, setActiveExampleTab] = useState<'saas' | 'mobile'>('saas');
+    const [exampleAutoPlay, setExampleAutoPlay] = useState(true);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -251,7 +236,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
             </div>
 
             {/* --- HERO SECTION --- */}
-            <div className="relative z-10 w-full bg-black text-white overflow-hidden flex flex-col items-center">
+            <div className="relative z-10 w-full bg-black text-white overflow-hidden flex flex-col items-center min-h-screen justify-center">
                 
                 {/* Background Image & Overlay */}
                 <div className="absolute inset-0 z-0">
@@ -264,55 +249,53 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90"></div>
                 </div>
 
-                <div className="relative z-10 max-w-[1700px] mx-auto px-6 md:px-12 pt-40 pb-24 flex flex-col items-center w-full">
+                <div className="relative z-10 max-w-[1700px] mx-auto px-6 md:px-12 flex flex-col items-center w-full h-full justify-center pt-24 pb-12">
                     <div className="w-full flex flex-col items-center text-center">
                         <h1 
                             style={{ 
                                 fontFamily: "'Inter', sans-serif", 
                                 fontWeight: 300,
-                                fontSize: 'clamp(44px, 9vw, 84px)',
+                                fontSize: 'clamp(40px, 7vw, 72px)',
                                 lineHeight: 1.1,
                                 letterSpacing: '-0.03em',
                                 textShadow: '0 4px 20px rgba(0,0,0,0.5)'
                             }}
                             className="mb-8 w-full max-w-none drop-shadow-2xl"
                         >
-                           Create app demos and tutorials instantly
+                          Auto-generate narrated product demo videos <b/> for saas and mobile apps.
                         </h1>
                         
-                        <p className="text-xl md:text-2xl text-white max-w-6xl leading-relaxed mb-20 font-medium tracking-tight drop-shadow-lg">
-                         Record your screen once. Get a clear narrated walkthrough automatically
+                        <p className="text-lg md:text-xl text-white max-w-5xl leading-relaxed mb-10 font-medium tracking-tight drop-shadow-lg">
+                         Turn a simple screen recording into a narrated walkthrough that shows your app in action.
                         </p>
 
                         <button 
                             onClick={handleLogin} 
-                            className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] active:scale-95 transition-all duration-500 mb-20 shadow-2xl"
+                            className="group relative cursor-pointer w-full sm:w-auto transform hover:scale-[1.02] active:scale-95 transition-all duration-500 mb-12 shadow-2xl"
                         >
                             <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
-                            <div className="relative flex items-center justify-center gap-5 px-14 py-6 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
-                                <span className="font-black text-2xl uppercase tracking-tighter">Get Started For Free</span>
-                                <svg className="w-7 h-7 animate-bounce-x" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="relative flex items-center justify-center gap-5 px-10 py-5 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
+                                <span className="font-black text-xl uppercase tracking-tighter">Get Started For Free</span>
+                                <svg className="w-6 h-6 animate-bounce-x" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" />
                                 </svg>
                             </div>
                         </button>
 
                         {/* --- TESTIMONIALS --- */}
-                        <div className="w-full mb-16 relative">
-                            <p className="text-center text-sm font-bold text-white mb-10 uppercase tracking-widest drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">Loved by builders</p>
-
+                        <div className="w-full relative">
                             <div className="relative">
-                                <div className="w-full flex overflow-x-auto gap-6 px-4 md:px-0 pb-4 snap-x snap-mandatory no-scrollbar scroll-smooth">
+                                <div className="w-fit max-w-full mx-auto flex overflow-x-auto gap-6 px-4 md:px-0 pb-4 snap-x snap-mandatory no-scrollbar scroll-smooth">
                                     {TESTIMONIALS.map((t) => (
                                         <div key={t.id} className="shrink-0 snap-center w-[300px] md:w-[400px] transform hover:scale-[1.02] transition-all duration-500">
-                                            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 flex flex-col h-full hover:bg-white/10 transition-colors shadow-lg">
+                                            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6 flex flex-col h-full hover:bg-white/10 transition-colors shadow-lg">
                                                 <div className="flex-1 text-left">
-                                                    <p className="text-lg font-medium text-gray-200 leading-relaxed italic drop-shadow-sm">
+                                                    <p className="text-base font-medium text-gray-200 leading-relaxed italic drop-shadow-sm">
                                                         "{t.message}"
                                                     </p>
                                                 </div>
                                                 
-                                                <div className="mt-8 flex items-center justify-between">
+                                                <div className="mt-6 flex items-center justify-between">
                                                     <div className="flex items-center gap-3">
                                                         <img src={t.photo} alt={t.name} className="w-10 h-10 rounded-full object-cover border border-white/10" />
                                                         <div className="flex flex-col text-left">
@@ -348,72 +331,47 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </div>
             </div>
 
-            {/* --- SEE EXAMPLE SECTION --- */}
-            <div id="example" className="w-full bg-gray-50/50 pt-32 pb-40 scroll-mt-24 border-t border-b border-gray-100 relative overflow-hidden">
-                <div className="w-full px-6 md:px-12 lg:px-24 mb-16 flex flex-col items-center text-center">
-                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">Examples From Users</h2>
-                    <div className="w-24 h-2 bg-green-500 mt-6 rounded-full"></div>
-                </div>
-
+            {/* --- EXAMPLE SECTION --- */}
+            <div id="example" className="w-full bg-gray-50/50 pt-20 pb-20 scroll-mt-24 border-t border-b border-gray-100 relative overflow-hidden">
                 <div className="w-full max-w-5xl mx-auto px-6 md:px-12 flex flex-col items-center">
-                     {LANDING_EXAMPLES.length > 0 && (
-                        <div className="w-full group cursor-pointer flex flex-col items-center">
-                            <div className="relative aspect-video bg-black rounded-[32px] overflow-hidden shadow-2xl border border-gray-200 group-hover:shadow-green-500/10 transition-all duration-500 w-full group/video">
-                                {/* Navigation Arrows */}
-                                <button 
-                                    onClick={(e) => prevExample(e)} 
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white hover:scale-110 transition-all z-20 text-gray-900 opacity-0 group-hover/video:opacity-100 duration-300"
-                                    title="Previous Example"
-                                >
-                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                
-                                <button 
-                                    onClick={(e) => nextExample(e)} 
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white hover:scale-110 transition-all z-20 text-gray-900 opacity-0 group-hover/video:opacity-100 duration-300"
-                                    title="Next Example"
-                                >
-                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
-                                </button>
+                    
+                    {/* Toggle Buttons */}
+                    <div className="flex p-1.5 bg-white border border-gray-200 rounded-xl shadow-sm relative mb-10">
+                        <button 
+                            onClick={() => setActiveExampleTab('saas')}
+                            className={`px-8 py-3 rounded-lg text-sm font-black uppercase tracking-widest transition-all ${activeExampleTab === 'saas' ? 'bg-gray-900 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'}`}
+                        >
+                            SaaS
+                        </button>
+                        <button 
+                            onClick={() => setActiveExampleTab('mobile')}
+                            className={`px-8 py-3 rounded-lg text-sm font-black uppercase tracking-widest transition-all ${activeExampleTab === 'mobile' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'}`}
+                        >
+                            Mobile App
+                        </button>
+                    </div>
 
+                    {LANDING_EXAMPLES.length >= 2 && (
+                        <div className="w-full flex flex-col items-center">
+                            <div className="relative aspect-video bg-black rounded-[32px] overflow-hidden shadow-2xl border border-gray-200 w-full group/video">
                                 <video 
-                                    key={`${currentExample.id}-${demoMode}`}
-                                    src={demoMode === 'input' ? currentExample.inputUrl : currentExample.outputUrl} 
+                                    key={activeExampleTab}
+                                    src={activeExampleTab === 'saas' ? LANDING_EXAMPLES[0].outputUrl : LANDING_EXAMPLES[1].outputUrl} 
                                     className="w-full h-full object-contain bg-black"
                                     controls
                                     playsInline
-                                    muted={demoMode === 'input'}
+                                    muted={false} // Attempt to play with sound if user interacted, otherwise browser blocks it until click
                                     preload="metadata"
-                                    autoPlay={autoPlay}
-                                    onPlay={() => setAutoPlay(true)}
-                                    onPause={() => setAutoPlay(false)}
-                                    onEnded={() => nextExample()}
+                                    autoPlay={exampleAutoPlay}
                                 />
-                            </div>
-                            
-                            <div className="mt-10 flex p-1.5 bg-white border border-gray-200 rounded-xl shadow-sm relative">
-                                <button 
-                                    onClick={() => setDemoMode('input')}
-                                    className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${demoMode === 'input' ? 'bg-gray-900 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'}`}
-                                >
-                                    Raw Input
-                                </button>
-                                <button 
-                                    onClick={() => setDemoMode('output')}
-                                    className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${demoMode === 'output' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'}`}
-                                >
-                                    Polished Output
-                                </button>
-                            </div>
-                            
-                            {/* Slide Indicator Dots */}
-                            <div className="flex gap-2 mt-6">
-                                {LANDING_EXAMPLES.map((_, idx) => (
-                                    <div 
-                                        key={idx}
-                                        className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentExampleIndex ? 'bg-green-500 w-6' : 'bg-gray-300'}`}
-                                    />
-                                ))}
+                                
+                                {/* Sound Prompt Overlay - fades out if playing */}
+                                <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 pointer-events-none z-20 animate-pulse">
+                                    <div className="flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-4 0h-2.5l-5 5v5.5h5l5 5v-15.5zm2 5.5v5c1.4-.46 2.4-1.63 2.4-3.08.01-1.13-.65-2.13-1.66-2.58l-.74.66z"/></svg>
+                                        <span className="text-xs font-bold text-white uppercase tracking-wider">Turn on sound</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                      )}
