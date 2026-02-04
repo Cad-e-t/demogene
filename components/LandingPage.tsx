@@ -266,7 +266,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         </h1>
                         
                         <p className="text-lg md:text-xl text-white max-w-5xl leading-relaxed mb-10 font-medium tracking-tight drop-shadow-lg">
-                         Create professional walkthroughs in minutes. Increase conversions, improve onboarding, and close more deals without hiring a video team
+                         Create clear, professional walkthroughs in minutes no editing skills required
                         </p>
 
                         <button 
