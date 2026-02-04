@@ -262,11 +262,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             }}
                             className="mb-8 w-full max-w-none drop-shadow-2xl"
                         >
-                          Auto-generate narrated product demo videos <b/> for saas and mobile apps.
+                          AI-narrated product demos from your screen recordings
                         </h1>
                         
                         <p className="text-lg md:text-xl text-white max-w-5xl leading-relaxed mb-10 font-medium tracking-tight drop-shadow-lg">
-                         Turn a simple screen recording into a narrated walkthrough that shows your app in action.
+                         Create professional walkthroughs in minutes. Increase conversions, improve onboarding, and close more deals without hiring a video team
                         </p>
 
                         <button 
