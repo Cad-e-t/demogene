@@ -5,7 +5,7 @@ export const EXAMPLE_VIDEOS = [
   {
     id: 'ex-1',
     title: 'UI Exploration',
-    url: 'https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/0256a531-71d7-4e15-9a90-5cff59177b24.mp4',
+    url: 'https://assets.productcam.site/outputs/47c9c99e-9f51-4a79-b401-f4d5d62a7885.mp4',
     category: 'Onboarding Demo'
   },
     {
@@ -20,7 +20,7 @@ export const LANDING_EXAMPLES = [
   {
     id: 'example-1',
     inputUrl: "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/inputs/8b6f6fb1-3df0-425e-82ef-3d150d06491a.mp4",
-    outputUrl: "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/uploads/outputs/c0fb92eb-0b17-4853-a576-98b7f899248b.mp4"
+    outputUrl: "https://assets.productcam.site/outputs/47c9c99e-9f51-4a79-b401-f4d5d62a7885.mp4"
   },
   {
     id: 'example-2',
@@ -43,6 +43,17 @@ export interface Testimonial {
 }
 
 export const TESTIMONIALS: Testimonial[] = [
+
+   {
+    id: 't-2',
+    name: 'Curlheinz',
+    handle: '@Curlh1',
+    role: 'Founder',
+    message: "REALLY surprised how well the video turned out. I uploaded 2min of footage and got back 90seconds. Perfect, even my mother understood what I’ve building after she watched it.",
+    link: 'https://x.com/Curlh1?s=20',
+    photo: 'https://pbs.twimg.com/profile_images/1991414307968495616/6712xZiD_400x400.jpg'
+  },
+
   {
     id: 't-1',
     name: 'Ben Head',
@@ -51,16 +62,6 @@ export const TESTIMONIALS: Testimonial[] = [
     message: "This tool is a game changer for a high school founder like me. I can't afford to hire a design team right now so I need speed. This means I can spend less time making demos and more time coding the next feature for my app.",
     link: 'https://x.com/BenHeadGPT?s=20',
     photo: 'https://pbs.twimg.com/profile_images/1962024911637295104/dGSW3GFk_400x400.jpg'
-  },
-
-  {
-    id: 't-2',
-    name: 'Curlheinz',
-    handle: '@Curlh1',
-    role: 'Founder',
-    message: "REALLY surprised how well the video turned out. I uploaded 2min of footage and got back 90seconds. Perfect, even my mother understood what I’ve building after she watched it.",
-    link: 'https://x.com/Curlh1?s=20',
-    photo: 'https://pbs.twimg.com/profile_images/1991414307968495616/6712xZiD_400x400.jpg'
   },
 
   {

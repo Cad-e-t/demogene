@@ -99,6 +99,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
     const [isScrolled, setIsScrolled] = useState(false);
     const [activeExampleTab, setActiveExampleTab] = useState<'saas' | 'mobile'>('saas');
     const [exampleAutoPlay, setExampleAutoPlay] = useState(true);
+    const [isMuted, setIsMuted] = useState(true);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -125,6 +126,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
         const description = "ProductCam is an AI-powered tool that turns your screen recordings into polished product demo videos automatically. Perfect for SaaS and mobile apps, with narrated walkthroughs in minutes.";
 
         const siteUrl = "https://productcam.site";
+        const socialImage = "https://assets.productcam.site/photo/laptop-showing-product-demo.avif";
 
         setMeta('description', description);
         setMeta('canonical', siteUrl, 'rel'); 
@@ -141,7 +143,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
         // Open Graph
         setMeta('og:title', 'ProductCam - Automated AI Product Demo Generator', 'property');
         setMeta('og:description', description, 'property');
-        setMeta('og:image', 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80', 'property');
+        setMeta('og:image', socialImage, 'property');
         setMeta('og:url', siteUrl, 'property');
         setMeta('og:type', 'website', 'property');
 
@@ -149,7 +151,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
         setMeta('twitter:card', 'summary_large_image', 'name');
         setMeta('twitter:title', 'ProductCam - AI Product Demos', 'name');
         setMeta('twitter:description', description, 'name');
-        setMeta('twitter:image', 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80', 'name');
+        setMeta('twitter:image', socialImage, 'name');
 
     }, []);
 
@@ -262,11 +264,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             }}
                             className="mb-8 w-full max-w-none drop-shadow-2xl"
                         >
-                          AI-narrated product demos from your screen recordings
+                          Launching without a demo video? <br />
+                          Create one in 5 minutes
                         </h1>
                         
                         <p className="text-lg md:text-xl text-white max-w-5xl leading-relaxed mb-10 font-medium tracking-tight drop-shadow-lg">
-                         Create clear, professional walkthroughs in minutes no editing skills required
+                         We add professional voiceover, auto-zoom, and pacing automatically. No editing skills or software needed
                         </p>
 
                         <button 
@@ -275,7 +278,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         >
                             <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
                             <div className="relative flex items-center justify-center gap-5 px-10 py-5 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
-                                <span className="font-black text-xl uppercase tracking-tighter">Get Started For Free</span>
+                                <span className="font-black text-xl uppercase tracking-tighter">Start For Free</span>
                                 <svg className="w-6 h-6 animate-bounce-x" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" />
                                 </svg>
@@ -360,18 +363,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                     className="w-full h-full object-contain bg-black"
                                     controls
                                     playsInline
-                                    muted={false} // Attempt to play with sound if user interacted, otherwise browser blocks it until click
+                                    muted={isMuted}
                                     preload="metadata"
                                     autoPlay={exampleAutoPlay}
                                 />
                                 
-                                {/* Sound Prompt Overlay - fades out if playing */}
-                                <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 pointer-events-none z-20 animate-pulse">
-                                    <div className="flex items-center gap-2">
-                                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-4 0h-2.5l-5 5v5.5h5l5 5v-15.5zm2 5.5v5c1.4-.46 2.4-1.63 2.4-3.08.01-1.13-.65-2.13-1.66-2.58l-.74.66z"/></svg>
-                                        <span className="text-xs font-bold text-white uppercase tracking-wider">Turn on sound</span>
-                                    </div>
-                                </div>
+                                {/* Sound Prompt Overlay - hidden if unmuted */}
+                                {isMuted && (
+                                    <button 
+                                        onClick={() => setIsMuted(false)}
+                                        className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 z-20 animate-pulse hover:bg-black/80 transition-colors cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-4 0h-2.5l-5 5v5.5h5l5 5v-15.5zm2 5.5v5c1.4-.46 2.4-1.63 2.4-3.08.01-1.13-.65-2.13-1.66-2.58l-.74.66z"/></svg>
+                                            <span className="text-xs font-bold text-white uppercase tracking-wider">Turn on sound to hear the difference</span>
+                                        </div>
+                                    </button>
+                                )}
                             </div>
                         </div>
                      )}
@@ -385,60 +393,54 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <h2 className="text-5xl md:text-7xl font-black text-gray-900 mb-8 tracking-tighter uppercase">How it works</h2>
                     </div>
                     
-                    <div className="relative flex flex-col gap-32">
+                    {/* Updated Layout: Vertical on mobile/tablet, Grid on Desktop (lg) */}
+                    <div className="relative flex flex-col lg:grid lg:grid-cols-3 gap-32 lg:gap-8">
                         
                         {/* Step 1 - Left */}
-                        <div className="flex flex-col md:flex-row items-center gap-12 lg:gap-24 relative">
-                            <div className="w-full md:w-1/2 order-2 md:order-1">
-                                <div className="group relative bg-gray-50 rounded-[48px] p-12 md:p-16 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 hover:scale-[1.02]">
+                        <div className="flex flex-col md:flex-row lg:flex-col items-center gap-12 lg:gap-0 relative col-span-1">
+                            <div className="w-full md:w-1/2 lg:w-full order-2 md:order-1 lg:order-1 h-full">
+                                <div className="group relative bg-gray-50 rounded-[48px] p-12 md:p-16 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] h-full">
                                     <div className="absolute -top-10 -left-6 w-20 h-20 rounded-3xl bg-green-600 text-white flex items-center justify-center font-black text-4xl shadow-2xl shadow-green-600/40 rotate-[-12deg]">1</div>
                                     <h3 className="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-tighter mb-6">Record your screen</h3>
                                     <p className="text-xl text-gray-500 leading-relaxed font-medium">
-                                        Just click through your product like you'd normally use it.
+                                        Just click through your app like you'd normally use it.
                                     </p>
                                 </div>
                             </div>
-                            <div className="hidden md:block w-1/2 order-1 md:order-2 opacity-10">
+                            {/* Decorative SVG hidden on LG grid layout */}
+                            <div className="hidden md:block lg:hidden w-1/2 order-1 md:order-2 opacity-10">
                                 <svg className="w-full h-auto text-green-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5z"/></svg>
                             </div>
                         </div>
 
                         {/* Step 2 - Right */}
-                        <div className="flex flex-col md:flex-row items-center gap-12 lg:gap-24 relative">
-                            <div className="hidden md:block w-1/2 opacity-10">
+                        <div className="flex flex-col md:flex-row lg:flex-col items-center gap-12 lg:gap-0 relative col-span-1">
+                            {/* Decorative SVG hidden on LG grid layout */}
+                            <div className="hidden md:block lg:hidden w-1/2 opacity-10">
                                 <svg className="w-full h-auto text-green-500" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
                             </div>
-                            <div className="w-full md:w-1/2">
-                                <div className="group relative bg-gray-900 rounded-[48px] p-12 md:p-16 border border-gray-800 shadow-2xl hover:scale-[1.02] transition-all duration-500">
+                            <div className="w-full md:w-1/2 lg:w-full h-full">
+                                <div className="group relative bg-gray-900 rounded-[48px] p-12 md:p-16 border border-gray-800 shadow-2xl hover:scale-[1.02] transition-all duration-500 h-full">
                                     <div className="absolute -top-10 -right-6 w-20 h-20 rounded-3xl bg-white text-green-600 flex items-center justify-center font-black text-4xl shadow-2xl rotate-[12deg]">2</div>
                                     <h3 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter mb-8">We turn it into a demo</h3>
             
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {[
-                                            "Auto-generated script",
-                                            "Natural voiceover",
-                                            "Smart zooms & pauses",
-                                            "Clean pacing"
-                                        ].map((feat, i) => (
-                                            <div key={i} className="flex items-center gap-3 text-gray-300 font-bold">
-                                                <span className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-[0_0_10px_#22c55e]"></span>
-                                                {feat}
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <p className="text-xl text-white leading-relaxed font-medium">
+                                         Script, voiceover, smart zooms, and clean pacing are added automatically
+                                    </p>
+                                      
                                 </div>
                             </div>
                         </div>
 
                         {/* Step 3 - Center */}
-                        <div className="flex justify-center relative pt-12">
-                            <div className="w-full max-w-2xl">
-                                <div className="group relative bg-white rounded-[48px] p-12 md:p-16 border-2 border-green-500/10 shadow-2xl hover:shadow-green-500/10 transition-all duration-500 hover:scale-[1.05]">
+                        <div className="flex justify-center lg:block relative pt-12 lg:pt-0 col-span-1">
+                            <div className="w-full max-w-2xl lg:max-w-none lg:w-full h-full">
+                                <div className="group relative bg-white rounded-[48px] p-12 md:p-16 border-2 border-green-500/10 shadow-2xl hover:shadow-green-500/10 transition-all duration-500 hover:scale-[1.05] h-full">
                                     <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 rounded-full bg-green-600 text-white flex items-center justify-center font-black text-5xl shadow-2xl shadow-green-600/30">3</div>
                                     <div className="text-center mt-6">
                                         <h3 className="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-tighter mb-6">Download & Ship</h3>
                                         <p className="text-xl text-gray-500 leading-relaxed font-medium">
-                                            Download a demo you can ship immediately to your landing page or socials.
+                                            Download a demo you can ship immediately to your landing page or socials
                                         </p>
                                     </div>
                                 </div>
@@ -462,7 +464,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             "Landing page videos",
                             "Onboarding walkthroughs",
                             "Product Hunt videos",
-                            "Feature announcements",
+                            "Product Tutorials",
                             "App Store preview"
                         ].map((useCase, i) => (
                             <div key={i} className="group relative flex flex-col justify-between p-10 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-2xl hover:border-green-500/20 hover:-translate-y-2 transition-all duration-300">
@@ -659,7 +661,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             <h3 className="text-4xl md:text-5xl font-black text-gray-900 mb-10 tracking-tighter uppercase"> I built ProductCam because selling my app was harder than building it</h3>
                             <div className="space-y-6">
                                 <p className="text-xl text-gray-500 font-medium leading-relaxed">
-                                    ProductCam shows the value of your app quickly so users understand your product and want to try it. Use this for landing pages, onboarding, launches, social posts, & investor decks. {'Showing > Telling'}
+                                    ProductCam shows the value of your app quickly so users understand your product and want to try it. Use this for landing pages, onboarding, launches, social posts. {'Showing > Telling'}
                                 </p>
                             </div>
                         </div>
@@ -726,7 +728,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                              >
                                  <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
                                  <div className="relative flex items-center justify-center gap-5 px-14 py-6 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
-                                     <span className="font-black text-2xl uppercase tracking-tighter">Get Started</span>
+                                     <span className="font-black text-2xl uppercase tracking-tighter">Start For Free</span>
                                      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" />
                                      </svg>
