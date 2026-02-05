@@ -464,7 +464,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                             "Landing page videos",
                             "Onboarding walkthroughs",
                             "Product Hunt videos",
-                            "Product Tutorials",
+                            "App Tutorials",
                             "App Store preview"
                         ].map((useCase, i) => (
                             <div key={i} className="group relative flex flex-col justify-between p-10 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-2xl hover:border-green-500/20 hover:-translate-y-2 transition-all duration-300">
