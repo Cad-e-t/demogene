@@ -98,8 +98,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
     const [isScrolled, setIsScrolled] = useState(false);
     const [activeExampleTab, setActiveExampleTab] = useState<'saas' | 'mobile'>('saas');
-    const [exampleAutoPlay, setExampleAutoPlay] = useState(true);
-    const [isMuted, setIsMuted] = useState(true);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -251,25 +249,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90"></div>
                 </div>
 
-                <div className="relative z-10 max-w-[1700px] mx-auto px-6 md:px-12 flex flex-col items-center w-full h-full justify-center pt-24 pb-12">
+                <div className="relative z-10 max-w-[1700px] mx-auto px-4 md:px-12 flex flex-col items-center w-full h-full justify-center pt-32 pb-12 md:pt-24">
                     <div className="w-full flex flex-col items-center text-center">
                         <h1 
                             style={{ 
                                 fontFamily: "'Inter', sans-serif", 
                                 fontWeight: 300,
-                                fontSize: 'clamp(40px, 7vw, 72px)',
+                                fontSize: 'clamp(32px, 6vw, 72px)',
                                 lineHeight: 1.1,
                                 letterSpacing: '-0.03em',
                                 textShadow: '0 4px 20px rgba(0,0,0,0.5)'
                             }}
-                            className="mb-8 w-full max-w-none drop-shadow-2xl"
+                            className="mb-6 md:mb-8 w-full max-w-none drop-shadow-2xl"
                         >
                           Launching without a demo video? <br />
                           Create one in 5 minutes
                         </h1>
                         
-                        <p className="text-lg md:text-xl text-white max-w-5xl leading-relaxed mb-10 font-medium tracking-tight drop-shadow-lg">
-                         We add professional voiceover, auto-zoom, and pacing automatically. No editing skills or software needed
+                        <p className="text-base md:text-xl text-white max-w-5xl leading-relaxed mb-8 md:mb-10 font-medium tracking-tight drop-shadow-lg px-4 md:px-0">
+                         We add professional voiceover, auto-zoom, and pacing automatically <br className="hidden md:inline" /> No editing skills or software needed
                         </p>
 
                         <button 
@@ -363,23 +361,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                     className="w-full h-full object-contain bg-black"
                                     controls
                                     playsInline
-                                    muted={isMuted}
                                     preload="metadata"
-                                    autoPlay={exampleAutoPlay}
                                 />
-                                
-                                {/* Sound Prompt Overlay - hidden if unmuted */}
-                                {isMuted && (
-                                    <button 
-                                        onClick={() => setIsMuted(false)}
-                                        className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 z-20 animate-pulse hover:bg-black/80 transition-colors cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-4 0h-2.5l-5 5v5.5h5l5 5v-15.5zm2 5.5v5c1.4-.46 2.4-1.63 2.4-3.08.01-1.13-.65-2.13-1.66-2.58l-.74.66z"/></svg>
-                                            <span className="text-xs font-bold text-white uppercase tracking-wider">Turn on sound to hear the difference</span>
-                                        </div>
-                                    </button>
-                                )}
                             </div>
                         </div>
                      )}
