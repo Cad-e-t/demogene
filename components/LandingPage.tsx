@@ -99,6 +99,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
     const [isScrolled, setIsScrolled] = useState(false);
     const [activeExampleTab, setActiveExampleTab] = useState<'saas' | 'mobile'>('saas');
 
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    const scrollRight = () => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+        }
+    };
+
     useEffect(() => {
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 50);
@@ -286,7 +294,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         {/* --- TESTIMONIALS --- */}
                         <div className="w-full relative">
                             <div className="relative">
-                                <div className="w-fit max-w-full mx-auto flex overflow-x-auto gap-6 px-4 md:px-0 pb-4 snap-x snap-mandatory no-scrollbar scroll-smooth">
+                                <div ref={scrollContainerRef} className="w-fit max-w-full mx-auto flex overflow-x-auto gap-6 px-4 md:px-0 pb-4 snap-x snap-mandatory no-scrollbar scroll-smooth">
                                     {TESTIMONIALS.map((t) => (
                                         <div key={t.id} className="shrink-0 snap-center w-[300px] md:w-[400px] transform hover:scale-[1.02] transition-all duration-500">
                                             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6 flex flex-col h-full hover:bg-white/10 transition-colors shadow-lg">
@@ -319,13 +327,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                 </div>
                                 
                                 {/* Mobile Scroll Hint Arrow */}
-                                <div className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 md:hidden pointer-events-none">
-                                    <div className="w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-xl animate-pulse">
+                                <button 
+                                    onClick={scrollRight}
+                                    className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 md:hidden outline-none focus:outline-none"
+                                >
+                                    <div className="w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-xl animate-pulse active:scale-95 transition-transform">
                                         <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                                         </svg>
                                     </div>
-                                </div>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -362,6 +373,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                                     controls
                                     playsInline
                                     preload="metadata"
+                                    onEnded={() => {
+                                        if (activeExampleTab === 'saas') {
+                                            setActiveExampleTab('mobile');
+                                        }
+                                    }}
+                                    autoPlay={activeExampleTab === 'mobile'}
                                 />
                             </div>
                         </div>
