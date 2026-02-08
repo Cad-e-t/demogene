@@ -728,7 +728,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                              >
                                  <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
                                  <div className="relative flex items-center justify-center gap-5 px-14 py-6 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
-                                     <span className="font-black text-2xl uppercase tracking-tighter">Try It Now/span>
+                                     <span className="font-black text-2xl uppercase tracking-tighter">Try It Now</span>
                                      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" />
                                      </svg>
