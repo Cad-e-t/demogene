@@ -10,6 +10,7 @@ import { ContentProject, ContentSegment } from './types';
 
 export const ContentApp = ({ session: parentSession, onNavigate }: { session: any, onNavigate: (p: string) => void }) => {
     const [session, setSession] = useState<any>(parentSession || null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     
     // URL-Based Navigation Helper (Path based)
     const getPathView = () => {
@@ -89,14 +90,21 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
 
     return (
         <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
-            <ContentSidebar currentView={view} setView={() => {}} onNavigate={onNavigate} />
-            <main className="flex-1 flex flex-col relative h-full overflow-hidden pt-14 md:pt-0">
+            <ContentSidebar 
+                currentView={view} 
+                setView={() => {}} 
+                onNavigate={onNavigate} 
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+            />
+            <main className="flex-1 flex flex-col relative h-full overflow-hidden md:pt-0">
                 {view === 'dashboard' && (
                     <ContentDashboard 
                         session={session} 
                         onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
                         initialProjectData={activeProjectData}
                         onClearProject={handleClearActiveProject}
+                        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     />
                 )}
                 {view === 'projects' && (
@@ -104,9 +112,15 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                         session={session} 
                         onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
                         onOpenProject={handleOpenProject}
+                        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     />
                 )}
-                {view === 'stories' && <ContentStories session={session} />}
+                {view === 'stories' && (
+                    <ContentStories 
+                        session={session}
+                        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                    />
+                )}
             </main>
         </div>
     );

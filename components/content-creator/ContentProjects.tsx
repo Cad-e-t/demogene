@@ -1,10 +1,9 @@
 
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { deleteProject } from './api';
 
-export const ContentProjects = ({ session, onViewChange, onOpenProject }: any) => {
+export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggleSidebar }: any) => {
     const [projects, setProjects] = useState<any[]>([]);
 
     useEffect(() => {
@@ -52,8 +51,23 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject }: any) =
     };
 
     return (
-        <div className="flex-1 overflow-y-auto p-8">
-            <h2 className="text-3xl font-black mb-8">Projects</h2>
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
+            
+            {/* Mobile Header */}
+            <div className="md:hidden flex items-center justify-between mb-6 sticky top-0 bg-gray-50 z-20 py-2">
+                <button 
+                    onClick={onToggleSidebar}
+                    className="p-2 -ml-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Projects</h2>
+                <div className="w-8"></div> {/* Spacer for centering */}
+            </div>
+
+            {/* Desktop Header */}
+            <h2 className="hidden md:block text-3xl font-black mb-8">Projects</h2>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {projects.map(p => (
                     <div 
