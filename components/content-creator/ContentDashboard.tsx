@@ -192,7 +192,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         <div className="flex-1 h-full relative flex flex-col">
             
             {/* Mobile Header: Menu + Title */}
-            <div className="md:hidden absolute top-4 left-4 z-[60] flex items-center gap-3">
+            <div className="md:hidden absolute top-4 left-4 z-20 flex items-center gap-3">
                 <button 
                     onClick={onToggleSidebar}
                     className="p-2 -ml-2 bg-white/80 backdrop-blur rounded-lg text-gray-900 shadow-sm border border-gray-100"
@@ -473,7 +473,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
             {/* Input Area */}
             <div className="flex-1 md:mr-80 flex flex-col items-center justify-center p-6 pb-32 pt-20 md:pt-6">
-                 <div className="max-w-2xl w-full text-center space-y-8">
+                 <div className="max-w-2xl w-full text-center space-y-8 -mt-32 md:mt-0">
                      <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-3xl mx-auto flex items-center justify-center text-4xl shadow-xl shadow-indigo-200">
                          ✨
                      </div>
@@ -486,7 +486,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 <div className="max-w-3xl mx-auto relative group">
                     <textarea 
                         ref={textareaRef}
-                        className="w-full bg-white border-2 border-gray-200 focus:border-indigo-500 rounded-3xl p-6 pr-32 shadow-2xl resize-none text-lg font-medium outline-none min-h-[100px]"
+                        className="w-full bg-white border-2 border-gray-200 focus:border-indigo-500 rounded-3xl p-6 pr-48 md:pr-72 shadow-2xl resize-none text-lg font-medium outline-none min-h-[100px]"
                         placeholder="Type a story prompt here..."
                         value={prompt}
                         onChange={(e) => {
