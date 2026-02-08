@@ -52,6 +52,13 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         };
     }, [session]);
 
+    // Fix: Clear active project when navigating away from dashboard to prevent editor from reopening
+    useEffect(() => {
+        if (view !== 'dashboard') {
+            setActiveProjectData(null);
+        }
+    }, [view]);
+
     const handleLogin = async () => {
         // Store intended destination before redirecting
         localStorage.setItem('productcam_redirect', '/content-creator');
@@ -72,6 +79,10 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         onNavigate('/content-creator/dashboard');
     };
 
+    const handleClearActiveProject = () => {
+        setActiveProjectData(null);
+    };
+
     if (!session) {
         return <ContentLanding onLogin={handleLogin} />;
     }
@@ -79,12 +90,13 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
     return (
         <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
             <ContentSidebar currentView={view} setView={() => {}} onNavigate={onNavigate} />
-            <main className="flex-1 flex flex-col relative h-full overflow-hidden">
+            <main className="flex-1 flex flex-col relative h-full overflow-hidden pt-14 md:pt-0">
                 {view === 'dashboard' && (
                     <ContentDashboard 
                         session={session} 
                         onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
                         initialProjectData={activeProjectData}
+                        onClearProject={handleClearActiveProject}
                     />
                 )}
                 {view === 'projects' && (

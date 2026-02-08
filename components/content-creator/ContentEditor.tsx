@@ -1,8 +1,4 @@
 
-
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { editImageSegment, saveSegments, generateFinalVideo, regenerateImageSegment } from './api';
 import { supabase } from '../../supabaseClient';
@@ -165,7 +161,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const allImagesReady = segments.every((s: any) => s.image_url);
 
     return (
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50 relative">
+        <div className="fixed inset-0 z-50 md:static md:inset-auto md:z-auto flex-1 flex flex-col h-full overflow-hidden bg-gray-50">
             <style>{`
                 .thin-scrollbar::-webkit-scrollbar {
                     width: 6px;
@@ -182,14 +178,16 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 }
             `}</style>
 
-            {/* Config Toggle (Mobile) */}
-             <div className="md:hidden absolute top-4 right-4 z-20">
-                <button onClick={() => setIsConfigOpen(!isConfigOpen)} className="p-2 bg-white rounded-lg shadow">⚙️</button>
+            {/* Config Toggle (Mobile) - Absolute Right */}
+             <div className="md:hidden absolute top-3 right-4 z-20">
+                <button onClick={() => setIsConfigOpen(!isConfigOpen)} className="p-2 bg-white rounded-lg shadow border border-gray-100">
+                    <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </button>
             </div>
 
             {/* Config Sidebar (Right Side) */}
-            <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-gray-200 p-6 transform transition-transform z-30 ${isConfigOpen ? 'translate-x-0' : 'translate-x-full'} md:translate-x-0`}>
-                
+            <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-gray-200 p-6 transform transition-transform z-30 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} md:translate-x-0`}>
+                {/* ... (rest of config panel same as before) ... */}
                 {configView === 'main' && (
                     <>
                         <h3 className="font-black text-xl mb-8 uppercase tracking-tight">Project Settings</h3>
@@ -340,13 +338,31 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             </div>
 
             {/* Header */}
-            <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10 md:mr-80">
-                <button onClick={onBack} className="text-sm font-bold text-gray-500 hover:text-black">← Back</button>
-                <h3 className="font-black text-lg truncate max-w-xs">{project.title}</h3>
+            <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10 md:mr-80 relative">
+                {/* Back Button */}
+                <button onClick={onBack} className="text-sm font-bold text-gray-500 hover:text-black z-10">
+                    ← <span className="hidden md:inline">Back</span>
+                </button>
+                
+                {/* Title (Hidden on Mobile) */}
+                <h3 className="hidden md:block font-black text-lg truncate max-w-xs absolute left-1/2 -translate-x-1/2">{project.title}</h3>
+                
+                {/* Generate Button (Centered on Mobile) */}
+                <div className="md:hidden absolute left-1/2 -translate-x-1/2 w-max">
+                     <button 
+                        onClick={handleFinalize}
+                        disabled={submitting || !allImagesReady}
+                        className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-full shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-xs uppercase tracking-widest"
+                    >
+                        {submitting ? 'Starting...' : 'Generate'}
+                    </button>
+                </div>
+                
+                {/* Generate Button (Desktop) */}
                 <button 
                     onClick={handleFinalize}
                     disabled={submitting || !allImagesReady}
-                    className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="hidden md:block px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     title={!allImagesReady ? "Wait for all images to generate" : ""}
                 >
                     {submitting ? 'Starting...' : 'Generate Video'}
@@ -404,9 +420,6 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     onChange={(e) => handleTextChange(seg.id, e.target.value)}
                                     placeholder="Write narration..."
                                 />
-                                <div className="mt-4 pt-4 border-t border-gray-50 text-xs text-gray-400">
-                                    <span className="font-bold">Visual Prompt:</span> {seg.image_prompt.substring(0, 50)}...
-                                </div>
                             </div>
                         </div>
                     ))}

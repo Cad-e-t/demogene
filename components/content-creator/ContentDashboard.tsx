@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { generateSegments } from './api';
 import { ContentEditor } from './ContentEditor';
@@ -13,7 +6,7 @@ import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, VISUAL_DENSITIES } from
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 
-export const ContentDashboard = ({ session, onViewChange, initialProjectData }: any) => {
+export const ContentDashboard = ({ session, onViewChange, initialProjectData, onClearProject }: any) => {
     const [prompt, setPrompt] = useState('');
     const [isConfigOpen, setIsConfigOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -186,22 +179,27 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData }: 
             session={session} 
             project={project} 
             initialSegments={segments} 
-            onBack={() => { setProject(null); setSegments([]); }} 
+            onBack={() => { 
+                setProject(null); 
+                setSegments([]); 
+                if (onClearProject) onClearProject();
+            }} 
             onComplete={() => onViewChange('stories')}
         />;
     }
 
     return (
         <div className="flex-1 h-full relative flex flex-col">
-            {/* Header */}
-            <div className="p-6 flex justify-between items-center md:hidden">
-                <span className="font-black text-indigo-600 uppercase">Creator</span>
-                <button onClick={() => setIsConfigOpen(!isConfigOpen)}>⚙️</button>
+            {/* Header (Config Toggle Only) - Positioned relative to main container which is padded by App */}
+            <div className="md:hidden absolute top-3 right-4 z-30">
+                <button onClick={() => setIsConfigOpen(!isConfigOpen)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </button>
             </div>
 
             {/* Config Panel - Mobile Overlay / Desktop Sidebar */}
-            <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-gray-200 p-6 transform transition-transform z-30 ${isConfigOpen ? 'translate-x-0' : 'translate-x-full'} md:translate-x-0 overflow-y-auto no-scrollbar`}>
-                
+            <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-gray-200 p-6 transform transition-transform z-40 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} md:translate-x-0 overflow-y-auto no-scrollbar`}>
+                {/* ... (rest of config panel same as before) ... */}
                 {configView === 'main' && (
                     <>
                         <h3 className="font-black text-xl mb-8 uppercase tracking-tight">Configuration</h3>
