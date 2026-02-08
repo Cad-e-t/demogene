@@ -64,6 +64,7 @@ interface HomeViewProps {
     
     errorMessage: string | null;
     backgroundOptions: BackgroundOption[];
+    onNavigate: (path: string) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -85,7 +86,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     showSuccessNotification, setShowSuccessNotification,
     showFailureNotification, setShowFailureNotification,
     errorMessage,
-    backgroundOptions
+    backgroundOptions,
+    onNavigate
 }) => {
     
     // New State for Upload First Workflow
@@ -259,22 +261,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
         }
     };
 
-    useEffect(() => {
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current = null;
-            }
-        };
-    }, []);
-
     const handleDemoFinish = (videoUrl: string) => {
       setDemoResultVideo(videoUrl);
       setIsDemoMode(false);
     };
 
     if (!activeVideo && !session) {
-        return <LandingPage onFileChange={onFileChange} handleLogin={handleLogin} />;
+        return <LandingPage onFileChange={onFileChange} handleLogin={handleLogin} onNavigate={onNavigate} />;
     }
 
     if (isDemoMode) {
@@ -351,7 +344,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             ) : (
                                 // ZERO CREDITS STATE: Friendly Nudge (Only for new users with 0 credits and no purchase history)
                                 <button 
-                                    onClick={() => window.location.hash = '#/pricing'}
+                                    onClick={() => onNavigate('/pricing')}
                                     className="flex-1 max-w-lg group relative cursor-pointer transform hover:scale-[1.01] transition-all duration-300"
                                 >
                                     <div className="absolute -inset-0.5 bg-gradient-to-br from-gray-100 to-gray-200 rounded-[32px] blur-lg opacity-50 group-hover:opacity-80 transition duration-500"></div>
@@ -408,7 +401,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                             </div>
                                         </div>
                                         <button 
-                                            onClick={() => window.location.hash = '#/pricing'} 
+                                            onClick={() => onNavigate('/pricing')} 
                                             className="px-6 py-3 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 uppercase text-xs tracking-wider"
                                         >
                                             Top Up
@@ -766,7 +759,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </button>
                     {profile && (
                         <button 
-                            onClick={() => window.location.hash = '#/pricing'} 
+                            onClick={() => onNavigate('/pricing')} 
                             className="block w-full mt-4 text-center text-xs font-bold text-gray-500 hover:text-green-600"
                         >
                             {profile.credits} Credits Available - Get more

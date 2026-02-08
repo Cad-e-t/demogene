@@ -39,8 +39,8 @@ export const ALL_VOICES: VoiceConfigItem[] = [
   },
   // Additional voices
   { 
-    id: "Aoeda", 
-    name: "Aoeda (Female)", 
+    id: "Aoede", 
+    name: "Aoede (Female)", 
     gender: "Female",
     sampleUrl: "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/assets/sample_audio/aoeda.wav" 
   },

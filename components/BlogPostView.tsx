@@ -1,9 +1,11 @@
+
 import React, { useEffect } from 'react';
 import { HowToTurnScreenRecording } from '../blog/HowToTurnScreenRecording';
 import { HowToCreateWithoutEditing } from '../blog/HowToCreateWithoutEditing';
 
 interface BlogPostViewProps {
     slug: string;
+    onNavigate: (path: string) => void;
 }
 
 const BLOG_POSTS_MAP: Record<string, { title: string; metaDescription: string; category: string; readTime: string; Component: React.FC }> = {
@@ -23,7 +25,7 @@ const BLOG_POSTS_MAP: Record<string, { title: string; metaDescription: string; c
     }
 };
 
-export const BlogPostView: React.FC<BlogPostViewProps> = ({ slug }) => {
+export const BlogPostView: React.FC<BlogPostViewProps> = ({ slug, onNavigate }) => {
     const postData = BLOG_POSTS_MAP[slug];
 
     useEffect(() => {
@@ -44,7 +46,7 @@ export const BlogPostView: React.FC<BlogPostViewProps> = ({ slug }) => {
                 <div className="text-center">
                     <h1 className="text-4xl font-bold mb-4">404</h1>
                     <p className="text-gray-500 mb-8">Post not found.</p>
-                    <a href="#/blog" className="text-green-600 font-bold hover:underline">Back to Blog</a>
+                    <button onClick={() => onNavigate('/blog')} className="text-green-600 font-bold hover:underline">Back to Blog</button>
                 </div>
             </div>
         );
@@ -56,27 +58,27 @@ export const BlogPostView: React.FC<BlogPostViewProps> = ({ slug }) => {
         <div className="bg-white min-h-screen text-gray-900 antialiased selection:bg-green-500 selection:text-white">
             <div className="max-w-2xl mx-auto px-6 py-10 md:py-20">
                 <nav className="mb-12 flex items-center justify-between">
-                    <a href="https://productcam.site/" className="flex items-center gap-2 group transition-opacity hover:opacity-80">
+                    <button onClick={() => onNavigate('/')} className="flex items-center gap-2 group transition-opacity hover:opacity-80">
                          <span className="font-black text-lg text-gray-900 tracking-tighter uppercase">ProductCam</span>
-                    </a>
+                    </button>
                     <div className="flex items-center gap-4">
-                        <a href="https://productcam.site/" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">
+                        <button onClick={() => onNavigate('/')} className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">
                             Home
-                        </a>
-                        <a href="#/blog" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">
+                        </button>
+                        <button onClick={() => onNavigate('/blog')} className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">
                             Blog
-                        </a>
+                        </button>
                     </div>
                 </nav>
 
                 <nav className="flex items-center justify-between mb-16">
-                    <a 
-                        href="#/blog"
+                    <button 
+                        onClick={() => onNavigate('/blog')}
                         className="text-xs font-bold text-gray-400 hover:text-gray-900 flex items-center gap-2 transition-colors inline-flex uppercase tracking-widest"
                     >
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                         Back to List
-                    </a>
+                    </button>
                     <div className="flex items-center gap-4">
                         <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">{category}</span>
                         <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{readTime}</span>
@@ -99,8 +101,8 @@ export const BlogPostView: React.FC<BlogPostViewProps> = ({ slug }) => {
                             ProductCam Blog © 2025
                         </div>
                         <div className="flex gap-6">
-                            <a href="https://productcam.site/" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Home</a>
-                            <a href="#/blog" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Blog Index</a>
+                            <button onClick={() => onNavigate('/')} className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Home</button>
+                            <button onClick={() => onNavigate('/blog')} className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Blog Index</button>
                         </div>
                     </footer>
                 </article>

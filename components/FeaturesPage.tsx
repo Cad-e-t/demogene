@@ -1,7 +1,7 @@
 
 import React, { useEffect } from 'react';
 
-export const FeaturesPage: React.FC = () => {
+export const FeaturesPage: React.FC<{ onNavigate: (path: string) => void }> = ({ onNavigate }) => {
     useEffect(() => {
         window.scrollTo(0, 0);
         document.title = "Features - Automated Product Demo Software | ProductCam";
@@ -39,12 +39,12 @@ export const FeaturesPage: React.FC = () => {
         <div className="min-h-screen bg-white text-gray-900 selection:bg-green-500 selection:text-white font-sans">
             <div className="max-w-4xl mx-auto px-6 py-12 md:py-24">
                 <nav className="mb-16 flex items-center justify-between border-b border-gray-100 pb-8">
-                    <a href="https://productcam.site" className="flex items-center gap-2 group">
+                    <button onClick={() => onNavigate('/')} className="flex items-center gap-2 group">
                          <span className="font-black text-xl text-gray-900 tracking-tighter uppercase">ProductCam</span>
-                    </a>
-                    <a href="https://productcam.site" className="text-sm font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">
+                    </button>
+                    <button onClick={() => onNavigate('/')} className="text-sm font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">
                         Home
-                    </a>
+                    </button>
                 </nav>
 
                 <header className="mb-20">
@@ -70,17 +70,17 @@ export const FeaturesPage: React.FC = () => {
                 <div className="mt-32 p-10 bg-gray-50 rounded-[40px] text-center border border-gray-100">
                     <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-4">Ready to automate your demos?</h2>
                     <p className="text-gray-500 font-medium mb-8">Start turning your screen recordings into polished assets today.</p>
-                    <a href="https://productcam.site" className="inline-block px-10 py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition shadow-xl shadow-green-600/20 uppercase tracking-tighter">
+                    <button onClick={() => onNavigate('/')} className="inline-block px-10 py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition shadow-xl shadow-green-600/20 uppercase tracking-tighter">
                         Get Started
-                    </a>
+                    </button>
                 </div>
 
                 <footer className="mt-32 pt-12 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6">
                     <p className="text-gray-400 text-xs font-black uppercase tracking-[0.3em]">ProductCam Features © 2025</p>
                     <div className="flex gap-8">
-                        <a href="https://productcam.site" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Home</a>
-                        <a href="https://productcam.site/#/about" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">About</a>
-                        <a href="https://productcam.site/#/pricing-details" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Pricing</a>
+                        <button onClick={() => onNavigate('/')} className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Home</button>
+                        <button onClick={() => onNavigate('/about')} className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">About</button>
+                        <button onClick={() => onNavigate('/pricing-details')} className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Pricing</button>
                     </div>
                 </footer>
             </div>

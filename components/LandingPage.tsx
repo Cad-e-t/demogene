@@ -6,6 +6,7 @@ interface LandingPageProps {
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleLogin: () => void;
     showAuthModal?: boolean; 
+    onNavigate: (path: string) => void;
 }
 
 const XIcon = ({ className }: { className?: string }) => (
@@ -93,7 +94,7 @@ const faqs = [
     }
 ];
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLogin, onNavigate }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
     const [isScrolled, setIsScrolled] = useState(false);
@@ -216,7 +217,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     <div className="hidden md:flex items-center gap-5">
                         <a href="#how-it-works" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>How it Works</a>
                         <a href="#pricing" onClick={(e) => { e.preventDefault(); scrollToSection('pricing'); }} className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>Pricing</a>
-                        <a href="#/blog" className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>Blog</a>
+                        <button onClick={() => onNavigate('/blog')} className={`text-xs font-bold uppercase tracking-widest transition-colors drop-shadow-sm ${isScrolled ? 'text-gray-600 hover:text-green-600' : 'text-white hover:text-white/80'}`}>Blog</button>
                         <button onClick={handleLogin} className={`px-5 py-2 text-xs font-black rounded-full transition-all uppercase tracking-widest shadow-lg ${isScrolled ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-white text-black hover:bg-gray-200'}`}>
                             Get Started
                         </button>
@@ -237,7 +238,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                     <div className="absolute top-full left-0 right-0 mt-4 bg-white rounded-2xl p-4 shadow-2xl flex flex-col gap-2 md:hidden">
                             <a href="#how-it-works" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} className="text-gray-900 font-bold px-4 py-3 hover:bg-gray-50 rounded-xl">How it Works</a>
                             <a href="#pricing" onClick={(e) => { e.preventDefault(); scrollToSection('pricing'); }} className="text-gray-900 font-bold px-4 py-3 hover:bg-gray-50 rounded-xl">Pricing</a>
-                            <a href="#/blog" className="text-gray-900 font-bold px-4 py-3 hover:bg-gray-50 rounded-xl">Blog</a>
+                            <button onClick={() => onNavigate('/blog')} className="text-gray-900 font-bold px-4 py-3 hover:bg-gray-50 rounded-xl text-left">Blog</button>
                             <button onClick={handleLogin} className="w-full text-center bg-black text-white font-black px-4 py-3 rounded-xl uppercase tracking-widest mt-2">Get Started</button>
                     </div>
                 )}
@@ -284,7 +285,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         >
                             <div className="absolute -inset-2 bg-white rounded-3xl blur-2xl opacity-0 group-hover:opacity-30 transition duration-500"></div>
                             <div className="relative flex items-center justify-center gap-5 px-10 py-5 bg-white text-sky-600 rounded-[2rem] hover:bg-white hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.4)] transition-all duration-300 shadow-2xl border border-white/40">
-                                <span className="font-black text-xl uppercase tracking-tighter">Try It Now</span>
+                                <span className="font-black text-xl uppercase tracking-tighter">    Try It Now</span>
                                 <svg className="w-6 h-6 animate-bounce-x" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" />
                                 </svg>
@@ -755,10 +756,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs">Product</h4>
                         <ul className="flex flex-col gap-4">
                             <li>
-                                <a href="https://productcam.site/#/features" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Features</a>
+                                <button onClick={() => onNavigate('/features')} className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight text-left">Features</button>
                             </li>
                             <li>
-                                <a href="https://productcam.site/#/pricing-details" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Pricing Plans</a>
+                                <button onClick={() => onNavigate('/pricing-details')} className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight text-left">Pricing Plans</button>
                             </li>
                         </ul>
                     </div>
@@ -767,10 +768,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                         <h4 className="font-black text-gray-900 uppercase tracking-widest text-xs">Company</h4>
                         <ul className="flex flex-col gap-4">
                             <li>
-                                <a href="https://productcam.site/#/about" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">About ProductCam</a>
+                                <button onClick={() => onNavigate('/about')} className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight text-left">About ProductCam</button>
                             </li>
                             <li>
-                                <a href="https://productcam.site/#/blog" className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight">Resources & Blog</a>
+                                <button onClick={() => onNavigate('/blog')} className="text-sm font-bold text-gray-400 hover:text-green-600 transition-colors uppercase tracking-tight text-left">Resources & Blog</button>
                             </li>
                         </ul>
                     </div>
@@ -801,7 +802,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onFileChange, handleLo
                 </div>
                 
                 <div className="mt-20 pt-10 border-t border-gray-100 flex items-center justify-center">
-                    <a href="https://productcam.site" className="text-[10px] font-black text-gray-300 hover:text-gray-900 transition-colors uppercase tracking-[0.4em]">Home Page</a>
+                    <a href="/" className="text-[10px] font-black text-gray-300 hover:text-gray-900 transition-colors uppercase tracking-[0.4em]">Home Page</a>
                 </div>
             </footer>
             

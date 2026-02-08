@@ -1,6 +1,7 @@
+
 import React, { useEffect } from 'react';
 
-export const BlogView: React.FC = () => {
+export const BlogView: React.FC<{ onNavigate: (path: string) => void }> = ({ onNavigate }) => {
     useEffect(() => {
         window.scrollTo(0, 0);
         document.title = "Blog - Product Demo Guides | ProductCam";
@@ -27,12 +28,12 @@ export const BlogView: React.FC = () => {
         <div className="bg-white min-h-screen text-gray-900 antialiased selection:bg-green-500 selection:text-white">
             <div className="max-w-2xl mx-auto px-6 py-10 md:py-20">
                 <nav className="mb-16 flex items-center justify-between">
-                    <a href="https://productcam.site/" className="flex items-center gap-2 group transition-opacity hover:opacity-80">
+                    <button onClick={() => onNavigate('/')} className="flex items-center gap-2 group transition-opacity hover:opacity-80">
                          <span className="font-black text-lg text-gray-900 tracking-tighter uppercase">ProductCam</span>
-                    </a>
-                    <a href="https://productcam.site/" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">
+                    </button>
+                    <button onClick={() => onNavigate('/')} className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">
                         Home
-                    </a>
+                    </button>
                 </nav>
 
                 <header className="mb-20">
@@ -48,7 +49,7 @@ export const BlogView: React.FC = () => {
                                 <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{post.readTime}</span>
                             </div>
-                            <a href={`#/blog/${post.slug}`} className="block">
+                            <button onClick={() => onNavigate(`/blog/${post.slug}`)} className="block text-left w-full">
                                 <h2 className="text-3xl font-bold text-gray-900 mb-4 group-hover:text-green-600 transition-colors leading-tight">
                                     {post.title}
                                 </h2>
@@ -58,14 +59,14 @@ export const BlogView: React.FC = () => {
                                 <span className="text-sm font-bold text-gray-900 border-b-2 border-gray-100 group-hover:border-green-500 transition-all pb-1">
                                     Read Article
                                 </span>
-                            </a>
+                            </button>
                         </article>
                     ))}
                 </div>
                 
                 <footer className="mt-32 pt-12 border-t border-gray-100 flex items-center justify-between">
                     <p className="text-gray-400 text-xs font-medium uppercase tracking-widest">ProductCam © 2025</p>
-                    <a href="https://productcam.site/" className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Home</a>
+                    <button onClick={() => onNavigate('/')} className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-widest transition-colors">Home</button>
                 </footer>
             </div>
         </div>

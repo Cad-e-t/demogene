@@ -3,23 +3,24 @@ import React from 'react';
 
 interface PricingViewProps {
     onPurchase: (productId?: string) => void;
+    onNavigate: (path: string) => void;
 }
 
 const BASIC_PRODUCT_ID = "pdt_0NXR7yFQlGXuk4YfAk8WY";
 const PREMIUM_PRODUCT_ID = "pdt_0NXR7opzKCuqk7OCHV44O";
 const PRO_PRODUCT_ID = "pdt_0NXR7hQfq3toyw4xmfZ9t";
 
-export const PricingView: React.FC<PricingViewProps> = ({ onPurchase }) => {
+export const PricingView: React.FC<PricingViewProps> = ({ onPurchase, onNavigate }) => {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start p-6 md:p-12 animate-fade-in overflow-y-auto">
             <div className="max-w-4xl w-full text-center mb-16 mt-8">
-                <a 
-                    href="#/" 
+                <button 
+                    onClick={() => onNavigate('/')}
                     className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-gray-900 mb-8 uppercase tracking-widest transition-colors"
                 >
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                     Back to Dashboard
-                </a>
+                </button>
                 <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter mb-6 uppercase">Simple Transparent Pricing</h1>
                 <p className="text-xl text-gray-600 font-medium">No monthly fees. Pay only for the demos you need.</p>
             </div>

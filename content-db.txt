@@ -1,0 +1,95 @@
+
+
+-- Projects Table
+create table public.content_projects (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users not null,
+  title text,
+  aspect_ratio text check (aspect_ratio in ('9:16', '16:9')),
+  image_style text,
+  voice_id text,
+  narration_style text, -- Added for narration style persistence
+  effect text default 'zoom_pulse',
+  status text default 'draft' check (status in ('draft', 'generating', 'completed', 'failed')),
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Segments Table
+create table public.content_segments (
+  id uuid default gen_random_uuid() primary key,
+  project_id uuid references public.content_projects on delete cascade not null,
+  narration text,
+  image_prompt text,
+  image_url text,
+  order_index integer not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Stories (Final Videos) Table
+create table public.content_stories (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users not null,
+  project_id uuid references public.content_projects on delete set null,
+  video_url text, -- Nullable while generating
+  thumbnail_url text,
+  status text default 'completed', -- generating, rendering, completed, failed
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- RLS Policies
+
+-- Projects
+alter table public.content_projects enable row level security;
+create policy "Users can view own content projects" on public.content_projects
+    for select using (auth.uid() = user_id);
+create policy "Users can insert own content projects" on public.content_projects
+    for insert with check (auth.uid() = user_id);
+create policy "Users can update own content projects" on public.content_projects
+    for update using (auth.uid() = user_id);
+create policy "Users can delete own content projects" on public.content_projects
+    for delete using (auth.uid() = user_id);
+
+-- Segments
+alter table public.content_segments enable row level security;
+create policy "Users can view own segments" on public.content_segments
+    for select using (
+      exists (select 1 from public.content_projects where id = content_segments.project_id and user_id = auth.uid())
+    );
+create policy "Users can insert own segments" on public.content_segments
+    for insert with check (
+      exists (select 1 from public.content_projects where id = content_segments.project_id and user_id = auth.uid())
+    );
+create policy "Users can update own segments" on public.content_segments
+    for update using (
+      exists (select 1 from public.content_projects where id = content_segments.project_id and user_id = auth.uid())
+    );
+create policy "Users can delete own segments" on public.content_segments
+    for delete using (
+      exists (select 1 from public.content_projects where id = content_segments.project_id and user_id = auth.uid())
+    );
+
+-- Stories
+alter table public.content_stories enable row level security;
+create policy "Users can view own stories" on public.content_stories
+    for select using (auth.uid() = user_id);
+create policy "Users can insert own stories" on public.content_stories
+    for insert with check (auth.uid() = user_id);
+create policy "Users can update own stories" on public.content_stories
+    for update using (auth.uid() = user_id);
+create policy "Users can delete own stories" on public.content_stories
+    for delete using (auth.uid() = user_id);
+
+-- Storage bucket for content creator assets
+insert into storage.buckets (id, name, public) 
+values ('content-assets', 'content-assets', true)
+on conflict (id) do nothing;
+
+create policy "Authenticated users can upload to content-assets"
+on storage.objects for insert
+to authenticated
+with check (bucket_id = 'content-assets');
+
+create policy "Authenticated users can read from content-assets"
+on storage.objects for select
+to authenticated
+using (bucket_id = 'content-assets');

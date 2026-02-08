@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
-import type { Session } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Sidebar } from './components/Sidebar';
@@ -14,33 +13,51 @@ import { PricingView } from './components/PricingView';
 import { FeaturesPage } from './components/FeaturesPage';
 import { AboutPage } from './components/AboutPage';
 import { PricingPageSEO } from './components/PricingPageSEO';
+import { ContentApp } from './components/content-creator/ContentApp';
 
 import { CropData, TrimData, VoiceOption, VideoProject, TimeRange, BackgroundOption } from './types';
 import { VOICES, BACKGROUNDS } from './constants';
 import { processVideoRequest, createCheckoutSession, deleteVideo } from './frontend-api';
 import { DEFAULT_SCRIPT_RULES, DEFAULT_TTS_STYLE } from './scriptStyles';
 
-// Custom Minimal Router Hook
-const useHashPath = () => {
-  const [hash, setHash] = useState(window.location.hash);
+// Custom Event for Navigation
+const PUSH_STATE_EVENT = 'pushstate';
+
+// Navigation Helper
+export const navigateTo = (path: string) => {
+  window.history.pushState({}, '', path);
+  window.dispatchEvent(new Event(PUSH_STATE_EVENT));
+  window.scrollTo(0, 0);
+};
+
+// Custom Route Hook using History API
+const usePathRoute = () => {
+  const [path, setPath] = useState(window.location.pathname);
 
   useEffect(() => {
-    const handleHashChange = () => {
-      setHash(window.location.hash);
+    const handlePathChange = () => {
+      setPath(window.location.pathname);
     };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    
+    window.addEventListener(PUSH_STATE_EVENT, handlePathChange);
+    window.addEventListener('popstate', handlePathChange); // Handle back/forward buttons
+    
+    return () => {
+      window.removeEventListener(PUSH_STATE_EVENT, handlePathChange);
+      window.removeEventListener('popstate', handlePathChange);
+    };
   }, []);
 
-  if (hash.startsWith('#/blog/')) {
-    return { view: 'blog-post', slug: hash.replace('#/blog/', '') };
+  if (path.startsWith('/blog/')) {
+    return { view: 'blog-post', slug: path.replace('/blog/', '') };
   }
-  if (hash === '#/blog') return { view: 'blog', slug: null };
-  if (hash === '#/videos') return { view: 'videos', slug: null };
-  if (hash === '#/pricing') return { view: 'pricing', slug: null };
-  if (hash === '#/features') return { view: 'features', slug: null };
-  if (hash === '#/about') return { view: 'about', slug: null };
-  if (hash === '#/pricing-details') return { view: 'pricing-details', slug: null };
+  if (path === '/blog') return { view: 'blog', slug: null };
+  if (path === '/videos') return { view: 'videos', slug: null };
+  if (path === '/pricing') return { view: 'pricing', slug: null };
+  if (path === '/features') return { view: 'features', slug: null };
+  if (path === '/about') return { view: 'about', slug: null };
+  if (path === '/pricing-details') return { view: 'pricing-details', slug: null };
+  if (path.startsWith('/content-creator')) return { view: 'content-creator', slug: null };
   return { view: 'home', slug: null };
 };
 
@@ -51,10 +68,6 @@ interface UserProfile {
 }
 
 const PRODUCT_10_DEMOS = "pdt_2LwDVRweVv9iX22U5RDSW"; 
-
-const navigateTo = (path: string) => {
-  window.location.hash = path;
-};
 
 const AuthSelectionModal = ({ onClose, onSelect }: { onClose: () => void, onSelect: (p: 'google') => void }) => (
   <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-fade-in" onClick={onClose}>
@@ -79,7 +92,7 @@ const AuthSelectionModal = ({ onClose, onSelect }: { onClose: () => void, onSele
 );
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [showAuthSelection, setShowAuthSelection] = useState(false);
   const [isForcedAuth, setIsForcedAuth] = useState(false);
@@ -87,7 +100,7 @@ export default function App() {
   const [showFailureNotification, setShowFailureNotification] = useState(false);
   
   // URL-based Navigation
-  const route = useHashPath();
+  const route = usePathRoute();
   const currentView = route.view;
   
   // Home View State (Lifted Up)
@@ -128,6 +141,18 @@ export default function App() {
           setShowAuthSelection(false);
           setIsForcedAuth(false);
           fetchProfile(session.user.id);
+
+          // Redirect Logic for Content Creator App
+          const redirectTarget = localStorage.getItem('productcam_redirect');
+          if (redirectTarget) {
+              localStorage.removeItem('productcam_redirect');
+              // Assuming redirect target stored as hash, convert to path if needed or just use as is if logic adjusted
+              if (redirectTarget.includes('#/')) {
+                  navigateTo(redirectTarget.replace('#', ''));
+              } else {
+                  navigateTo(redirectTarget);
+              }
+          }
       } else {
           setProfile(null);
       }
@@ -188,16 +213,8 @@ export default function App() {
 
   // --- Canonical Tag Sync ---
   useEffect(() => {
-    const baseUrl = "https://productcam.site/";
-    let path = "";
-    if (currentView === 'blog') path = "#/blog";
-    else if (currentView === 'blog-post' && route.slug) path = `#/blog/${route.slug}`;
-    else if (currentView === 'pricing') path = "#/pricing";
-    else if (currentView === 'videos') path = "#/videos";
-    else if (currentView === 'features') path = "#/features";
-    else if (currentView === 'about') path = "#/about";
-    else if (currentView === 'pricing-details') path = "#/pricing-details";
-    
+    const baseUrl = "https://productcam.site";
+    let path = window.location.pathname;
     const canonicalUrl = baseUrl + path;
     
     let link: HTMLLinkElement | null = document.querySelector("link[rel='canonical']");
@@ -215,7 +232,12 @@ export default function App() {
 
   const handleProviderLogin = async (provider: 'google') => {
     try { 
-        await (supabase.auth as any).signInWithOAuth({ provider }); 
+        await (supabase.auth as any).signInWithOAuth({ 
+            provider,
+            options: {
+                redirectTo: 'https://productcam.site'
+            }
+        }); 
     } 
     catch (error) { 
         console.error(`${provider} login failed:`, error); 
@@ -224,7 +246,7 @@ export default function App() {
 
   const handleLogout = async () => {
       await (supabase.auth as any).signOut();
-      navigateTo('#/');
+      navigateTo('/');
       setVideos([]);
       setProfile(null);
   };
@@ -345,7 +367,7 @@ export default function App() {
       setErrorMessage(null);
 
       // NAVIGATE FIRST to prevent duplicate clicks and ensure UI transition
-      navigateTo('#/videos');
+      navigateTo('/videos');
 
       // Find original title for better UX
       const sourceVideo = videos.find(v => v.id === videoId);
@@ -458,14 +480,15 @@ export default function App() {
       }
   };
 
+  // Content Creator Application Handling
+  if (currentView === 'content-creator') {
+    return <ContentApp session={session} onNavigate={navigateTo} />;
+  }
+
   // Hide sidebar if we are on blog pages, pricing, not logged in, or in the editor (active video is null is technically home)
   // Logic update: show sidebar if logged in and not in public pages.
   // The 'editor' view is now part of HomeView but we typically hide sidebar when actively editing to maximize space.
   const isPublicReaderView = ['blog', 'blog-post', 'pricing', 'features', 'about', 'pricing-details'].includes(currentView);
-  const isInEditor = currentView === 'home' && videoUrl !== null; 
-  // Note: HomeView now manages 'activeVideo'. If activeVideo is set, we are in editor mode.
-  // But videoUrl state in App.tsx is for the *landing page dropzone*. 
-  // Let's rely on session check mostly.
   
   const showSidebar = session && !isPublicReaderView; 
 
@@ -475,7 +498,7 @@ export default function App() {
       {showSidebar && (
           <Sidebar 
             currentView={currentView as any} 
-            setCurrentView={(v) => navigateTo(`#/${v}`)} 
+            setCurrentView={(v) => navigateTo(v === 'home' ? '/' : `/${v}`)} 
             handleLogout={handleLogout} 
             session={session}
           />
@@ -515,15 +538,16 @@ export default function App() {
                   showFailureNotification={showFailureNotification}
                   setShowFailureNotification={setShowFailureNotification}
                   backgroundOptions={backgroundOptions}
+                  onNavigate={navigateTo}
               />
           )}
 
-          {currentView === 'blog' && <BlogView />}
-          {currentView === 'blog-post' && <BlogPostView slug={route.slug || ''} />}
-          {currentView === 'pricing' && <PricingView onPurchase={handlePurchase} />}
-          {currentView === 'features' && <FeaturesPage />}
-          {currentView === 'about' && <AboutPage />}
-          {currentView === 'pricing-details' && <PricingPageSEO />}
+          {currentView === 'blog' && <BlogView onNavigate={navigateTo} />}
+          {currentView === 'blog-post' && <BlogPostView slug={route.slug || ''} onNavigate={navigateTo} />}
+          {currentView === 'pricing' && <PricingView onPurchase={handlePurchase} onNavigate={navigateTo} />}
+          {currentView === 'features' && <FeaturesPage onNavigate={navigateTo} />}
+          {currentView === 'about' && <AboutPage onNavigate={navigateTo} />}
+          {currentView === 'pricing-details' && <PricingPageSEO onNavigate={navigateTo} />}
 
           {currentView === 'videos' && (
               <VideoGallery 
