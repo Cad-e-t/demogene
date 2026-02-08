@@ -471,38 +471,46 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 )}
             </div>
 
-            {/* Input Area */}
-            <div className="flex-1 md:mr-80 flex flex-col items-center justify-center p-6 pb-32 pt-20 md:pt-6">
-                 <div className="max-w-2xl w-full text-center space-y-8 -mt-32 md:mt-0">
-                     <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-3xl mx-auto flex items-center justify-center text-4xl shadow-xl shadow-indigo-200">
-                         ✨
+            {/* Main Content Area */}
+            <div className="flex-1 md:mr-80 flex flex-col items-center justify-center p-6 h-full overflow-y-auto no-scrollbar">
+                 <div className="w-full max-w-3xl flex flex-col gap-5 transition-transform duration-300 -translate-y-[10vh] md:translate-y-0">
+                     
+                     {/* Text Section */}
+                     <div className="text-center space-y-2">
+                         <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-gray-900">What's your story?</h2>
+                         <p className="text-gray-500 font-medium text-sm md:text-base">Describe a scene, a history fact, a scary story, or a product idea.</p>
                      </div>
-                     <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-gray-900">What's your story?</h2>
-                     <p className="text-gray-500 font-medium">Describe a scene, a history fact, a scary story, or a product idea.</p>
-                 </div>
-            </div>
 
-            <div className="absolute bottom-0 left-0 right-0 md:right-80 p-6 bg-gradient-to-t from-white via-white to-transparent">
-                <div className="max-w-3xl mx-auto relative group">
-                    <textarea 
-                        ref={textareaRef}
-                        className="w-full bg-white border-2 border-gray-200 focus:border-indigo-500 rounded-3xl p-6 pr-48 md:pr-72 shadow-2xl resize-none text-lg font-medium outline-none min-h-[100px]"
-                        placeholder="Type a story prompt here..."
-                        value={prompt}
-                        onChange={(e) => {
-                            setPrompt(e.target.value);
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
-                        }}
-                    />
-                    <button 
-                        onClick={handleGenerate}
-                        disabled={loading || !prompt.trim()}
-                        className="absolute bottom-4 right-4 px-6 py-3 bg-black text-white rounded-2xl font-black uppercase tracking-wider hover:bg-gray-800 transition disabled:opacity-50"
-                    >
-                        {loading ? 'Thinking...' : `Generate ${displayImageCount > 0 ? `(${displayImageCount} Images)` : ''}`}
-                    </button>
-                </div>
+                     {/* Input Card */}
+                     <div className="relative group bg-white border-2 border-gray-200 focus-within:border-indigo-500 rounded-3xl shadow-xl hover:shadow-2xl transition-all overflow-hidden isolate w-full">
+                        {/* Text Area */}
+                        <div className="relative z-0">
+                            <textarea 
+                                ref={textareaRef}
+                                className="w-full bg-transparent p-6 pb-24 text-lg font-medium outline-none resize-none min-h-[120px] max-h-[50vh] overflow-y-auto"
+                                placeholder="Type a story prompt here..."
+                                value={prompt}
+                                onChange={(e) => {
+                                    setPrompt(e.target.value);
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = e.target.scrollHeight + 'px';
+                                }}
+                            />
+                        </div>
+
+                        {/* Button Area */}
+                        <div className="absolute bottom-0 left-0 right-0 z-10 flex justify-end p-4 bg-gradient-to-t from-white via-white to-transparent h-24 items-end">
+                            <button 
+                                onClick={handleGenerate}
+                                disabled={loading || !prompt.trim()}
+                                className="px-6 py-3 bg-black text-white rounded-2xl font-black uppercase tracking-wider hover:bg-gray-800 transition disabled:opacity-50 shadow-lg pointer-events-auto text-sm"
+                            >
+                                {loading ? 'Thinking...' : `Generate ${displayImageCount > 0 ? `(${displayImageCount} Images)` : ''}`}
+                            </button>
+                        </div>
+                    </div>
+
+                 </div>
             </div>
         </div>
     );
