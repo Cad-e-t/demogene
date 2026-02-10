@@ -71,49 +71,109 @@ const authMiddleware = async (req, res, next) => {
 
 // --- WEBHOOK LOGIC ---
 const processWebhookAsync = async (data) => {
-    const { type, data: eventData } = data;
-    const metadata = eventData.metadata || {};
-    const userId = metadata.user_id;
-
-    if (!userId) {
-        console.warn('Webhook: No user_id in metadata.', data);
-        return;
-    }
-
-    switch (type) {
-        case 'payment.succeeded':
-            const { billing, currency, card_last_four, customer, customer_id } = eventData;
-            const profileUpdateData = {
-                 billing_address: billing,
-                 last_payment_currency: currency,
-                 card_last_four: card_last_four,
-                 updated_at: new Date().toISOString()
-            };
-            if (customer_id || customer?.customer_id) {
-                profileUpdateData.dodo_customer_id = customer_id || customer?.customer_id;
-            }
-            if (customer?.phone_number) profileUpdateData.phone_number = customer.phone_number;
-            if (customer?.email) profileUpdateData.customer_email = customer.email;
-            if (customer?.name) profileUpdateData.customer_name = customer.name;
-
-            await supabase.from('profiles').update(profileUpdateData).eq('id', userId);
-
-            // Grant Credits using the RPC function which handles bonus logic
-            const credits = parseInt(metadata.credits_to_add || '0');
-            if (credits > 0) {
-                const { error } = await supabase.rpc('grant_credits_from_purchase', {
-                    p_user_id: userId,
-                    p_credits_to_add: credits,
-                    p_description: `Purchase of ${credits} demo credit${credits > 1 ? 's' : ''}`,
-                    p_metadata: eventData
-                });
-                if (error) console.error("RPC Error:", error);
-                else console.log(`Processed purchase of ${credits} credits for user ${userId}`);
-            }
-            break;
+    console.log(`[PaymentServer] 🟢 Processing Webhook Event: ${data.type}`);
+    
+    try {
+        const { type, data: eventData } = data;
         
-        default:
-            // ignore
+        if (!eventData) {
+            console.error('[PaymentServer] 🔴 Webhook data payload is missing or invalid.');
+            return;
+        }
+
+        const metadata = eventData.metadata || {};
+        const userId = metadata.user_id;
+
+        console.log(`[PaymentServer] Metadata:`, JSON.stringify(metadata));
+
+        if (!userId) {
+            console.warn('[PaymentServer] ⚠️ Webhook: No user_id in metadata. Cannot process credit grant.', data);
+            return;
+        }
+
+        switch (type) {
+            case 'payment.succeeded':
+                console.log(`[PaymentServer] Processing payment.succeeded for User ID: ${userId}`);
+                const { billing, currency, card_last_four, customer, customer_id } = eventData;
+                
+                // 1. Update Profile (Shared for both apps)
+                const profileUpdateData = {
+                     billing_address: billing,
+                     last_payment_currency: currency,
+                     card_last_four: card_last_four,
+                     updated_at: new Date().toISOString()
+                };
+                if (customer_id || customer?.customer_id) {
+                    profileUpdateData.dodo_customer_id = customer_id || customer?.customer_id;
+                }
+                if (customer?.phone_number) profileUpdateData.phone_number = customer.phone_number;
+                if (customer?.email) profileUpdateData.customer_email = customer.email;
+                if (customer?.name) profileUpdateData.customer_name = customer.name;
+
+                console.log(`[PaymentServer] Updating user profile...`);
+                try {
+                    const { error: profileError } = await supabase.from('profiles').update(profileUpdateData).eq('id', userId);
+                    if (profileError) {
+                        console.error(`[PaymentServer] 🔴 Profile update failed:`, profileError);
+                    } else {
+                        console.log(`[PaymentServer] ✅ Profile updated successfully.`);
+                    }
+                } catch (updateErr) {
+                    console.error(`[PaymentServer] 🔴 Exception during profile update:`, updateErr);
+                }
+
+                const credits = parseInt(metadata.credits_to_add || '0');
+                const isCreatorProduct = metadata.app_type === 'creator';
+                
+                console.log(`[PaymentServer] Credits to add: ${credits}. Is Creator App? ${isCreatorProduct}`);
+
+                if (credits > 0) {
+                    if (isCreatorProduct) {
+                        // 2a. Creator App Credits (Separate Table)
+                        console.log(`[PaymentServer] Granting CREATOR credits via RPC...`);
+                        try {
+                            const { error } = await supabase.rpc('grant_creator_credits', {
+                                p_user_id: userId,
+                                p_credits_to_add: credits,
+                                p_description: `Purchase of ${credits} creator credits`
+                            });
+                            if (error) {
+                                console.error("[PaymentServer] 🔴 Creator RPC Error:", error);
+                            } else {
+                                console.log(`[PaymentServer] ✅ Processed CREATOR purchase of ${credits} credits for user ${userId}`);
+                            }
+                        } catch (rpcErr) {
+                            console.error("[PaymentServer] 🔴 Creator RPC Exception:", rpcErr);
+                        }
+                    } else {
+                        // 2b. ProductCam Credits (Existing Logic)
+                        console.log(`[PaymentServer] Granting PRODUCTCAM credits via RPC...`);
+                        try {
+                            const { error } = await supabase.rpc('grant_credits_from_purchase', {
+                                p_user_id: userId,
+                                p_credits_to_add: credits,
+                                p_description: `Purchase of ${credits} demo credit${credits > 1 ? 's' : ''}`,
+                                p_metadata: eventData
+                            });
+                            if (error) {
+                                console.error("[PaymentServer] 🔴 ProductCam RPC Error:", error);
+                            } else {
+                                console.log(`[PaymentServer] ✅ Processed PRODUCTCAM purchase of ${credits} credits for user ${userId}`);
+                            }
+                        } catch (rpcErr) {
+                            console.error("[PaymentServer] 🔴 ProductCam RPC Exception:", rpcErr);
+                        }
+                    }
+                } else {
+                    console.warn(`[PaymentServer] ⚠️ Credits amount is 0. Skipping credit grant.`);
+                }
+                break;
+            
+            default:
+                console.log(`[PaymentServer] Ignored webhook event type: ${type}`);
+        }
+    } catch (err) {
+        console.error(`[PaymentServer] 🔴 Critical Error in processWebhookAsync:`, err);
     }
 };
 
@@ -135,10 +195,12 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         res.status(200).json({ received: true });
         
         const payloadString = payloadBuffer.toString('utf8');
-        processWebhookAsync(JSON.parse(payloadString)).catch(console.error);
+        processWebhookAsync(JSON.parse(payloadString)).catch(err => {
+            console.error("[PaymentServer] 🔴 Async Webhook Error:", err);
+        });
     
     } catch (error) {
-        console.error('Webhook Error:', error.message);
+        console.error('[PaymentServer] 🔴 Webhook Signature Error:', error.message);
         res.status(400).json({ error: 'Invalid signature' });
     }
 });
@@ -146,22 +208,43 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 app.use(express.json());
 
 app.post('/create-checkout-session', authMiddleware, async (req, res) => {
+    console.log(`[PaymentServer] 🟢 Create Checkout Session requested by User: ${req.user?.id}`);
+    
     try {
         const { productId } = req.body;
         const user = req.user;
-
-        if (!dodo) throw new Error("Dodo client not initialized");
-
-        // Logic to determine credits based on productId
-        let credits = 10; // default for Basic
         
+        console.log(`[PaymentServer] Requested Product ID: ${productId}`);
+
+        if (!dodo) {
+            console.error("[PaymentServer] 🔴 Dodo client not initialized. Check API Key.");
+            throw new Error("Dodo client not initialized");
+        }
+
+        let credits = 0;
+        let isCreatorProduct = false;
+        
+        // ProductCam Products
         if (productId === "pdt_0NXR7yFQlGXuk4YfAk8WY") {
             credits = 10;
         } else if (productId === "pdt_0NXR7opzKCuqk7OCHV44O") {
             credits = 30;
         } else if (productId === "pdt_0NXR7hQfq3toyw4xmfZ9t") {
             credits = 100;
+        } 
+        // Content Creator Products
+        else if (productId === "pdt_T48406oZ5JfWEo1XFEx9C") {
+            credits = 700;
+            isCreatorProduct = true;
+        } else if (productId === "pdt_aaVFvXmh0fAAa9TMyygKI") {
+            credits = 1800;
+            isCreatorProduct = true;
+        } else if (productId === "pdt_IkNZmPAGOSqCxUpSBwg2r") {
+            credits = 5500;
+            isCreatorProduct = true;
         }
+
+        console.log(`[PaymentServer] Resolved Credits: ${credits}, isCreatorProduct: ${isCreatorProduct}`);
 
         const { data: profile } = await supabase
             .from('profiles')
@@ -169,19 +252,25 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
             .eq('id', user.id)
             .single();
 
+        const returnUrl = isCreatorProduct 
+            ? `${FRONTEND_URL}/content-creator/billing?payment_status=success`
+            : `${FRONTEND_URL}/?payment_status=success`;
+
         const checkoutPayload = {
             product_cart: [{ product_id: productId, quantity: 1 }], 
             billing_currency: 'USD',
-            return_url: `${FRONTEND_URL}/?payment_status=success`, 
+            return_url: returnUrl, 
             show_saved_payment_methods: true,
             metadata: {
                 user_id: user.id,
                 credits_to_add: String(credits),
-                product_id: productId
+                product_id: productId,
+                app_type: isCreatorProduct ? 'creator' : 'productcam'
             }
         };
 
         if (profile?.dodo_customer_id) {
+             console.log(`[PaymentServer] Using existing customer ID: ${profile.dodo_customer_id}`);
              checkoutPayload.customer = {
                  customer_id: profile.dodo_customer_id
              };
@@ -190,11 +279,14 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
              if (profile.billing_address) checkoutPayload.billing_address = profile.billing_address;
         }
 
+        console.log(`[PaymentServer] Sending request to Dodo Payments...`);
         const session = await dodo.checkoutSessions.create(checkoutPayload);
+        
+        console.log(`[PaymentServer] ✅ Checkout Session Created: ${session.checkout_url}`);
         res.json({ checkout_url: session.checkout_url });
 
     } catch (error) {
-        console.error('Checkout Session Error:', error);
+        console.error('[PaymentServer] 🔴 Create Checkout Session Error:', error);
         res.status(500).json({ error: error.message });
     }
 });

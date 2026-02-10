@@ -63,7 +63,7 @@ function getFilterForEffect(effectType, width, height, frames) {
             // Z: Starts at 1.1 for minimal crop (overscan), zooms in at 0.0015/frame (matching cinematic style).
             // X: Combination of slow drift (on/40) and faster walking sway (on/4).
             // Y: Combination of slow bob (on/50) and faster walking step (on/5).
-            return `zoompan=z='if(eq(on,0),1.1,min(zoom+0.0015,1.35))':x='iw/2-(iw/zoom/2)+(iw/zoom/40)*sin(on/40)+(iw/zoom/120)*sin(on/4)':y='ih/2-(ih/zoom/2)+(ih/zoom/50)*cos(on/50)+(ih/zoom/140)*cos(on/5)':d=${frames}:s=${width}x${height}`;
+            return `zoompan=z='if(eq(on,0),1.1,min(zoom+0.0015,1.35))':x='iw/2-(iw/zoom/2)+(iw/zoom/60)*sin(on/40)+(iw/zoom/180)*sin(on/4)':y='ih/2-(ih/zoom/2)+(ih/zoom/75)*cos(on/50)+(ih/zoom/210)*cos(on/5)':d=${frames}:s=${width}x${height}`;
 
         case 'static':
         default:

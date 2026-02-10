@@ -5,6 +5,8 @@ import { ContentDashboard } from './ContentDashboard';
 import { ContentProjects } from './ContentProjects';
 import { ContentStories } from './ContentStories';
 import { ContentSidebar } from './ContentSidebar';
+import { BillingDashboard } from './BillingDashboard';
+import { CreatorPricingView } from './CreatorPricingView';
 import { supabase } from '../../supabaseClient';
 import { ContentProject, ContentSegment } from './types';
 
@@ -17,10 +19,12 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         const path = window.location.pathname;
         if (path.includes('/projects')) return 'projects';
         if (path.includes('/stories')) return 'stories';
+        if (path.includes('/billing')) return 'billing';
+        if (path.includes('/creator-pricing')) return 'creator-pricing';
         return 'dashboard';
     };
 
-    const [view, setView] = useState<'landing' | 'dashboard' | 'projects' | 'stories'>('landing');
+    const [view, setView] = useState<'landing' | 'dashboard' | 'projects' | 'stories' | 'billing' | 'creator-pricing'>('landing');
     const [activeProjectData, setActiveProjectData] = useState<{project: ContentProject, segments: ContentSegment[]} | null>(null);
 
     // Sync session from parent prop or fetch if missing
@@ -96,6 +100,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                 onNavigate={onNavigate} 
                 isOpen={isSidebarOpen}
                 onClose={() => setIsSidebarOpen(false)}
+                session={session}
             />
             <main className="flex-1 flex flex-col relative h-full overflow-hidden md:pt-0">
                 {view === 'dashboard' && (
@@ -119,6 +124,17 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                     <ContentStories 
                         session={session}
                         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                    />
+                )}
+                {view === 'billing' && (
+                    <BillingDashboard 
+                        session={session}
+                        onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
+                    />
+                )}
+                {view === 'creator-pricing' && (
+                    <CreatorPricingView 
+                        onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
                     />
                 )}
             </main>

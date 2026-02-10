@@ -17,23 +17,26 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
     - Script: ${prompt}
     - Aspect Ratio: ${aspect}
     - Visual Style: ${style}
-    - Visual Density: ${visualDensity} ('Rich' or 'Balanced')
+    - Visual Density: ${visualDensity}
 
-    STRICT SCRIPT RULES:
-    1. DO NOT REWRITE THE SCRIPT. Use the user's text EXACTLY as provided.
+    SCRIPT HANDLING:
+    1. Use the user's text EXACTLY as provided.
     2. You may ONLY fix obvious spelling or punctuation errors.
-    3. The total number of sentences must remain unchanged.
+    3. Optimize the script for natural narration flow.
 
     SEGMENTATION LOGIC:
-    - If Visual Density is 'Rich': Create 1 segment for EVERY sentence.
-    - If Visual Density is 'Balanced': Create 1 segment for every 2 sentences (group them logically).
+    - Count total sentences in the script.
+    - 'Rich': Final segment count MUST equal total sentence count (1 sentence per segment).
+    - 'Balanced': Final segment count MUST equal half of total sentences, rounded to nearest whole number (2 sentences per segment).
+    - 'Low': Final segment count MUST equal one third of total sentences, rounded to nearest whole number (3 sentences per segment).
+    - You may break sentences between segments ONLY if it creates a more significant visual moment.
 
     INSTRUCTIONS:
-    1. Analyze the script sentences.
-    2. Group them according to the Segmentation Logic.
-    3. For each segment, provide:
-       - "narration": The exact text from the script for this segment.
-       - "image_prompt": A highly detailed, descriptive prompt for an AI image generator.
+    1. Analyze the script for natural visual and narrative breaks.
+    2. Group text according to density while respecting significant moments.
+      3. For each segment, provide:
+         - "narration": The exact text from the script for this segment.
+         - "image_prompt": A highly detailed, descriptive prompt for an AI image generator.
          - MUST explicitly include the visual style keywords: "${style}".
          - Describe lighting, camera angle, subject, and mood.
          - Format for 9:16 vertical video if aspect is 9:16, or 16:9 otherwise.

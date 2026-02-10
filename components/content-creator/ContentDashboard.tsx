@@ -142,11 +142,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         }
     };
 
-    // Sentence Counting & Image Calculation
-    const sentenceCount = prompt.trim() ? prompt.split(/[.!?]+/).filter(s => s.trim().length > 0).length : 0;
-    const estimatedImages = visualDensity.id === 'Rich' ? sentenceCount : Math.ceil(sentenceCount / 2);
-    const displayImageCount = Math.max(0, estimatedImages);
-
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
         setLoading(true);
@@ -183,6 +178,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 setProject(null); 
                 setSegments([]); 
                 if (onClearProject) onClearProject();
+                onViewChange('projects');
             }} 
             onComplete={() => onViewChange('stories')}
         />;
@@ -505,7 +501,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 disabled={loading || !prompt.trim()}
                                 className="px-6 py-3 bg-black text-white rounded-2xl font-black uppercase tracking-wider hover:bg-gray-800 transition disabled:opacity-50 shadow-lg pointer-events-auto text-sm"
                             >
-                                {loading ? 'Thinking...' : `Generate ${displayImageCount > 0 ? `(${displayImageCount} Images)` : ''}`}
+                                {loading ? 'Thinking...' : 'Generate'}
                             </button>
                         </div>
                     </div>

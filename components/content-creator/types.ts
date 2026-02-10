@@ -2,6 +2,7 @@
 
 
 
+
 export interface ContentProject {
     id: string;
     title: string;
@@ -38,7 +39,8 @@ export const IMAGE_STYLES = [
 
 export const VISUAL_DENSITIES = [
     { id: 'Balanced', name: 'Balanced', description: 'Clean storytelling (~1 img / 2 sentences)' },
-    { id: 'Rich', name: 'Rich', description: 'Fast paced (~1 img / 1 sentence)' }
+    { id: 'Rich', name: 'Rich', description: 'Fast paced (~1 img / 1 sentence)' },
+    { id: 'Low', name: 'Low', description: 'Minimalist (~1 img / 3 sentences)' }
 ];
 
 export const EFFECT_PRESETS = [
@@ -50,14 +52,17 @@ export const EFFECT_PRESETS = [
 ];
 
 export const NARRATION_STYLES = [
-    { id: 10, name: "Charisma Dynamo", prompt: "Read aloud in a lively, confident, and magnetic tone", description: "lively, confident, magnetic" },
-    { id: 1, name: "Shadow Puppeteer", prompt: "Read aloud in a deep, slow, and mysterious tone", description: "Suspense, drama, dark storytelling" },
-    { id: 2, name: "Firebrand", prompt: "Read aloud in a fiery, energetic, and confident tone", description: "Action, announcements, hype" },
-    { id: 3, name: "Whispering Wind", prompt: "Read aloud in a soft, gentle, and soothing tone", description: "Emotional, reflective, calming" },
-    { id: 4, name: "Siren’s Call", prompt: "Read aloud in a smooth, seductive, and captivating tone", description: "Narrative intrigue, product reveals" },
-    { id: 5, name: "Thunder King", prompt: "Read aloud in a bold, powerful, and commanding tone", description: "Authority, motivational, epic" },
-    { id: 6, name: "Trickster Fox", prompt: "Read aloud in a playful, witty, and mischievous tone", description: "Humor, quirky, lighthearted" },
-    { id: 7, name: "Midnight Oracle", prompt: "Read aloud in a deep, slow, mystical tone", description: "Fantasy, mystery, immersive" },
-    { id: 8, name: "Lightning Spark", prompt: "Read aloud in a fast, energetic, punchy tone", description: "High-energy shorts, tutorials" },
-    { id: 9, name: "Iron Sage", prompt: "Read aloud in a calm, wise, and deliberate tone", description: "Educational, tips & advice" },
+    { id: 10, name: "Charisma Dynamo", prompt: "Read in a confident, magnetic tone with dynamic pacing", description: "confident, magnetic" },
+    { id: 1, name: "Shadow Puppeteer", prompt: "Read in a deep, mysterious tone with brisk, continuous delivery", description: "deep, mysterious" },
+    { id: 2, name: "Firebrand", prompt: "Read in a fiery, energetic tone with brisk, continuous delivery", description: "fiery, energetic" },
+    { id: 3, name: "Whispering Wind", prompt: "Read in a soft, soothing tone with flowing pacing", description: "soft, soothing" },
+    { id: 4, name: "Siren's Call", prompt: "Read in a smooth, seductive tone with brisk, continuous delivery", description: "smooth, seductive" },
+    { id: 5, name: "Thunder King", prompt: "Read in a bold, commanding tone with brisk, continuous delivery", description: "bold, commanding" },
+    { id: 6, name: "Trickster Fox", prompt: "Read in a playful, mischievous tone with lively pacing", description: "playful, mischievous" },
+    { id: 7, name: "Midnight Oracle", prompt: "Read in a deep, mystical tone with brisk, continuous delivery", description: "deep, mystical" },
+    { id: 8, name: "Lightning Spark", prompt: "Read in an energetic, punchy tone with brisk, continuous delivery", description: "energetic, punchy" },
+    { id: 9, name: "Iron Sage", prompt: "Read in a calm, deliberate tone with brisk, continuous delivery", description: "calm, deliberate" },
+    { id: 11, name: "Gravel Titan", prompt: "Read in a gravelly, commanding tone with brisk, continuous delivery", description: "gravelly, commanding" },
+    { id: 11, name: "Rumble King", prompt: "Read aloud in a raspy, powerful tone with brisk, continuous delivery", description: "raspy, powerful" },
+
 ];

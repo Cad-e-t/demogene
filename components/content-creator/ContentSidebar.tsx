@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { supabase } from '../../supabaseClient';
 
 interface Props {
     currentView: string;
@@ -7,14 +8,27 @@ interface Props {
     onNavigate: (path: string) => void;
     isOpen: boolean;
     onClose: () => void;
+    session: any;
 }
 
-export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNavigate, isOpen, onClose }) => {
-    
+export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNavigate, isOpen, onClose, session }) => {
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [imageError, setImageError] = useState(false);
+
     const navigate = (view: string) => {
         onNavigate(`/content-creator/${view}`);
         onClose();
     };
+
+    const handleLogout = async () => {
+        await (supabase.auth as any).signOut();
+        onNavigate('/'); 
+    };
+
+    const user = session?.user;
+    const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Creator';
+    const avatarUrl = user?.user_metadata?.avatar_url;
+    const initial = displayName.charAt(0).toUpperCase();
 
     return (
         <>
@@ -45,18 +59,45 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
                  </div>
                  
                  <div className="flex flex-col gap-2 w-full px-2">
+                     <NavButton icon="📊" label="Dashboard" active={currentView === 'billing'} onClick={() => navigate('billing')} />
                      <NavButton icon="✨" label="Create" active={currentView === 'dashboard'} onClick={() => navigate('dashboard')} />
                      <NavButton icon="folder" label="Projects" active={currentView === 'projects'} onClick={() => navigate('projects')} />
                      <NavButton icon="play" label="Stories" active={currentView === 'stories'} onClick={() => navigate('stories')} />
                  </div>
 
-                 <div className="mt-auto px-4">
-                     <button onClick={() => onNavigate('/')} className="text-xs font-bold text-gray-400 hover:text-indigo-600 transition uppercase tracking-widest hidden md:block w-full text-left">
-                         ← ProductCam
-                     </button>
-                     {/* Mobile Back to Home */}
-                     <button onClick={() => onNavigate('/')} className="md:hidden text-xs font-bold text-gray-400 hover:text-indigo-600 transition uppercase tracking-widest w-full text-center mt-4">
-                         Exit to Home
+                 <div className="mt-auto w-full px-4 relative">
+                     {isProfileOpen && (
+                        <div className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-gray-200 rounded-xl shadow-xl p-1 animate-fade-in z-[60]">
+                            <button 
+                                onClick={handleLogout}
+                                className="w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                                Log Out
+                            </button>
+                        </div>
+                     )}
+                     
+                     <button 
+                        onClick={() => setIsProfileOpen(!isProfileOpen)}
+                        className={`w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl transition-colors text-left border border-transparent hover:border-gray-100 ${isProfileOpen ? 'bg-gray-50 border-gray-200' : ''}`}
+                     >
+                         {avatarUrl && !imageError ? (
+                             <img 
+                                src={avatarUrl} 
+                                alt={displayName} 
+                                className="w-9 h-9 rounded-full object-cover bg-gray-100 shrink-0" 
+                                onError={() => setImageError(true)}
+                             />
+                         ) : (
+                             <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+                                 {initial}
+                             </div>
+                         )}
+                         <div className="flex-1 min-w-0">
+                             <p className="text-sm font-bold text-gray-900 truncate">{displayName}</p>
+                         </div>
+                         <svg className={`w-4 h-4 text-gray-400 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                      </button>
                  </div>
             </aside>
