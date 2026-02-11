@@ -1,8 +1,9 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
-const MODEL_NAME = "gemini-3-pro-preview"; // Using Gemini 3 Pro for reasoning
-const IMAGE_MODEL = "gemini-2.5-flash-image"; // Nano Banana for images
+const MODEL_NAME = "gemini-2.5-flash"; // Using Gemini 3 Pro for reasoning
+const IMAGE_MODEL = "gemini-2.5-flash-image"; // Nano Banana for images (Ultra quality per mapping)
+const FAST_IMAGE_MODEL = "imagen-4.0-fast-generate-001"; // Fast quality per mapping
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 
 export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced') {
@@ -66,7 +67,7 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
     }
 }
 
-export async function generateImage(prompt, aspect) {
+export async function generateImage(prompt, aspect, quality = 'Fast') {
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
@@ -77,23 +78,49 @@ export async function generateImage(prompt, aspect) {
     
     const ar = aspect === '9:16' ? '9:16' : '16:9';
 
-    const response = await ai.models.generateContent({
-        model: IMAGE_MODEL,
-        contents: { parts: [{ text: prompt }] },
-        config: {
-            imageConfig: {
-                aspectRatio: ar,
-                imageSize: "1K" 
+    // Model Selection based on Quality Mapping:
+    // Fast -> imagen-4.0-fast-generate-001
+    // Ultra -> gemini-2.5-flash-image
+    
+    let model = FAST_IMAGE_MODEL;
+    if (quality === 'Ultra') {
+        model = IMAGE_MODEL;
+    }
+
+    if (model === IMAGE_MODEL) {
+        // Nano Banana (Gemini Image) Flow
+        const response = await ai.models.generateContent({
+            model: IMAGE_MODEL,
+            contents: { parts: [{ text: prompt }] },
+            config: {
+                imageConfig: {
+                    aspectRatio: ar
+                }
+            }
+        });
+
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                return part.inlineData.data;
             }
         }
-    });
-
-    // Extract base64
-    for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-            return part.inlineData.data;
+    } else {
+        // Imagen 4.0 Flow (Using generateImages)
+        const response = await ai.models.generateImages({
+            model: FAST_IMAGE_MODEL,
+            prompt: prompt,
+            config: {
+                numberOfImages: 1,
+                aspectRatio: ar,
+                outputMimeType: 'image/png'
+            }
+        });
+        
+        if (response.generatedImages && response.generatedImages.length > 0) {
+            return response.generatedImages[0].image.imageBytes;
         }
     }
+
     throw new Error("No image data generated");
 }
 
@@ -102,7 +129,7 @@ export async function editImage(originalImageBase64, editPrompt) {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const response = await ai.models.generateContent({
-        model: IMAGE_MODEL,
+        model: IMAGE_MODEL, // Always use gemini-2.5-flash-image for editing
         contents: {
             parts: [
                 { inlineData: { mimeType: 'image/png', data: originalImageBase64 } },
@@ -145,4 +172,4 @@ export async function generateFullVoiceover(text, voiceName, stylePrompt) {
     if (!base64Audio) throw new Error("No audio generated");
     
     return Buffer.from(base64Audio, 'base64');
-}
+}    

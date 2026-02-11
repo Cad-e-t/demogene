@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { generateSegments } from './api';
 import { ContentEditor } from './ContentEditor';
-import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, VISUAL_DENSITIES } from './types';
+import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, VISUAL_DENSITIES, PICTURE_QUALITY_OPTIONS } from './types';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 
@@ -18,8 +17,9 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [voice, setVoice] = useState(VOICES[0]);
     const [narrationStyle, setNarrationStyle] = useState(NARRATION_STYLES[0]); // Default to Charisma Dynamo
     const [effect, setEffect] = useState(EFFECT_PRESETS[0]);
+    const [pictureQuality, setPictureQuality] = useState(PICTURE_QUALITY_OPTIONS[0]); // Default to Fast
     
-    const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'density'>('main');
+    const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'density' | 'quality'>('main');
 
     // Audio Preview State
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -61,6 +61,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     if (savedEffect) setEffect(savedEffect);
                 }
 
+                if (parsed.pictureQualityId) {
+                    const savedQuality = PICTURE_QUALITY_OPTIONS.find(q => q.id === parsed.pictureQualityId);
+                    if (savedQuality) setPictureQuality(savedQuality);
+                }
+
             } catch (e) {
                 console.error("Failed to load saved state", e);
             }
@@ -84,10 +89,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             aspect,
             style,
             voiceId: voice.id,
-            effectId: effect.id
+            effectId: effect.id,
+            pictureQualityId: pictureQuality.id
         };
         localStorage.setItem('content_dashboard_state', JSON.stringify(stateToSave));
-    }, [prompt, narrationStyle, visualDensity, aspect, style, voice, effect]);
+    }, [prompt, narrationStyle, visualDensity, aspect, style, voice, effect, pictureQuality]);
 
     // Initialize from props if present (Project Reload)
     useEffect(() => {
@@ -109,6 +115,10 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 // Try to match by prompt text since we stored text, or default
                 const n = NARRATION_STYLES.find(s => s.prompt === initialProjectData.project.narration_style);
                 if (n) setNarrationStyle(n);
+            }
+            if (initialProjectData.project.picture_quality) {
+                const q = PICTURE_QUALITY_OPTIONS.find(o => o.id === initialProjectData.project.picture_quality);
+                if (q) setPictureQuality(q);
             }
         }
     }, [initialProjectData]);
@@ -142,12 +152,22 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         }
     };
 
+    const handleVoiceSelect = (v: any) => {
+        // Stop preview if playing
+        if (audioRef.current) {
+            audioRef.current.pause();
+            setPlayingVoiceId(null);
+        }
+        setVoice(v);
+        setConfigView('main');
+    };
+
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
         setLoading(true);
         try {
             console.log("[ContentDashboard] Starting generation...");
-            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, visualDensity.id);
+            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, visualDensity.id, pictureQuality.id);
             console.log("[ContentDashboard] Text segments received:", res.segments.length);
             
             setProject({ 
@@ -157,7 +177,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 voice_id: voice.id,
                 effect: effect.id,
                 image_style: style,
-                narration_style: narrationStyle.prompt
+                narration_style: narrationStyle.prompt,
+                picture_quality: pictureQuality.id
             });
             setSegments(res.segments);
             // We transition immediately to editor even if images are null
@@ -226,6 +247,17 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
                                 >
                                     <span>{aspect === '9:16' ? '9:16 Vertical' : '16:9 Landscape'}</span>
+                                    <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                </button>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Picture Quality</label>
+                                <button 
+                                    onClick={() => setConfigView('quality')}
+                                    className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
+                                >
+                                    <span>{pictureQuality.name}</span>
                                     <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                 </button>
                             </div>
@@ -312,6 +344,36 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                         {visualDensity.id === d.id && <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                     </div>
                                     <div className="text-xs text-gray-400 font-medium mt-1">{d.description}</div>
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
+
+                {configView === 'quality' && (
+                    <>
+                        <div className="flex items-center gap-2 mb-6">
+                            <button 
+                                onClick={() => setConfigView('main')} 
+                                className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            </button>
+                            <h3 className="font-black text-xl uppercase tracking-tight">Picture Quality</h3>
+                        </div>
+                        
+                        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                            {PICTURE_QUALITY_OPTIONS.map(q => (
+                                <button
+                                    key={q.id}
+                                    onClick={() => { setPictureQuality(q); setConfigView('main'); }}
+                                    className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${pictureQuality.id === q.id ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-gray-100 hover:border-gray-200'}`}
+                                >
+                                    <div className="font-bold flex items-center justify-between">
+                                        {q.name}
+                                        {pictureQuality.id === q.id && <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                    </div>
+                                    <div className="text-xs text-gray-400 font-medium mt-1">{q.description}</div>
                                 </button>
                             ))}
                         </div>
@@ -418,7 +480,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                             {VOICES.map(v => (
                                 <button
                                     key={v.id}
-                                    onClick={() => { setVoice(v); setConfigView('main'); }}
+                                    onClick={() => handleVoiceSelect(v)}
                                     className={`w-full flex items-center justify-between px-4 py-3 text-sm border rounded-xl transition-all ${voice.id === v.id ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-gray-100 hover:border-gray-200'}`}
                                 >
                                     <span className="font-bold text-left">{v.name}</span>

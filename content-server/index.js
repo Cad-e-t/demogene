@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
@@ -27,6 +22,37 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const TEMP_DIR = os.tmpdir();
+
+// --- Constants & Pricing ---
+const COST_IMAGE_FAST = 2; // Credits per image
+const COST_IMAGE_ULTRA = 4; // Credits per image
+const COST_IMAGE_EDIT = 4; // Credits per edit
+const COST_AUDIO_PER_6S = 1; // Credits per 6 seconds of audio
+const MIN_BALANCE = 10; // Minimum credits required to start
+
+// --- Helper: Credits ---
+async function getCredits(userId) {
+    const { data } = await supabase.from('creator_profile').select('credits').eq('id', userId).single();
+    return data?.credits || 0;
+}
+
+async function chargeUser(userId, amount, description) {
+    const { error } = await supabase.rpc('charge_creator_credits', {
+        p_user_id: userId,
+        p_amount: amount,
+        p_description: description
+    });
+    if (error) throw new Error(`Credit charge failed: ${error.message}`);
+}
+
+async function refundUser(userId, amount, description) {
+    const { error } = await supabase.rpc('refund_creator_credits', {
+        p_user_id: userId,
+        p_amount: amount,
+        p_description: description
+    });
+    if (error) console.error("Refund failed:", error);
+}
 
 // --- Helper: Calculate Audio Durations ---
 function calculateAudioLineDurations(lines, totalAudioDuration) {
@@ -55,15 +81,15 @@ function getKeyFromUrl(url) {
 
 // --- Background Processors ---
 
-async function processImagesBackground(projectId, segments, aspectRatio) {
-    console.log(`[ContentServer] Starting background image generation for project ${projectId}`);
+async function processImagesBackground(projectId, segments, aspectRatio, pictureQuality, costPerImage, userId) {
+    console.log(`[ContentServer] Starting background image generation for project ${projectId} with quality ${pictureQuality}`);
     
-    // We process sequentially or in small batches to avoid rate limits, or parallel if quota allows.
-    // Parallel for speed as per user request for "instantly".
+    let failedCount = 0;
+
     await Promise.all(segments.map(async (seg) => {
         try {
             console.log(`[ContentServer] Generating image for segment ${seg.order_index} (Project: ${projectId})`);
-            const base64Img = await generateImage(seg.image_prompt, aspectRatio);
+            const base64Img = await generateImage(seg.image_prompt, aspectRatio, pictureQuality);
             
             console.log(`[ContentServer] Uploading image for segment ${seg.order_index}`);
             const buffer = Buffer.from(base64Img, 'base64');
@@ -87,10 +113,16 @@ async function processImagesBackground(projectId, segments, aspectRatio) {
 
         } catch (e) {
             console.error(`[ContentServer] Image gen failed for segment ${seg.order_index}`, e);
-            // Optionally set a placeholder or error status in DB
+            failedCount++;
         }
     }));
     
+    // Refund for failures
+    if (failedCount > 0) {
+        console.log(`[ContentServer] Refunding ${failedCount} failed images for user ${userId}`);
+        await refundUser(userId, failedCount * costPerImage, `Refund: Failed Images (${failedCount})`);
+    }
+
     console.log(`[ContentServer] Background image generation complete for project ${projectId}`);
 }
 
@@ -99,9 +131,15 @@ async function processImagesBackground(projectId, segments, aspectRatio) {
 // 1. Generate Story Segments (Text First, Images Background)
 app.post('/generate-segments', async (req, res) => {
     try {
-        const { prompt, aspectRatio, style, effect, userId, narrationStyle, visualDensity } = req.body;
-        console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with density ${visualDensity}`);
+        const { prompt, aspectRatio, style, effect, userId, narrationStyle, visualDensity, pictureQuality } = req.body;
+        console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with density ${visualDensity}, quality ${pictureQuality}`);
         
+        // 0. Pre-check Balance
+        const userCredits = await getCredits(userId);
+        if (userCredits < MIN_BALANCE) {
+            return res.status(402).json({ error: "Insufficient credits. Minimum 10 credits required." });
+        }
+
         // 1. Create Project
         const { data: project, error } = await supabase.from('content_projects').insert({
             user_id: userId,
@@ -110,6 +148,7 @@ app.post('/generate-segments', async (req, res) => {
             image_style: style,
             effect: effect || 'zoom_pulse',
             narration_style: narrationStyle, // Save style to DB
+            picture_quality: pictureQuality || 'Fast', // Save picture quality to DB
             status: 'draft'
         }).select().single();
         
@@ -121,7 +160,20 @@ app.post('/generate-segments', async (req, res) => {
         const segmentsData = await generateStorySegments(prompt, aspectRatio, style, visualDensity);
         console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
-        // 3. Save Text Segments to DB (Image NULL)
+        // 3. Determine Cost & Charge
+        const costPerImage = (pictureQuality === 'Ultra') ? COST_IMAGE_ULTRA : COST_IMAGE_FAST;
+        const totalCost = segmentsData.length * costPerImage;
+
+        // Check balance again before charging
+        const currentBalance = await getCredits(userId);
+        if (currentBalance < totalCost) {
+            // Delete the draft project to keep it clean? Or leave it. Leaving it is fine.
+            return res.status(402).json({ error: `Insufficient credits. Need ${totalCost} credits for ${segmentsData.length} images.` });
+        }
+
+        await chargeUser(userId, totalCost, `Image Gen Batch (${pictureQuality}) - ${segmentsData.length} images`);
+
+        // 4. Save Text Segments to DB (Image NULL)
         const segmentsToInsert = segmentsData.map((s, idx) => ({
             project_id: project.id,
             narration: s.narration,
@@ -138,11 +190,11 @@ app.post('/generate-segments', async (req, res) => {
         if (segError) throw segError;
         console.log(`[ContentServer] Segments saved to DB. Returning early response.`);
 
-        // 4. Return Response IMMEDIATELY
+        // 5. Return Response IMMEDIATELY
         res.json({ projectId: project.id, segments: insertedSegments });
 
-        // 5. Trigger Background Image Gen
-        processImagesBackground(project.id, insertedSegments, aspectRatio);
+        // 6. Trigger Background Image Gen (Pass cost for refunds)
+        processImagesBackground(project.id, insertedSegments, aspectRatio, pictureQuality || 'Fast', costPerImage, userId);
 
     } catch (e) {
         console.error("[ContentServer] Error in generate-segments:", e);
@@ -152,27 +204,51 @@ app.post('/generate-segments', async (req, res) => {
 
 // New Route: Regenerate Single Image
 app.post('/regenerate-image', async (req, res) => {
+    const { segmentId, projectId, imagePrompt, aspectRatio, currentImageUrl } = req.body;
+    
+    // We need userId to charge. It should be passed or fetched. 
+    // Assuming we fetch it from project to be secure.
+    let userId = null;
+    let quality = 'Fast';
+
     try {
-        const { segmentId, projectId, imagePrompt, aspectRatio, currentImageUrl } = req.body;
         console.log(`[ContentServer] Regenerating image for segment ${segmentId}`);
 
-        // 1. Generate new image
-        const base64Img = await generateImage(imagePrompt, aspectRatio);
+        // 0. Fetch Project
+        const { data: project, error: projError } = await supabase
+            .from('content_projects')
+            .select('user_id, picture_quality')
+            .eq('id', projectId)
+            .single();
+        
+        if (projError || !project) throw new Error("Project not found");
+        userId = project.user_id;
+        quality = project.picture_quality || 'Fast';
+
+        // 1. Calculate Cost & Charge
+        const cost = quality === 'Ultra' ? COST_IMAGE_ULTRA : COST_IMAGE_FAST;
+        const balance = await getCredits(userId);
+        
+        if (balance < cost) {
+            return res.status(402).json({ error: `Insufficient credits. Need ${cost} credits.` });
+        }
+
+        await chargeUser(userId, cost, `Image Regeneration (${quality})`);
+
+        // 2. Generate new image
+        const base64Img = await generateImage(imagePrompt, aspectRatio, quality);
         const buffer = Buffer.from(base64Img, 'base64');
 
-        // 2. Determine Key (Overwrite if exists, else create new)
+        // 3. Determine Key
         let key;
         const existingKey = getKeyFromUrl(currentImageUrl);
-        
         if (existingKey) {
-            console.log(`[ContentServer] Overwriting existing image key: ${existingKey}`);
             key = existingKey;
         } else {
-            console.log(`[ContentServer] Creating new image key`);
             key = `content/${projectId}/${segmentId}_${uuidv4()}.png`;
         }
 
-        // 3. Upload
+        // 4. Upload
         await s3.send(new PutObjectCommand({
             Bucket: R2_BUCKET,
             Key: key,
@@ -182,37 +258,59 @@ app.post('/regenerate-image', async (req, res) => {
 
         const newImageUrl = `${R2_PUBLIC_URL}/${key}`;
 
-        // 4. Update DB (Required even if overwriting R2 to ensure consistency/timestamps if applicable, and definitely required if new key)
+        // 5. Update DB
         const { error } = await supabase.from('content_segments')
             .update({ image_url: newImageUrl })
             .eq('id', segmentId);
 
         if (error) throw error;
 
-        console.log(`[ContentServer] Regeneration success: ${newImageUrl}`);
         res.json({ imageUrl: newImageUrl });
 
     } catch (e) {
         console.error("[ContentServer] Regeneration failed", e);
+        // Refund on failure
+        if (userId) {
+            const cost = quality === 'Ultra' ? COST_IMAGE_ULTRA : COST_IMAGE_FAST;
+            await refundUser(userId, cost, "Refund: Failed Regeneration");
+        }
         res.status(500).json({ error: e.message });
     }
 });
 
 // 2. Edit Image
 app.post('/edit-image', async (req, res) => {
+    const { segmentId, editPrompt, currentImageUrl } = req.body;
+    let userId = null;
+
     try {
-        const { segmentId, editPrompt, currentImageUrl } = req.body;
         console.log(`[ContentServer] Editing image for segment ${segmentId}`);
         
-        // Fetch current image
+        // Fetch segment to get project -> userId
+        const { data: segment } = await supabase.from('content_segments').select('project_id').eq('id', segmentId).single();
+        if (!segment) throw new Error("Segment not found");
+        
+        const { data: project } = await supabase.from('content_projects').select('user_id').eq('id', segment.project_id).single();
+        if (!project) throw new Error("Project not found");
+        userId = project.user_id;
+
+        // 1. Check & Charge
+        const cost = COST_IMAGE_EDIT;
+        const balance = await getCredits(userId);
+        if (balance < cost) {
+            return res.status(402).json({ error: `Insufficient credits. Need ${cost} credits.` });
+        }
+        
+        await chargeUser(userId, cost, "Image Edit");
+
+        // 2. Generate
         const resp = await fetch(currentImageUrl);
         const arrayBuf = await resp.arrayBuffer();
         const base64Original = Buffer.from(arrayBuf).toString('base64');
 
-        // Edit
         const base64New = await editImage(base64Original, editPrompt);
         
-        // Upload
+        // 3. Upload
         const buffer = Buffer.from(base64New, 'base64');
         const key = `content/edits/${uuidv4()}.png`;
         await s3.send(new PutObjectCommand({
@@ -224,13 +322,17 @@ app.post('/edit-image', async (req, res) => {
         
         const newUrl = `${R2_PUBLIC_URL}/${key}`;
 
-        // Update DB
+        // 4. Update DB
         await supabase.from('content_segments').update({ image_url: newUrl }).eq('id', segmentId);
-        console.log(`[ContentServer] Image edited and saved: ${newUrl}`);
 
         res.json({ imageUrl: newUrl });
+
     } catch (e) {
         console.error(e);
+        // Refund on failure
+        if (userId) {
+            await refundUser(userId, COST_IMAGE_EDIT, "Refund: Failed Image Edit");
+        }
         res.status(500).json({ error: e.message });
     }
 });
@@ -303,6 +405,17 @@ app.post('/generate-video', async (req, res) => {
     const { projectId, voiceId, userId } = req.body;
     console.log(`[ContentServer] Starting video generation for project ${projectId}`);
     
+    // 0. Pre-check Balance
+    try {
+        const userCredits = await getCredits(userId);
+        if (userCredits < MIN_BALANCE) {
+            return res.status(402).json({ error: "Insufficient credits. Minimum 10 credits required." });
+        }
+    } catch(e) {
+        console.error(e);
+        return res.status(500).json({ error: "Failed to check credits" });
+    }
+
     let storyId = null;
 
     try {
@@ -344,11 +457,7 @@ app.post('/generate-video', async (req, res) => {
             // 1. Generate Full Audio
             console.log(`[ContentServer] Generating full audio...`);
             const fullScript = segments.map(s => s.narration).join(" ");
-            
-            // Prefer voice passed in body (latest) over project default
             const finalVoice = voiceId || project.voice_id;
-            
-            // Get narration style prompt from project, use new default if null
             const stylePrompt = project.narration_style || "Read aloud in a lively, confident, and magnetic tone";
             
             const audioBuffer = await generateFullVoiceover(fullScript, finalVoice, stylePrompt);
@@ -366,15 +475,22 @@ app.post('/generate-video', async (req, res) => {
                 throw new Error("Failed to convert TTS audio");
             }
 
+            // 2. Charge for Audio (Duration based)
+            const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`);
+            const totalDuration = parseFloat(out.toString());
+            const audioCost = Math.ceil(totalDuration / 6) * COST_AUDIO_PER_6S;
+            
+            console.log(`[ContentServer] Audio Duration: ${totalDuration}s. Charging ${audioCost} credits.`);
+            // Allows negative balance
+            await chargeUser(userId, audioCost, `Audio Voiceover (${totalDuration.toFixed(1)}s)`);
+
             // Update status to rendering
             await supabase.from('content_stories').update({ status: 'rendering' }).eq('id', storyId);
 
-            // 2. Get Audio Duration & Calc Splits
-            const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`);
-            const totalDuration = parseFloat(out.toString());
+            // 3. Calc Splits
             const segmentDurations = calculateAudioLineDurations(segments, totalDuration);
 
-            // 3. Download Images
+            // 4. Download Images
             console.log(`[ContentServer] Downloading images...`);
             for (let i = 0; i < segments.length; i++) {
                 if (segments[i].image_url) {
@@ -382,14 +498,13 @@ app.post('/generate-video', async (req, res) => {
                 }
             }
 
-            // 4. Assemble
+            // 5. Assemble
             console.log(`[ContentServer] Assembling video with effect: ${project.effect}`);
             const finalPath = await assembleVideo(segments, audioPath, segmentDurations, workDir, project.aspect_ratio, project.effect);
 
-            // 5. Upload Final
+            // 6. Upload Final
             console.log(`[ContentServer] Uploading final video...`);
             const finalBuffer = fs.readFileSync(finalPath);
-            // Unique key per generation to prevent overwrites
             const finalKey = `content/stories/${uuidv4()}.mp4`;
             
             await s3.send(new PutObjectCommand({
@@ -401,7 +516,7 @@ app.post('/generate-video', async (req, res) => {
 
             const videoUrl = `${R2_PUBLIC_URL}/${finalKey}`;
 
-            // 6. Update Story with Result
+            // 7. Update Story with Result
             await supabase.from('content_stories').update({
                 video_url: videoUrl,
                 status: 'completed'

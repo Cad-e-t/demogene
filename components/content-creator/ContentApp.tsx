@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ContentLanding } from './ContentLanding';
 import { ContentDashboard } from './ContentDashboard';
@@ -71,8 +70,8 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         await (supabase.auth as any).signInWithOAuth({ 
             provider: 'google',
             options: {
-                // Use origin to keep URL clean for hash extraction
-                redirectTo: window.location.origin
+                // Use explicit redirect to content creator area
+                redirectTo: 'https://productcam.site/content-creator'
             }
         });
     };

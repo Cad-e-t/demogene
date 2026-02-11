@@ -3,11 +3,14 @@
 
 
 
+
+
 export interface ContentProject {
     id: string;
     title: string;
     aspect_ratio: '9:16' | '16:9';
     image_style: string;
+    picture_quality?: 'Fast' | 'Ultra';
     voice_id: string;
     narration_style?: string;
     effect: string;
@@ -41,6 +44,11 @@ export const VISUAL_DENSITIES = [
     { id: 'Balanced', name: 'Balanced', description: 'Clean storytelling (~1 img / 2 sentences)' },
     { id: 'Rich', name: 'Rich', description: 'Fast paced (~1 img / 1 sentence)' },
     { id: 'Low', name: 'Low', description: 'Minimalist (~1 img / 3 sentences)' }
+];
+
+export const PICTURE_QUALITY_OPTIONS = [
+    { id: 'Fast', name: 'Fast', description: 'Quick, affordable clarity' },
+    { id: 'Ultra', name: 'Ultra', description: 'Cinematic detail, premium look' }
 ];
 
 export const EFFECT_PRESETS = [

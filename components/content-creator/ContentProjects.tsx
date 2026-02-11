@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { deleteProject } from './api';
@@ -75,7 +74,7 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                         onClick={() => handleProjectClick(p)}
                         className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition text-left group cursor-pointer relative"
                     >
-                        <h3 className="font-bold text-lg mb-2 truncate group-hover:text-indigo-600 transition-colors">{p.title}</h3>
+                        <h3 className="font-bold text-lg mb-2 truncate group-hover:text-indigo-600 transition-colors pr-8">{p.title}</h3>
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">{new Date(p.created_at).toLocaleDateString()}</p>
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                             {p.status}
@@ -83,7 +82,7 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                         
                         <button 
                             onClick={(e) => handleDelete(e, p.id)}
-                            className="absolute top-6 right-6 p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                            className="absolute bottom-6 right-6 p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
                             title="Delete Project"
                         >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

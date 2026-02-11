@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
@@ -235,7 +234,7 @@ export default function App() {
         await (supabase.auth as any).signInWithOAuth({ 
             provider,
             options: {
-                redirectTo: 'https://productcam.site'
+                redirectTo: 'https://productcam.site' // Explicit redirect for ProductCam app
             }
         }); 
     } 

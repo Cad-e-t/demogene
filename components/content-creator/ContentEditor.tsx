@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { editImageSegment, saveSegments, generateFinalVideo, regenerateImageSegment } from './api';
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
-import { EFFECT_PRESETS, NARRATION_STYLES } from './types';
+import { EFFECT_PRESETS, NARRATION_STYLES, PICTURE_QUALITY_OPTIONS } from './types';
 
 export const ContentEditor = ({ session, project, initialSegments, onBack, onComplete }: any) => {
     const [segments, setSegments] = useState(initialSegments);
@@ -29,6 +28,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     // Audio Preview
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Display Picture Quality
+    const pictureQuality = PICTURE_QUALITY_OPTIONS.find(q => q.id === project.picture_quality) || PICTURE_QUALITY_OPTIONS[0];
 
     // Subscribe to DB updates for images
     useEffect(() => {
@@ -79,6 +81,17 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         }
     };
 
+    const handleVoiceSelect = async (newVoice: any) => {
+        // Stop preview if playing
+        if (audioRef.current) {
+            audioRef.current.pause();
+            setPlayingVoiceId(null);
+        }
+        setVoice(newVoice);
+        setConfigView('main');
+        await supabase.from('content_projects').update({ voice_id: newVoice.id }).eq('id', project.id);
+    };
+
     const handleTextChange = (id: string, text: string) => {
         setSegments((prev: any[]) => prev.map(s => s.id === id ? { ...s, narration: text } : s));
     };
@@ -126,12 +139,6 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         }
     };
 
-    const handleVoiceChange = async (newVoice: any) => {
-        setVoice(newVoice);
-        setConfigView('main');
-        await supabase.from('content_projects').update({ voice_id: newVoice.id }).eq('id', project.id);
-    };
-
     const handleEffectChange = async (newEffect: any) => {
         setEffect(newEffect);
         setConfigView('main');
@@ -176,6 +183,14 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 .thin-scrollbar::-webkit-scrollbar-thumb:hover {
                     background-color: #94a3b8;
                 }
+                @keyframes delayedFadeIn {
+                    0% { opacity: 0; }
+                    90% { opacity: 0; }
+                    100% { opacity: 1; }
+                }
+                .animate-delayed-fade-in {
+                    animation: delayedFadeIn 15s forwards;
+                }
             `}</style>
 
             {/* Config Toggle (Mobile) - Absolute Right */}
@@ -187,7 +202,6 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
             {/* Config Sidebar (Right Side) */}
             <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-gray-200 p-6 transform transition-transform z-30 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} md:translate-x-0`}>
-                {/* ... (rest of config panel same as before) ... */}
                 {configView === 'main' && (
                     <>
                         <h3 className="font-black text-xl mb-8 uppercase tracking-tight">Project Settings</h3>
@@ -205,6 +219,13 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Image Style</label>
                                 <div className="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold text-gray-400 cursor-not-allowed">
                                     {project.image_style || 'Realistic'}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Picture Quality</label>
+                                <div className="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold text-gray-400 cursor-not-allowed">
+                                    {pictureQuality.name}
                                 </div>
                             </div>
 
@@ -288,7 +309,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             {VOICES.map(v => (
                                 <button
                                     key={v.id}
-                                    onClick={() => handleVoiceChange(v)}
+                                    onClick={() => handleVoiceSelect(v)}
                                     className={`w-full flex items-center justify-between px-4 py-3 text-sm border rounded-xl transition-all ${voice.id === v.id ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-gray-100 hover:border-gray-200'}`}
                                 >
                                     <span className="font-bold text-left">{v.name}</span>
@@ -397,16 +418,20 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                         </div>
                                     </>
                                 ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-indigo-50 relative group">
-                                        <div className="absolute inset-0 animate-pulse bg-indigo-100/50"></div>
-                                        {/* Retry Icon for Stuck Generations */}
-                                        <button 
-                                            onClick={() => setRegeneratingId(seg.id)}
-                                            className="absolute z-10 p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition transform hover:scale-110"
-                                            title="Retry Generation"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                        </button>
+                                    <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 relative group border-2 border-dashed border-gray-200">
+                                        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
+                                        <div className="flex flex-col items-center gap-2">
+                                             <button 
+                                                onClick={() => setRegeneratingId(seg.id)}
+                                                className="px-4 py-2 bg-white text-indigo-600 text-xs font-bold rounded-lg shadow-sm border border-indigo-100 hover:bg-indigo-50 transition"
+                                                title="Retry Generation"
+                                            >
+                                                Retry
+                                            </button>
+                                            <span className="text-[10px] text-red-400 font-bold opacity-0 animate-delayed-fade-in">
+                                                Server error. Try again.
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
                             </div>

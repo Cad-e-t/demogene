@@ -7,6 +7,7 @@ create table public.content_projects (
   title text,
   aspect_ratio text check (aspect_ratio in ('9:16', '16:9')),
   image_style text,
+  picture_quality text default 'Fast', -- Added for picture quality persistence
   voice_id text,
   narration_style text, -- Added for narration style persistence
   effect text default 'zoom_pulse',
@@ -48,7 +49,7 @@ create table public.creator_transactions (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users not null,
   amount integer not null,
-  type text, -- 'purchase', 'usage', etc
+  type text, -- 'purchase', 'usage', 'refund', etc
   description text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -140,5 +141,52 @@ begin
 
   insert into public.creator_transactions (user_id, amount, type, description)
   values (p_user_id, p_credits_to_add, 'purchase', p_description);
+end;
+$$;
+
+-- Function to charge creator credits (allows negative balance)
+create or replace function charge_creator_credits(
+  p_user_id uuid,
+  p_amount int,
+  p_description text
+)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  -- Ensure profile exists
+  insert into public.creator_profile (id, credits, updated_at)
+  values (p_user_id, 0, now())
+  on conflict (id) do nothing;
+
+  update public.creator_profile
+  set credits = credits - p_amount,
+      updated_at = now()
+  where id = p_user_id;
+
+  insert into public.creator_transactions (user_id, amount, type, description)
+  values (p_user_id, -p_amount, 'usage', p_description);
+end;
+$$;
+
+-- Function to refund creator credits
+create or replace function refund_creator_credits(
+  p_user_id uuid,
+  p_amount int,
+  p_description text
+)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  update public.creator_profile
+  set credits = credits + p_amount,
+      updated_at = now()
+  where id = p_user_id;
+
+  insert into public.creator_transactions (user_id, amount, type, description)
+  values (p_user_id, p_amount, 'refund', p_description);
 end;
 $$;
