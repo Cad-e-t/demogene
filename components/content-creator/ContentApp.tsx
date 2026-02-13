@@ -129,6 +129,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                     <BillingDashboard 
                         session={session}
                         onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
+                        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     />
                 )}
                 {view === 'creator-pricing' && (
