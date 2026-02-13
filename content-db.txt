@@ -11,6 +11,7 @@ create table public.content_projects (
   voice_id text,
   narration_style text, -- Added for narration style persistence
   effect text default 'zoom_pulse',
+  subtitles text, -- Added for subtitle preset persistence
   status text default 'draft' check (status in ('draft', 'generating', 'completed', 'failed')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

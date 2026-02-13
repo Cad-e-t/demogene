@@ -5,6 +5,8 @@
 
 
 
+
+
 export interface ContentProject {
     id: string;
     title: string;
@@ -14,6 +16,7 @@ export interface ContentProject {
     voice_id: string;
     narration_style?: string;
     effect: string;
+    subtitles?: string | null;
     status: 'draft' | 'generating' | 'completed' | 'failed';
     created_at: string;
 }
@@ -57,6 +60,13 @@ export const EFFECT_PRESETS = [
     { id: 'cinematic', name: 'Cinematic Pan', description: 'Slow, dramatic push-ins (Storytelling)' },
     { id: 'chaos', name: 'Chaos Mode', description: 'Random mix of zooms and slides (Viral)' },
     { id: 'handheld_walk', name: 'Handheld Walk', description: 'Natural walking camera motion (Vlog Style)' }
+];
+
+export const SUBTITLE_PRESETS = [
+    { id: 'none', name: 'None', description: 'No subtitles' },
+    { id: 'pulse_bold', name: 'Pulse Bold', description: 'High retention, TikTok style' },
+    { id: 'glow_focus', name: 'Glow Focus', description: 'Premium YouTube look' },
+    { id: 'impact_pop', name: 'Impact Pop', description: 'High energy shorts & reels' }
 ];
 
 export const NARRATION_STYLES = [

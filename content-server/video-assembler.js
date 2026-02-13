@@ -35,20 +35,25 @@ function getFilterForEffect(effectType, width, height, frames) {
     // z = zoom factor per frame
     // x, y = top-left corner of the crop window
     
+    // Fix: Calculate zoom step per frame based on total frames to ensure movement lasts full duration.
+    // Increased zoom ranges to make pace faster (covering more distance in same time).
+    const stepIn = (0.8 / frames).toFixed(6); // Range 1.0 -> 1.8
+    const stepOut = (0.8 / frames).toFixed(6); // Range 1.8 -> 1.0
+    const stepCinematic = (0.4 / frames).toFixed(6); // Range 1.0 -> 1.4
+    const stepHandheld = (0.4 / frames).toFixed(6); // Range 1.1 -> 1.5
+
     switch (effectType) {
         case 'zoom_in':
-            // Balanced: Zoom from 1.0 to 1.5
-            // Speed 0.0025/frame provides clearly noticeable but smooth motion.
-            return `zoompan=z='min(zoom+0.0025,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
+            // Faster: Zoom from 1.0 to 1.8
+            return `zoompan=z='min(zoom+${stepIn},1.8)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
         
         case 'zoom_out':
-            // Balanced: Start at 1.5, zoom out to 1.0
-            // Matches zoom_in speed for symmetry.
-            return `zoompan=z='if(eq(on,1),1.5,max(1.001,zoom-0.0025))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
+            // Faster: Start at 1.8, zoom out to 1.0
+            return `zoompan=z='if(eq(on,1),1.8,max(1.001,zoom-${stepOut}))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
 
         case 'slow_zoom_in':
-             // Cinematic: subtle but continuous push-in. Max 1.25 to stay grounded.
-             return `zoompan=z='min(zoom+0.0015,1.25)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
+             // Cinematic: Continuous push-in. Increased to 1.4 for better visibility.
+             return `zoompan=z='min(zoom+${stepCinematic},1.4)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
 
         case 'slide_left':
             // Zoom at 1.25 allows good context while enabling lateral movement.
@@ -60,10 +65,10 @@ function getFilterForEffect(effectType, width, height, frames) {
 
         case 'handheld_walk':
             // Simulates holding a camera while walking with subtle shake.
-            // Z: Starts at 1.1 for minimal crop (overscan), zooms in at 0.0015/frame (matching cinematic style).
+            // Z: Starts at 1.1, zooms into 1.5 (faster pace).
             // X: Combination of slow drift (on/40) and faster walking sway (on/4).
             // Y: Combination of slow bob (on/50) and faster walking step (on/5).
-            return `zoompan=z='if(eq(on,0),1.1,min(zoom+0.0015,1.35))':x='iw/2-(iw/zoom/2)+(iw/zoom/60)*sin(on/40)+(iw/zoom/180)*sin(on/4)':y='ih/2-(ih/zoom/2)+(ih/zoom/75)*cos(on/50)+(ih/zoom/210)*cos(on/5)':d=${frames}:s=${width}x${height}`;
+            return `zoompan=z='if(eq(on,0),1.1,min(zoom+${stepHandheld},1.5))':x='iw/2-(iw/zoom/2)+(iw/zoom/60)*sin(on/40)+(iw/zoom/180)*sin(on/4)':y='ih/2-(ih/zoom/2)+(ih/zoom/75)*cos(on/50)+(ih/zoom/210)*cos(on/5)':d=${frames}:s=${width}x${height}`;
 
         case 'static':
         default:

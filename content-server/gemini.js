@@ -168,8 +168,12 @@ export async function generateFullVoiceover(text, voiceName, stylePrompt) {
         }
     });
 
+    if (response.usageMetadata) {
+        console.log(`[Gemini TTS] Audio generated tokens (candidatesTokenCount): ${response.usageMetadata.candidatesTokenCount}`);
+    }
+
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!base64Audio) throw new Error("No audio generated");
     
     return Buffer.from(base64Audio, 'base64');
-}    
+}

@@ -1,14 +1,16 @@
 
+
+
 import { ContentProject, ContentSegment } from "./types";
 import { supabase } from "../../supabaseClient";
 
 const API_URL = "http://localhost:8001"; // Or env var
 
-export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: string, visualDensity: string, pictureQuality: string) {
+export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: string, visualDensity: string, pictureQuality: string, subtitles: string) {
     const res = await fetch(`${API_URL}/generate-segments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, visualDensity, pictureQuality })
+        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, visualDensity, pictureQuality, subtitles })
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));

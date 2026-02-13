@@ -1,12 +1,15 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { editImageSegment, saveSegments, generateFinalVideo, regenerateImageSegment } from './api';
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
-import { EFFECT_PRESETS, NARRATION_STYLES, PICTURE_QUALITY_OPTIONS } from './types';
+import { EFFECT_PRESETS, NARRATION_STYLES, PICTURE_QUALITY_OPTIONS, SUBTITLE_PRESETS } from './types';
 
 export const ContentEditor = ({ session, project, initialSegments, onBack, onComplete }: any) => {
     const [segments, setSegments] = useState(initialSegments);
+    const [localProject, setLocalProject] = useState(project); // Local project copy for status sync
     const [editingImageId, setEditingImageId] = useState<string | null>(null);
     const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
     const [editPrompt, setEditPrompt] = useState('');
@@ -14,7 +17,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [submitting, setSubmitting] = useState(false);
     
     // Config Panel State
-    const [configView, setConfigView] = useState<'main' | 'voice' | 'effect' | 'narration_style'>('main');
+    const [configView, setConfigView] = useState<'main' | 'voice' | 'effect' | 'narration_style' | 'subtitles'>('main');
     const [isConfigOpen, setIsConfigOpen] = useState(false);
     
     // Local state for editable settings
@@ -24,6 +27,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     // Default style or match by prompt text
     const initialStyle = NARRATION_STYLES.find(s => s.prompt === project.narration_style) || NARRATION_STYLES[0];
     const [narrationStyle, setNarrationStyle] = useState(initialStyle);
+
+    const initialSubtitles = SUBTITLE_PRESETS.find(s => s.id === project.subtitles) || SUBTITLE_PRESETS[0];
+    const [subtitles, setSubtitles] = useState(initialSubtitles);
     
     // Audio Preview
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -32,10 +38,38 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     // Display Picture Quality
     const pictureQuality = PICTURE_QUALITY_OPTIONS.find(q => q.id === project.picture_quality) || PICTURE_QUALITY_OPTIONS[0];
 
-    // Subscribe to DB updates for images
+    // --- SYNC LOGIC ---
+
+    // 1. Fetch latest project status on mount (handles page reloads or delays)
     useEffect(() => {
-        console.log(`[ContentEditor] Subscribing to updates for project ${project.id}`);
-        const channel = supabase.channel(`project-${project.id}`)
+        const fetchProject = async () => {
+            const { data } = await supabase.from('content_projects').select('status').eq('id', project.id).single();
+            if (data) {
+                setLocalProject((prev: any) => ({ ...prev, status: data.status }));
+            }
+        };
+        fetchProject();
+    }, [project.id]);
+
+    // 2. Subscribe to Project Status Changes
+    useEffect(() => {
+        const channel = supabase.channel(`project-status-${project.id}`)
+            .on('postgres_changes', { 
+                event: 'UPDATE', 
+                schema: 'public', 
+                table: 'content_projects',
+                filter: `id=eq.${project.id}`
+            }, (payload) => {
+                setLocalProject((prev: any) => ({ ...prev, status: payload.new.status }));
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [project.id]);
+
+    // 3. Subscribe to Segment Changes (Existing)
+    useEffect(() => {
+        console.log(`[ContentEditor] Subscribing to segment updates for project ${project.id}`);
+        const channel = supabase.channel(`project-segments-${project.id}`)
             .on('postgres_changes', { 
                 event: 'UPDATE', 
                 schema: 'public', 
@@ -82,7 +116,6 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const handleVoiceSelect = async (newVoice: any) => {
-        // Stop preview if playing
         if (audioRef.current) {
             audioRef.current.pause();
             setPlayingVoiceId(null);
@@ -151,11 +184,16 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         await supabase.from('content_projects').update({ narration_style: newStyle.prompt }).eq('id', project.id);
     };
 
+    const handleSubtitlesChange = async (newSubs: any) => {
+        setSubtitles(newSubs);
+        setConfigView('main');
+        await supabase.from('content_projects').update({ subtitles: newSubs.id }).eq('id', project.id);
+    };
+
     const handleFinalize = async () => {
         setSubmitting(true);
         try {
             await saveSegments(segments);
-            // Pass the current voice/effect state to ensure consistency, though DB update should have handled it
             await generateFinalVideo(project.id, voice.id, session.user.id);
             onComplete();
         } catch(e) {
@@ -202,34 +240,29 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
             {/* Config Sidebar (Right Side) */}
             <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-gray-200 p-6 transform transition-transform z-30 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} md:translate-x-0`}>
+                {/* ... Config UI (Unchanged) ... */}
                 {configView === 'main' && (
                     <>
                         <h3 className="font-black text-xl mb-8 uppercase tracking-tight">Project Settings</h3>
-                        
                         <div className="space-y-6">
-                            {/* Disabled Fields */}
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Aspect Ratio</label>
                                 <div className="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold text-gray-400 cursor-not-allowed">
                                     {project.aspect_ratio === '9:16' ? '9:16 Vertical' : '16:9 Landscape'}
                                 </div>
                             </div>
-                            
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Image Style</label>
                                 <div className="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold text-gray-400 cursor-not-allowed">
                                     {project.image_style || 'Realistic'}
                                 </div>
                             </div>
-
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Picture Quality</label>
                                 <div className="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold text-gray-400 cursor-not-allowed">
                                     {pictureQuality.name}
                                 </div>
                             </div>
-
-                            {/* Editable Fields */}
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Effects</label>
                                 <button 
@@ -240,7 +273,16 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                 </button>
                             </div>
-
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Subtitles</label>
+                                <button 
+                                    onClick={() => setConfigView('subtitles')}
+                                    className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
+                                >
+                                    <span>{subtitles.name}</span>
+                                    <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                </button>
+                            </div>
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Narrator</label>
                                 <button 
@@ -251,7 +293,6 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                 </button>
                             </div>
-
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Narration Style</label>
                                 <button 
@@ -265,19 +306,12 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
                     </>
                 )}
-
                 {configView === 'effect' && (
                     <>
                          <div className="flex items-center gap-2 mb-6">
-                            <button 
-                                onClick={() => setConfigView('main')} 
-                                className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                            </button>
+                            <button onClick={() => setConfigView('main')} className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"><svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
                             <h3 className="font-black text-xl uppercase tracking-tight">Video Effects</h3>
                         </div>
-                        
                         <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
                             {EFFECT_PRESETS.map(e => (
                                 <button
@@ -292,19 +326,32 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
                     </>
                 )}
-
+                {configView === 'subtitles' && (
+                    <>
+                         <div className="flex items-center gap-2 mb-6">
+                            <button onClick={() => setConfigView('main')} className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"><svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
+                            <h3 className="font-black text-xl uppercase tracking-tight">Subtitles</h3>
+                        </div>
+                        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                            {SUBTITLE_PRESETS.map(s => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => handleSubtitlesChange(s)}
+                                    className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${subtitles.id === s.id ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-gray-100 hover:border-gray-200'}`}
+                                >
+                                    <div className="font-bold">{s.name}</div>
+                                    <div className="text-xs text-gray-400 font-medium">{s.description}</div>
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
                 {configView === 'voice' && (
                     <>
                         <div className="flex items-center gap-2 mb-6">
-                            <button 
-                                onClick={() => setConfigView('main')} 
-                                className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                            </button>
+                            <button onClick={() => setConfigView('main')} className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"><svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
                             <h3 className="font-black text-xl uppercase tracking-tight">Select Voice</h3>
                         </div>
-                        
                         <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
                             {VOICES.map(v => (
                                 <button
@@ -326,19 +373,12 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
                     </>
                 )}
-
                 {configView === 'narration_style' && (
                     <>
                         <div className="flex items-center gap-2 mb-6">
-                            <button 
-                                onClick={() => setConfigView('main')} 
-                                className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                            </button>
+                            <button onClick={() => setConfigView('main')} className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"><svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
                             <h3 className="font-black text-xl uppercase tracking-tight">Narration Style</h3>
                         </div>
-                        
                         <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
                             {NARRATION_STYLES.map(s => (
                                 <button
@@ -360,15 +400,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
             {/* Header */}
             <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10 md:mr-80 relative">
-                {/* Back Button */}
                 <button onClick={onBack} className="text-sm font-bold text-gray-500 hover:text-black z-10">
                     ← <span className="hidden md:inline">Back</span>
                 </button>
-                
-                {/* Title (Hidden on Mobile) */}
                 <h3 className="hidden md:block font-black text-lg truncate max-w-xs absolute left-1/2 -translate-x-1/2">{project.title}</h3>
-                
-                {/* Generate Button (Centered on Mobile) */}
                 <div className="md:hidden absolute left-1/2 -translate-x-1/2 w-max">
                      <button 
                         onClick={handleFinalize}
@@ -378,8 +413,6 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         {submitting ? 'Starting...' : 'Generate'}
                     </button>
                 </div>
-                
-                {/* Generate Button (Desktop) */}
                 <button 
                     onClick={handleFinalize}
                     disabled={submitting || !allImagesReady}
@@ -395,7 +428,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 <div className="max-w-3xl mx-auto w-full p-6 space-y-8">
                     {segments.map((seg: any, idx: number) => (
                         <div key={seg.id || idx} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6">
-                            {/* Image Preview */}
+                            {/* Image Preview Area */}
                             <div className="relative w-full md:w-48 aspect-[9/16] md:aspect-square bg-gray-100 rounded-2xl overflow-hidden shrink-0 group">
                                 {seg.image_url ? (
                                     <>
@@ -419,19 +452,24 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     </>
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 relative group border-2 border-dashed border-gray-200">
-                                        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
-                                        <div className="flex flex-col items-center gap-2">
-                                             <button 
-                                                onClick={() => setRegeneratingId(seg.id)}
-                                                className="px-4 py-2 bg-white text-indigo-600 text-xs font-bold rounded-lg shadow-sm border border-indigo-100 hover:bg-indigo-50 transition"
-                                                title="Retry Generation"
-                                            >
-                                                Retry
-                                            </button>
-                                            <span className="text-[10px] text-red-400 font-bold opacity-0 animate-delayed-fade-in">
-                                                Server error. Try again.
-                                            </span>
-                                        </div>
+                                        {localProject.status === 'generating' ? (
+                                            /* Generating State: Spinner Only */
+                                            <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                                        ) : (
+                                            /* Finished (Failed) State: Retry Button Immediately */
+                                            <div className="flex flex-col items-center gap-2">
+                                                 <button 
+                                                    onClick={() => setRegeneratingId(seg.id)}
+                                                    className="px-4 py-2 bg-white text-indigo-600 text-xs font-bold rounded-lg shadow-sm border border-indigo-100 hover:bg-indigo-50 transition"
+                                                    title="Retry Generation"
+                                                >
+                                                    Retry
+                                                </button>
+                                                <span className="text-[10px] text-red-400 font-bold">
+                                                    Generation Failed
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -456,7 +494,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center">
                         <h3 className="font-bold text-lg mb-2">Regenerate Image?</h3>
-                        <p className="text-gray-500 mb-6 text-sm">This will discard the current image and generate a new one using the original prompt.</p>
+                        <p className="text-gray-500 mb-6 text-sm">This will discard the current image (if any) and generate a new one using the original prompt.</p>
                         <div className="flex gap-3 justify-center">
                             <button onClick={() => setRegeneratingId(null)} className="px-4 py-2 font-bold text-gray-500 hover:bg-gray-100 rounded-lg transition">Cancel</button>
                             <button 

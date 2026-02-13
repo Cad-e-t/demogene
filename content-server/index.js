@@ -1,4 +1,6 @@
 
+
+
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
@@ -10,6 +12,7 @@ import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 import { generateStorySegments, generateImage, editImage, generateFullVoiceover } from './gemini.js';
 import { assembleVideo } from './video-assembler.js';
+import { generateSubtitles, burnSubtitles } from './subtitle-generator.js';
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
 
 // --- Setup ---
@@ -27,7 +30,8 @@ const TEMP_DIR = os.tmpdir();
 const COST_IMAGE_FAST = 2; // Credits per image
 const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
-const COST_AUDIO_PER_6S = 1; // Credits per 6 seconds of audio
+const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
+const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
 const MIN_BALANCE = 10; // Minimum credits required to start
 
 // --- Helper: Credits ---
@@ -123,7 +127,11 @@ async function processImagesBackground(projectId, segments, aspectRatio, picture
         await refundUser(userId, failedCount * costPerImage, `Refund: Failed Images (${failedCount})`);
     }
 
-    console.log(`[ContentServer] Background image generation complete for project ${projectId}`);
+    // UPDATE PROJECT STATUS
+    const finalStatus = failedCount === 0 ? 'completed' : 'draft';
+    await supabase.from('content_projects').update({ status: finalStatus }).eq('id', projectId);
+
+    console.log(`[ContentServer] Background image generation complete for project ${projectId}. Status set to: ${finalStatus}`);
 }
 
 // --- Routes ---
@@ -131,8 +139,8 @@ async function processImagesBackground(projectId, segments, aspectRatio, picture
 // 1. Generate Story Segments (Text First, Images Background)
 app.post('/generate-segments', async (req, res) => {
     try {
-        const { prompt, aspectRatio, style, effect, userId, narrationStyle, visualDensity, pictureQuality } = req.body;
-        console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with density ${visualDensity}, quality ${pictureQuality}`);
+        const { prompt, aspectRatio, style, effect, userId, narrationStyle, visualDensity, pictureQuality, subtitles } = req.body;
+        console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with density ${visualDensity}, quality ${pictureQuality}, subtitles ${subtitles}`);
         
         // 0. Pre-check Balance
         const userCredits = await getCredits(userId);
@@ -149,6 +157,7 @@ app.post('/generate-segments', async (req, res) => {
             effect: effect || 'zoom_pulse',
             narration_style: narrationStyle, // Save style to DB
             picture_quality: pictureQuality || 'Fast', // Save picture quality to DB
+            subtitles: subtitles || 'none', // Save subtitles to DB
             status: 'draft'
         }).select().single();
         
@@ -190,10 +199,13 @@ app.post('/generate-segments', async (req, res) => {
         if (segError) throw segError;
         console.log(`[ContentServer] Segments saved to DB. Returning early response.`);
 
-        // 5. Return Response IMMEDIATELY
+        // 5. Set status to generating
+        await supabase.from('content_projects').update({ status: 'generating' }).eq('id', project.id);
+
+        // 6. Return Response IMMEDIATELY
         res.json({ projectId: project.id, segments: insertedSegments });
 
-        // 6. Trigger Background Image Gen (Pass cost for refunds)
+        // 7. Trigger Background Image Gen (Pass cost for refunds)
         processImagesBackground(project.id, insertedSegments, aspectRatio, pictureQuality || 'Fast', costPerImage, userId);
 
     } catch (e) {
@@ -447,6 +459,8 @@ app.post('/generate-video', async (req, res) => {
         const workDir = path.join(TEMP_DIR, `content_${uuidv4()}`);
         if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
 
+        let subtitleCost = 0;
+
         try {
             await supabase.from('content_projects').update({ status: 'generating' }).eq('id', projectId);
 
@@ -475,14 +489,27 @@ app.post('/generate-video', async (req, res) => {
                 throw new Error("Failed to convert TTS audio");
             }
 
-            // 2. Charge for Audio (Duration based)
+            // 2. Charge for Audio & Subtitles
             const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`);
             const totalDuration = parseFloat(out.toString());
-            const audioCost = Math.ceil(totalDuration / 6) * COST_AUDIO_PER_6S;
+            const audioCost = Math.ceil(totalDuration * COST_AUDIO_PER_SECOND);
             
-            console.log(`[ContentServer] Audio Duration: ${totalDuration}s. Charging ${audioCost} credits.`);
+            // Check for subtitles preference
+            const useSubtitles = project.subtitles && project.subtitles !== 'none';
+            if (useSubtitles) {
+                subtitleCost = Math.ceil(totalDuration * COST_SUBTITLE_PER_SECOND);
+            }
+
+            const totalCharge = audioCost + subtitleCost;
+            
+            console.log(`[ContentServer] Audio Duration: ${totalDuration}s. Charge: ${audioCost} (Audio) + ${subtitleCost} (Subtitles) = ${totalCharge} credits.`);
+            
+            const chargeDesc = useSubtitles 
+                ? `Audio + Subtitles Generation (${totalDuration.toFixed(1)}s)`
+                : `Audio Voiceover (${totalDuration.toFixed(1)}s)`;
+
             // Allows negative balance
-            await chargeUser(userId, audioCost, `Audio Voiceover (${totalDuration.toFixed(1)}s)`);
+            await chargeUser(userId, totalCharge, chargeDesc);
 
             // Update status to rendering
             await supabase.from('content_stories').update({ status: 'rendering' }).eq('id', storyId);
@@ -498,11 +525,38 @@ app.post('/generate-video', async (req, res) => {
                 }
             }
 
-            // 5. Assemble
+            // 5. Assemble Visuals
             console.log(`[ContentServer] Assembling video with effect: ${project.effect}`);
-            const finalPath = await assembleVideo(segments, audioPath, segmentDurations, workDir, project.aspect_ratio, project.effect);
+            const assembledPath = await assembleVideo(segments, audioPath, segmentDurations, workDir, project.aspect_ratio, project.effect);
 
-            // 6. Upload Final
+            let finalPath = assembledPath;
+
+            // 6. Generate & Burn Subtitles (if requested)
+            if (useSubtitles) {
+                console.log(`[ContentServer] Generating subtitles: ${project.subtitles}`);
+                try {
+                    const assPath = await generateSubtitles(audioPath, project.subtitles, project.aspect_ratio);
+                    
+                    if (assPath) {
+                        const burnedPath = path.join(workDir, `burned_${uuidv4()}.mp4`);
+                        await burnSubtitles(assembledPath, assPath, burnedPath);
+                        finalPath = burnedPath;
+                    } else {
+                        throw new Error("Subtitle generation returned no file");
+                    }
+                } catch (subError) {
+                    console.warn(`[ContentServer] Subtitle pipeline failed: ${subError.message}. Proceeding without subtitles.`);
+                    
+                    // Graceful Failure: Refund subtitle portion ONLY
+                    if (subtitleCost > 0) {
+                        console.log(`[ContentServer] Refunding subtitle cost: ${subtitleCost}`);
+                        await refundUser(userId, subtitleCost, "Refund: Subtitle Generation Failure");
+                    }
+                    // Fallback: finalPath remains assembledPath (video without subtitles)
+                }
+            }
+
+            // 7. Upload Final
             console.log(`[ContentServer] Uploading final video...`);
             const finalBuffer = fs.readFileSync(finalPath);
             const finalKey = `content/stories/${uuidv4()}.mp4`;
@@ -516,7 +570,7 @@ app.post('/generate-video', async (req, res) => {
 
             const videoUrl = `${R2_PUBLIC_URL}/${finalKey}`;
 
-            // 7. Update Story with Result
+            // 8. Update Story with Result
             await supabase.from('content_stories').update({
                 video_url: videoUrl,
                 status: 'completed'
@@ -529,6 +583,9 @@ app.post('/generate-video', async (req, res) => {
             console.error("[ContentServer] Video Gen Failed", e);
             await supabase.from('content_projects').update({ status: 'failed' }).eq('id', projectId);
             await supabase.from('content_stories').update({ status: 'failed' }).eq('id', storyId);
+            
+            // Note: We deliberately don't refund audio cost if assembly fails mid-way to prevent abuse,
+            // but we could implement smarter refund logic here if needed.
         } finally {
             fs.rmSync(workDir, { recursive: true, force: true });
         }

@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { generateSegments } from './api';
 import { ContentEditor } from './ContentEditor';
-import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, VISUAL_DENSITIES, PICTURE_QUALITY_OPTIONS } from './types';
+import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, VISUAL_DENSITIES, PICTURE_QUALITY_OPTIONS, SUBTITLE_PRESETS } from './types';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 
@@ -18,8 +19,9 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [narrationStyle, setNarrationStyle] = useState(NARRATION_STYLES[0]); // Default to Charisma Dynamo
     const [effect, setEffect] = useState(EFFECT_PRESETS[0]);
     const [pictureQuality, setPictureQuality] = useState(PICTURE_QUALITY_OPTIONS[0]); // Default to Fast
+    const [subtitles, setSubtitles] = useState(SUBTITLE_PRESETS[0]); // Default to None
     
-    const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'density' | 'quality'>('main');
+    const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'density' | 'quality' | 'subtitles'>('main');
 
     // Audio Preview State
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -66,6 +68,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     if (savedQuality) setPictureQuality(savedQuality);
                 }
 
+                if (parsed.subtitlesId) {
+                    const savedSubs = SUBTITLE_PRESETS.find(s => s.id === parsed.subtitlesId);
+                    if (savedSubs) setSubtitles(savedSubs);
+                }
+
             } catch (e) {
                 console.error("Failed to load saved state", e);
             }
@@ -90,10 +97,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             style,
             voiceId: voice.id,
             effectId: effect.id,
-            pictureQualityId: pictureQuality.id
+            pictureQualityId: pictureQuality.id,
+            subtitlesId: subtitles.id
         };
         localStorage.setItem('content_dashboard_state', JSON.stringify(stateToSave));
-    }, [prompt, narrationStyle, visualDensity, aspect, style, voice, effect, pictureQuality]);
+    }, [prompt, narrationStyle, visualDensity, aspect, style, voice, effect, pictureQuality, subtitles]);
 
     // Initialize from props if present (Project Reload)
     useEffect(() => {
@@ -119,6 +127,13 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             if (initialProjectData.project.picture_quality) {
                 const q = PICTURE_QUALITY_OPTIONS.find(o => o.id === initialProjectData.project.picture_quality);
                 if (q) setPictureQuality(q);
+            }
+            if (initialProjectData.project.subtitles) {
+                const s = SUBTITLE_PRESETS.find(p => p.id === initialProjectData.project.subtitles);
+                if (s) setSubtitles(s);
+                else setSubtitles(SUBTITLE_PRESETS[0]);
+            } else {
+                setSubtitles(SUBTITLE_PRESETS[0]);
             }
         }
     }, [initialProjectData]);
@@ -167,7 +182,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         setLoading(true);
         try {
             console.log("[ContentDashboard] Starting generation...");
-            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, visualDensity.id, pictureQuality.id);
+            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, visualDensity.id, pictureQuality.id, subtitles.id);
             console.log("[ContentDashboard] Text segments received:", res.segments.length);
             
             setProject({ 
@@ -178,7 +193,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 effect: effect.id,
                 image_style: style,
                 narration_style: narrationStyle.prompt,
-                picture_quality: pictureQuality.id
+                picture_quality: pictureQuality.id,
+                subtitles: subtitles.id
             });
             setSegments(res.segments);
             // We transition immediately to editor even if images are null
@@ -291,6 +307,17 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
                                 >
                                     <span>{effect.name}</span>
+                                    <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                </button>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Subtitles</label>
+                                <button 
+                                    onClick={() => setConfigView('subtitles')}
+                                    className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
+                                >
+                                    <span>{subtitles.name}</span>
                                     <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                 </button>
                             </div>
@@ -458,6 +485,36 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 >
                                     <div className="font-bold">{e.name}</div>
                                     <div className="text-xs text-gray-400 font-medium">{e.description}</div>
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
+
+                {configView === 'subtitles' && (
+                    <>
+                         <div className="flex items-center gap-2 mb-6">
+                            <button 
+                                onClick={() => setConfigView('main')} 
+                                className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            </button>
+                            <h3 className="font-black text-xl uppercase tracking-tight">Subtitles</h3>
+                        </div>
+                        
+                        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                            {SUBTITLE_PRESETS.map(s => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => { setSubtitles(s); setConfigView('main'); }}
+                                    className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${subtitles.id === s.id ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-gray-100 hover:border-gray-200'}`}
+                                >
+                                    <div className="font-bold flex items-center justify-between">
+                                        {s.name}
+                                        {subtitles.id === s.id && <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                    </div>
+                                    <div className="text-xs text-gray-400 font-medium mt-1">{s.description}</div>
                                 </button>
                             ))}
                         </div>
