@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { deleteProject } from './api';
@@ -8,15 +9,29 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
     useEffect(() => {
         const fetch = async () => {
             console.log("[ContentProjects] Fetching projects...");
-            const { data } = await supabase.from('content_projects').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
-            setProjects(data || []);
+            // Join segments to get preview image
+            const { data } = await supabase
+                .from('content_projects')
+                .select('*, content_segments(image_url)')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: false });
+            
+            // Format data to attach previewUrl from first valid segment
+            const formatted = (data || []).map((p: any) => {
+                const firstValidSegment = p.content_segments?.find((s: any) => s.image_url);
+                return {
+                    ...p,
+                    previewUrl: firstValidSegment ? firstValidSegment.image_url : null
+                };
+            });
+            setProjects(formatted);
         };
         fetch();
     }, [session]);
 
     const handleProjectClick = async (project: any) => {
         console.log(`[ContentProjects] Loading project: ${project.id}`);
-        // Fetch segments
+        // Fetch segments ordered
         const { data: segments, error } = await supabase.from('content_segments').select('*').eq('project_id', project.id).order('order_index');
         
         if (error) {
@@ -43,8 +58,13 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                 console.error(err);
                 alert("Failed to delete project");
                 // Refresh list on failure
-                const { data } = await supabase.from('content_projects').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
-                setProjects(data || []);
+                // Re-fetch logic simplified for error handling
+                const { data } = await supabase.from('content_projects').select('*, content_segments(image_url)').eq('user_id', session.user.id).order('created_at', { ascending: false });
+                const formatted = (data || []).map((p: any) => {
+                    const firstValidSegment = p.content_segments?.find((s: any) => s.image_url);
+                    return { ...p, previewUrl: firstValidSegment ? firstValidSegment.image_url : null };
+                });
+                setProjects(formatted);
             }
         }
     };
@@ -72,17 +92,34 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                     <div 
                         key={p.id} 
                         onClick={() => handleProjectClick(p)}
-                        className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition text-left group cursor-pointer relative"
+                        className="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition text-left group cursor-pointer relative overflow-hidden flex flex-col"
                     >
-                        <h3 className="font-bold text-lg mb-2 truncate group-hover:text-indigo-600 transition-colors pr-8">{p.title}</h3>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">{new Date(p.created_at).toLocaleDateString()}</p>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {p.status}
-                        </span>
+                        {/* Preview Area */}
+                        <div className="w-full aspect-video bg-gray-100 relative overflow-hidden">
+                            {p.status === 'draft' ? (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                                    <span className="text-gray-400 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-gray-300 px-4 py-2 rounded-xl">Draft</span>
+                                </div>
+                            ) : p.previewUrl ? (
+                                <img src={p.previewUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="Project Preview" />
+                            ) : (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                                    <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-500 rounded-full animate-spin"></div>
+                                </div>
+                            )}
+                            
+                            {/* Overlay Gradient for Title Readability */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+                        </div>
+
+                        <div className="p-5 relative">
+                            <h3 className="font-bold text-lg mb-1 truncate text-gray-900 group-hover:text-indigo-600 transition-colors pr-8">{p.title}</h3>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{new Date(p.created_at).toLocaleDateString()}</p>
+                        </div>
                         
                         <button 
                             onClick={(e) => handleDelete(e, p.id)}
-                            className="absolute bottom-6 right-6 p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                            className="absolute bottom-4 right-4 p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100 z-10"
                             title="Delete Project"
                         >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

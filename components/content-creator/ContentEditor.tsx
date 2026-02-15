@@ -1,11 +1,12 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { editImageSegment, saveSegments, generateFinalVideo, regenerateImageSegment } from './api';
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 import { EFFECT_PRESETS, NARRATION_STYLES, PICTURE_QUALITY_OPTIONS, SUBTITLE_PRESETS } from './types';
+import { STYLE_PREVIEWS } from './creator-assets';
+import { SubtitlePreview } from './SubtitlePreviews';
 
 export const ContentEditor = ({ session, project, initialSegments, onBack, onComplete }: any) => {
     const [segments, setSegments] = useState(initialSegments);
@@ -239,73 +240,121 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             </div>
 
             {/* Config Sidebar (Right Side) */}
-            <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-gray-200 p-6 transform transition-transform z-30 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} md:translate-x-0`}>
-                {/* ... Config UI (Unchanged) ... */}
+            <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-gray-200 p-6 transform transition-transform z-30 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} md:translate-x-0 overflow-y-auto no-scrollbar`}>
+                
+                {/* Mobile Close */}
+                <div className="md:hidden flex justify-end mb-4">
+                    <button onClick={() => setIsConfigOpen(false)} className="text-gray-400 hover:text-gray-900">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
                 {configView === 'main' && (
                     <>
-                        <h3 className="font-black text-xl mb-8 uppercase tracking-tight">Project Settings</h3>
+                        <h3 className="font-black text-xl mb-4 uppercase tracking-tight">Configuration</h3>
+                        
                         <div className="space-y-6">
+                            
+                            {/* --- VISUAL CONFIG SECTION (READ ONLY + EFFECTS) --- */}
                             <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Aspect Ratio</label>
-                                <div className="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold text-gray-400 cursor-not-allowed">
-                                    {project.aspect_ratio === '9:16' ? '9:16 Vertical' : '16:9 Landscape'}
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-100 pb-2">Visual Config</h4>
+                                
+                                <div className="space-y-3">
+                                    {/* Style (Read Only) */}
+                                    <div className="w-full flex items-center justify-between p-2 pl-3 rounded-xl bg-gray-50 border border-gray-100 text-sm font-bold opacity-70 cursor-not-allowed">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-200 shrink-0 shadow-sm border border-gray-200">
+                                                <img src={STYLE_PREVIEWS[project.image_style || 'Realistic']} alt={project.image_style} className="w-full h-full object-cover" />
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] font-bold text-gray-400 block leading-tight">Style</span>
+                                                <span className="text-gray-900">{project.image_style || 'Realistic'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Ratio (Read Only) */}
+                                    <div className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 text-sm font-bold opacity-70 cursor-not-allowed">
+                                        <div>
+                                            <span className="text-[10px] font-bold text-gray-400 block leading-tight">Ratio</span>
+                                            <span className="text-gray-900">{project.aspect_ratio === '9:16' ? '9:16 Vertical' : '16:9 Landscape'}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Quality (Read Only) */}
+                                    <div className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 text-sm font-bold opacity-70 cursor-not-allowed">
+                                        <div>
+                                            <span className="text-[10px] font-bold text-gray-400 block leading-tight">Quality</span>
+                                            <span className="text-gray-900">{pictureQuality.name}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Effects (Editable) */}
+                                    <button 
+                                        onClick={() => setConfigView('effect')}
+                                        className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
+                                    >
+                                        <div>
+                                            <span className="text-[10px] font-bold text-gray-400 block leading-tight">Effects</span>
+                                            <span className="text-gray-900">{effect.name}</span>
+                                        </div>
+                                        <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </button>
                                 </div>
                             </div>
+
+                            {/* --- VOICE CONFIG SECTION (EDITABLE) --- */}
                             <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Image Style</label>
-                                <div className="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold text-gray-400 cursor-not-allowed">
-                                    {project.image_style || 'Realistic'}
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 mt-4 border-b border-gray-100 pb-2">Voice Config</h4>
+                                
+                                <div className="space-y-3">
+                                    {/* Narrator */}
+                                    <button 
+                                        onClick={() => setConfigView('voice')}
+                                        className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
+                                    >
+                                        <div>
+                                            <span className="text-[10px] font-bold text-gray-400 block leading-tight">Narrator</span>
+                                            <span className="text-gray-900">{voice.name}</span>
+                                        </div>
+                                        <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </button>
+
+                                    {/* Narration Style */}
+                                    <button 
+                                        onClick={() => setConfigView('narration_style')}
+                                        className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
+                                    >
+                                        <div className="flex-1 min-w-0 pr-2">
+                                            <span className="text-[10px] font-bold text-gray-400 block leading-tight">Tone</span>
+                                            <span className="text-gray-900 block truncate">{narrationStyle.name}</span>
+                                        </div>
+                                        <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </button>
+
+                                    {/* Subtitles */}
+                                    <button 
+                                        onClick={() => setConfigView('subtitles')}
+                                        className="w-full flex items-center justify-between p-2 pl-3 rounded-xl bg-gray-50 border border-gray-100 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
+                                    >
+                                        <div className="flex items-center gap-3 w-full min-w-0">
+                                            <div className="w-12 h-8 rounded border border-gray-200 bg-black shrink-0 overflow-hidden">
+                                                <SubtitlePreview id={subtitles.id} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <span className="text-[10px] font-bold text-gray-400 block leading-tight">Subtitles</span>
+                                                <span className="text-gray-900 truncate block">{subtitles.name}</span>
+                                            </div>
+                                        </div>
+                                        <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-500 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </button>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Picture Quality</label>
-                                <div className="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold text-gray-400 cursor-not-allowed">
-                                    {pictureQuality.name}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Effects</label>
-                                <button 
-                                    onClick={() => setConfigView('effect')}
-                                    className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
-                                >
-                                    <span>{effect.name}</span>
-                                    <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                </button>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Subtitles</label>
-                                <button 
-                                    onClick={() => setConfigView('subtitles')}
-                                    className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
-                                >
-                                    <span>{subtitles.name}</span>
-                                    <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                </button>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Narrator</label>
-                                <button 
-                                    onClick={() => setConfigView('voice')}
-                                    className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
-                                >
-                                    <span>{voice.name}</span>
-                                    <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                </button>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Narration Style</label>
-                                <button 
-                                    onClick={() => setConfigView('narration_style')}
-                                    className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200 text-sm font-bold hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group text-left"
-                                >
-                                    <span className="truncate">{narrationStyle.name} ({narrationStyle.description.split(',')[0]}...)</span>
-                                    <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                </button>
                             </div>
                         </div>
                     </>
                 )}
+
+                {/* Sub Views */}
                 {configView === 'effect' && (
                     <>
                          <div className="flex items-center gap-2 mb-6">
@@ -326,26 +375,38 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
                     </>
                 )}
+
                 {configView === 'subtitles' && (
                     <>
                          <div className="flex items-center gap-2 mb-6">
                             <button onClick={() => setConfigView('main')} className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"><svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
                             <h3 className="font-black text-xl uppercase tracking-tight">Subtitles</h3>
                         </div>
-                        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                        <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
                             {SUBTITLE_PRESETS.map(s => (
                                 <button
                                     key={s.id}
                                     onClick={() => handleSubtitlesChange(s)}
-                                    className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${subtitles.id === s.id ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-gray-100 hover:border-gray-200'}`}
+                                    className={`w-full text-left p-3 border rounded-xl transition-all group ${subtitles.id === s.id ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-gray-100 hover:border-gray-200'}`}
                                 >
-                                    <div className="font-bold">{s.name}</div>
-                                    <div className="text-xs text-gray-400 font-medium">{s.description}</div>
+                                    <div className="aspect-video w-full rounded-lg bg-gray-900 mb-3 overflow-hidden border border-gray-200 relative">
+                                        <SubtitlePreview id={s.id} />
+                                        {subtitles.id === s.id && (
+                                            <div className="absolute top-2 right-2 bg-indigo-600 rounded-full p-1 shadow-md z-20">
+                                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="font-bold flex items-center justify-between px-1">
+                                        {s.name}
+                                    </div>
+                                    <div className="text-xs text-gray-400 font-medium px-1 mt-0.5">{s.description}</div>
                                 </button>
                             ))}
                         </div>
                     </>
                 )}
+
                 {configView === 'voice' && (
                     <>
                         <div className="flex items-center gap-2 mb-6">
@@ -373,6 +434,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
                     </>
                 )}
+
                 {configView === 'narration_style' && (
                     <>
                         <div className="flex items-center gap-2 mb-6">
