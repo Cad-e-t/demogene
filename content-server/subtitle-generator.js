@@ -7,6 +7,7 @@ import { spawn } from 'child_process';
 const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
 const client = new AssemblyAI({ apiKey: ASSEMBLYAI_API_KEY });
 
+
 // --- Configuration ---
 
 // 1. Placement (Margins from bottom)
@@ -24,7 +25,7 @@ const PRESETS = {
     // Bold Social (Viral / Short-Form)
     // High contrast, yellow highlight, pop-in
     pulse_bold: { 
-        font: "Allura",
+        font: "Arial",
         fontSize: 105,
         primaryColor: "&H0000FFFF", // Active: Yellow (BGR)
         secondaryColor: "&H00FFFFFF", // Inactive: White
@@ -36,7 +37,7 @@ const PRESETS = {
         shadow: 2,
         alignment: 2, // Bottom Center
         maxWords: 3,
-        threshold: 120, // Strict grouping
+        threshold: 70, // Strict grouping
         animationType: 'karaoke_block' // Block highlight
     },
     // Clean Pro (Long-Form / Professional)
@@ -71,7 +72,7 @@ const PRESETS = {
         outline: 5,
         shadow: 0,
         alignment: 2,
-        maxWords: 4,
+        maxWords: 3,
         threshold: 150,
         animationType: 'karaoke_bounce' // Highlight + Bounce
     }
