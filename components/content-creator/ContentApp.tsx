@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ContentLanding } from './ContentLanding';
 import { ContentDashboard } from './ContentDashboard';
@@ -91,16 +92,23 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
     }, [view]);
 
     const handleLogin = async () => {
-        // Store intended destination before redirecting
-        localStorage.setItem('productcam_redirect', '/content-creator');
-        
-        await (supabase.auth as any).signInWithOAuth({ 
-            provider: 'google',
-            options: {
-                // Use explicit redirect to root, App.tsx will handle routing to content-creator
-                redirectTo: 'https://productcam.site'
-            }
-        });
+        try {
+            console.log("Initiating login redirect...");
+            // Store intended destination before redirecting
+            localStorage.setItem('productcam_redirect', '/content-creator');
+            
+            const { error } = await (supabase.auth as any).signInWithOAuth({ 
+                provider: 'google',
+                options: {
+                    // Use explicit redirect to root, App.tsx will handle routing to content-creator
+                    redirectTo: 'https://productcam.site'
+                }
+            });
+            if (error) throw error;
+        } catch (e) {
+            console.error("Login failed:", e);
+            alert("Login failed. Please try again.");
+        }
     };
 
     const handleLogout = async () => {

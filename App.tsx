@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
@@ -229,10 +230,6 @@ export default function App() {
     link.setAttribute("href", canonicalUrl);
   }, [currentView, route.slug]);
 
-  const handleLogin = () => {
-    setShowAuthSelection(true);
-  };
-
   const handleProviderLogin = async (provider: 'google') => {
     try { 
         await (supabase.auth as any).signInWithOAuth({ 
@@ -245,6 +242,11 @@ export default function App() {
     catch (error) { 
         console.error(`${provider} login failed:`, error); 
     }
+  };
+
+  const handleLogin = () => {
+    // Directly trigger Google login instead of showing modal
+    handleProviderLogin('google');
   };
 
   const handleLogout = async () => {
@@ -480,7 +482,17 @@ export default function App() {
 
   // Not logged in -> Show New Content Landing Page
   if (!session && currentView === 'home') {
-      return <ContentLanding onLogin={handleLogin} />;
+      return (
+        <>
+            <ContentLanding onLogin={handleLogin} />
+            {showAuthSelection && (
+                <AuthSelectionModal 
+                    onClose={() => setShowAuthSelection(false)} 
+                    onSelect={handleProviderLogin} 
+                />
+            )}
+        </>
+      );
   }
 
   // Hide sidebar if we are on blog pages, pricing, not logged in, or in the editor (active video is null is technically home)
