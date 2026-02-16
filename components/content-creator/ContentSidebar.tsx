@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase } from '../../supabaseClient';
 
@@ -43,19 +42,19 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
             {/* Sidebar Container */}
             <aside className={`
                 fixed md:relative inset-y-0 left-0 z-50 md:z-auto
-                bg-white border-r border-gray-200 
+                bg-white border-r border-slate-200 
                 flex flex-col items-center md:items-stretch py-6 shrink-0 
                 transition-transform duration-300 ease-in-out
                 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 w-3/4 md:w-64 shadow-2xl md:shadow-none
             `}>
                  <div className="px-6 mb-10 hidden md:block">
-                     <span className="font-black text-lg tracking-tighter text-indigo-600 uppercase">Creator</span>
+                     <span className="font-black text-lg tracking-tighter text-blue-600 uppercase">Creator</span>
                  </div>
                  
                  {/* Mobile Logo inside Sidebar for context if needed, or keep clean */}
                  <div className="px-6 mb-8 md:hidden flex items-center gap-2">
-                     <span className="font-black text-xl tracking-tighter text-indigo-600 uppercase">Creator</span>
+                     <span className="font-black text-xl tracking-tighter text-blue-600 uppercase">Creator</span>
                  </div>
                  
                  <div className="flex flex-col gap-2 w-full px-2">
@@ -67,7 +66,7 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
 
                  <div className="mt-auto w-full px-4 relative">
                      {isProfileOpen && (
-                        <div className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-gray-200 rounded-xl shadow-xl p-1 animate-fade-in z-[60]">
+                        <div className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl p-1 animate-fade-in z-[60]">
                             <button 
                                 onClick={handleLogout}
                                 className="w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
@@ -80,24 +79,24 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
                      
                      <button 
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
-                        className={`w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl transition-colors text-left border border-transparent hover:border-gray-100 ${isProfileOpen ? 'bg-gray-50 border-gray-200' : ''}`}
+                        className={`w-full flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl transition-colors text-left border border-transparent hover:border-slate-100 ${isProfileOpen ? 'bg-slate-50 border-slate-200' : ''}`}
                      >
                          {avatarUrl && !imageError ? (
                              <img 
                                 src={avatarUrl} 
                                 alt={displayName} 
-                                className="w-9 h-9 rounded-full object-cover bg-gray-100 shrink-0" 
+                                className="w-9 h-9 rounded-full object-cover bg-slate-100 shrink-0" 
                                 onError={() => setImageError(true)}
                              />
                          ) : (
-                             <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+                             <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
                                  {initial}
                              </div>
                          )}
                          <div className="flex-1 min-w-0">
-                             <p className="text-sm font-bold text-gray-900 truncate">{displayName}</p>
+                             <p className="text-sm font-bold text-slate-900 truncate">{displayName}</p>
                          </div>
-                         <svg className={`w-4 h-4 text-gray-400 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                         <svg className={`w-4 h-4 text-slate-400 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                      </button>
                  </div>
             </aside>
@@ -108,7 +107,7 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
 const NavButton = ({ icon, label, active, onClick }: any) => (
     <button 
         onClick={onClick}
-        className={`flex items-center gap-3 p-3 rounded-xl transition-all w-full ${active ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+        className={`flex items-center gap-3 p-3 rounded-xl transition-all w-full ${active ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}
     >
         <span className="text-xl md:text-lg">{icon === 'folder' ? '📂' : icon === 'play' ? '🎬' : icon}</span>
         <span className="font-bold text-sm">{label}</span>

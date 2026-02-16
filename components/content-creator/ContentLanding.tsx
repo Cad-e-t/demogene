@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { CreatorPricingCards } from './CreatorPricingCards';
 
 const YouTubeIcon = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -19,15 +20,31 @@ const TikTokIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const FAQS = [
+    { q: "How do credits work?", a: "Credits are the currency for creating content. Images, voiceovers, and video rendering consume credits based on quality and duration. A typical 30-second video uses about 40-60 credits." },
+    { q: "Do credits expire?", a: "No. Your credits are yours forever. They roll over indefinitely until you use them." },
+    { q: "Can I use the videos commercially?", a: "Yes. You have full commercial rights to all content you generate on the platform." },
+    { q: "What happens if I run out of credits?", a: "You can purchase more credits at any time. We don't charge monthly subscriptions, so you only pay for what you use." },
+    { q: "Is there a watermark?", a: "No. All paid credit tiers generate watermark-free videos." }
+];
+
 export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+    const scrollToPricing = (e: React.MouseEvent) => {
+        e.preventDefault();
+        const el = document.getElementById('pricing');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+        setIsMenuOpen(false);
+    };
 
     return (
-        <div className="relative w-full min-h-screen bg-black text-white overflow-hidden flex flex-col font-sans">
+        <div className="relative w-full min-h-screen bg-black text-white overflow-x-hidden flex flex-col font-sans">
             
             {/* Background Gradients */}
             {/* Base Blue Gradient - Lighter side (top-left) noticeably brighter */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-black to-black z-0"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-black to-black z-0 pointer-events-none fixed"></div>
             
             {/* Decorative Blobs */}
             <div className="absolute top-0 left-1/4 -translate-x-1/2 w-[800px] h-[600px] bg-blue-500/20 rounded-full blur-[120px] pointer-events-none"></div>
@@ -44,7 +61,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                 {/* Top Center: Nav Links (Desktop) */}
                 <nav className="hidden md:flex items-center gap-8 absolute left-1/2 transform -translate-x-1/2">
                     <a href="/" className="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Home</a>
-                    <a href="/pricing" className="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Pricing</a>
+                    <a href="#pricing" onClick={scrollToPricing} className="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Pricing</a>
                 </nav>
 
                 {/* Top Right: CTA (Desktop) & Mobile Toggle */}
@@ -71,7 +88,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             {isMenuOpen && (
                 <div className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center gap-10 md:hidden animate-fade-in">
                     <a href="/" className="text-2xl font-black uppercase tracking-tighter text-white">Home</a>
-                    <a href="/pricing" className="text-2xl font-black uppercase tracking-tighter text-white">Pricing</a>
+                    <button onClick={scrollToPricing} className="text-2xl font-black uppercase tracking-tighter text-white">Pricing</button>
                     <button onClick={onLogin} className="text-2xl font-black uppercase tracking-tighter text-sky-400">Get Started</button>
                     
                     <button onClick={() => setIsMenuOpen(false)} className="absolute top-8 right-6 p-2 text-gray-500 hover:text-white transition-colors">
@@ -81,7 +98,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             )}
 
             {/* --- HERO --- */}
-            <div className="flex-1 flex flex-col items-center justify-center relative z-10 px-6 pt-32 pb-12 w-full max-w-7xl mx-auto">
+            <div className="min-h-screen flex flex-col items-center justify-center relative z-10 px-6 pt-32 pb-12 w-full max-w-7xl mx-auto">
                 
                 <div className="text-center max-w-4xl mx-auto flex flex-col items-center">
                     
@@ -153,6 +170,78 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
 
                 </div>
             </div>
+
+            {/* --- SECTION 2: DEMO VIDEO (Below Fold) --- */}
+            <div className="relative z-10 w-full px-6 md:px-12 py-24 bg-transparent">
+                <div className="w-full rounded-[32px] md:rounded-[48px] overflow-hidden shadow-2xl border-4 border-white/10 relative group">
+                    <video 
+                        src="https://assets.productcam.site/outputs/47c9c99e-9f51-4a79-b401-f4d5d62a7885.mp4" 
+                        autoPlay 
+                        muted 
+                        loop 
+                        playsInline 
+                        className="w-full h-auto block bg-black"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
+                </div>
+            </div>
+
+            {/* --- SECTION 3: PRICING --- */}
+            <div id="pricing" className="relative z-10 w-full bg-white text-gray-900 py-32 px-6 md:px-12 scroll-mt-20">
+                <div className="flex flex-col items-center text-center mb-16">
+                    <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-6 text-slate-900">
+                        Start Your Studio
+                    </h2>
+                    <p className="text-xl font-medium text-slate-500 max-w-2xl">
+                        Simple credit packs. No subscriptions. Pay only when you create.
+                    </p>
+                </div>
+                
+                <CreatorPricingCards 
+                    onAction={onLogin} 
+                    actionLabel="Sign In to Get" 
+                />
+            </div>
+
+            {/* --- SECTION 4: FAQ --- */}
+            <div className="relative z-10 w-full bg-slate-50 text-gray-900 py-32 px-6 md:px-12 border-t border-slate-200">
+                <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-20">
+                        <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-4 text-slate-900">
+                            Common Questions
+                        </h2>
+                    </div>
+
+                    <div className="space-y-4">
+                        {FAQS.map((item, i) => (
+                            <div key={i} className="bg-white rounded-2xl border border-slate-200 overflow-hidden transition-all hover:shadow-lg">
+                                <button 
+                                    onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)}
+                                    className="w-full flex items-center justify-between p-6 text-left"
+                                >
+                                    <span className="font-bold text-lg text-slate-900">{item.q}</span>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 transition-transform ${openFaqIndex === i ? 'rotate-180 bg-blue-100 text-blue-600' : 'text-slate-400'}`}>
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
+                                </button>
+                                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openFaqIndex === i ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="p-6 pt-0 text-slate-500 font-medium leading-relaxed">
+                                        {item.a}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Footer */}
+            <div className="relative z-10 w-full bg-white border-t border-slate-200 py-12 px-6 md:px-12 text-center">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    ProductCam Creator © 2025
+                </p>
+            </div>
+
         </div>
     );
 };

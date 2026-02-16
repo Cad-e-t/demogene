@@ -8,10 +8,13 @@ import { BillingDashboard } from './BillingDashboard';
 import { CreatorPricingView } from './CreatorPricingView';
 import { supabase } from '../../supabaseClient';
 import { ContentProject, ContentSegment } from './types';
+import { CreatorPricingCards } from './CreatorPricingCards';
+import { createCheckoutSession } from '../../frontend-api';
 
 export const ContentApp = ({ session: parentSession, onNavigate }: { session: any, onNavigate: (p: string) => void }) => {
     const [session, setSession] = useState<any>(parentSession || null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [credits, setCredits] = useState<number | null>(null);
     
     // URL-Based Navigation Helper (Path based)
     const getPathView = () => {
@@ -40,6 +43,30 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
             });
         }
     }, [parentSession]);
+
+    // Fetch credits and subscribe to changes
+    useEffect(() => {
+        if (session?.user?.id) {
+            const fetchCredits = async () => {
+                const { data } = await supabase.from('creator_profile').select('credits').eq('id', session.user.id).single();
+                setCredits(data?.credits || 0);
+            };
+            fetchCredits();
+
+            const channel = supabase.channel('global-creator-credits')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'creator_profile',
+                    filter: `id=eq.${session.user.id}`
+                }, (payload: any) => {
+                    if (payload.new) setCredits(payload.new.credits);
+                })
+                .subscribe();
+            
+            return () => { supabase.removeChannel(channel); };
+        }
+    }, [session]);
 
     // Listen to pushstate/popstate changes for navigation history support
     useEffect(() => {
@@ -87,12 +114,24 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         setActiveProjectData(null);
     };
 
+    const handlePurchase = async (productId: string) => {
+        try {
+            const { checkout_url } = await createCheckoutSession(productId);
+            window.location.href = checkout_url;
+        } catch (e) {
+            console.error(e);
+            alert("Failed to initiate checkout");
+        }
+    };
+
     if (!session) {
         return <ContentLanding onLogin={handleLogin} />;
     }
 
+    const showGlobalOverlay = credits !== null && credits <= 0;
+
     return (
-        <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
+        <div className="flex h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden relative">
             <ContentSidebar 
                 currentView={view} 
                 setView={() => {}} 
@@ -138,6 +177,34 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                     />
                 )}
             </main>
+
+            {/* Global Pricing Overlay Gatekeeper */}
+            {showGlobalOverlay && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/20 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-fade-in">
+                    <div className="w-full max-w-6xl flex flex-col items-center bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl rounded-[3rem] p-8 md:p-12 max-h-[90vh] overflow-y-auto">
+                        <div className="text-center mb-10">
+                            <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-4 uppercase tracking-tighter">
+                                Unlock Creator Studio
+                            </h2>
+                            <p className="text-lg text-slate-500 font-medium max-w-xl mx-auto">
+                                You need credits to continue creating. Purchase a pack to unlock the studio instantly.
+                            </p>
+                        </div>
+                        
+                        <CreatorPricingCards 
+                            onAction={handlePurchase} 
+                            actionLabel="Buy Credits" 
+                        />
+                        
+                        <button 
+                            onClick={() => window.location.href = '/'}
+                            className="mt-12 text-slate-400 font-bold text-sm uppercase tracking-widest hover:text-slate-600 transition-colors"
+                        >
+                            Back to Home
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { deleteProject } from './api';
@@ -70,41 +69,41 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
     };
 
     return (
-        <div className="flex-1 overflow-y-auto p-6 md:p-8">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50">
             
             {/* Mobile Header */}
-            <div className="md:hidden flex items-center justify-between mb-6 sticky top-0 bg-gray-50 z-20 py-2">
+            <div className="md:hidden flex items-center justify-between mb-6 sticky top-0 bg-slate-50 z-20 py-2">
                 <button 
                     onClick={onToggleSidebar}
-                    className="p-2 -ml-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                    className="p-2 -ml-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
                 >
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                 </button>
-                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Projects</h2>
+                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Projects</h2>
                 <div className="w-8"></div> {/* Spacer for centering */}
             </div>
 
             {/* Desktop Header */}
-            <h2 className="hidden md:block text-3xl font-black mb-8">Projects</h2>
+            <h2 className="hidden md:block text-3xl font-black mb-8 text-slate-900">Projects</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {projects.map(p => (
                     <div 
                         key={p.id} 
                         onClick={() => handleProjectClick(p)}
-                        className="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition text-left group cursor-pointer relative overflow-hidden flex flex-col"
+                        className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg transition text-left group cursor-pointer relative overflow-hidden flex flex-col"
                     >
                         {/* Preview Area */}
-                        <div className="w-full aspect-video bg-gray-100 relative overflow-hidden">
+                        <div className="w-full aspect-video bg-slate-100 relative overflow-hidden">
                             {p.status === 'draft' ? (
-                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                                    <span className="text-gray-400 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-gray-300 px-4 py-2 rounded-xl">Draft</span>
+                                <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
+                                    <span className="text-slate-400 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-slate-300 px-4 py-2 rounded-xl">Draft</span>
                                 </div>
                             ) : p.previewUrl ? (
                                 <img src={p.previewUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="Project Preview" />
                             ) : (
-                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                                    <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-500 rounded-full animate-spin"></div>
+                                <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
+                                    <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
                                 </div>
                             )}
                             
@@ -113,13 +112,13 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                         </div>
 
                         <div className="p-5 relative">
-                            <h3 className="font-bold text-lg mb-1 truncate text-gray-900 group-hover:text-indigo-600 transition-colors pr-8">{p.title}</h3>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{new Date(p.created_at).toLocaleDateString()}</p>
+                            <h3 className="font-bold text-lg mb-1 truncate text-slate-900 group-hover:text-blue-600 transition-colors pr-8">{p.title}</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{new Date(p.created_at).toLocaleDateString()}</p>
                         </div>
                         
                         <button 
                             onClick={(e) => handleDelete(e, p.id)}
-                            className="absolute bottom-4 right-4 p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100 z-10"
+                            className="absolute bottom-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100 z-10"
                             title="Delete Project"
                         >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
