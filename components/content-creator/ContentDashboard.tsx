@@ -671,7 +671,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                          {/* Text Section */}
                          <div className="text-center space-y-2">
                              <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-slate-900">What's your story?</h2>
-                             <p className="text-slate-500 font-medium text-sm md:text-base">Enter a prompt to generate a full video with AI.</p>
                          </div>
 
                          {/* Input Card */}
