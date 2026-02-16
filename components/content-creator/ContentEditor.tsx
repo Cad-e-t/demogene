@@ -40,6 +40,13 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
     // --- SYNC LOGIC ---
 
+    // 0. Initialize Config Panel State
+    useEffect(() => {
+        if (window.innerWidth >= 768) {
+            setIsConfigOpen(true);
+        }
+    }, []);
+
     // 1. Fetch latest project status on mount (handles page reloads or delays)
     useEffect(() => {
         const fetchProject = async () => {
@@ -231,19 +238,25 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 }
             `}</style>
 
-            {/* Config Toggle (Mobile) - Absolute Right */}
-             <div className="md:hidden absolute top-3 right-4 z-20">
-                <button onClick={() => setIsConfigOpen(!isConfigOpen)} className="p-2 bg-white rounded-lg shadow border border-slate-100">
-                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            {/* Config Toggle (Desktop & Mobile) - Shows when closed */}
+             <div className={`absolute top-4 right-4 z-30 ${isConfigOpen && 'md:hidden'}`}>
+                <button 
+                    onClick={() => setIsConfigOpen(!isConfigOpen)} 
+                    className="p-3 text-white bg-black hover:bg-slate-800 rounded-full transition-all shadow-lg hover:shadow-xl transform hover:scale-105 group"
+                    title="Open Configuration"
+                >
+                    <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0h-3m-3 0H3.75m11.25 6h4.5m-4.5 0a1.5 1.5 0 01-3 0m3 0h-3m-3 0H3.75m11.25 6h4.5m-4.5 0a1.5 1.5 0 01-3 0m3 0h-3m-3 0H3.75" />
+                    </svg>
                 </button>
             </div>
 
             {/* Config Sidebar (Right Side) */}
-            <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-slate-200 p-6 transform transition-transform z-30 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} md:translate-x-0 overflow-y-auto no-scrollbar`}>
+            <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-slate-200 p-6 transform transition-transform z-40 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} overflow-y-auto no-scrollbar`}>
                 
-                {/* Mobile Close */}
-                <div className="md:hidden flex justify-end mb-4">
-                    <button onClick={() => setIsConfigOpen(false)} className="text-slate-400 hover:text-slate-900">
+                {/* Close Button (Universal) */}
+                <div className="flex justify-end mb-4">
+                    <button onClick={() => setIsConfigOpen(false)} className="text-slate-400 hover:text-slate-900 transition-colors">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
@@ -460,7 +473,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             </div>
 
             {/* Header */}
-            <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-10 md:mr-80 relative">
+            <div className={`h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-10 transition-all duration-300 ${isConfigOpen ? 'md:mr-80' : ''} relative`}>
                 <button onClick={onBack} className="text-sm font-bold text-slate-500 hover:text-black z-10">
                     ← <span className="hidden md:inline">Back</span>
                 </button>
@@ -485,7 +498,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             </div>
 
             {/* Content List */}
-            <div className="flex-1 overflow-y-auto md:mr-80 thin-scrollbar bg-slate-50">
+            <div className={`flex-1 overflow-y-auto transition-all duration-300 ${isConfigOpen ? 'md:mr-80' : ''} thin-scrollbar bg-slate-50`}>
                 <div className="max-w-3xl mx-auto w-full p-6 space-y-8">
                     {segments.map((seg: any, idx: number) => (
                         <div key={seg.id || idx} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row gap-6">
