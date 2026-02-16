@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { generateSegments } from './api';
 import { ContentEditor } from './ContentEditor';
@@ -10,7 +11,10 @@ import { supabase } from '../../supabaseClient';
 
 export const ContentDashboard = ({ session, onViewChange, initialProjectData, onClearProject, onToggleSidebar }: any) => {
     const [prompt, setPrompt] = useState('');
+    
+    // Panel Visibility (Default open on large screens)
     const [isConfigOpen, setIsConfigOpen] = useState(false);
+
     const [loading, setLoading] = useState(false);
     const [credits, setCredits] = useState<number | null>(null);
     
@@ -18,7 +22,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [placeholder, setPlaceholder] = useState('');
     const placeholderText = "Describe a scene, a history fact, a scary story, or a product idea.";
 
-    // Config
+    // Config Defaults
     const [aspect, setAspect] = useState<'9:16' | '16:9'>('9:16');
     const [style, setStyle] = useState(IMAGE_STYLES[0]);
     const [visualDensity, setVisualDensity] = useState(VISUAL_DENSITIES[0]); // Default Balanced
@@ -26,7 +30,9 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [narrationStyle, setNarrationStyle] = useState(NARRATION_STYLES[0]); // Default to Charisma Dynamo
     const [effect, setEffect] = useState(EFFECT_PRESETS[0]);
     const [pictureQuality, setPictureQuality] = useState(PICTURE_QUALITY_OPTIONS[0]); // Default to Fast
-    const [subtitles, setSubtitles] = useState(SUBTITLE_PRESETS[0]); // Default to None
+    
+    // Updated Default: Pulse Bold
+    const [subtitles, setSubtitles] = useState(SUBTITLE_PRESETS.find(s => s.id === 'pulse_bold') || SUBTITLE_PRESETS[0]); 
     
     const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'density' | 'quality' | 'subtitles'>('main');
 
@@ -39,8 +45,13 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [project, setProject] = useState<any>(null);
     const [segments, setSegments] = useState<any[]>([]);
 
-    // 0. Credit Check & Typewriter Effect
+    // 0. Init & Credit Check & Typewriter Effect
     useEffect(() => {
+        // Open sidebar by default on desktop
+        if (window.innerWidth >= 768) {
+            setIsConfigOpen(true);
+        }
+
         // Fetch Credits (for display only, gating handled in parent)
         const fetchCredits = async () => {
             if (!session?.user?.id) return;
@@ -63,52 +74,54 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         return () => clearInterval(interval);
     }, [session]);
 
-    // 1. Load Persisted State on Mount
+    // 1. Load Persisted State from DB (Replacing localStorage)
     useEffect(() => {
-        const savedState = localStorage.getItem('content_dashboard_state');
-        if (savedState) {
+        if (!session?.user?.id) return;
+
+        const loadConfig = async () => {
             try {
-                const parsed = JSON.parse(savedState);
-                if (parsed.prompt) setPrompt(parsed.prompt);
-                
-                if (parsed.narrationStyleId) {
-                    const savedStyle = NARRATION_STYLES.find(s => s.id === parsed.narrationStyleId);
-                    if (savedStyle) setNarrationStyle(savedStyle);
-                }
-                if (parsed.visualDensityId) {
-                    const savedDensity = VISUAL_DENSITIES.find(d => d.id === parsed.visualDensityId);
-                    if (savedDensity) setVisualDensity(savedDensity);
-                }
-                
-                // Restore Config
-                if (parsed.aspect) setAspect(parsed.aspect);
-                if (parsed.style) setStyle(parsed.style);
-                
-                if (parsed.voiceId) {
-                    const savedVoice = VOICES.find(v => v.id === parsed.voiceId);
-                    if (savedVoice) setVoice(savedVoice);
-                }
-                
-                if (parsed.effectId) {
-                    const savedEffect = EFFECT_PRESETS.find(e => e.id === parsed.effectId);
-                    if (savedEffect) setEffect(savedEffect);
-                }
+                const { data, error } = await supabase
+                    .from('user_configurations')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+                    .single();
 
-                if (parsed.pictureQualityId) {
-                    const savedQuality = PICTURE_QUALITY_OPTIONS.find(q => q.id === parsed.pictureQualityId);
-                    if (savedQuality) setPictureQuality(savedQuality);
+                if (data && !error) {
+                    if (data.prompt) setPrompt(data.prompt);
+                    if (data.aspect_ratio) setAspect(data.aspect_ratio as any);
+                    if (data.image_style) setStyle(data.image_style);
+                    
+                    if (data.visual_density) {
+                        const d = VISUAL_DENSITIES.find(x => x.id === data.visual_density);
+                        if (d) setVisualDensity(d);
+                    }
+                    if (data.voice_id) {
+                        const v = VOICES.find(x => x.id === data.voice_id);
+                        if (v) setVoice(v);
+                    }
+                    if (data.narration_style) {
+                        const s = NARRATION_STYLES.find(x => x.id.toString() === data.narration_style || x.name === data.narration_style);
+                        if (s) setNarrationStyle(s);
+                    }
+                    if (data.effect) {
+                        const e = EFFECT_PRESETS.find(x => x.id === data.effect);
+                        if (e) setEffect(e);
+                    }
+                    if (data.picture_quality) {
+                        const q = PICTURE_QUALITY_OPTIONS.find(x => x.id === data.picture_quality);
+                        if (q) setPictureQuality(q);
+                    }
+                    if (data.subtitles) {
+                        const s = SUBTITLE_PRESETS.find(x => x.id === data.subtitles);
+                        if (s) setSubtitles(s);
+                    }
                 }
-
-                if (parsed.subtitlesId) {
-                    const savedSubs = SUBTITLE_PRESETS.find(s => s.id === parsed.subtitlesId);
-                    if (savedSubs) setSubtitles(savedSubs);
-                }
-
             } catch (e) {
-                console.error("Failed to load saved state", e);
+                console.error("Failed to load user configuration", e);
             }
-        }
-    }, []);
+        };
+        loadConfig();
+    }, [session]);
 
     // 2. Adjust Textarea Height after state load
     useEffect(() => {
@@ -118,21 +131,29 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         }
     }, [prompt]);
 
-    // 3. Persist State on Change (Including all configs)
+    // 3. Persist State to DB on Change (Debounced)
     useEffect(() => {
-        const stateToSave = {
-            prompt,
-            narrationStyleId: narrationStyle.id,
-            visualDensityId: visualDensity.id,
-            aspect,
-            style,
-            voiceId: voice.id,
-            effectId: effect.id,
-            pictureQualityId: pictureQuality.id,
-            subtitlesId: subtitles.id
+        if (!session?.user?.id) return;
+
+        const saveData = async () => {
+            await supabase.from('user_configurations').upsert({
+                user_id: session.user.id,
+                prompt,
+                aspect_ratio: aspect,
+                image_style: style,
+                visual_density: visualDensity.id,
+                voice_id: voice.id,
+                narration_style: narrationStyle.id.toString(), // Storing ID or name for easier lookup
+                effect: effect.id,
+                picture_quality: pictureQuality.id,
+                subtitles: subtitles.id,
+                updated_at: new Date().toISOString()
+            });
         };
-        localStorage.setItem('content_dashboard_state', JSON.stringify(stateToSave));
-    }, [prompt, narrationStyle, visualDensity, aspect, style, voice, effect, pictureQuality, subtitles]);
+
+        const timer = setTimeout(saveData, 1000); // 1s debounce
+        return () => clearTimeout(timer);
+    }, [prompt, narrationStyle, visualDensity, aspect, style, voice, effect, pictureQuality, subtitles, session]);
 
     // Initialize from props if present (Project Reload)
     useEffect(() => {
@@ -151,7 +172,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 if (v) setVoice(v);
             }
             if (initialProjectData.project.narration_style) {
-                // Try to match by prompt text since we stored text, or default
                 const n = NARRATION_STYLES.find(s => s.prompt === initialProjectData.project.narration_style);
                 if (n) setNarrationStyle(n);
             }
@@ -162,9 +182,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             if (initialProjectData.project.subtitles) {
                 const s = SUBTITLE_PRESETS.find(p => p.id === initialProjectData.project.subtitles);
                 if (s) setSubtitles(s);
-                else setSubtitles(SUBTITLE_PRESETS[0]);
-            } else {
-                setSubtitles(SUBTITLE_PRESETS[0]);
             }
         }
     }, [initialProjectData]);
@@ -272,27 +289,39 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     </button>
                 </div>
 
-                {/* Config Toggle (Mobile) - Absolute Right */}
-                <div className="md:hidden absolute top-4 right-4 z-30">
-                    <button onClick={() => setIsConfigOpen(!isConfigOpen)} className="p-2 text-blue-600 bg-blue-50 rounded-full transition-colors shadow-sm">
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                {/* Config Toggle Icon (Top Right) - Visible on Mobile OR when Desktop panel is closed */}
+                <div className={`absolute top-4 right-4 z-30 ${isConfigOpen && 'md:hidden'}`}>
+                    <button 
+                        onClick={() => setIsConfigOpen(!isConfigOpen)} 
+                        className="p-3 text-white bg-black hover:bg-slate-800 rounded-full transition-all shadow-lg hover:shadow-xl transform hover:scale-105 group"
+                        title="Open Configuration"
+                    >
+                        {/* Sophisticated Sliders Icon */}
+                        <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0h-3m-3 0H3.75m11.25 6h4.5m-4.5 0a1.5 1.5 0 01-3 0m3 0h-3m-3 0H3.75m11.25 6h4.5m-4.5 0a1.5 1.5 0 01-3 0m3 0h-3m-3 0H3.75" />
+                        </svg>
                     </button>
                 </div>
 
-                {/* Config Panel - Mobile Overlay / Desktop Sidebar */}
-                <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-slate-200 p-6 transform transition-transform z-40 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} md:translate-x-0 overflow-y-auto no-scrollbar`}>
+                {/* Config Panel - Sidebar */}
+                <div className={`
+                    absolute inset-y-0 right-0 
+                    w-80 bg-white border-l border-slate-200 p-6 
+                    transform transition-transform duration-300 ease-in-out z-40 
+                    ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} 
+                    overflow-y-auto no-scrollbar
+                `}>
                     
-                    {/* Mobile Close for Config */}
-                    <div className="md:hidden flex justify-end mb-4">
-                        <button onClick={() => setIsConfigOpen(false)} className="text-slate-400 hover:text-slate-900">
+                    {/* Header Row: Title + Close Button */}
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Configuration</h3>
+                        <button onClick={() => setIsConfigOpen(false)} className="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors">
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
 
                     {configView === 'main' && (
                         <>
-                            <h3 className="font-black text-xl mb-4 uppercase tracking-tight text-slate-900">Configuration</h3>
-                            
                             <div className="space-y-6">
                                 {/* --- VISUAL CONFIG SECTION --- */}
                                 <div>
@@ -665,7 +694,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 </div>
 
                {/* Main Content Area */}
-                <div className="flex-1 md:mr-80 flex flex-col items-center justify-center p-6 h-full overflow-y-auto no-scrollbar relative">
+                <div className={`flex-1 ${isConfigOpen ? 'md:mr-80' : ''} transition-all duration-300 flex flex-col items-center justify-center p-6 h-full overflow-y-auto no-scrollbar relative`}>
                      <div className="w-full max-w-3xl flex flex-col gap-6 transition-transform duration-300 -translate-y-[10vh] md:translate-y-0">
                          
                          {/* Text Section */}

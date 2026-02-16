@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 
@@ -77,34 +78,36 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                 <div>
                     <h3 className="text-xl font-black text-slate-900 mb-6">Recent Transactions</h3>
                     <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                        {transactions.length === 0 ? (
-                            <div className="p-8 text-center text-slate-400 font-medium">No transactions found.</div>
-                        ) : (
-                            <table className="w-full text-left">
-                                <thead className="bg-slate-50 border-b border-slate-100">
-                                    <tr>
-                                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Date</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Description</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {transactions.map(tx => (
-                                        <tr key={tx.id} className="hover:bg-slate-50/50 transition">
-                                            <td className="px-6 py-4 text-sm font-bold text-slate-500">
-                                                {new Date(tx.created_at).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                                                {tx.description}
-                                            </td>
-                                            <td className={`px-6 py-4 text-sm font-black text-right ${tx.amount > 0 ? 'text-green-600' : 'text-slate-900'}`}>
-                                                {tx.amount > 0 ? '+' : ''}{tx.amount}
-                                            </td>
+                        <div className="overflow-x-auto">
+                            {transactions.length === 0 ? (
+                                <div className="p-8 text-center text-slate-400 font-medium">No transactions found.</div>
+                            ) : (
+                                <table className="w-full text-left min-w-[500px]">
+                                    <thead className="bg-slate-50 border-b border-slate-100">
+                                        <tr>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Date</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Description</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Amount</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {transactions.map(tx => (
+                                            <tr key={tx.id} className="hover:bg-slate-50/50 transition">
+                                                <td className="px-6 py-4 text-sm font-bold text-slate-500">
+                                                    {new Date(tx.created_at).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                                                    {tx.description}
+                                                </td>
+                                                <td className={`px-6 py-4 text-sm font-black text-right ${tx.amount > 0 ? 'text-green-600' : 'text-slate-900'}`}>
+                                                    {tx.amount > 0 ? '+' : ''}{tx.amount}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
