@@ -25,6 +25,7 @@ const SidebarIcon = ({ active, onClick, label, path }: any) => (
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, handleLogout, session }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
 
     const handleMobileNav = (view: 'home' | 'videos') => {
         setCurrentView(view);
@@ -36,6 +37,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, h
         setIsMobileMenuOpen(false);
     };
 
+    const handleNavigate = (path: string) => {
+        window.history.pushState({}, '', path);
+        window.dispatchEvent(new Event('pushstate'));
+        window.scrollTo(0, 0);
+    };
+
     const displayName = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'User';
     const initial = displayName.charAt(0).toUpperCase();
 
@@ -43,9 +50,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, h
         <>
             {/* --- DESKTOP SIDEBAR (Visible md+) --- */}
             <aside className="hidden md:flex fixed top-0 left-0 bottom-0 w-56 bg-white border-r border-gray-200 flex-col z-50 pt-6">
-                 {/* Logo */}
-                 <div className="px-6 mb-10 flex items-center gap-3">
-                     <span className="font-black text-lg tracking-tighter text-gray-900 uppercase">ProductCam</span>
+                 {/* App Switcher */}
+                 <div className="relative px-6 mb-10">
+                     <button 
+                        onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)}
+                        className="flex items-center gap-2 group w-full"
+                     >
+                         <span className="font-black text-lg tracking-tighter text-gray-900 uppercase group-hover:opacity-80 transition-opacity">Product Demo</span>
+                         <svg className={`w-4 h-4 text-gray-400 transition-transform ${isAppSwitcherOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                     </button>
+
+                     {isAppSwitcherOpen && (
+                         <div className="absolute top-full left-6 right-6 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in">
+                             <button 
+                                onClick={() => setIsAppSwitcherOpen(false)}
+                                className="w-full text-left px-4 py-3 text-xs font-black uppercase tracking-widest text-green-600 bg-green-50"
+                             >
+                                 Product Demo
+                             </button>
+                             <button 
+                                onClick={() => { handleNavigate('/content-creator'); setIsAppSwitcherOpen(false); }}
+                                className="w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                             >
+                                 Creator Studio
+                             </button>
+                         </div>
+                     )}
                  </div>
 
                  {/* Icons */}
@@ -94,8 +124,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, h
 
             {/* --- MOBILE TOPBAR (Visible < md) --- */}
             <nav className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-50">
-                <div className="flex items-center gap-2">
-                     <span className="font-bold text-sm text-gray-900">ProductCam</span>
+                <div className="flex items-center gap-2 relative">
+                     <button 
+                        onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)}
+                        className="flex items-center gap-2"
+                     >
+                        <span className="font-bold text-sm text-gray-900">Product Demo</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${isAppSwitcherOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                     </button>
+                     {isAppSwitcherOpen && (
+                         <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in">
+                             <button 
+                                onClick={() => setIsAppSwitcherOpen(false)}
+                                className="w-full text-left px-4 py-3 text-xs font-black uppercase tracking-widest text-green-600 bg-green-50"
+                             >
+                                 Product Demo
+                             </button>
+                             <button 
+                                onClick={() => { handleNavigate('/content-creator'); setIsAppSwitcherOpen(false); }}
+                                className="w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                             >
+                                 Creator Studio
+                             </button>
+                         </div>
+                     )}
                 </div>
 
                 <button 
