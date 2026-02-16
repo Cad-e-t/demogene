@@ -44,7 +44,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         // Fetch Credits (for display only, gating handled in parent)
         const fetchCredits = async () => {
             if (!session?.user?.id) return;
-            const { data } = await supabase.from('creator_profile').select('credits').eq('id', session.user.id).single();
+            const { data } = await supabase.from('profiles').select('credits').eq('id', session.user.id).single();
             const currentCredits = data?.credits || 0;
             setCredits(currentCredits);
         };

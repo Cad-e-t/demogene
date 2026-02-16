@@ -8,11 +8,11 @@ import { VideoGallery } from './components/VideoGallery';
 import { VideoModal } from './components/VideoModal';
 import { BlogView } from './components/BlogView';
 import { BlogPostView } from './components/BlogPostView';
-import { PricingView } from './components/PricingView';
 import { FeaturesPage } from './components/FeaturesPage';
 import { AboutPage } from './components/AboutPage';
 import { PricingPageSEO } from './components/PricingPageSEO';
 import { ContentApp } from './components/content-creator/ContentApp';
+import { ContentLanding } from './components/content-creator/ContentLanding';
 
 import { CropData, TrimData, VoiceOption, VideoProject, TimeRange, BackgroundOption } from './types';
 import { VOICES, BACKGROUNDS } from './constants';
@@ -145,11 +145,15 @@ export default function App() {
           const redirectTarget = localStorage.getItem('productcam_redirect');
           if (redirectTarget) {
               localStorage.removeItem('productcam_redirect');
-              // Assuming redirect target stored as hash, convert to path if needed or just use as is if logic adjusted
               if (redirectTarget.includes('#/')) {
                   navigateTo(redirectTarget.replace('#', ''));
               } else {
                   navigateTo(redirectTarget);
+              }
+          } else {
+              // Default landing to creator studio if on root
+              if (window.location.pathname === '/') {
+                  navigateTo('/content-creator');
               }
           }
       } else {
@@ -234,7 +238,7 @@ export default function App() {
         await (supabase.auth as any).signInWithOAuth({ 
             provider,
             options: {
-                redirectTo: 'https://productcam.site' // Explicit redirect for ProductCam app
+                redirectTo: 'https://productcam.site' // Explicit redirect for root path
             }
         }); 
     } 
@@ -275,16 +279,12 @@ export default function App() {
                 const localVid = localProcessing.find(lv => lv.id === dbVid.id);
                 
                 if (localVid) {
-                    // We have a local optimistic version. Check status.
-                    // If DB is still processing, keep local (to show steps like 'analyzing').
-                    // If DB is completed/failed, accept DB version (it finished!).
                     if (dbVid.status === 'processing' || dbVid.status === 'uploaded') {
                         finalVideos.push(localVid);
                     } else {
                         finalVideos.push(dbVid);
                     }
                 } else {
-                    // No local version, take DB version.
                     finalVideos.push(dbVid);
                 }
                 processedIds.add(dbVid.id);
@@ -297,7 +297,6 @@ export default function App() {
                 }
             }
             
-            // Sort by creation time
             return finalVideos.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         });
     } catch(e) { console.error("Failed to fetch videos", e); }
@@ -368,13 +367,10 @@ export default function App() {
       // NAVIGATE FIRST to prevent duplicate clicks and ensure UI transition
       navigateTo('/videos');
 
-      // Find original title for better UX
       const sourceVideo = videos.find(v => v.id === videoId);
       const sourceTitle = sourceVideo ? sourceVideo.title : "New Project";
-      // Ensure we don't double append "(Demo)"
       const demoTitle = sourceTitle.endsWith('(Demo)') ? sourceTitle : `${sourceTitle} (Demo)`;
       
-      // Track the ID to update status updates correctly
       let processingId: string | null = null;
 
       try {
@@ -409,7 +405,6 @@ export default function App() {
                       user_id: session.user.id,
                       input_video_url: null
                   };
-                  // Add new optimistic video to list, keeping the source video
                   setVideos(prev => [optimisticVideo, ...prev]);
               },
               videoType || 'demo',
@@ -434,7 +429,6 @@ export default function App() {
 
       } catch (e: any) {
           console.error(e);
-          // Professional Error Mapping
           let friendlyMsg = "We ran into an issue creating your demo. Please try again.";
           const rawMsg = e.message ? e.message.toLowerCase() : "";
           
@@ -484,9 +478,12 @@ export default function App() {
     return <ContentApp session={session} onNavigate={navigateTo} />;
   }
 
+  // Not logged in -> Show New Content Landing Page
+  if (!session && currentView === 'home') {
+      return <ContentLanding onLogin={handleLogin} />;
+  }
+
   // Hide sidebar if we are on blog pages, pricing, not logged in, or in the editor (active video is null is technically home)
-  // Logic update: show sidebar if logged in and not in public pages.
-  // The 'editor' view is now part of HomeView but we typically hide sidebar when actively editing to maximize space.
   const isPublicReaderView = ['blog', 'blog-post', 'pricing', 'features', 'about', 'pricing-details'].includes(currentView);
   
   const showSidebar = session && !isPublicReaderView; 
@@ -543,7 +540,6 @@ export default function App() {
 
           {currentView === 'blog' && <BlogView onNavigate={navigateTo} />}
           {currentView === 'blog-post' && <BlogPostView slug={route.slug || ''} onNavigate={navigateTo} />}
-          {currentView === 'pricing' && <PricingView onPurchase={handlePurchase} onNavigate={navigateTo} />}
           {currentView === 'features' && <FeaturesPage onNavigate={navigateTo} />}
           {currentView === 'about' && <AboutPage onNavigate={navigateTo} />}
           {currentView === 'pricing-details' && <PricingPageSEO onNavigate={navigateTo} />}

@@ -1,6 +1,3 @@
-
-
-
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
@@ -36,26 +33,52 @@ const MIN_BALANCE = 10; // Minimum credits required to start
 
 // --- Helper: Credits ---
 async function getCredits(userId) {
-    const { data } = await supabase.from('creator_profile').select('credits').eq('id', userId).single();
+    const { data } = await supabase.from('profiles').select('credits').eq('id', userId).single();
     return data?.credits || 0;
 }
 
 async function chargeUser(userId, amount, description) {
-    const { error } = await supabase.rpc('charge_creator_credits', {
-        p_user_id: userId,
-        p_amount: amount,
-        p_description: description
-    });
+    // Direct flexible charge to profiles table
+    const { data: profile } = await supabase.from('profiles').select('credits').eq('id', userId).single();
+    if (!profile) throw new Error("User profile not found");
+    
+    const newBalance = (profile.credits || 0) - amount;
+    
+    const { error } = await supabase.from('profiles').update({ 
+        credits: newBalance,
+        updated_at: new Date().toISOString()
+    }).eq('id', userId);
+
     if (error) throw new Error(`Credit charge failed: ${error.message}`);
+    
+    // Log transaction if table exists (optional, keeping for audit)
+    // Assuming a unified transaction log or reusing creator_transactions for now if desired, 
+    // but the prompt emphasized `profiles` table. Let's log to credit_transactions if available in main app schema.
+    await supabase.from('credit_transactions').insert({
+        user_id: userId,
+        amount: -amount,
+        type: 'usage',
+        description: description
+    }).catch(err => console.error("Failed to log transaction", err));
 }
 
 async function refundUser(userId, amount, description) {
-    const { error } = await supabase.rpc('refund_creator_credits', {
-        p_user_id: userId,
-        p_amount: amount,
-        p_description: description
-    });
-    if (error) console.error("Refund failed:", error);
+    const { data: profile } = await supabase.from('profiles').select('credits').eq('id', userId).single();
+    if (!profile) return;
+
+    const newBalance = (profile.credits || 0) + amount;
+    
+    await supabase.from('profiles').update({ 
+        credits: newBalance,
+        updated_at: new Date().toISOString()
+    }).eq('id', userId);
+
+    await supabase.from('credit_transactions').insert({
+        user_id: userId,
+        amount: amount,
+        type: 'refund',
+        description: description
+    }).catch(err => console.error("Failed to log refund", err));
 }
 
 // --- Helper: Calculate Audio Durations ---

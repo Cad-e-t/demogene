@@ -10,18 +10,18 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
         const fetchData = async () => {
             setLoading(true);
             try {
-                // Fetch Credits
+                // Fetch Credits from unified profiles table
                 const { data: profile } = await supabase
-                    .from('creator_profile')
+                    .from('profiles')
                     .select('credits')
                     .eq('id', session.user.id)
                     .single();
                 
                 if (profile) setCredits(profile.credits || 0);
 
-                // Fetch Transactions
+                // Fetch Transactions from unified credit_transactions table
                 const { data: txs } = await supabase
-                    .from('creator_transactions')
+                    .from('credit_transactions')
                     .select('*')
                     .eq('user_id', session.user.id)
                     .order('created_at', { ascending: false });

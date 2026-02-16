@@ -13,6 +13,7 @@ interface Props {
 export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNavigate, isOpen, onClose, session }) => {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [imageError, setImageError] = useState(false);
+    const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
 
     const navigate = (view: string) => {
         onNavigate(`/content-creator/${view}`);
@@ -21,7 +22,7 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
 
     const handleLogout = async () => {
         await (supabase.auth as any).signOut();
-        onNavigate('/'); 
+        window.location.href = 'https://productcam.site'; 
     };
 
     const user = session?.user;
@@ -48,13 +49,53 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
                 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 w-3/4 md:w-64 shadow-2xl md:shadow-none
             `}>
-                 <div className="px-6 mb-10 hidden md:block">
-                     <span className="font-black text-lg tracking-tighter text-blue-600 uppercase">Creator</span>
+                 {/* App Switcher */}
+                 <div className="relative px-6 mb-10 hidden md:block">
+                     <button 
+                        onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)}
+                        className="flex items-center gap-2 group w-full"
+                     >
+                         <span className="font-black text-lg tracking-tighter text-blue-600 uppercase group-hover:opacity-80 transition-opacity">Creator</span>
+                         <svg className={`w-4 h-4 text-slate-400 transition-transform ${isAppSwitcherOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                     </button>
+
+                     {isAppSwitcherOpen && (
+                         <div className="absolute top-full left-6 right-6 mt-2 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in">
+                             <button className="w-full text-left px-4 py-3 text-xs font-black uppercase tracking-widest text-blue-600 bg-blue-50">
+                                 Creator Studio
+                             </button>
+                             <button 
+                                onClick={() => { onNavigate('/'); setIsAppSwitcherOpen(false); }}
+                                className="w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                             >
+                                 Product Demo
+                             </button>
+                         </div>
+                     )}
                  </div>
                  
-                 {/* Mobile Logo inside Sidebar for context if needed, or keep clean */}
-                 <div className="px-6 mb-8 md:hidden flex items-center gap-2">
-                     <span className="font-black text-xl tracking-tighter text-blue-600 uppercase">Creator</span>
+                 {/* Mobile Logo inside Sidebar */}
+                 <div className="px-6 mb-8 md:hidden flex items-center gap-2 relative">
+                     <button 
+                        onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)}
+                        className="flex items-center gap-2"
+                     >
+                        <span className="font-black text-xl tracking-tighter text-blue-600 uppercase">Creator</span>
+                        <svg className={`w-5 h-5 text-slate-400 transition-transform ${isAppSwitcherOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                     </button>
+                     {isAppSwitcherOpen && (
+                         <div className="absolute top-full left-6 right-6 mt-2 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in">
+                             <button className="w-full text-left px-4 py-3 text-xs font-black uppercase tracking-widest text-blue-600 bg-blue-50">
+                                 Creator Studio
+                             </button>
+                             <button 
+                                onClick={() => { onNavigate('/'); setIsAppSwitcherOpen(false); onClose(); }}
+                                className="w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                             >
+                                 Product Demo
+                             </button>
+                         </div>
+                     )}
                  </div>
                  
                  <div className="flex flex-col gap-2 w-full px-2">

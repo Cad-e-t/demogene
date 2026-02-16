@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
@@ -96,7 +95,7 @@ const processWebhookAsync = async (data) => {
                 console.log(`[PaymentServer] Processing payment.succeeded for User ID: ${userId}`);
                 const { billing, currency, card_last_four, customer, customer_id } = eventData;
                 
-                // 1. Update Profile (Shared for both apps)
+                // 1. Update Profile (Always update 'profiles' now)
                 const profileUpdateData = {
                      billing_address: billing,
                      last_payment_currency: currency,
@@ -123,46 +122,26 @@ const processWebhookAsync = async (data) => {
                 }
 
                 const credits = parseInt(metadata.credits_to_add || '0');
-                const isCreatorProduct = metadata.app_type === 'creator';
                 
-                console.log(`[PaymentServer] Credits to add: ${credits}. Is Creator App? ${isCreatorProduct}`);
+                console.log(`[PaymentServer] Credits to add: ${credits}. Target Table: profiles`);
 
                 if (credits > 0) {
-                    if (isCreatorProduct) {
-                        // 2a. Creator App Credits (Separate Table)
-                        console.log(`[PaymentServer] Granting CREATOR credits via RPC...`);
-                        try {
-                            const { error } = await supabase.rpc('grant_creator_credits', {
-                                p_user_id: userId,
-                                p_credits_to_add: credits,
-                                p_description: `Purchase of ${credits} creator credits`
-                            });
-                            if (error) {
-                                console.error("[PaymentServer] 🔴 Creator RPC Error:", error);
-                            } else {
-                                console.log(`[PaymentServer] ✅ Processed CREATOR purchase of ${credits} credits for user ${userId}`);
-                            }
-                        } catch (rpcErr) {
-                            console.error("[PaymentServer] 🔴 Creator RPC Exception:", rpcErr);
+                    // Unified Credit Grant: Always use grant_credits_from_purchase which targets 'profiles'
+                    console.log(`[PaymentServer] Granting credits via RPC...`);
+                    try {
+                        const { error } = await supabase.rpc('grant_credits_from_purchase', {
+                            p_user_id: userId,
+                            p_credits_to_add: credits,
+                            p_description: `Purchase of ${credits} credits`,
+                            p_metadata: eventData
+                        });
+                        if (error) {
+                            console.error("[PaymentServer] 🔴 Credit Grant RPC Error:", error);
+                        } else {
+                            console.log(`[PaymentServer] ✅ Processed purchase of ${credits} credits for user ${userId}`);
                         }
-                    } else {
-                        // 2b. ProductCam Credits (Existing Logic)
-                        console.log(`[PaymentServer] Granting PRODUCTCAM credits via RPC...`);
-                        try {
-                            const { error } = await supabase.rpc('grant_credits_from_purchase', {
-                                p_user_id: userId,
-                                p_credits_to_add: credits,
-                                p_description: `Purchase of ${credits} demo credit${credits > 1 ? 's' : ''}`,
-                                p_metadata: eventData
-                            });
-                            if (error) {
-                                console.error("[PaymentServer] 🔴 ProductCam RPC Error:", error);
-                            } else {
-                                console.log(`[PaymentServer] ✅ Processed PRODUCTCAM purchase of ${credits} credits for user ${userId}`);
-                            }
-                        } catch (rpcErr) {
-                            console.error("[PaymentServer] 🔴 ProductCam RPC Exception:", rpcErr);
-                        }
+                    } catch (rpcErr) {
+                        console.error("[PaymentServer] 🔴 Credit Grant RPC Exception:", rpcErr);
                     }
                 } else {
                     console.warn(`[PaymentServer] ⚠️ Credits amount is 0. Skipping credit grant.`);
@@ -222,9 +201,8 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
         }
 
         let credits = 0;
-        let isCreatorProduct = false;
         
-        // ProductCam Products
+        // ProductCam Products (Legacy)
         if (productId === "pdt_0NXR7yFQlGXuk4YfAk8WY") {
             credits = 10;
         } else if (productId === "pdt_0NXR7opzKCuqk7OCHV44O") {
@@ -232,19 +210,16 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
         } else if (productId === "pdt_0NXR7hQfq3toyw4xmfZ9t") {
             credits = 100;
         } 
-        // Content Creator Products
+        // Content Creator Products (New Main)
         else if (productId === "pdt_T48406oZ5JfWEo1XFEx9C") {
             credits = 700;
-            isCreatorProduct = true;
         } else if (productId === "pdt_aaVFvXmh0fAAa9TMyygKI") {
             credits = 1800;
-            isCreatorProduct = true;
         } else if (productId === "pdt_IkNZmPAGOSqCxUpSBwg2r") {
             credits = 5500;
-            isCreatorProduct = true;
         }
 
-        console.log(`[PaymentServer] Resolved Credits: ${credits}, isCreatorProduct: ${isCreatorProduct}`);
+        console.log(`[PaymentServer] Resolved Credits: ${credits}`);
 
         const { data: profile } = await supabase
             .from('profiles')
@@ -252,9 +227,7 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
             .eq('id', user.id)
             .single();
 
-        const returnUrl = isCreatorProduct 
-            ? `${FRONTEND_URL}/content-creator/billing?payment_status=success`
-            : `${FRONTEND_URL}/?payment_status=success`;
+        const returnUrl = `${FRONTEND_URL}/content-creator/billing?payment_status=success`;
 
         const checkoutPayload = {
             product_cart: [{ product_id: productId, quantity: 1 }], 
@@ -264,8 +237,7 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
             metadata: {
                 user_id: user.id,
                 credits_to_add: String(credits),
-                product_id: productId,
-                app_type: isCreatorProduct ? 'creator' : 'productcam'
+                product_id: productId
             }
         };
 

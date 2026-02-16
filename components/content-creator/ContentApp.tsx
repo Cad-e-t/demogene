@@ -44,11 +44,11 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         }
     }, [parentSession]);
 
-    // Fetch credits and subscribe to changes
+    // Fetch credits and subscribe to changes - USING 'profiles' TABLE
     useEffect(() => {
         if (session?.user?.id) {
             const fetchCredits = async () => {
-                const { data } = await supabase.from('creator_profile').select('credits').eq('id', session.user.id).single();
+                const { data } = await supabase.from('profiles').select('credits').eq('id', session.user.id).single();
                 setCredits(data?.credits || 0);
             };
             fetchCredits();
@@ -57,7 +57,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                 .on('postgres_changes', { 
                     event: '*', 
                     schema: 'public', 
-                    table: 'creator_profile',
+                    table: 'profiles',
                     filter: `id=eq.${session.user.id}`
                 }, (payload: any) => {
                     if (payload.new) setCredits(payload.new.credits);
@@ -97,10 +97,15 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         await (supabase.auth as any).signInWithOAuth({ 
             provider: 'google',
             options: {
-                // Use explicit redirect to content creator area
-                redirectTo: 'https://productcam.site/content-creator'
+                // Use explicit redirect to root, App.tsx will handle routing to content-creator
+                redirectTo: 'https://productcam.site'
             }
         });
+    };
+
+    const handleLogout = async () => {
+        await (supabase.auth as any).signOut();
+        window.location.href = 'https://productcam.site';
     };
     
     const handleOpenProject = (project: ContentProject, segments: ContentSegment[]) => {
@@ -180,28 +185,30 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
 
             {/* Global Pricing Overlay Gatekeeper */}
             {showGlobalOverlay && (
-                <div className="fixed inset-0 z-[100] bg-slate-900/20 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-fade-in">
-                    <div className="w-full max-w-6xl flex flex-col items-center bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl rounded-[3rem] p-8 md:p-12 max-h-[90vh] overflow-y-auto">
-                        <div className="text-center mb-10">
-                            <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-4 uppercase tracking-tighter">
-                                Unlock Creator Studio
-                            </h2>
-                            <p className="text-lg text-slate-500 font-medium max-w-xl mx-auto">
-                                You need credits to continue creating. Purchase a pack to unlock the studio instantly.
-                            </p>
+                <div className="fixed inset-0 z-[100] bg-slate-900/20 backdrop-blur-sm overflow-y-auto animate-fade-in">
+                    <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
+                        <div className="w-full max-w-6xl flex flex-col items-center bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl rounded-[3rem] p-8 md:p-12 my-8 relative">
+                            <div className="text-center mb-10">
+                                <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-4 uppercase tracking-tighter">
+                                    Unlock Creator Studio
+                                </h2>
+                                <p className="text-lg text-slate-500 font-medium max-w-xl mx-auto">
+                                    You need credits to continue creating. Purchase a pack to unlock the studio instantly.
+                                </p>
+                            </div>
+                            
+                            <CreatorPricingCards 
+                                onAction={handlePurchase} 
+                                actionLabel="Buy Credits" 
+                            />
+                            
+                            <button 
+                                onClick={handleLogout}
+                                className="mt-12 text-slate-400 font-bold text-sm uppercase tracking-widest hover:text-slate-600 transition-colors"
+                            >
+                                Log Out
+                            </button>
                         </div>
-                        
-                        <CreatorPricingCards 
-                            onAction={handlePurchase} 
-                            actionLabel="Buy Credits" 
-                        />
-                        
-                        <button 
-                            onClick={() => window.location.href = '/'}
-                            className="mt-12 text-slate-400 font-bold text-sm uppercase tracking-widest hover:text-slate-600 transition-colors"
-                        >
-                            Back to Home
-                        </button>
                     </div>
                 </div>
             )}

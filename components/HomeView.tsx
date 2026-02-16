@@ -2,7 +2,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { VideoCropper } from './VideoCropper';
 import { AdvancedEditorModal } from './AdvancedEditorModal';
-import { LandingPage } from './LandingPage';
 import { InteractiveDemo } from './InteractiveDemo';
 import { AssetLibrary } from './AssetLibrary';
 import { CropData, TrimData, VoiceOption, BackgroundOption, TimeRange, VideoProject } from '../types';
@@ -266,10 +265,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       setIsDemoMode(false);
     };
 
-    if (!activeVideo && !session) {
-        return <LandingPage onFileChange={onFileChange} handleLogin={handleLogin} onNavigate={onNavigate} />;
-    }
-
     if (isDemoMode) {
       return <InteractiveDemo onClose={() => setIsDemoMode(false)} onFinish={handleDemoFinish} />;
     }
@@ -295,9 +290,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       );
     }
 
-    const hasPurchaseHistory = profile && !!profile.dodo_customer_id;
-    const isZeroCreditsUser = profile && !hasCredits && !hasPurchaseHistory;
-
     // MAIN DASHBOARD
     if (!activeVideo) {
         return (
@@ -308,22 +300,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     
                     <div className="flex flex-col items-center text-center space-y-12">
                         
-                        {!isZeroCreditsUser && (
-                            <div className="space-y-4">
-                                <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">Create New Demo</h1>
-                                <p className="text-xl text-gray-500 font-medium max-w-xl mx-auto leading-relaxed">
-                                    Upload a screen recording to turn it into a polished narrated demo automatically
-                                </p>
-                            </div>
-                        )}
+                        <div className="space-y-4">
+                            <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase">Create New Demo</h1>
+                            <p className="text-xl text-gray-500 font-medium max-w-xl mx-auto leading-relaxed">
+                                Upload a screen recording to turn it into a polished narrated demo automatically
+                            </p>
+                        </div>
 
                         <div className="w-full flex flex-col md:flex-row items-stretch justify-center gap-6">
                             
                             {!profile ? (
                                 // Loading State
                                 <div className="flex-1 max-w-lg h-[320px] bg-gray-100 rounded-[32px] animate-pulse border border-gray-200"></div>
-                            ) : !isZeroCreditsUser ? (
-                                // NORMAL STATE: Upload Button (Shown for users with credits OR prior purchase)
+                            ) : (
+                                // NORMAL STATE
                                 <button 
                                     onClick={() => setShowAssetLibrary(true)}
                                     className="flex-1 max-w-lg group relative cursor-pointer transform hover:scale-[1.01] transition-all duration-300 text-left"
@@ -341,37 +331,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                         </div>
                                     </div>
                                 </button>
-                            ) : (
-                                // ZERO CREDITS STATE: Friendly Nudge (Only for new users with 0 credits and no purchase history)
-                                <button 
-                                    onClick={() => onNavigate('/pricing')}
-                                    className="flex-1 max-w-lg group relative cursor-pointer transform hover:scale-[1.01] transition-all duration-300"
-                                >
-                                    <div className="absolute -inset-0.5 bg-gradient-to-br from-gray-100 to-gray-200 rounded-[32px] blur-lg opacity-50 group-hover:opacity-80 transition duration-500"></div>
-                                    <div className="relative flex flex-col items-center justify-center gap-6 px-8 py-16 bg-white border-2 border-dashed border-gray-200 hover:border-green-400 rounded-[32px] shadow-lg h-full transition-colors text-center">
-                                        
-                                        <div className="p-4 bg-gray-50 rounded-full group-hover:bg-green-50 text-gray-400 group-hover:text-green-600 transition-colors">
-                                             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                            </svg>
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase">One Final Step</h3>
-                                            <p className="text-sm font-medium text-gray-500">Unlock your studio to start generating demos automatically.</p>
-                                        </div>
-                                        
-                                        <div className="mt-2 px-8 py-3 bg-black text-white rounded-xl font-bold text-sm shadow-xl group-hover:bg-green-600 transition-colors">
-                                            Unlock
-                                        </div>
-                                    </div>
-                                </button>
                             )}
 
                             <div className="flex-1 max-w-lg flex flex-col gap-4">
                                 <button 
                                     onClick={() => setIsDemoMode(true)}
-                                    className={`flex-1 group relative p-8 bg-gray-900 text-white rounded-[32px] border border-gray-800 shadow-xl overflow-hidden hover:border-green-500/50 transition-all text-left ${isZeroCreditsUser ? 'min-h-[300px]' : ''}`}
+                                    className="flex-1 group relative p-8 bg-gray-900 text-white rounded-[32px] border border-gray-800 shadow-xl overflow-hidden hover:border-green-500/50 transition-all text-left"
                                 >
                                     <div className="relative z-10 h-full flex flex-col justify-between">
                                         <div className="space-y-2">
@@ -380,7 +345,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                             </div>
                                             <h3 className="text-2xl font-black uppercase tracking-tighter">Try a Demo</h3>
                                             <p className="text-gray-400 font-medium text-sm leading-relaxed">
-                                                {!hasCredits && profile ? "Not sure yet? Try our simulator to see how it works before buying credits." : "Not ready to upload? See how it works with our interactive guided demo."}
+                                                Not ready to upload? See how it works with our interactive guided demo.
                                             </p>
                                         </div>
                                         <span className="mt-4 inline-flex items-center gap-2 text-green-500 font-bold text-sm uppercase tracking-widest group-hover:translate-x-1 transition-transform">
@@ -391,17 +356,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
                                 </button>
 
-                                {profile && !isZeroCreditsUser && (
+                                {profile && (
                                     <div className="p-6 bg-white border border-gray-200 rounded-[32px] flex items-center justify-between shadow-sm">
                                         <div className="flex flex-col">
                                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Available Credits</span>
                                             <div className="flex items-center gap-2">
                                                 <span className={`w-2.5 h-2.5 rounded-full ${profile.credits > 0 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`}></span>
-                                                <span className="text-xl font-black text-gray-900">{profile.credits} Demo{profile.credits !== 1 ? 's' : ''}</span>
+                                                <span className="text-xl font-black text-gray-900">{profile.credits} Credit{profile.credits !== 1 ? 's' : ''}</span>
                                             </div>
                                         </div>
                                         <button 
-                                            onClick={() => onNavigate('/pricing')} 
+                                            onClick={() => onNavigate('/content-creator/billing')} 
                                             className="px-6 py-3 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 uppercase text-xs tracking-wider"
                                         >
                                             Top Up
@@ -759,7 +724,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </button>
                     {profile && (
                         <button 
-                            onClick={() => onNavigate('/pricing')} 
+                            onClick={() => onNavigate('/content-creator/billing')} 
                             className="block w-full mt-4 text-center text-xs font-bold text-gray-500 hover:text-green-600"
                         >
                             {profile.credits} Credits Available - Get more
