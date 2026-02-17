@@ -217,7 +217,7 @@ export default function App() {
 
   // --- Canonical Tag Sync ---
   useEffect(() => {
-    const baseUrl = "https://productcam.site";
+    const baseUrl = "https://creator.productcam.site";
     let path = window.location.pathname;
     const canonicalUrl = baseUrl + path;
     
@@ -235,7 +235,7 @@ export default function App() {
         await (supabase.auth as any).signInWithOAuth({ 
             provider,
             options: {
-                redirectTo: 'https://productcam.site' // Explicit redirect for root path
+                redirectTo: 'ttps://creator.productcam.site' // Explicit redirect for root path
             }
         }); 
     } 

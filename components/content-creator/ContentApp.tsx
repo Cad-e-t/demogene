@@ -101,7 +101,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                 provider: 'google',
                 options: {
                     // Use explicit redirect to root, App.tsx will handle routing to content-creator
-                    redirectTo: 'https://productcam.site'
+                    redirectTo: 'https://creator.productcam.site'
                 }
             });
             if (error) throw error;
@@ -113,7 +113,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
 
     const handleLogout = async () => {
         await (supabase.auth as any).signOut();
-        window.location.href = 'https://productcam.site';
+        window.location.href = 'https://creator.productcam.site';
     };
     
     const handleOpenProject = (project: ContentProject, segments: ContentSegment[]) => {
