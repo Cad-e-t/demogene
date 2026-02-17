@@ -20,7 +20,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     
     // Typewriter State
     const [placeholder, setPlaceholder] = useState('');
-    const placeholderText = "Describe a scene, a history fact, a scary story, or a product idea.";
+    const placeholderText = "Paste your script to instantly create a voiceover and video..";
 
     // Config Defaults
     const [aspect, setAspect] = useState<'9:16' | '16:9'>('9:16');

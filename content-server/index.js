@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
@@ -38,47 +39,21 @@ async function getCredits(userId) {
 }
 
 async function chargeUser(userId, amount, description) {
-    // Direct flexible charge to profiles table
-    const { data: profile } = await supabase.from('profiles').select('credits').eq('id', userId).single();
-    if (!profile) throw new Error("User profile not found");
-    
-    const newBalance = (profile.credits || 0) - amount;
-    
-    const { error } = await supabase.from('profiles').update({ 
-        credits: newBalance,
-        updated_at: new Date().toISOString()
-    }).eq('id', userId);
-
+    const { error } = await supabase.rpc('charge_creator_credits', {
+        p_user_id: userId,
+        p_amount: amount,
+        p_description: description
+    });
     if (error) throw new Error(`Credit charge failed: ${error.message}`);
-    
-    // Log transaction if table exists (optional, keeping for audit)
-    // Assuming a unified transaction log or reusing creator_transactions for now if desired, 
-    // but the prompt emphasized `profiles` table. Let's log to credit_transactions if available in main app schema.
-    await supabase.from('credit_transactions').insert({
-        user_id: userId,
-        amount: -amount,
-        type: 'usage',
-        description: description
-    }).catch(err => console.error("Failed to log transaction", err));
 }
 
 async function refundUser(userId, amount, description) {
-    const { data: profile } = await supabase.from('profiles').select('credits').eq('id', userId).single();
-    if (!profile) return;
-
-    const newBalance = (profile.credits || 0) + amount;
-    
-    await supabase.from('profiles').update({ 
-        credits: newBalance,
-        updated_at: new Date().toISOString()
-    }).eq('id', userId);
-
-    await supabase.from('credit_transactions').insert({
-        user_id: userId,
-        amount: amount,
-        type: 'refund',
-        description: description
-    }).catch(err => console.error("Failed to log refund", err));
+    const { error } = await supabase.rpc('refund_creator_credits', {
+        p_user_id: userId,
+        p_amount: amount,
+        p_description: description
+    });
+    if (error) console.error("Refund failed", error);
 }
 
 // --- Helper: Calculate Audio Durations ---
@@ -515,17 +490,21 @@ app.post('/generate-video', async (req, res) => {
             // 2. Charge for Audio & Subtitles
             const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`);
             const totalDuration = parseFloat(out.toString());
-            const audioCost = Math.ceil(totalDuration * COST_AUDIO_PER_SECOND);
+            
+            // New Fractional Calculation Logic
+            const audioCost = totalDuration * COST_AUDIO_PER_SECOND;
             
             // Check for subtitles preference
             const useSubtitles = project.subtitles && project.subtitles !== 'none';
             if (useSubtitles) {
-                subtitleCost = Math.ceil(totalDuration * COST_SUBTITLE_PER_SECOND);
+                subtitleCost = totalDuration * COST_SUBTITLE_PER_SECOND;
             }
 
-            const totalCharge = audioCost + subtitleCost;
+            // Add then round once
+            const totalChargeRaw = audioCost + subtitleCost;
+            const totalCharge = Math.round(totalChargeRaw * 100) / 100;
             
-            console.log(`[ContentServer] Audio Duration: ${totalDuration}s. Charge: ${audioCost} (Audio) + ${subtitleCost} (Subtitles) = ${totalCharge} credits.`);
+            console.log(`[ContentServer] Audio Duration: ${totalDuration}s. Charge: ${audioCost.toFixed(3)} (Audio) + ${subtitleCost.toFixed(3)} (Subtitles) = ${totalCharge} credits.`);
             
             const chargeDesc = useSubtitles 
                 ? `Audio + Subtitles Generation (${totalDuration.toFixed(1)}s)`
@@ -572,8 +551,12 @@ app.post('/generate-video', async (req, res) => {
                     
                     // Graceful Failure: Refund subtitle portion ONLY
                     if (subtitleCost > 0) {
-                        console.log(`[ContentServer] Refunding subtitle cost: ${subtitleCost}`);
-                        await refundUser(userId, subtitleCost, "Refund: Subtitle Generation Failure");
+                        // Calculate refunded amount based on total paid minus cost of just audio
+                        const audioOnlyCharge = Math.round(audioCost * 100) / 100;
+                        const refundAmount = Math.round((totalCharge - audioOnlyCharge) * 100) / 100;
+
+                        console.log(`[ContentServer] Refunding subtitle cost: ${refundAmount}`);
+                        await refundUser(userId, refundAmount, "Refund: Subtitle Generation Failure");
                     }
                     // Fallback: finalPath remains assembledPath (video without subtitles)
                 }

@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 
@@ -20,9 +21,9 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                 
                 if (profile) setCredits(profile.credits || 0);
 
-                // Fetch Transactions from unified credit_transactions table
+                // Fetch Transactions from creator_transactions table
                 const { data: txs } = await supabase
-                    .from('credit_transactions')
+                    .from('creator_transactions')
                     .select('*')
                     .eq('user_id', session.user.id)
                     .order('created_at', { ascending: false });
