@@ -1,7 +1,7 @@
 import { AnalysisResult, CropData, ProcessingStatus, TrimData, TimeRange, VideoProject } from './types';
 import { supabase } from './supabaseClient';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'https://demo-maker-417540185411.us-central1.run.app' ;
+const API_BASE_URL = process.env.API_BASE_URL || 'https://content-creator-417540185411.us-central1.run.app' ;
 const PAYMENT_API_URL = process.env.PAYMENT_API_URL || 'https://dodo-payments-service-417540185411.us-central1.run.app';
 
 export async function generateUploadUrl(fileName: string, fileType: string): Promise<{ uploadUrl: string, publicUrl: string, key: string }> {
