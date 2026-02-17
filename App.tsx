@@ -235,7 +235,7 @@ export default function App() {
         await (supabase.auth as any).signInWithOAuth({ 
             provider,
             options: {
-                redirectTo: 'ttps://creator.productcam.site' // Explicit redirect for root path
+                redirectTo: 'https://creator.productcam.site' // Explicit redirect for root path
             }
         }); 
     } 
