@@ -4,7 +4,7 @@
 import { ContentProject, ContentSegment } from "./types";
 import { supabase } from "../../supabaseClient";
 
-const API_URL = "http://localhost:8001"; // Or env var
+const API_URL = "ttps://content-creator-417540185411.us-central1.run.app"; // Or env var
 
 export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: string, visualDensity: string, pictureQuality: string, subtitles: string) {
     const res = await fetch(`${API_URL}/generate-segments`, {
