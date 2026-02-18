@@ -624,7 +624,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">App Description</label>
                                             <textarea 
                                                 className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-green-500 p-3 text-sm text-gray-900 rounded-xl font-medium min-h-[100px] resize-none transition-all outline-none"
-                                                placeholder="What does your app do?"
+                                                placeholder="What does your app do? Include anything special or important."
                                                 value={appDescription}
                                                 onChange={(e) => setAppDescription(e.target.value)}
                                             />
