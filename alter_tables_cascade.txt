@@ -1,0 +1,71 @@
+
+-- 1. Modify public.videos
+ALTER TABLE public.videos
+DROP CONSTRAINT IF EXISTS videos_user_id_fkey;
+
+ALTER TABLE public.videos
+ADD CONSTRAINT videos_user_id_fkey
+FOREIGN KEY (user_id)
+REFERENCES auth.users(id)
+ON DELETE CASCADE;
+
+-- 2. Modify public.profiles
+-- Note: Often named profiles_id_fkey or profiles_user_id_fkey depending on creation
+ALTER TABLE public.profiles
+DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+
+ALTER TABLE public.profiles
+ADD CONSTRAINT profiles_id_fkey
+FOREIGN KEY (id)
+REFERENCES auth.users(id)
+ON DELETE CASCADE;
+
+-- 3. Modify public.credit_transactions
+ALTER TABLE public.credit_transactions
+DROP CONSTRAINT IF EXISTS credit_transactions_user_id_fkey;
+
+ALTER TABLE public.credit_transactions
+ADD CONSTRAINT credit_transactions_user_id_fkey
+FOREIGN KEY (user_id)
+REFERENCES auth.users(id)
+ON DELETE CASCADE;
+
+-- 4. Modify public.content_projects
+ALTER TABLE public.content_projects
+DROP CONSTRAINT IF EXISTS content_projects_user_id_fkey;
+
+ALTER TABLE public.content_projects
+ADD CONSTRAINT content_projects_user_id_fkey
+FOREIGN KEY (user_id)
+REFERENCES auth.users(id)
+ON DELETE CASCADE;
+
+-- 5. Modify public.content_stories
+ALTER TABLE public.content_stories
+DROP CONSTRAINT IF EXISTS content_stories_user_id_fkey;
+
+ALTER TABLE public.content_stories
+ADD CONSTRAINT content_stories_user_id_fkey
+FOREIGN KEY (user_id)
+REFERENCES auth.users(id)
+ON DELETE CASCADE;
+
+-- 6. Modify public.creator_transactions
+ALTER TABLE public.creator_transactions
+DROP CONSTRAINT IF EXISTS creator_transactions_user_id_fkey;
+
+ALTER TABLE public.creator_transactions
+ADD CONSTRAINT creator_transactions_user_id_fkey
+FOREIGN KEY (user_id)
+REFERENCES auth.users(id)
+ON DELETE CASCADE;
+
+-- 7. Modify public.user_configurations
+ALTER TABLE public.user_configurations
+DROP CONSTRAINT IF EXISTS user_configurations_user_id_fkey;
+
+ALTER TABLE public.user_configurations
+ADD CONSTRAINT user_configurations_user_id_fkey
+FOREIGN KEY (user_id)
+REFERENCES auth.users(id)
+ON DELETE CASCADE;
