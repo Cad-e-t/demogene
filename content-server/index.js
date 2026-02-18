@@ -16,7 +16,28 @@ import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
 // --- Setup ---
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: '*' }));
+
+// --- MIDDLEWARE ---
+const allowedOrigins = new Set([
+  'https://productcam.site',
+  'https://creator.productcam.site',
+  'https://demogene.vercel.app',
+  'https://www.productcam.site',
+  'http://localhost:3000'
+]);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.has(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
+
+
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder'; 
@@ -460,7 +481,7 @@ app.post('/generate-video', async (req, res) => {
         let subtitleCost = 0;
 
         try {
-            await supabase.from('content_projects').update({ status: 'generating' }).eq('id', projectId);
+            // REMOVED: await supabase.from('content_projects').update({ status: 'generating' }).eq('id', projectId);
 
             // Fetch Data
             const { data: project } = await supabase.from('content_projects').select('*').eq('id', projectId).single();
@@ -582,12 +603,12 @@ app.post('/generate-video', async (req, res) => {
                 status: 'completed'
             }).eq('id', storyId);
 
-            await supabase.from('content_projects').update({ status: 'completed' }).eq('id', projectId);
+            // REMOVED: await supabase.from('content_projects').update({ status: 'completed' }).eq('id', projectId);
             console.log(`[ContentServer] Video generation complete: ${videoUrl}`);
 
         } catch (e) {
             console.error("[ContentServer] Video Gen Failed", e);
-            await supabase.from('content_projects').update({ status: 'failed' }).eq('id', projectId);
+            // REMOVED: await supabase.from('content_projects').update({ status: 'failed' }).eq('id', projectId);
             await supabase.from('content_stories').update({ status: 'failed' }).eq('id', storyId);
             
             // Note: We deliberately don't refund audio cost if assembly fails mid-way to prevent abuse,

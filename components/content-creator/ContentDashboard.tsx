@@ -247,7 +247,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 image_style: style,
                 narration_style: narrationStyle.prompt,
                 picture_quality: pictureQuality.id,
-                subtitles: subtitles.id
+                subtitles: subtitles.id,
+                status: 'generating'
             });
             setSegments(res.segments);
             // We transition immediately to editor even if images are null
