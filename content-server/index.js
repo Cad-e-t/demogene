@@ -18,8 +18,8 @@ const app = express();
 app.use(express.json());
 app.use(cors({ origin: '*' }));
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; 
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder'; 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const TEMP_DIR = os.tmpdir();
