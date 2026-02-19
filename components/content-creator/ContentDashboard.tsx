@@ -310,7 +310,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     w-80 bg-white border-l border-slate-200 p-6 
                     transform transition-transform duration-300 ease-in-out z-40 
                     ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} 
-                    overflow-y-auto no-scrollbar
+                    overflow-y-auto thin-scrollbar
                 `}>
                     
                     {/* Header Row: Title + Close Button */}
@@ -451,7 +451,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Visual Density</h3>
                             </div>
                             
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                                 {VISUAL_DENSITIES.map(d => (
                                     <button
                                         key={d.id}
@@ -481,7 +481,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Picture Quality</h3>
                             </div>
                             
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                                 {PICTURE_QUALITY_OPTIONS.map(q => (
                                     <button
                                         key={q.id}
@@ -541,7 +541,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Image Style</h3>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                            <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                                 {IMAGE_STYLES.map(s => (
                                     <button
                                         key={s}
@@ -577,7 +577,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Video Effects</h3>
                             </div>
                             
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                                 {EFFECT_PRESETS.map(e => (
                                     <button
                                         key={e.id}
@@ -604,7 +604,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Subtitles</h3>
                             </div>
                             
-                            <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                            <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                                 {SUBTITLE_PRESETS.map(s => (
                                     <button
                                         key={s.id}
@@ -641,7 +641,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Select Voice</h3>
                             </div>
                             
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                                 {VOICES.map(v => (
                                     <button
                                         key={v.id}
@@ -675,7 +675,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Narration Style</h3>
                             </div>
                             
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                                 {NARRATION_STYLES.map(s => (
                                     <button
                                         key={s.id}
@@ -740,6 +740,21 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
     return (
         <div className="flex-1 h-full relative flex flex-col">
+            <style>{`
+                .thin-scrollbar::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .thin-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .thin-scrollbar::-webkit-scrollbar-thumb {
+                    background-color: #cbd5e1;
+                    border-radius: 20px;
+                }
+                .thin-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background-color: #94a3b8;
+                }
+            `}</style>
             {/* Render Content */}
             {renderContent()}
         </div>

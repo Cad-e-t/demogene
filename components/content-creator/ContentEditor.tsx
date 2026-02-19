@@ -252,7 +252,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             </div>
 
             {/* Config Sidebar (Right Side) */}
-            <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-slate-200 p-6 transform transition-transform z-40 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} overflow-y-auto no-scrollbar`}>
+            <div className={`absolute inset-y-0 right-0 w-80 bg-white border-l border-slate-200 p-6 transform transition-transform z-40 ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} overflow-y-auto thin-scrollbar`}>
                 
                 {/* Close Button (Universal) */}
                 <div className="flex justify-end mb-4">
@@ -373,7 +373,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             <button onClick={() => setConfigView('main')} className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"><svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
                             <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Video Effects</h3>
                         </div>
-                        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                             {EFFECT_PRESETS.map(e => (
                                 <button
                                     key={e.id}
@@ -394,7 +394,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             <button onClick={() => setConfigView('main')} className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"><svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
                             <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Subtitles</h3>
                         </div>
-                        <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                        <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                             {SUBTITLE_PRESETS.map(s => (
                                 <button
                                     key={s.id}
@@ -425,7 +425,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             <button onClick={() => setConfigView('main')} className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"><svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
                             <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Select Voice</h3>
                         </div>
-                        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                             {VOICES.map(v => (
                                 <button
                                     key={v.id}
@@ -453,7 +453,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             <button onClick={() => setConfigView('main')} className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"><svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
                             <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Narration Style</h3>
                         </div>
-                        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 no-scrollbar">
+                        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
                             {NARRATION_STYLES.map(s => (
                                 <button
                                     key={s.id}
