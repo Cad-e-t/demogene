@@ -718,13 +718,17 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                         e.target.style.height = e.target.scrollHeight + 'px';
                                     }}
                                 />
+                                {/* Character Count Indicator */}
+                                <div className={`absolute bottom-24 right-8 text-xs font-bold transition-colors ${prompt.length > 6000 ? 'text-red-500' : 'text-slate-300'}`}>
+                                    {prompt.length} / 6000
+                                </div>
                             </div>
 
                             {/* Button Area */}
                             <div className="absolute bottom-0 left-0 right-0 z-10 flex justify-end p-4 bg-gradient-to-t from-white via-white/90 to-transparent h-24 items-end pointer-events-none">
                                 <button 
                                     onClick={handleGenerate}
-                                    disabled={loading || !prompt.trim()}
+                                    disabled={loading || !prompt.trim() || prompt.length > 6000}
                                     className="px-8 py-3 bg-black text-white rounded-full font-black uppercase tracking-wider hover:bg-blue-700 transition disabled:opacity-50 shadow-lg shadow-blue-500/20 pointer-events-auto text-sm transform active:scale-95 duration-200"
                                 >
                                     {loading ? 'Thinking...' : 'Generate'}
@@ -737,6 +741,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             </div>
         );
     }
+
+    const MAX_CHARS = 6000;
 
     return (
         <div className="flex-1 h-full relative flex flex-col">

@@ -175,7 +175,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             <div className="relative z-10 w-full px-6 md:px-12 py-24 bg-transparent">
                 <div className="w-full rounded-[32px] md:rounded-[48px] overflow-hidden shadow-2xl border-4 border-white/10 relative group">
                     <video 
-                        src="https://assets.productcam.site/outputs/47c9c99e-9f51-4a79-b401-f4d5d62a7885.mp4" 
+                        src="https://assets.productcam.site/outputs/881d7f2a-8379-488d-ad86-04acd51a8421.mp4" 
                         autoPlay 
                         muted 
                         loop 
