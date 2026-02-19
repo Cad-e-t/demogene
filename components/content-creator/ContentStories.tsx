@@ -86,8 +86,10 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                                         <button 
                                             onClick={async (e) => {
                                                 e.stopPropagation();
+                                                e.preventDefault();
                                                 try {
                                                     const response = await fetch(s.video_url);
+                                                    if (!response.ok) throw new Error('Network response was not ok');
                                                     const blob = await response.blob();
                                                     const url = window.URL.createObjectURL(blob);
                                                     const a = document.createElement('a');
@@ -100,7 +102,15 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                                                     document.body.removeChild(a);
                                                 } catch (err) {
                                                     console.error('Download failed:', err);
-                                                    window.open(s.video_url, '_blank');
+                                                    // Fallback: try to download by navigating to the URL with a download attribute
+                                                    const a = document.createElement('a');
+                                                    a.style.display = 'none';
+                                                    a.href = s.video_url;
+                                                    a.download = `story-${s.id}.mp4`;
+                                                    a.target = '_blank';
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    document.body.removeChild(a);
                                                 }
                                             }}
                                             className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors"

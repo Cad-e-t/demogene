@@ -164,7 +164,7 @@ app.post('/generate-segments', async (req, res) => {
         // 0. Pre-check Balance
         const userCredits = await getCredits(userId);
         if (userCredits < MIN_BALANCE) {
-            return res.status(402).json({ error: "Credits is to low to make this request." });
+            return res.status(402).json({ error: "Insufficient credits for this request." });
         }
 
         // 1. Create Project
