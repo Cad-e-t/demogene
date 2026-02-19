@@ -51,7 +51,7 @@ const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
 const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
-const MIN_BALANCE = 10; // Minimum credits required to start
+const MIN_BALANCE = 5; // Minimum credits required to start
 
 // --- Helper: Credits ---
 async function getCredits(userId) {
@@ -164,7 +164,7 @@ app.post('/generate-segments', async (req, res) => {
         // 0. Pre-check Balance
         const userCredits = await getCredits(userId);
         if (userCredits < MIN_BALANCE) {
-            return res.status(402).json({ error: "Insufficient credits. Minimum 10 credits required." });
+            return res.status(402).json({ error: "Credits is to low to make this request." });
         }
 
         // 1. Create Project
@@ -196,7 +196,7 @@ app.post('/generate-segments', async (req, res) => {
         const currentBalance = await getCredits(userId);
         if (currentBalance < totalCost) {
             // Delete the draft project to keep it clean? Or leave it. Leaving it is fine.
-            return res.status(402).json({ error: `Insufficient credits. Need ${totalCost} credits for ${segmentsData.length} images.` });
+            return res.status(402).json({ error: `Insufficient credits for this request. Need ${totalCost} credits.` });
         }
 
         await chargeUser(userId, totalCost, `Image Gen Batch (${pictureQuality}) - ${segmentsData.length} images`);
@@ -261,7 +261,7 @@ app.post('/regenerate-image', async (req, res) => {
         const balance = await getCredits(userId);
         
         if (balance < cost) {
-            return res.status(402).json({ error: `Insufficient credits. Need ${cost} credits.` });
+            return res.status(402).json({ error: `Insufficient credits for this request. Need ${cost} credits.` });
         }
 
         await chargeUser(userId, cost, `Image Regeneration (${quality})`);
@@ -329,7 +329,7 @@ app.post('/edit-image', async (req, res) => {
         const cost = COST_IMAGE_EDIT;
         const balance = await getCredits(userId);
         if (balance < cost) {
-            return res.status(402).json({ error: `Insufficient credits. Need ${cost} credits.` });
+            return res.status(402).json({ error: `Insufficient credits for this request. Need ${cost} credits.` });
         }
         
         await chargeUser(userId, cost, "Image Edit");
@@ -440,7 +440,7 @@ app.post('/generate-video', async (req, res) => {
     try {
         const userCredits = await getCredits(userId);
         if (userCredits < MIN_BALANCE) {
-            return res.status(402).json({ error: "Insufficient credits. Minimum 10 credits required." });
+            return res.status(402).json({ error: "Credits below the required minimum (5 credits)." });
         }
     } catch(e) {
         console.error(e);

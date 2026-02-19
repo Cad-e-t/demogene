@@ -44,6 +44,9 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     // Data
     const [project, setProject] = useState<any>(null);
     const [segments, setSegments] = useState<any[]>([]);
+    
+    // Notification State
+    const [notification, setNotification] = useState<{ message: string, type: 'error' | 'success' } | null>(null);
 
     // 0. Init & Credit Check & Typewriter Effect
     useEffect(() => {
@@ -252,9 +255,10 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             });
             setSegments(res.segments);
             // We transition immediately to editor even if images are null
-        } catch (e) {
+        } catch (e: any) {
             console.error("[ContentDashboard] Generation failed", e);
-            alert("Generation failed");
+            setNotification({ message: e.message || "Generation failed", type: 'error' });
+            setTimeout(() => setNotification(null), 5000);
         } finally {
             setLoading(false);
         }
@@ -761,6 +765,22 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     background-color: #94a3b8;
                 }
             `}</style>
+            
+            {/* Notification Toast */}
+            {notification && (
+                <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in-down ${notification.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+                    {notification.type === 'error' ? (
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    ) : (
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    )}
+                    <span className="font-bold text-sm tracking-wide">{notification.message}</span>
+                    <button onClick={() => setNotification(null)} className="ml-2 hover:bg-white/20 rounded-full p-1 transition-colors">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            )}
+
             {/* Render Content */}
             {renderContent()}
         </div>

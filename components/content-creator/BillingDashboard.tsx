@@ -63,7 +63,7 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                 <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
                     <div>
                         <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-2">Current Balance</h2>
-                        <div className="text-5xl font-black text-blue-600">
+                        <div className={`text-5xl font-black ${credits < 0 ? 'text-red-600' : 'text-blue-600'}`}>
                             {loading ? '...' : credits.toLocaleString()} <span className="text-xl text-slate-300 font-bold">Credits</span>
                         </div>
                     </div>
