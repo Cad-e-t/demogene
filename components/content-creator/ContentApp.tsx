@@ -113,7 +113,8 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
 
     const handleLogout = async () => {
         await (supabase.auth as any).signOut();
-        window.location.href = 'https://creator.productcam.site';
+        setSession(null);
+        window.location.href = '/';
     };
     
     const handleOpenProject = (project: ContentProject, segments: ContentSegment[]) => {

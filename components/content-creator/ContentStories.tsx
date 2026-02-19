@@ -83,17 +83,31 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                                 <p className="text-xs text-slate-400 font-bold">{new Date(s.created_at).toLocaleDateString()}</p>
                                 <div className="flex gap-2">
                                     {s.status === 'completed' && (
-                                        <a 
-                                            href={s.video_url} 
-                                            download={`story-${s.id}.mp4`}
+                                        <button 
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                try {
+                                                    const response = await fetch(s.video_url);
+                                                    const blob = await response.blob();
+                                                    const url = window.URL.createObjectURL(blob);
+                                                    const a = document.createElement('a');
+                                                    a.style.display = 'none';
+                                                    a.href = url;
+                                                    a.download = `story-${s.id}.mp4`;
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    window.URL.revokeObjectURL(url);
+                                                    document.body.removeChild(a);
+                                                } catch (err) {
+                                                    console.error('Download failed:', err);
+                                                    window.open(s.video_url, '_blank');
+                                                }
+                                            }}
                                             className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors"
                                             title="Download Video"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={(e) => e.stopPropagation()}
                                         >
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                        </a>
+                                        </button>
                                     )}
                                     <button 
                                         onClick={(e) => handleDelete(e, s.id)}

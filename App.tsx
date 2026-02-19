@@ -251,9 +251,10 @@ export default function App() {
 
   const handleLogout = async () => {
       await (supabase.auth as any).signOut();
-      navigateTo('/');
-      setVideos([]);
+      setSession(null);
       setProfile(null);
+      setVideos([]);
+      window.location.href = '/';
   };
 
   // --- Video Logic ---
