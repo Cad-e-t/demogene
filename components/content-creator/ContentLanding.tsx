@@ -148,7 +148,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Trusted by Creators</span>
                             <div className="flex items-center -space-x-3">
                                 {[
-                                    "https://i.pravatar.cc/100?img=33",
+                                    "https://i.pravatar.cc/100?img=20",
                                     "https://i.pravatar.cc/100?img=47",
                                     "https://i.pravatar.cc/100?img=12",
                                     "https://i.pravatar.cc/100?img=5"
