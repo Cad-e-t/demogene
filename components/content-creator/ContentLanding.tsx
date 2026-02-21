@@ -118,8 +118,11 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
         <div className="relative w-full min-h-screen bg-black text-white overflow-x-hidden flex flex-col font-sans">
             
             {/* Background Gradients */}
-            {/* Base Blue Gradient - Lighter side (top-left) noticeably brighter */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-black to-black z-0 pointer-events-none fixed"></div>
+            {/* Balanced Radial Gradient - Center focused */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,_#1e3a8a_0%,_#000000_70%)] z-0 pointer-events-none fixed opacity-40"></div>
+            
+            {/* Vignette Overlay - Darkens edges evenly */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_20%,_#000000_100%)] z-0 pointer-events-none fixed"></div>
             
             {/* Decorative Blobs */}
             <div className="absolute top-0 left-1/4 -translate-x-1/2 w-[800px] h-[600px] bg-blue-500/20 rounded-full blur-[120px] pointer-events-none"></div>
