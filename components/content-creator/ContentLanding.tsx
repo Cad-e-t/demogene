@@ -246,6 +246,9 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                 </div>
             </div>
 
+            {/* Smooth Transition Gradient */}
+            <div className="relative z-10 w-full h-40 -mb-1 bg-gradient-to-b from-transparent to-black pointer-events-none"></div>
+
             {/* --- SECTION 2: DEMO VIDEO (Below Fold) --- */}
             <div className="relative z-10 w-full px-6 md:px-12 py-24 bg-black text-center border-t border-white/5">
                  <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-16 text-white whitespace-nowrap">
