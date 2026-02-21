@@ -21,10 +21,10 @@ const ChannelCard = ({ channel }: { channel: typeof channels[0] }) => {
             href={channel.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-none w-[320px] md:w-[380px] bg-zinc-900/50 backdrop-blur-sm rounded-3xl p-6 border border-white/10 hover:border-white/30 hover:bg-zinc-800/80 transition-all duration-300 group snap-center hover:-translate-y-2 shadow-xl flex flex-col"
+            className="flex-none w-[360px] md:w-[420px] h-[500px] bg-zinc-900/50 backdrop-blur-sm rounded-3xl p-6 border border-white/10 hover:border-white/30 hover:bg-zinc-800/80 transition-all duration-300 group snap-center hover:-translate-y-2 shadow-xl flex flex-col"
         >
             {/* Thumbnail Area */}
-            <div className="w-full aspect-video rounded-2xl overflow-hidden mb-6 relative bg-black border border-white/5">
+            <div className="w-full h-56 rounded-2xl overflow-hidden mb-6 relative bg-black border border-white/5 shrink-0">
                 {channel.thumbnails?.map((thumb, idx) => (
                     <img 
                         key={idx}
@@ -46,30 +46,30 @@ const ChannelCard = ({ channel }: { channel: typeof channels[0] }) => {
             </div>
 
             {/* Channel Info */}
-            <div className="flex items-center gap-4">
-                <div className="relative">
+            <div className="flex items-center gap-4 mb-auto">
+                <div className="relative shrink-0">
                     <div className="p-0.5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
                         <img 
                             src={channel.profilePic} 
                             alt={channel.name} 
-                            className="w-12 h-12 rounded-full object-cover border-2 border-black"
+                            className="w-14 h-14 rounded-full object-cover border-2 border-black"
                         />
                     </div>
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-black uppercase tracking-tight truncate group-hover:text-blue-400 transition-colors">
+                    <h3 className="text-xl font-black uppercase tracking-tight truncate group-hover:text-blue-400 transition-colors">
                         {channel.name}
                     </h3>
-                    <p className="text-xs text-zinc-400 font-mono truncate">{channel.handle}</p>
+                    <p className="text-sm text-zinc-400 font-mono truncate">{channel.handle}</p>
                 </div>
             </div>
             
-            <div className="mt-4 flex justify-between items-center border-t border-white/5 pt-4">
-                <div className="px-3 py-1 bg-black/50 rounded-full text-[10px] font-bold uppercase tracking-widest text-zinc-300 border border-white/5">
+            <div className="mt-6 flex justify-between items-center border-t border-white/5 pt-6">
+                <div className="px-4 py-1.5 bg-black/50 rounded-full text-xs font-bold uppercase tracking-widest text-zinc-300 border border-white/5">
                     {channel.subs}
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 group-hover:translate-x-1 transition-transform">
+                <span className="text-xs font-bold uppercase tracking-widest text-blue-400 group-hover:translate-x-1 transition-transform">
                     View Channel →
                 </span>
             </div>
@@ -173,27 +173,27 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             )}
 
             {/* --- HERO --- */}
-            <div className="min-h-[85vh] flex flex-col items-center justify-center relative z-10 px-6 pt-20 pb-12 w-full max-w-7xl mx-auto">
+            <div className="min-h-screen flex flex-col items-center justify-center relative z-10 px-6 pt-40 pb-24 w-full max-w-7xl mx-auto">
                 
                 <div className="text-center max-w-5xl mx-auto flex flex-col items-center">
                     
                     {/* Headline */}
-                    <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-6 leading-[0.9] md:leading-[0.85]">
+                    <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter mb-8 leading-[1.1] md:leading-tight">
                         Your AI Content Team <br className="hidden md:block" /> On Autopilot
                     </h1>
 
                     {/* Subtitle */}
-                    <p className="text-lg md:text-2xl text-gray-400 font-medium max-w-2xl leading-relaxed mb-10">
+                    <p className="text-lg md:text-xl text-gray-400 font-medium max-w-2xl leading-relaxed mb-12">
                         Create viral videos for YouTube, TikTok, and Instagram automatically. Grow your reach daily while you build so you have an audience before you need one.
                     </p>
 
-                    {/* Primary CTA - Updated to slightly deeper blue */}
+                    {/* Primary CTA */}
                     <button 
                         onClick={onLogin}
-                        className="group relative px-12 py-6 bg-blue-600 text-white rounded-full font-black text-xl md:text-2xl uppercase tracking-widest hover:scale-105 hover:bg-blue-500 transition-all duration-300 shadow-[0_0_60px_-10px_rgba(37,99,235,0.5)] mb-12"
+                        className="group relative px-10 py-5 bg-blue-600 text-white rounded-full font-black text-lg md:text-xl uppercase tracking-widest hover:scale-105 hover:bg-blue-500 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(37,99,235,0.4)] mb-16"
                     >
                         <span className="relative z-10">Start Creating</span>
-                        <div className="absolute inset-0 rounded-full bg-blue-600 blur-xl opacity-60 group-hover:opacity-90 transition-opacity"></div>
+                        <div className="absolute inset-0 rounded-full bg-blue-600 blur-lg opacity-60 group-hover:opacity-90 transition-opacity"></div>
                     </button>
 
                     {/* Footer Info Container (Platforms + Social Proof) */}
@@ -247,8 +247,8 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             </div>
 
             {/* --- SECTION 2: DEMO VIDEO (Below Fold) --- */}
-            <div className="relative z-10 w-full px-6 md:px-12 py-24 bg-transparent text-center">
-                 <h2 className="text-2xl md:text-3xl font-black uppercase tracking-[0.2em] mb-12 text-white/80 whitespace-nowrap">
+            <div className="relative z-10 w-full px-6 md:px-12 py-24 bg-black text-center border-t border-white/5">
+                 <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-16 text-white whitespace-nowrap">
                         SEE IT IN ACTION
                 </h2>
                 <div className="w-full rounded-[32px] md:rounded-[48px] overflow-hidden shadow-2xl border-4 border-white/10 relative group">
