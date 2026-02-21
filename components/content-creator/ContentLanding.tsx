@@ -118,15 +118,15 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
         <div className="relative w-full min-h-screen bg-black text-white overflow-x-hidden flex flex-col font-sans">
             
             {/* Background Gradients */}
-            {/* Balanced Radial Gradient - Center focused */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,_#1e3a8a_0%,_#000000_70%)] z-0 pointer-events-none fixed opacity-40"></div>
+            {/* Balanced Radial Gradient - Center focused - Dark/Black theme */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,_#1a1a1a_0%,_#000000_70%)] z-0 pointer-events-none fixed opacity-60"></div>
             
             {/* Vignette Overlay - Darkens edges evenly */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_20%,_#000000_100%)] z-0 pointer-events-none fixed"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_10%,_#000000_100%)] z-0 pointer-events-none fixed"></div>
             
-            {/* Decorative Blobs */}
-            <div className="absolute top-0 left-1/4 -translate-x-1/2 w-[800px] h-[600px] bg-blue-500/20 rounded-full blur-[120px] pointer-events-none"></div>
-            <div className="absolute bottom-0 right-0 w-[600px] h-[500px] bg-sky-600/10 rounded-full blur-[100px] pointer-events-none"></div>
+            {/* Decorative Blobs - Subtle white/gray glow instead of blue */}
+            <div className="absolute top-0 left-1/4 -translate-x-1/2 w-[800px] h-[600px] bg-white/5 rounded-full blur-[120px] pointer-events-none"></div>
+            <div className="absolute bottom-0 right-0 w-[600px] h-[500px] bg-zinc-800/10 rounded-full blur-[100px] pointer-events-none"></div>
 
             {/* --- CANVAS HEADER --- */}
             {/* Removed max-w-7xl mx-auto, increased padding to edges */}
@@ -333,6 +333,39 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* --- SECTION 5: FINAL CTA --- */}
+            <div className="relative z-10 w-full px-6 md:px-12 py-24 bg-black text-center border-t border-white/5">
+                <div className="w-full rounded-[32px] md:rounded-[48px] overflow-hidden shadow-2xl border-4 border-white/10 relative group min-h-[600px] flex items-center justify-center">
+                    {/* Background Image */}
+                    <img 
+                        src="https://picsum.photos/seed/creator_system/1920/1080?grayscale" 
+                        alt="Creator System" 
+                        className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-1000"
+                        referrerPolicy="no-referrer"
+                    />
+                    
+                    {/* Overlay Gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/40"></div>
+
+                    {/* Content */}
+                    <div className="relative z-10 max-w-5xl mx-auto px-6 flex flex-col items-center">
+                        <h2 className="text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter mb-12 text-white leading-[1.1]">
+                            Serious creators don’t rely on motivation.
+                            <br className="hidden md:block" />
+                            <span className="text-gray-400 block mt-2">They rely on systems.</span>
+                        </h2>
+                        
+                        <button 
+                            onClick={onLogin}
+                            className="group relative px-12 py-6 bg-blue-600 text-white rounded-full font-black text-xl md:text-2xl uppercase tracking-widest hover:scale-105 hover:bg-blue-500 transition-all duration-300 shadow-[0_0_60px_-10px_rgba(37,99,235,0.5)]"
+                        >
+                            <span className="relative z-10">Start Creating</span>
+                            <div className="absolute inset-0 rounded-full bg-blue-600 blur-xl opacity-60 group-hover:opacity-90 transition-opacity"></div>
+                        </button>
                     </div>
                 </div>
             </div>
