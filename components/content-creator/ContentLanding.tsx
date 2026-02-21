@@ -1,6 +1,81 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreatorPricingCards } from './CreatorPricingCards';
+import { channels } from './creator-assets';
+
+const ChannelCard = ({ channel }: { channel: typeof channels[0] }) => {
+    const [currentThumbnailIndex, setCurrentThumbnailIndex] = useState(0);
+
+    useEffect(() => {
+        if (!channel.thumbnails || channel.thumbnails.length === 0) return;
+        
+        const interval = setInterval(() => {
+            setCurrentThumbnailIndex((prev) => (prev + 1) % channel.thumbnails!.length);
+        }, 2000);
+
+        return () => clearInterval(interval);
+    }, [channel.thumbnails]);
+
+    return (
+        <a 
+            href={channel.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-none w-[320px] md:w-[380px] bg-zinc-900/50 backdrop-blur-sm rounded-3xl p-6 border border-white/10 hover:border-white/30 hover:bg-zinc-800/80 transition-all duration-300 group snap-center hover:-translate-y-2 shadow-xl flex flex-col"
+        >
+            {/* Thumbnail Area */}
+            <div className="w-full aspect-video rounded-2xl overflow-hidden mb-6 relative bg-black border border-white/5">
+                {channel.thumbnails?.map((thumb, idx) => (
+                    <img 
+                        key={idx}
+                        src={thumb}
+                        alt={`${channel.name} thumbnail ${idx + 1}`}
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+                            idx === currentThumbnailIndex ? 'opacity-100' : 'opacity-0'
+                        }`}
+                    />
+                ))}
+                
+                {/* Overlay Gradient */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+                
+                {/* YouTube Icon Badge */}
+                <div className="absolute bottom-3 right-3 bg-red-600 text-white p-1.5 rounded-lg shadow-lg">
+                    <YouTubeIcon className="w-4 h-4" />
+                </div>
+            </div>
+
+            {/* Channel Info */}
+            <div className="flex items-center gap-4">
+                <div className="relative">
+                    <div className="p-0.5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
+                        <img 
+                            src={channel.profilePic} 
+                            alt={channel.name} 
+                            className="w-12 h-12 rounded-full object-cover border-2 border-black"
+                        />
+                    </div>
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-black uppercase tracking-tight truncate group-hover:text-blue-400 transition-colors">
+                        {channel.name}
+                    </h3>
+                    <p className="text-xs text-zinc-400 font-mono truncate">{channel.handle}</p>
+                </div>
+            </div>
+            
+            <div className="mt-4 flex justify-between items-center border-t border-white/5 pt-4">
+                <div className="px-3 py-1 bg-black/50 rounded-full text-[10px] font-bold uppercase tracking-widest text-zinc-300 border border-white/5">
+                    {channel.subs}
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 group-hover:translate-x-1 transition-transform">
+                    View Channel →
+                </span>
+            </div>
+        </a>
+    );
+};
 
 const YouTubeIcon = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -55,7 +130,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             <header className="absolute top-0 left-0 right-0 z-50 w-full px-6 pt-8 md:px-12 flex items-center justify-between">
                 {/* Top Left: App Name */}
                 <div className="flex items-center gap-2 cursor-pointer z-10" onClick={() => window.location.href = '/'}>
-                    <span className="font-black text-lg tracking-tighter uppercase text-white">ProductCam Creator</span>
+                    <span className="font-black text-lg tracking-tighter uppercase text-white">ProductCam</span>
                 </div>
 
                 {/* Top Center: Nav Links (Desktop) */}
@@ -183,6 +258,24 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                         className="w-full h-auto block bg-black"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
+                </div>
+            </div>
+
+            {/* --- SECTION 2.5: CHANNEL GALLERY --- */}
+            <div className="relative z-10 w-full bg-black text-white py-32 overflow-hidden border-t border-white/5">
+                <div className="max-w-7xl mx-auto px-6 md:px-12 mb-16 text-center">
+                    <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-4 leading-tight">
+                        Create Videos Identical <br className="hidden md:block" /> To These Channels
+                    </h2>
+                </div>
+                
+                {/* Horizontal Scroll Container */}
+                <div className="w-full overflow-x-auto pb-12 px-6 md:px-12 scrollbar-hide">
+                    <div className="flex gap-6 md:gap-8 w-max mx-auto">
+                        {channels.map((channel, idx) => (
+                            <ChannelCard key={idx} channel={channel} />
+                        ))}
+                    </div>
                 </div>
             </div>
 
