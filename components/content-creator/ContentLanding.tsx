@@ -173,31 +173,31 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             )}
 
             {/* --- HERO --- */}
-            <div className="min-h-screen flex flex-col items-center justify-center relative z-10 px-6 pt-32 pb-12 w-full max-w-7xl mx-auto">
+            <div className="min-h-[85vh] flex flex-col items-center justify-center relative z-10 px-6 pt-20 pb-12 w-full max-w-7xl mx-auto">
                 
-                <div className="text-center max-w-4xl mx-auto flex flex-col items-center">
+                <div className="text-center max-w-5xl mx-auto flex flex-col items-center">
                     
                     {/* Headline */}
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-8 leading-tight md:leading-tight">
+                    <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-6 leading-[0.9] md:leading-[0.85]">
                         Your AI Content Team <br className="hidden md:block" /> On Autopilot
                     </h1>
 
                     {/* Subtitle */}
-                    <p className="text-lg md:text-2xl text-gray-400 font-medium max-w-2xl leading-relaxed mb-12">
+                    <p className="text-lg md:text-2xl text-gray-400 font-medium max-w-2xl leading-relaxed mb-10">
                         Create viral videos for YouTube, TikTok, and Instagram automatically. Grow your reach daily while you build so you have an audience before you need one.
                     </p>
 
                     {/* Primary CTA - Updated to slightly deeper blue */}
                     <button 
                         onClick={onLogin}
-                        className="group relative px-10 py-5 bg-blue-600 text-white rounded-full font-black text-lg md:text-xl uppercase tracking-widest hover:scale-105 hover:bg-blue-500 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(37,99,235,0.4)] mb-16"
+                        className="group relative px-12 py-6 bg-blue-600 text-white rounded-full font-black text-xl md:text-2xl uppercase tracking-widest hover:scale-105 hover:bg-blue-500 transition-all duration-300 shadow-[0_0_60px_-10px_rgba(37,99,235,0.5)] mb-12"
                     >
                         <span className="relative z-10">Start Creating</span>
-                        <div className="absolute inset-0 rounded-full bg-blue-600 blur-lg opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                        <div className="absolute inset-0 rounded-full bg-blue-600 blur-xl opacity-60 group-hover:opacity-90 transition-opacity"></div>
                     </button>
 
                     {/* Footer Info Container (Platforms + Social Proof) */}
-                    <div className="w-full flex flex-col md:flex-row items-center justify-center gap-12 md:gap-24">
+                    <div className="w-full flex flex-col md:flex-row items-center justify-center gap-10 md:gap-20">
                         
                         {/* Supported Platforms - Colored Icons */}
                         <div className="flex flex-col items-center">
@@ -247,7 +247,10 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             </div>
 
             {/* --- SECTION 2: DEMO VIDEO (Below Fold) --- */}
-            <div className="relative z-10 w-full px-6 md:px-12 py-24 bg-transparent">
+            <div className="relative z-10 w-full px-6 md:px-12 py-24 bg-transparent text-center">
+                 <h2 className="text-2xl md:text-3xl font-black uppercase tracking-[0.2em] mb-12 text-white/80 whitespace-nowrap">
+                        SEE IT IN ACTION
+                </h2>
                 <div className="w-full rounded-[32px] md:rounded-[48px] overflow-hidden shadow-2xl border-4 border-white/10 relative group">
                     <video 
                         src="https://assets.productcam.site/outputs/881d7f2a-8379-488d-ad86-04acd51a8421.mp4" 
@@ -265,7 +268,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             <div className="relative z-10 w-full bg-black text-white py-32 overflow-hidden border-t border-white/5">
                 <div className="max-w-7xl mx-auto px-6 md:px-12 mb-16 text-center">
                     <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-4 leading-tight">
-                        Create Videos Identical <br className="hidden md:block" /> To These Channels
+                        Create Videos Identical To These Channels
                     </h2>
                 </div>
                 
@@ -280,12 +283,12 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             </div>
 
             {/* --- SECTION 3: PRICING --- */}
-            <div id="pricing" className="relative z-10 w-full bg-white text-gray-900 py-32 px-6 md:px-12 scroll-mt-20">
+            <div id="pricing" className="relative z-10 w-full bg-black text-white py-32 px-6 md:px-12 scroll-mt-20 border-t border-white/5">
                 <div className="flex flex-col items-center text-center mb-16">
-                    <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-6 text-slate-900">
-                        Start Your Studio
+                    <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-6 text-white">
+                        SIMPLE AND TRANSPARENT PRICING
                     </h2>
-                    <p className="text-xl font-medium text-slate-500 max-w-2xl">
+                    <p className="text-xl font-medium text-gray-400 max-w-2xl">
                         Simple credit packs. No subscriptions. Pay only when you create.
                     </p>
                 </div>
@@ -297,28 +300,28 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             </div>
 
             {/* --- SECTION 4: FAQ --- */}
-            <div className="relative z-10 w-full bg-slate-50 text-gray-900 py-32 px-6 md:px-12 border-t border-slate-200">
+            <div className="relative z-10 w-full bg-black text-white py-32 px-6 md:px-12 border-t border-white/5">
                 <div className="max-w-4xl mx-auto">
                     <div className="text-center mb-20">
-                        <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-4 text-slate-900">
+                        <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-4 text-white">
                             Common Questions
                         </h2>
                     </div>
 
                     <div className="space-y-4">
                         {FAQS.map((item, i) => (
-                            <div key={i} className="bg-white rounded-2xl border border-slate-200 overflow-hidden transition-all hover:shadow-lg">
+                            <div key={i} className="bg-zinc-900/50 rounded-2xl border border-white/10 overflow-hidden transition-all hover:bg-zinc-900">
                                 <button 
                                     onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)}
                                     className="w-full flex items-center justify-between p-6 text-left"
                                 >
-                                    <span className="font-bold text-lg text-slate-900">{item.q}</span>
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 transition-transform ${openFaqIndex === i ? 'rotate-180 bg-blue-100 text-blue-600' : 'text-slate-400'}`}>
+                                    <span className="font-bold text-lg text-white">{item.q}</span>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform ${openFaqIndex === i ? 'rotate-180 bg-blue-600 text-white' : 'bg-white/10 text-gray-400'}`}>
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                                     </div>
                                 </button>
                                 <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openFaqIndex === i ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                    <div className="p-6 pt-0 text-slate-500 font-medium leading-relaxed">
+                                    <div className="p-6 pt-0 text-gray-400 font-medium leading-relaxed">
                                         {item.a}
                                     </div>
                                 </div>
@@ -329,8 +332,8 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             </div>
 
             {/* Footer */}
-            <div className="relative z-10 w-full bg-white border-t border-slate-200 py-12 px-6 md:px-12 text-center">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            <div className="relative z-10 w-full bg-black border-t border-white/10 py-12 px-6 md:px-12 text-center">
+                <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest">
                     ProductCam Creator © 2025
                 </p>
             </div>
