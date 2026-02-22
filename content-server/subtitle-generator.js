@@ -8,13 +8,14 @@ const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
 const client = new AssemblyAI({ apiKey: ASSEMBLYAI_API_KEY });
 
 
+
 // --- Configuration ---
 
 // 1. Placement (Margins from bottom)
 const PLACEMENT = {
     // 9:16 (1920h) -> Center is 960. 
     // 650 from bottom puts it at y=1270 (approx lower third).
-    VERTICAL_9_16_MARGIN: 650, 
+    VERTICAL_9_16_MARGIN: 590, 
     // 16:9 (1080h) -> Center is 540.
     // 150 from bottom puts it at y=930.
     HORIZONTAL_16_9_MARGIN: 150, 
@@ -25,19 +26,20 @@ const PRESETS = {
     // Bold Social (Viral / Short-Form)
     // High contrast, yellow highlight, pop-in
     pulse_bold: { 
-        font: "Arial",
-        fontSize: 105,
+        font: "Edu SA Beginner",
+        fontSize: 180,
         primaryColor: "&H0000FFFF", // Active: Yellow (BGR)
         secondaryColor: "&H00FFFFFF", // Inactive: White
         outlineColor: "&H00000000", // Black outline
         backColor: "&H80000000", // Semi-transparent shadow
         bold: -1, // True
+        spacing: 2,
         borderStyle: 1, // Outline
         outline: 4,
         shadow: 2,
         alignment: 2, // Bottom Center
-        maxWords: 3,
-        threshold: 70, // Strict grouping
+        maxWords: 2,
+        threshold: 160, // Strict grouping
         animationType: 'karaoke_block' // Block highlight
     },
     // Clean Pro (Long-Form / Professional)
@@ -61,19 +63,20 @@ const PRESETS = {
     // Karaoke / Fun (Entertainment)
     // Colored, bouncy, interactive
     impact_pop: { 
-        font: "Fredoka One",
-        fontSize: 110,
-        primaryColor: "&H00FF8000", // Active: Light Blue/Cyan (BGR)
+        font: "Edu SA Beginner",
+        fontSize: 180,
+        primaryColor: "&H0000FFFF", // 
         secondaryColor: "&H00FFFFFF", // Inactive: White
         outlineColor: "&H00000000",
         backColor: "&H00000000",
         bold: -1,
+        spacing: 2,
         borderStyle: 1,
         outline: 5,
         shadow: 0,
         alignment: 2,
-        maxWords: 3,
-        threshold: 150,
+        maxWords: 1,
+        threshold: 90,
         animationType: 'karaoke_bounce' // Highlight + Bounce
     }
 };
@@ -110,7 +113,7 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${p.font},${p.fontSize},${p.primaryColor},${p.secondaryColor},${p.outlineColor},${p.backColor},${p.bold},0,0,0,100,100,0,0,${p.borderStyle},${p.outline},${p.shadow},${p.alignment},20,20,${marginV},1
+Style: Default,${p.font},${p.fontSize},${p.primaryColor},${p.secondaryColor},${p.outlineColor},${p.backColor},${p.bold},0,0,0,100,100,${p.spacing},0,${p.borderStyle},${p.outline},${p.shadow},${p.alignment},20,20,${marginV},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
