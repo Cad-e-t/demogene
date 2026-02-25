@@ -15,7 +15,7 @@ const client = new AssemblyAI({ apiKey: ASSEMBLYAI_API_KEY });
 const PLACEMENT = {
     // 9:16 (1920h) -> Center is 960. 
     // 650 from bottom puts it at y=1270 (approx lower third).
-    VERTICAL_9_16_MARGIN: 590, 
+    VERTICAL_9_16_MARGIN: 650, 
     // 16:9 (1080h) -> Center is 540.
     // 150 from bottom puts it at y=930.
     HORIZONTAL_16_9_MARGIN: 150, 
@@ -78,6 +78,25 @@ const PRESETS = {
         maxWords: 1,
         threshold: 90,
         animationType: 'karaoke_bounce' // Highlight + Bounce
+    },
+    // Comic / Action (High Energy)
+    // White text, black outline, punchy
+    comic_burst: {
+        font: "Komika Axis",
+        fontSize: 95,
+        primaryColor: "&H00FFFFFF", // White
+        secondaryColor: "&H00FFFFFF", // White (Inactive)
+        outlineColor: "&H00000000", // Black
+        backColor: "&H00000000",
+        bold: 0, // Komika Axis is already bold
+        spacing: 2,
+        borderStyle: 1,
+        outline: 5, // Thick outline
+        shadow: 0,
+        alignment: 2,
+        maxWords: 2,
+        threshold: 90,
+        animationType: 'karaoke_bounce'
     }
 };
 

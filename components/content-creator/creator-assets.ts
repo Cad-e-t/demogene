@@ -16,7 +16,8 @@ export const SUBTITLE_PREVIEWS: Record<string, string> = {
     "none": "https://placehold.co/600x338/111/FFF?text=No+Subtitles",
     "pulse_bold": "https://placehold.co/600x338/111/FFF?text=Pulse+Bold",
     "glow_focus": "https://placehold.co/600x338/111/FFF?text=Glow+Focus",
-    "impact_pop": "https://placehold.co/600x338/111/FFF?text=Impact+Pop"
+    "impact_pop": "https://placehold.co/600x338/111/FFF?text=Impact+Pop",
+    "comic_burst": "https://placehold.co/600x338/111/FFF?text=Comic+Burst"
 };
 
 export const channels = [

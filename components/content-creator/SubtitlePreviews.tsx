@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export const SubtitlePreview = ({ id }: { id: string }) => {
@@ -20,6 +19,7 @@ export const SubtitlePreview = ({ id }: { id: string }) => {
         <div className="relative z-10 w-full h-full flex items-end justify-center pb-3">
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Edu+SA+Beginner:wght@400;700&family=Inter:wght@600&display=swap');
+                @import url('https://fonts.cdnfonts.com/css/komika-axis');
                 
                 /* Pulse Bold - Karaoke Block */
                 .sub-pulse-bold {
@@ -60,6 +60,19 @@ export const SubtitlePreview = ({ id }: { id: string }) => {
                     0%, 100% { transform: translateY(0); }
                     50% { transform: translateY(-3px) scale(1.1); }
                 }
+
+                /* Comic Burst - Action */
+                .sub-comic-burst {
+                    font-family: 'Komika Axis', sans-serif;
+                    color: white;
+                    -webkit-text-stroke: 2px black;
+                    text-shadow: 3px 3px 0px #000;
+                    animation: comicBurst 0.6s infinite alternate;
+                }
+                @keyframes comicBurst {
+                    0% { transform: scale(1) rotate(-2deg); }
+                    100% { transform: scale(1.1) rotate(2deg); }
+                }
             `}</style>
 
             {id === 'pulse_bold' && (
@@ -77,6 +90,12 @@ export const SubtitlePreview = ({ id }: { id: string }) => {
             {id === 'impact_pop' && (
                 <div className="sub-impact-pop text-2xl text-center leading-none">
                     POW!
+                </div>
+            )}
+
+            {id === 'comic_burst' && (
+                <div className="sub-comic-burst text-2xl text-center leading-none uppercase tracking-wider">
+                    BOOM!
                 </div>
             )}
         </div>

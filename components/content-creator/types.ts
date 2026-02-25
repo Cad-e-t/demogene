@@ -66,7 +66,8 @@ export const SUBTITLE_PRESETS = [
     { id: 'none', name: 'None', description: 'No subtitles' },
     { id: 'pulse_bold', name: 'Pulse Bold', description: 'High retention, TikTok style' },
     { id: 'glow_focus', name: 'Glow Focus', description: 'Premium YouTube look' },
-    { id: 'impact_pop', name: 'Impact Pop', description: 'High energy shorts & reels' }
+    { id: 'impact_pop', name: 'Impact Pop', description: 'High energy shorts & reels' },
+    { id: 'comic_burst', name: 'Comic Burst', description: 'White text, black outline, punchy' }
 ];
 
 export const NARRATION_STYLES = [
