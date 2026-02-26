@@ -482,7 +482,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                      <button 
                         onClick={handleFinalize}
                         disabled={submitting || !allImagesReady}
-                        className="px-6 py-2 bg-blue-600 text-white font-bold rounded-full shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-xs uppercase tracking-widest"
+                        className="px-6 py-2 bg-yellow-600 text-black font-bold rounded-full shadow-lg shadow-yellow-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-xs uppercase tracking-widest"
                     >
                         {submitting ? 'Starting...' : 'Generate'}
                     </button>
@@ -490,7 +490,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 <button 
                     onClick={handleFinalize}
                     disabled={submitting || !allImagesReady}
-                    className="hidden md:block px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="hidden md:block px-6 py-2 bg-yellow-600 text-black font-bold rounded-lg hover:bg-yellow-500 shadow-lg shadow-yellow-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     title={!allImagesReady ? "Wait for all images to generate" : ""}
                 >
                     {submitting ? 'Starting...' : 'Generate Video'}
@@ -574,7 +574,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             <button 
                                 onClick={handleRegenerate}
                                 disabled={loadingImage}
-                                className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-lg"
+                                className="px-6 py-2 bg-yellow-600 text-black rounded-xl font-bold hover:bg-yellow-500 transition shadow-lg"
                             >
                                 {loadingImage ? 'Generating...' : 'Confirm'}
                             </button>
@@ -599,7 +599,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             <button 
                                 onClick={handleImageEdit}
                                 disabled={loadingImage}
-                                className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-lg"
+                                className="px-6 py-2 bg-yellow-600 text-black rounded-xl font-bold hover:bg-yellow-500 transition shadow-lg"
                             >
                                 {loadingImage ? 'Editing...' : 'Apply Edit'}
                             </button>

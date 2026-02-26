@@ -733,7 +733,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 <button 
                                     onClick={handleGenerate}
                                     disabled={loading || !prompt.trim() || prompt.length > 6000}
-                                    className="px-8 py-3 bg-black text-white rounded-full font-black uppercase tracking-wider hover:bg-blue-700 transition disabled:opacity-50 shadow-lg shadow-blue-500/20 pointer-events-auto text-sm transform active:scale-95 duration-200"
+                                   className="px-8 py-3 bg-yellow-600 text-black rounded-full font-black uppercase tracking-wider hover:bg-yellow-500 transition disabled:opacity-50 shadow-lg shadow-yellow-500/20 pointer-events-auto text-sm transform active:scale-95 duration-200"
                                 >
                                     {loading ? 'Thinking...' : 'Generate'}
                                 </button>
