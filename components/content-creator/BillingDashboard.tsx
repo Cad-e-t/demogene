@@ -69,7 +69,7 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                     </div>
                     <button 
                         onClick={() => onViewChange('creator-pricing')}
-                        className="px-8 py-4 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 uppercase tracking-widest"
+                        className="px-8 py-4 bg-yellow-600 text-white font-black rounded-xl hover:bg-yellow-600 transition shadow-lg hadow-yellow-600/20 uppercase tracking-widest"
                     >
                         Add Credits
                     </button>
