@@ -17,9 +17,9 @@ interface PricingCardProps {
 }
 
 const PricingCard: React.FC<PricingCardProps> = ({ title, price, highlights, features, isPopular, buttonLabel, onAction, color }) => (
-    <div className={`relative flex flex-col p-8 bg-zinc-900 rounded-[32px] border transition-all duration-300 ${isPopular ? 'border-blue-500 shadow-2xl scale-105 z-10' : 'border-white/10 shadow-xl hover:shadow-2xl hover:-translate-y-1 hover:border-white/20'}`}>
+    <div className={`relative flex flex-col p-8 bg-zinc-900 rounded-[32px] border transition-all duration-300 ${isPopular ? 'border-yellow-500 shadow-2xl scale-105 z-10' : 'border-white/10 shadow-xl hover:shadow-2xl hover:-translate-y-1 hover:border-white/20'}`}>
         {isPopular && (
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-yellow-600 text-black px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
                 Most Popular
             </div>
         )}
@@ -34,7 +34,7 @@ const PricingCard: React.FC<PricingCardProps> = ({ title, price, highlights, fea
 
         <button 
             onClick={onAction}
-            className={`w-full py-4 mb-8 rounded-xl font-black uppercase tracking-widest text-sm transition-all shadow-lg active:scale-95 ${isPopular ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white text-black hover:bg-gray-200'}`}
+            className={`w-full py-4 mb-8 rounded-xl font-black uppercase tracking-widest text-sm transition-all shadow-lg active:scale-95 ${isPopular ? 'bg-yellow-600 text-black hover:bg-yellow-700' : 'bg-white text-black hover:bg-gray-200'}`}
         >
             {buttonLabel}
         </button>
@@ -95,7 +95,7 @@ export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onActi
                 title="Pro"
                 price="49"
                 isPopular
-                color="text-blue-500"
+                color="text-yellow-500"
                 highlights={
                     <>
                         <p className="font-black text-xl block mt-1 text-white">100 Short Videos / month
@@ -103,7 +103,7 @@ export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onActi
                         <p className="text-base text-gray-300 leading-tight font-bold">
                             + 30 Long Videos
                         </p>
-                        <p className="text-sm font-bold text-blue-400 pt-1">1800 Credits per Month</p>
+                        <p className="text-sm font-bold text-yellow-400 pt-1">1800 Credits per Month</p>
                     </>
                 }
                 features={[

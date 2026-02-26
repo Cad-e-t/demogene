@@ -103,7 +103,7 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                                 <img src={p.previewUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="Project Preview" />
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
-                                    <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+                                    <div className="w-8 h-8 border-4 border-yellow-200 border-t-yellow-500 rounded-full animate-spin"></div>
                                 </div>
                             )}
                             
@@ -112,7 +112,7 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                         </div>
 
                         <div className="p-5 relative">
-                            <h3 className="font-bold text-lg mb-1 truncate text-slate-900 group-hover:text-blue-600 transition-colors pr-8">{p.title}</h3>
+                            <h3 className="font-bold text-lg mb-1 truncate text-slate-900 group-hover:text-yellow-600 transition-colors pr-8">{p.title}</h3>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{new Date(p.created_at).toLocaleDateString()}</p>
                         </div>
                         

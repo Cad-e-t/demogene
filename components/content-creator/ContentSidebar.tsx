@@ -52,14 +52,14 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
                  {/* App Title (Desktop) */}
                  <div className="relative px-6 mb-10 hidden md:block">
                      <div className="flex items-center gap-2 w-full">
-                         <span className="font-black text-lg tracking-tighter text-blue-600 uppercase">Creator</span>
+                         <span className="font-black text-lg tracking-tighter text-yellow-600 uppercase">Creator</span>
                      </div>
                  </div>
                  
                  {/* App Title (Mobile) */}
                  <div className="px-6 mb-8 md:hidden flex items-center gap-2 relative">
                      <div className="flex items-center gap-2">
-                        <span className="font-black text-xl tracking-tighter text-blue-600 uppercase">Creator</span>
+                        <span className="font-black text-xl tracking-tighter text-yellow-600 uppercase">Creator</span>
                      </div>
                  </div>
                  
@@ -95,7 +95,7 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
                                 onError={() => setImageError(true)}
                              />
                          ) : (
-                             <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+                             <div className="w-9 h-9 rounded-full bg-yellow-600 text-black flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
                                  {initial}
                              </div>
                          )}
@@ -113,7 +113,7 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
 const NavButton = ({ icon, label, active, onClick }: any) => (
     <button 
         onClick={onClick}
-        className={`flex items-center gap-3 p-3 rounded-xl transition-all w-full ${active ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}
+        className={`flex items-center gap-3 p-3 rounded-xl transition-all w-full ${active ? 'bg-yellow-50 text-yellow-600' : 'text-slate-500 hover:bg-slate-50'}`}
     >
         <span className="text-xl md:text-lg">{icon === 'folder' ? '📂' : icon === 'play' ? '🎬' : icon}</span>
         <span className="font-bold text-sm">{label}</span>

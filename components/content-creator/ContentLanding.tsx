@@ -48,7 +48,7 @@ const ChannelCard = ({ channel }: { channel: typeof channels[0] }) => {
             {/* Channel Info */}
             <div className="flex items-center gap-4 mb-auto">
                 <div className="relative shrink-0">
-                    <div className="p-0.5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
+                    <div className="p-0.5 rounded-full bg-gradient-to-br from-yellow-500 to-orange-600">
                         <img 
                             src={channel.profilePic} 
                             alt={channel.name} 
@@ -58,7 +58,7 @@ const ChannelCard = ({ channel }: { channel: typeof channels[0] }) => {
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                    <h3 className="text-xl font-black uppercase tracking-tight truncate group-hover:text-blue-400 transition-colors">
+                    <h3 className="text-xl font-black uppercase tracking-tight truncate group-hover:text-yellow-400 transition-colors">
                         {channel.name}
                     </h3>
                     <p className="text-sm text-zinc-400 font-mono truncate">{channel.handle}</p>
@@ -69,7 +69,7 @@ const ChannelCard = ({ channel }: { channel: typeof channels[0] }) => {
                 <div className="px-4 py-1.5 bg-black/50 rounded-full text-xs font-bold uppercase tracking-widest text-zinc-300 border border-white/5">
                     {channel.subs}
                 </div>
-                <span className="text-xs font-bold uppercase tracking-widest text-blue-400 group-hover:translate-x-1 transition-transform">
+                <span className="text-xs font-bold uppercase tracking-widest text-yellow-400 group-hover:translate-x-1 transition-transform">
                     View Channel →
                 </span>
             </div>
@@ -133,7 +133,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             <header className="absolute top-0 left-0 right-0 z-50 w-full px-6 pt-8 md:px-12 flex items-center justify-between">
                 {/* Top Left: App Name */}
                 <div className="flex items-center gap-2 cursor-pointer z-10" onClick={() => window.location.href = '/'}>
-                    <span className="font-black text-lg tracking-tighter uppercase text-white">ProductCam</span>
+                    <span className="font-black text-lg tracking-tighter uppercase text-white">Crappik</span>
                 </div>
 
                 {/* Top Center: Nav Links (Desktop) */}
@@ -167,7 +167,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                 <div className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center gap-10 md:hidden animate-fade-in">
                     <a href="/" className="text-2xl font-black uppercase tracking-tighter text-white">Home</a>
                     <button onClick={scrollToPricing} className="text-2xl font-black uppercase tracking-tighter text-white">Pricing</button>
-                    <button onClick={onLogin} className="text-2xl font-black uppercase tracking-tighter text-sky-400">Get Started</button>
+                    <button onClick={onLogin} className="text-2xl font-black uppercase tracking-tighter text-yellow-400">Get Started</button>
                     
                     <button onClick={() => setIsMenuOpen(false)} className="absolute top-8 right-6 p-2 text-gray-500 hover:text-white transition-colors">
                         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -193,10 +193,10 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                     {/* Primary CTA */}
                     <button 
                         onClick={onLogin}
-                        className="group relative px-10 py-5 bg-blue-600 text-white rounded-full font-black text-lg md:text-xl uppercase tracking-widest hover:scale-105 hover:bg-blue-500 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(37,99,235,0.4)] mb-16"
+                        className="group relative px-10 py-5 bg-yellow-600 text-black rounded-full font-black text-lg md:text-xl uppercase tracking-widest hover:scale-105 hover:bg-yellow-500 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(234,179,8,0.4)] mb-16"
                     >
                         <span className="relative z-10">Start Creating</span>
-                        <div className="absolute inset-0 rounded-full bg-blue-600 blur-lg opacity-60 group-hover:opacity-90 transition-opacity"></div>
+                        <div className="absolute inset-0 rounded-full bg-yellow-600 blur-lg opacity-60 group-hover:opacity-90 transition-opacity"></div>
                     </button>
 
                     {/* Footer Info Container (Platforms + Social Proof) */}
@@ -322,7 +322,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                                     className="w-full flex items-center justify-between p-6 text-left"
                                 >
                                     <span className="font-bold text-lg text-white">{item.q}</span>
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform ${openFaqIndex === i ? 'rotate-180 bg-blue-600 text-white' : 'bg-white/10 text-gray-400'}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform ${openFaqIndex === i ? 'rotate-180 bg-yellow-600 text-black' : 'bg-white/10 text-gray-400'}`}>
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                                     </div>
                                 </button>
@@ -359,10 +359,10 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                         
                         <button 
                             onClick={onLogin}
-                            className="group relative px-12 py-6 bg-blue-600 text-white rounded-full font-black text-xl md:text-2xl uppercase tracking-widest hover:scale-105 hover:bg-blue-500 transition-all duration-300 shadow-[0_0_60px_-10px_rgba(37,99,235,0.5)]"
+                            className="group relative px-12 py-6 bg-yellow-600 text-black rounded-full font-black text-xl md:text-2xl uppercase tracking-widest hover:scale-105 hover:bg-yellow-500 transition-all duration-300 shadow-[0_0_60px_-10px_rgba(234,179,8,0.5)]"
                         >
                             <span className="relative z-10">Start Creating</span>
-                            <div className="absolute inset-0 rounded-full bg-blue-600 blur-xl opacity-60 group-hover:opacity-90 transition-opacity"></div>
+                            <div className="absolute inset-0 rounded-full bg-yellow-600 blur-xl opacity-60 group-hover:opacity-90 transition-opacity"></div>
                         </button>
                     </div>
                 </div>

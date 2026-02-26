@@ -311,7 +311,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 {/* Config Panel - Sidebar */}
                 <div className={`
                     absolute inset-y-0 right-0 
-                    w-80 bg-white border-l border-slate-200 p-6 
+                    w-80 bg-zinc-900 border-l border-zinc-800 p-6 
                     transform transition-transform duration-300 ease-in-out z-40 
                     ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} 
                     overflow-y-auto thin-scrollbar
@@ -319,8 +319,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     
                     {/* Header Row: Title + Close Button */}
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Configuration</h3>
-                        <button onClick={() => setIsConfigOpen(false)} className="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors">
+                        <h3 className="font-black text-xl uppercase tracking-tight text-white">Configuration</h3>
+                        <button onClick={() => setIsConfigOpen(false)} className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors">
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
@@ -330,112 +330,112 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                             <div className="space-y-6">
                                 {/* --- VISUAL CONFIG SECTION --- */}
                                 <div>
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Visual Config</h4>
+                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-2">Visual Config</h4>
                                     
                                     <div className="space-y-3">
                                         <button 
                                             onClick={() => setConfigView('style')}
-                                            className="w-full flex items-center justify-between p-2 pl-3 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-2 pl-3 rounded-xl bg-zinc-800/50 border border-zinc-800 text-sm font-bold hover:border-yellow-500 hover:bg-yellow-500/10 transition-all group text-left"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-200 shrink-0 shadow-sm border border-slate-200">
+                                                <div className="w-8 h-8 rounded-lg overflow-hidden bg-zinc-800 shrink-0 shadow-sm border border-zinc-700">
                                                     <img src={STYLE_PREVIEWS[style]} alt={style} className="w-full h-full object-cover" />
                                                 </div>
                                                 <div>
-                                                    <span className="text-[10px] font-bold text-slate-400 block leading-tight">Style</span>
-                                                    <span className="text-slate-900">{style}</span>
+                                                    <span className="text-[10px] font-bold text-zinc-500 block leading-tight">Style</span>
+                                                    <span className="text-white">{style}</span>
                                                 </div>
                                             </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                            <svg className="w-4 h-4 text-zinc-600 group-hover:text-yellow-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                         </button>
 
                                         <button 
                                             onClick={() => setConfigView('aspect')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-sm font-bold hover:border-yellow-500 hover:bg-yellow-500/10 transition-all group text-left"
                                         >
                                             <div>
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Ratio</span>
-                                                <span className="text-slate-900">{aspect === '9:16' ? '9:16 Vertical' : '16:9 Landscape'}</span>
+                                                <span className="text-[10px] font-bold text-zinc-500 block leading-tight">Ratio</span>
+                                                <span className="text-white">{aspect === '9:16' ? '9:16 Vertical' : '16:9 Landscape'}</span>
                                             </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                            <svg className="w-4 h-4 text-zinc-600 group-hover:text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                         </button>
 
                                         <button 
                                             onClick={() => setConfigView('quality')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-sm font-bold hover:border-yellow-500 hover:bg-yellow-500/10 transition-all group text-left"
                                         >
                                             <div>
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Quality</span>
-                                                <span className="text-slate-900">{pictureQuality.name}</span>
+                                                <span className="text-[10px] font-bold text-zinc-500 block leading-tight">Quality</span>
+                                                <span className="text-white">{pictureQuality.name}</span>
                                             </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                            <svg className="w-4 h-4 text-zinc-600 group-hover:text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                         </button>
 
                                         <button 
                                             onClick={() => setConfigView('density')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-sm font-bold hover:border-yellow-500 hover:bg-yellow-500/10 transition-all group text-left"
                                         >
                                             <div>
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Density</span>
-                                                <span className="text-slate-900">{visualDensity.name}</span>
+                                                <span className="text-[10px] font-bold text-zinc-500 block leading-tight">Density</span>
+                                                <span className="text-white">{visualDensity.name}</span>
                                             </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                            <svg className="w-4 h-4 text-zinc-600 group-hover:text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                         </button>
 
                                         <button 
                                             onClick={() => setConfigView('effect')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-sm font-bold hover:border-yellow-500 hover:bg-yellow-500/10 transition-all group text-left"
                                         >
                                             <div>
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Effects</span>
-                                                <span className="text-slate-900">{effect.name}</span>
+                                                <span className="text-[10px] font-bold text-zinc-500 block leading-tight">Effects</span>
+                                                <span className="text-white">{effect.name}</span>
                                             </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                            <svg className="w-4 h-4 text-zinc-600 group-hover:text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                         </button>
                                     </div>
                                 </div>
 
                                 {/* --- VOICE CONFIG SECTION --- */}
                                 <div>
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-4 border-b border-slate-100 pb-2">Voice Config</h4>
+                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3 mt-4 border-b border-zinc-800 pb-2">Voice Config</h4>
                                     
                                     <div className="space-y-3">
                                         <button 
                                             onClick={() => setConfigView('voice')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-sm font-bold hover:border-yellow-500 hover:bg-yellow-500/10 transition-all group text-left"
                                         >
                                             <div>
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Narrator</span>
-                                                <span className="text-slate-900">{voice.name}</span>
+                                                <span className="text-[10px] font-bold text-zinc-500 block leading-tight">Narrator</span>
+                                                <span className="text-white">{voice.name}</span>
                                             </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                            <svg className="w-4 h-4 text-zinc-600 group-hover:text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                         </button>
 
                                         <button 
                                             onClick={() => setConfigView('narration_style')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-sm font-bold hover:border-yellow-500 hover:bg-yellow-500/10 transition-all group text-left"
                                         >
                                             <div className="flex-1 min-w-0 pr-2">
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Tone</span>
-                                                <span className="text-slate-900 block truncate">{narrationStyle.name}</span>
+                                                <span className="text-[10px] font-bold text-zinc-500 block leading-tight">Tone</span>
+                                                <span className="text-white block truncate">{narrationStyle.name}</span>
                                             </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                            <svg className="w-4 h-4 text-zinc-600 group-hover:text-yellow-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                         </button>
 
                                         <button 
                                             onClick={() => setConfigView('subtitles')}
-                                            className="w-full flex items-center justify-between p-2 pl-3 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-2 pl-3 rounded-xl bg-zinc-800/50 border border-zinc-800 text-sm font-bold hover:border-yellow-500 hover:bg-yellow-500/10 transition-all group text-left"
                                         >
                                             <div className="flex items-center gap-3 w-full min-w-0">
-                                                <div className="w-12 h-8 rounded border border-slate-200 bg-black shrink-0 overflow-hidden">
+                                                <div className="w-12 h-8 rounded border border-zinc-700 bg-black shrink-0 overflow-hidden">
                                                     <SubtitlePreview id={subtitles.id} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <span className="text-[10px] font-bold text-slate-400 block leading-tight">Subtitles</span>
-                                                    <span className="text-slate-900 truncate block">{subtitles.name}</span>
+                                                    <span className="text-[10px] font-bold text-zinc-500 block leading-tight">Subtitles</span>
+                                                    <span className="text-white truncate block">{subtitles.name}</span>
                                                 </div>
                                             </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                            <svg className="w-4 h-4 text-zinc-600 group-hover:text-yellow-500 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                         </button>
                                     </div>
                                 </div>
@@ -448,11 +448,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                             <div className="flex items-center gap-2 mb-6">
                                 <button 
                                     onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="p-2 -ml-2 hover:bg-zinc-800 rounded-lg transition-colors"
                                 >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Visual Density</h3>
+                                <h3 className="font-black text-xl uppercase tracking-tight text-white">Visual Density</h3>
                             </div>
                             
                             <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
@@ -460,13 +460,13 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     <button
                                         key={d.id}
                                         onClick={() => { setVisualDensity(d); setConfigView('main'); }}
-                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${visualDensity.id === d.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${visualDensity.id === d.id ? 'bg-yellow-500/10 border-yellow-500' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'}`}
                                     >
-                                        <div className="font-bold flex items-center justify-between text-slate-900">
+                                        <div className="font-bold flex items-center justify-between text-white">
                                             {d.name}
-                                            {visualDensity.id === d.id && <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                            {visualDensity.id === d.id && <svg className="w-4 h-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                         </div>
-                                        <div className="text-xs text-slate-400 font-medium mt-1">{d.description}</div>
+                                        <div className="text-xs text-zinc-500 font-medium mt-1">{d.description}</div>
                                     </button>
                                 ))}
                             </div>
@@ -478,11 +478,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                             <div className="flex items-center gap-2 mb-6">
                                 <button 
                                     onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="p-2 -ml-2 hover:bg-zinc-800 rounded-lg transition-colors"
                                 >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Picture Quality</h3>
+                                <h3 className="font-black text-xl uppercase tracking-tight text-white">Picture Quality</h3>
                             </div>
                             
                             <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
@@ -490,13 +490,13 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     <button
                                         key={q.id}
                                         onClick={() => { setPictureQuality(q); setConfigView('main'); }}
-                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${pictureQuality.id === q.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${pictureQuality.id === q.id ? 'bg-yellow-500/10 border-yellow-500' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'}`}
                                     >
-                                        <div className="font-bold flex items-center justify-between text-slate-900">
+                                        <div className="font-bold flex items-center justify-between text-white">
                                             {q.name}
-                                            {pictureQuality.id === q.id && <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                            {pictureQuality.id === q.id && <svg className="w-4 h-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                         </div>
-                                        <div className="text-xs text-slate-400 font-medium mt-1">{q.description}</div>
+                                        <div className="text-xs text-zinc-500 font-medium mt-1">{q.description}</div>
                                     </button>
                                 ))}
                             </div>
@@ -508,11 +508,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                             <div className="flex items-center gap-2 mb-6">
                                 <button 
                                     onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="p-2 -ml-2 hover:bg-zinc-800 rounded-lg transition-colors"
                                 >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Aspect Ratio</h3>
+                                <h3 className="font-black text-xl uppercase tracking-tight text-white">Aspect Ratio</h3>
                             </div>
                             
                             <div className="space-y-2">
@@ -523,10 +523,10 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     <button
                                         key={opt.id}
                                         onClick={() => { setAspect(opt.id as any); setConfigView('main'); }}
-                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${aspect === opt.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${aspect === opt.id ? 'bg-yellow-500/10 border-yellow-500' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'}`}
                                     >
-                                        <div className="font-bold text-slate-900">{opt.label}</div>
-                                        <div className="text-xs text-slate-400 font-medium">{opt.desc}</div>
+                                        <div className="font-bold text-white">{opt.label}</div>
+                                        <div className="text-xs text-zinc-500 font-medium">{opt.desc}</div>
                                     </button>
                                 ))}
                             </div>
@@ -538,11 +538,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                              <div className="flex items-center gap-2 mb-6">
                                 <button 
                                     onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="p-2 -ml-2 hover:bg-zinc-800 rounded-lg transition-colors"
                                 >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Image Style</h3>
+                                <h3 className="font-black text-xl uppercase tracking-tight text-white">Image Style</h3>
                             </div>
                             
                             <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
@@ -550,19 +550,19 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     <button
                                         key={s}
                                         onClick={() => { setStyle(s); setConfigView('main'); }}
-                                        className={`relative group flex flex-col gap-2 p-2 border rounded-xl transition-all text-left overflow-hidden ${style === s ? 'border-blue-500 bg-blue-50' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                                        className={`relative group flex flex-col gap-2 p-2 border rounded-xl transition-all text-left overflow-hidden ${style === s ? 'border-yellow-500 bg-yellow-500/10' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'}`}
                                     >
-                                        <div className="aspect-square w-full rounded-lg bg-slate-200 overflow-hidden relative">
+                                        <div className="aspect-square w-full rounded-lg bg-zinc-800 overflow-hidden relative">
                                             <img src={STYLE_PREVIEWS[s]} alt={s} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                                             {style === s && (
-                                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                                <div className="absolute inset-0 bg-yellow-500/20 flex items-center justify-center">
                                                     <div className="bg-white rounded-full p-1 shadow-sm">
-                                                        <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                        <svg className="w-4 h-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                                                     </div>
                                                 </div>
                                             )}
                                         </div>
-                                        <span className="font-bold text-xs px-1 text-slate-900">{s}</span>
+                                        <span className="font-bold text-xs px-1 text-white">{s}</span>
                                     </button>
                                 ))}
                             </div>
@@ -574,11 +574,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                              <div className="flex items-center gap-2 mb-6">
                                 <button 
                                     onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="p-2 -ml-2 hover:bg-zinc-800 rounded-lg transition-colors"
                                 >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Video Effects</h3>
+                                <h3 className="font-black text-xl uppercase tracking-tight text-white">Video Effects</h3>
                             </div>
                             
                             <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
@@ -586,10 +586,10 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     <button
                                         key={e.id}
                                         onClick={() => { setEffect(e); setConfigView('main'); }}
-                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${effect.id === e.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${effect.id === e.id ? 'bg-yellow-500/10 border-yellow-500' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'}`}
                                     >
-                                        <div className="font-bold text-slate-900">{e.name}</div>
-                                        <div className="text-xs text-slate-400 font-medium">{e.description}</div>
+                                        <div className="font-bold text-white">{e.name}</div>
+                                        <div className="text-xs text-zinc-500 font-medium">{e.description}</div>
                                     </button>
                                 ))}
                             </div>
@@ -601,11 +601,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                              <div className="flex items-center gap-2 mb-6">
                                 <button 
                                     onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="p-2 -ml-2 hover:bg-zinc-800 rounded-lg transition-colors"
                                 >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Subtitles</h3>
+                                <h3 className="font-black text-xl uppercase tracking-tight text-white">Subtitles</h3>
                             </div>
                             
                             <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
@@ -613,20 +613,20 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     <button
                                         key={s.id}
                                         onClick={() => { setSubtitles(s); setConfigView('main'); }}
-                                        className={`w-full text-left p-3 border rounded-xl transition-all group ${subtitles.id === s.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                                        className={`w-full text-left p-3 border rounded-xl transition-all group ${subtitles.id === s.id ? 'bg-yellow-500/10 border-yellow-500' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'}`}
                                     >
-                                        <div className="aspect-video w-full rounded-lg bg-gray-900 mb-3 overflow-hidden border border-slate-200 relative">
+                                        <div className="aspect-video w-full rounded-lg bg-black mb-3 overflow-hidden border border-zinc-800 relative">
                                             <SubtitlePreview id={s.id} />
                                             {subtitles.id === s.id && (
-                                                <div className="absolute top-2 right-2 bg-blue-600 rounded-full p-1 shadow-md z-20">
-                                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                <div className="absolute top-2 right-2 bg-yellow-600 rounded-full p-1 shadow-md z-20">
+                                                    <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="font-bold flex items-center justify-between px-1 text-slate-900">
+                                        <div className="font-bold flex items-center justify-between px-1 text-white">
                                             {s.name}
                                         </div>
-                                        <div className="text-xs text-slate-400 font-medium px-1 mt-0.5">{s.description}</div>
+                                        <div className="text-xs text-zinc-500 font-medium px-1 mt-0.5">{s.description}</div>
                                     </button>
                                 ))}
                             </div>
@@ -638,11 +638,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                             <div className="flex items-center gap-2 mb-6">
                                 <button 
                                     onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="p-2 -ml-2 hover:bg-zinc-800 rounded-lg transition-colors"
                                 >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Select Voice</h3>
+                                <h3 className="font-black text-xl uppercase tracking-tight text-white">Select Voice</h3>
                             </div>
                             
                             <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
@@ -650,13 +650,13 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     <button
                                         key={v.id}
                                         onClick={() => handleVoiceSelect(v)}
-                                        className={`w-full flex items-center justify-between px-4 py-3 text-sm border rounded-xl transition-all ${voice.id === v.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                                        className={`w-full flex items-center justify-between px-4 py-3 text-sm border rounded-xl transition-all ${voice.id === v.id ? 'bg-yellow-500/10 border-yellow-500' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'}`}
                                     >
-                                        <span className="font-bold text-left text-slate-900">{v.name}</span>
+                                        <span className="font-bold text-left text-white">{v.name}</span>
                                         {VOICE_SAMPLES[v.id] && (
                                             <div 
                                                 onClick={(e) => toggleVoiceSample(e, v.id)} 
-                                                className={`p-1.5 rounded-full shrink-0 ${playingVoiceId === v.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                                                className={`p-1.5 rounded-full shrink-0 ${playingVoiceId === v.id ? 'bg-yellow-600 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
                                             >
                                                 {playingVoiceId === v.id ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
                                             </div>
@@ -672,11 +672,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                             <div className="flex items-center gap-2 mb-6">
                                 <button 
                                     onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="p-2 -ml-2 hover:bg-zinc-800 rounded-lg transition-colors"
                                 >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Narration Style</h3>
+                                <h3 className="font-black text-xl uppercase tracking-tight text-white">Narration Style</h3>
                             </div>
                             
                             <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
@@ -684,13 +684,13 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     <button
                                         key={s.id}
                                         onClick={() => handleNarrationStyleChange(s)}
-                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${narrationStyle.id === s.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${narrationStyle.id === s.id ? 'bg-yellow-500/10 border-yellow-500' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'}`}
                                     >
-                                        <div className="font-bold flex items-center justify-between text-slate-900">
+                                        <div className="font-bold flex items-center justify-between text-white">
                                             {s.name}
-                                            {narrationStyle.id === s.id && <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                            {narrationStyle.id === s.id && <svg className="w-4 h-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                         </div>
-                                        <div className="text-xs text-slate-400 font-medium mt-1">({s.description})</div>
+                                        <div className="text-xs text-zinc-500 font-medium mt-1">({s.description})</div>
                                     </button>
                                 ))}
                             </div>
@@ -698,22 +698,22 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     )}
                 </div>
 
-               {/* Main Content Area */}
-                <div className={`flex-1 ${isConfigOpen ? 'md:mr-80' : ''} transition-all duration-300 flex flex-col items-center justify-center p-6 h-full overflow-y-auto no-scrollbar relative`}>
+                {/* Main Content Area */}
+                <div className={`flex-1 ${isConfigOpen ? 'md:mr-80' : ''} transition-all duration-300 flex flex-col items-center justify-center p-6 h-full overflow-y-auto no-scrollbar relative bg-black`}>
                      <div className="w-full max-w-3xl flex flex-col gap-6 transition-transform duration-300 -translate-y-[10vh] md:translate-y-0">
                          
                          {/* Text Section */}
                          <div className="text-center space-y-2">
-                             <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-slate-900">What's your story?</h2>
+                             <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-white">What's your story?</h2>
                          </div>
 
                          {/* Input Card */}
-                         <div className="relative group bg-white focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 rounded-[2rem] shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden isolate w-full border-2 border-slate-100">
+                         <div className="relative group bg-zinc-900 focus-within:ring-4 focus-within:ring-yellow-500/10 focus-within:border-yellow-500 rounded-[2rem] shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden isolate w-full border-2 border-zinc-800">
                             {/* Text Area */}
                             <div className="relative z-0">
                                 <textarea 
                                     ref={textareaRef}
-                                    className="w-full bg-transparent p-8 pb-24 text-lg font-medium outline-none resize-none min-h-[140px] max-h-[50vh] overflow-y-auto placeholder-slate-300 text-slate-800"
+                                    className="w-full bg-transparent p-8 pb-24 text-lg font-medium outline-none resize-none min-h-[140px] max-h-[50vh] overflow-y-auto placeholder-zinc-700 text-white"
                                     placeholder={placeholder}
                                     value={prompt}
                                     onChange={(e) => {
@@ -723,17 +723,17 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                     }}
                                 />
                                 {/* Character Count Indicator */}
-                                <div className={`absolute bottom-24 right-8 text-xs font-bold transition-colors ${prompt.length > 6000 ? 'text-red-500' : 'text-slate-300'}`}>
+                                <div className={`absolute bottom-24 right-8 text-xs font-bold transition-colors ${prompt.length > 6000 ? 'text-red-500' : 'text-zinc-700'}`}>
                                     {prompt.length} / 6000
                                 </div>
                             </div>
 
                             {/* Button Area */}
-                            <div className="absolute bottom-0 left-0 right-0 z-10 flex justify-end p-4 bg-gradient-to-t from-white via-white/90 to-transparent h-24 items-end pointer-events-none">
+                            <div className="absolute bottom-0 left-0 right-0 z-10 flex justify-end p-4 bg-gradient-to-t from-zinc-900 via-zinc-900/90 to-transparent h-24 items-end pointer-events-none">
                                 <button 
                                     onClick={handleGenerate}
                                     disabled={loading || !prompt.trim() || prompt.length > 6000}
-                                    className="px-8 py-3 bg-black text-white rounded-full font-black uppercase tracking-wider hover:bg-blue-700 transition disabled:opacity-50 shadow-lg shadow-blue-500/20 pointer-events-auto text-sm transform active:scale-95 duration-200"
+                                    className="px-8 py-3 bg-yellow-600 text-black rounded-full font-black uppercase tracking-wider hover:bg-yellow-500 transition disabled:opacity-50 shadow-lg shadow-yellow-500/20 pointer-events-auto text-sm transform active:scale-95 duration-200"
                                 >
                                     {loading ? 'Thinking...' : 'Generate'}
                                 </button>
