@@ -133,7 +133,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             <header className="absolute top-0 left-0 right-0 z-50 w-full px-6 pt-8 md:px-12 flex items-center justify-between">
                 {/* Top Left: App Name */}
                 <div className="flex items-center gap-2 cursor-pointer z-10" onClick={() => window.location.href = '/'}>
-                    <span className="font-black text-lg tracking-tighter uppercase text-white">Crappik</span>
+                    <span className="font-black text-lg tracking-tighter uppercase  text-white ">Crappik</span>
                 </div>
 
                 {/* Top Center: Nav Links (Desktop) */}
@@ -146,7 +146,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                 <div className="flex items-center gap-4 z-10">
                     <button 
                         onClick={onLogin} 
-                        className="hidden md:block text-sm font-bold uppercase tracking-widest text-sky-400 hover:text-sky-300 transition-colors"
+                        className="hidden md:block text-sm font-bold uppercase tracking-widest text-white hover:text-yellow-600 transition-colors"
                     >
                         Get Started
                     </button>
@@ -182,49 +182,49 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                     
                     {/* Headline */}
                     <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter mb-8 leading-[1.1] md:leading-tight">
-                        Your AI Content Team <br className="hidden md:block" /> On Autopilot
+                        Create <span className="text-yellow-500">Binge-Worthy</span> Faceless <br className="hidden md:block" /> Videos With AI
                     </h1>
 
                     {/* Subtitle */}
                     <p className="text-lg md:text-xl text-gray-400 font-medium max-w-2xl leading-relaxed mb-12">
-                        Create viral videos for YouTube, TikTok, and Instagram automatically. Grow your reach daily while you build so you have an audience before you need one.
+                        Create short and long form videos your audience can't stop watching. Post consistently, grow fast, and monietize your content without a team.
                     </p>
 
                     {/* Primary CTA */}
                     <button 
                         onClick={onLogin}
-                        className="group relative px-10 py-5 bg-yellow-600 text-black rounded-full font-black text-lg md:text-xl uppercase tracking-widest hover:scale-105 hover:bg-yellow-500 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(234,179,8,0.4)] mb-16"
+                        className="group relative px-10 py-5 bg-yellow-500 text-black rounded-full font-black text-lg md:text-xl uppercase tracking-widest hover:scale-105 hover:bg-yellow-500 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(234,179,8,0.4)] mb-16"
                     >
                         <span className="relative z-10">Start Creating</span>
-                        <div className="absolute inset-0 rounded-full bg-yellow-600 blur-lg opacity-60 group-hover:opacity-90 transition-opacity"></div>
+                        <div className="absolute inset-0 rounded-full bg-yellow-500 blur-lg opacity-60 group-hover:opacity-90 transition-opacity"></div>
                     </button>
 
                     {/* Footer Info Container (Platforms + Social Proof) */}
-                    <div className="w-full flex flex-col md:flex-row items-center justify-center gap-10 md:gap-20">
+                    <div className="w-full flex flex-col items-center justify-center gap-12 md:gap-16 mt-8">
                         
                         {/* Supported Platforms - Colored Icons */}
                         <div className="flex flex-col items-center">
-                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Supported Platforms</span>
-                            <div className="flex items-center gap-6 text-gray-300">
-                                <div className="flex items-center gap-2 group cursor-default">
-                                    <YouTubeIcon className="w-5 h-5 md:w-6 md:h-6 text-[#FF0000] group-hover:scale-110 transition-transform" />
-                                    <span className="font-bold text-sm md:text-base group-hover:text-white transition-colors">YouTube</span>
+                            <span className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-[0.2em] mb-6">Supported Platforms</span>
+                            <div className="flex items-center gap-8 text-gray-300">
+                                <div className="flex items-center gap-3 group cursor-default">
+                                    <YouTubeIcon className="w-8 h-8 md:w-10 md:h-10 text-[#FF0000] group-hover:scale-110 transition-transform" />
+                                    <span className="font-bold text-lg md:text-xl group-hover:text-white transition-colors">YouTube</span>
                                 </div>
-                                <div className="flex items-center gap-2 group cursor-default">
-                                    <InstagramIcon className="w-5 h-5 md:w-6 md:h-6 text-[#E1306C] group-hover:scale-110 transition-transform" />
-                                    <span className="font-bold text-sm md:text-base group-hover:text-white transition-colors">Instagram</span>
+                                <div className="flex items-center gap-3 group cursor-default">
+                                    <InstagramIcon className="w-8 h-8 md:w-10 md:h-10 text-[#E1306C] group-hover:scale-110 transition-transform" />
+                                    <span className="font-bold text-lg md:text-xl group-hover:text-white transition-colors">Instagram</span>
                                 </div>
-                                <div className="flex items-center gap-2 group cursor-default">
-                                    <TikTokIcon className="w-5 h-5 md:w-6 md:h-6 text-[#00F2EA] group-hover:scale-110 transition-transform" />
-                                    <span className="font-bold text-sm md:text-base group-hover:text-white transition-colors">TikTok</span>
+                                <div className="flex items-center gap-3 group cursor-default">
+                                    <TikTokIcon className="w-8 h-8 md:w-10 md:h-10 text-[#00F2EA] group-hover:scale-110 transition-transform" />
+                                    <span className="font-bold text-lg md:text-xl group-hover:text-white transition-colors">TikTok</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Social Proof */}
                         <div className="flex flex-col items-center">
-                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Trusted by Creators</span>
-                            <div className="flex items-center -space-x-3">
+                            <span className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-[0.2em] mb-6">Trusted by Creators</span>
+                            <div className="flex items-center -space-x-4">
                                 {[
                                     "https://i.pravatar.cc/100?img=20",
                                     "https://i.pravatar.cc/100?img=47",
@@ -235,10 +235,10 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                                         key={i} 
                                         src={src} 
                                         alt="Creator" 
-                                        className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-black object-cover shadow-lg" 
+                                        className="w-14 h-14 md:w-16 md:h-16 rounded-full border-4 border-black object-cover shadow-lg" 
                                     />
                                 ))}
-                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-black bg-gray-800 flex items-center justify-center text-[10px] font-bold text-white z-10">
+                                <div className="w-14 h-14 md:w-16 md:h-16 rounded-full border-4 border-black bg-gray-800 flex items-center justify-center text-sm font-bold text-white z-10">
                                     +2k
                                 </div>
                             </div>
@@ -354,15 +354,15 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                     {/* Content */}
                     <div className="relative z-10 max-w-5xl mx-auto px-6 flex flex-col items-center">
                         <h2 className="text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter mb-12 text-white leading-[1.1]">
-                            Start growing your reach daily
+                            Start creating faceless videos people wait for
                         </h2>
                         
                         <button 
                             onClick={onLogin}
-                            className="group relative px-12 py-6 bg-yellow-600 text-black rounded-full font-black text-xl md:text-2xl uppercase tracking-widest hover:scale-105 hover:bg-yellow-500 transition-all duration-300 shadow-[0_0_60px_-10px_rgba(234,179,8,0.5)]"
+                            className="group relative px-12 py-6 bg-yellow-500 text-black rounded-full font-black text-xl md:text-2xl uppercase tracking-widest hover:scale-105 hover:bg-yellow-500 transition-all duration-300 shadow-[0_0_60px_-10px_rgba(234,179,8,0.5)]"
                         >
-                            <span className="relative z-10">Start Creating</span>
-                            <div className="absolute inset-0 rounded-full bg-yellow-600 blur-xl opacity-60 group-hover:opacity-90 transition-opacity"></div>
+                            <span className="relative z-10">Get Started</span>
+                            <div className="absolute inset-0 rounded-full bg-yellow-500 blur-xl opacity-60 group-hover:opacity-90 transition-opacity"></div>
                         </button>
                     </div>
                 </div>
