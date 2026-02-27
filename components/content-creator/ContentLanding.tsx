@@ -193,7 +193,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                     {/* Primary CTA */}
                     <button 
                         onClick={onLogin}
-                        className="group relative px-10 py-5 bg-yellow-500 text-black rounded-full font-black text-lg md:text-xl uppercase tracking-widest hover:scale-105 hover:bg-yellow-500 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(234,179,8,0.4)] mb-16"
+                        className="group relative px-10 py-5 bg-yellow-500 text-black rounded-full font-black text-lg md:text-xl uppercase tracking-widest hover:scale-105 hover:bg-yellow-500 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(234,179,8,0.4)] mb-8"
                     >
                         <span className="relative z-10">Start Creating</span>
                         <div className="absolute inset-0 rounded-full bg-yellow-500 blur-lg opacity-60 group-hover:opacity-90 transition-opacity"></div>
@@ -204,7 +204,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                         
                         {/* Supported Platforms - Colored Icons */}
                         <div className="flex flex-col items-center">
-                            <span className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-[0.2em] mb-6">Supported Platforms</span>
+                            <span className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Supported Platforms</span>
                             <div className="flex items-center gap-8 text-gray-300">
                                 <div className="flex items-center gap-3 group cursor-default">
                                     <YouTubeIcon className="w-8 h-8 md:w-10 md:h-10 text-[#FF0000] group-hover:scale-110 transition-transform" />
