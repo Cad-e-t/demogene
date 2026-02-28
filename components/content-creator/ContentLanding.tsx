@@ -354,7 +354,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                     {/* Content */}
                     <div className="relative z-10 max-w-5xl mx-auto px-6 flex flex-col items-center">
                         <h2 className="text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter mb-12 text-white leading-[1.1]">
-                            Start creating faceless videos people wait for
+                            Create videos people can't wait to waatch
                         </h2>
                         
                         <button 

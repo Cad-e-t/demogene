@@ -699,48 +699,39 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 </div>
 
                {/* Main Content Area */}
-                <div className={`flex-1 ${isConfigOpen ? 'md:mr-80' : ''} transition-all duration-300 flex flex-col items-center justify-center p-6 h-full overflow-y-auto no-scrollbar relative`}>
-                     <div className="w-full max-w-3xl flex flex-col gap-6 transition-transform duration-300 -translate-y-[10vh] md:translate-y-0">
-                         
-                         {/* Text Section */}
-                         <div className="text-center space-y-2">
-                             <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-slate-900">What's your story?</h2>
-                         </div>
+                <div className={`flex-1 ${isConfigOpen ? 'md:mr-80' : ''} transition-all duration-300 flex flex-col h-full overflow-hidden bg-white`}>
+                    
+                    {/* 1. Top Section - Title */}
+                    <div className="flex-none px-6 py-6 border-b border-slate-100 bg-white flex items-center">
+                         <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">What's your story?</h3>
+                    </div>
 
-                         {/* Input Card */}
-                         <div className="relative group bg-white focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 rounded-[2rem] shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden isolate w-full border-2 border-slate-100">
-                            {/* Text Area */}
-                            <div className="relative z-0">
-                                <textarea 
-                                    ref={textareaRef}
-                                    className="w-full bg-transparent p-8 pb-24 text-lg font-medium outline-none resize-none min-h-[140px] max-h-[50vh] overflow-y-auto placeholder-slate-300 text-slate-800"
-                                    placeholder={placeholder}
-                                    value={prompt}
-                                    onChange={(e) => {
-                                        setPrompt(e.target.value);
-                                        e.target.style.height = 'auto';
-                                        e.target.style.height = e.target.scrollHeight + 'px';
-                                    }}
-                                />
-                                {/* Character Count Indicator */}
-                                <div className={`absolute bottom-24 right-8 text-xs font-bold transition-colors ${prompt.length > 6000 ? 'text-red-500' : 'text-slate-300'}`}>
-                                    {prompt.length} / 6000
-                                </div>
-                            </div>
+                    {/* 2. Middle Section - Text Area */}
+                    <div className="flex-1 bg-slate-50 relative m-4 rounded-xl border border-slate-100">
+                        <textarea 
+                            className="w-full h-full bg-transparent p-8 text-lg font-medium outline-none resize-none placeholder-slate-400 text-slate-800 leading-relaxed rounded-xl"
+                            placeholder={placeholder}
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                        />
+                    </div>
 
-                            {/* Button Area */}
-                            <div className="absolute bottom-0 left-0 right-0 z-10 flex justify-end p-4 bg-gradient-to-t from-white via-white/90 to-transparent h-24 items-end pointer-events-none">
-                                <button 
-                                    onClick={handleGenerate}
-                                    disabled={loading || !prompt.trim() || prompt.length > 6000}
-                                   className="px-8 py-3 bg-yellow-600 text-black rounded-full font-black uppercase tracking-wider hover:bg-yellow-500 transition disabled:opacity-50 shadow-lg shadow-yellow-500/20 pointer-events-auto text-sm transform active:scale-95 duration-200"
-                                >
-                                    {loading ? 'Thinking...' : 'Generate'}
-                                </button>
-                            </div>
+                    {/* 3. Bottom Section - Actions */}
+                    <div className="flex-none px-6 py-4 bg-white border-t border-slate-100 flex items-center justify-between">
+                         {/* Character Count */}
+                        <div className={`text-xs font-bold transition-colors ${prompt.length > 6000 ? 'text-red-500' : 'text-slate-400'}`}>
+                            {prompt.length} / 6000
                         </div>
 
-                     </div>
+                        {/* Generate Button */}
+                        <button 
+                            onClick={handleGenerate}
+                            disabled={loading || !prompt.trim() || prompt.length > 6000}
+                            className="px-8 py-3 bg-yellow-600 text-black rounded-full font-black uppercase tracking-wider hover:bg-yellow-500 transition disabled:opacity-50 shadow-lg shadow-yellow-500/20 text-sm transform active:scale-95 duration-200"
+                        >
+                            {loading ? 'Thinking...' : 'Generate'}
+                        </button>
+                    </div>
                 </div>
             </div>
         );
