@@ -284,15 +284,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         return (
             <div className="flex-1 h-full relative flex flex-col">
             
-                {/* Mobile Header: Menu + Title */}
-                <div className="md:hidden absolute top-4 left-4 z-20 flex items-center gap-3">
-                    <button 
-                        onClick={onToggleSidebar}
-                        className="p-2 -ml-2 bg-white/80 backdrop-blur rounded-lg text-slate-900 shadow-sm border border-slate-200"
-                    >
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-                    </button>
-                </div>
+                {/* Mobile Header: Menu + Title - REMOVED (Moved to Top Section) */}
+
 
                 {/* Config Toggle Icon (Top Right) - Visible on Mobile OR when Desktop panel is closed */}
                 <div className={`absolute top-4 right-4 z-30 ${isConfigOpen && 'md:hidden'}`}>
@@ -702,7 +695,14 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 <div className={`flex-1 ${isConfigOpen ? 'md:mr-80' : ''} transition-all duration-300 flex flex-col h-full overflow-hidden bg-white`}>
                     
                     {/* 1. Top Section - Title */}
-                    <div className="flex-none px-6 py-6 border-b border-slate-100 bg-white flex items-center">
+                    <div className="flex-none px-6 py-6 border-b border-slate-100 bg-white flex items-center gap-4">
+                        {/* Mobile Sidebar Toggle - Moved here */}
+                        <button 
+                            onClick={onToggleSidebar}
+                            className="md:hidden p-2 -ml-2 bg-white hover:bg-slate-50 rounded-lg text-slate-900 border border-slate-200"
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        </button>
                          <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">What's your story?</h3>
                     </div>
 
