@@ -52,14 +52,14 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
                  {/* App Title (Desktop) */}
                  <div className="relative px-6 mb-10 hidden md:block">
                      <div className="flex items-center gap-2 w-full">
-                         <span className="font-black text-lg tracking-tighter text-yellow-600 uppercase">Creator</span>
+                         <span className="font-black text-lg tracking-tighter text-black uppercase">Crappik</span>
                      </div>
                  </div>
                  
                  {/* App Title (Mobile) */}
                  <div className="px-6 mb-8 md:hidden flex items-center gap-2 relative">
                      <div className="flex items-center gap-2">
-                        <span className="font-black text-xl tracking-tighter text-yellow-600 uppercase">Creator</span>
+                        <span className="font-black text-xl tracking-tighter text-black uppercase">Crappik</span>
                      </div>
                  </div>
                  
