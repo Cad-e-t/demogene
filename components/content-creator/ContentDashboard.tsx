@@ -707,7 +707,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     </div>
 
                     {/* 2. Middle Section - Text Area */}
-                    <div className="flex-1 bg-slate-50 relative m-4 rounded-xl border border-slate-100">
+                    <div className="flex-1 bg-yellow-50/50 relative m-4 rounded-xl border border-yellow-100">
                         <textarea 
                             className="w-full h-full bg-transparent p-8 text-lg font-medium outline-none resize-none placeholder-slate-400 text-slate-800 leading-relaxed rounded-xl"
                             placeholder={placeholder}
