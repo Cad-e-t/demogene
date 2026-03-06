@@ -1,16 +1,16 @@
 
 
 
-import { ContentProject, ContentSegment } from "./types";
+import { ContentProject, ContentSegment, SubtitleConfiguration } from "./types";
 import { supabase } from "../../supabaseClient";
 
 const API_URL = "https://content-creator-417540185411.us-central1.run.app"; // Or env var
 
-export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: string, visualDensity: string, pictureQuality: string, subtitles: string) {
+export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: string, visualDensity: string, pictureQuality: string, subtitles: SubtitleConfiguration, voiceId: string) {
     const res = await fetch(`${API_URL}/generate-segments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, visualDensity, pictureQuality, subtitles })
+        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, visualDensity, pictureQuality, subtitles, voiceId })
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -55,16 +55,30 @@ export async function saveSegments(segments: ContentSegment[]) {
     await Promise.all(updates);
 }
 
-export async function generateFinalVideo(projectId: string, voiceId: string, userId: string) {
-    const res = await fetch(`${API_URL}/generate-video`, {
+export async function generateAssets(projectId: string, voiceId: string, userId: string, script?: string) {
+    const res = await fetch(`${API_URL}/generate-assets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, voiceId, userId })
+        body: JSON.stringify({ projectId, voiceId, userId, script })
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to start generation");
+        throw new Error(err.error || "Asset generation failed");
     }
+    return await res.json();
+}
+
+export async function exportVideo(projectId: string, userId: string) {
+    const res = await fetch(`${API_URL}/export-video`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, userId })
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Export failed");
+    }
+    return await res.json();
 }
 
 export async function deleteProject(projectId: string, userId: string) {

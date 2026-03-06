@@ -1,22 +1,44 @@
 
+export interface SubtitleConfiguration {
+    placement: 'top' | 'middle' | 'bottom';
+    fontFamily: string;
+    fontSize: number;
+    primaryColor: string;
+    secondaryColor: string;
+    highlightColor: string;
+    strokeWidth: number;
+    letterSpacing: number;
+    textTransform: 'uppercase' | 'none' | 'capitalize';
+    animationType: 'karaoke_block' | 'fade_group' | 'karaoke_bounce';
+}
 
-
-
-
-
-
-
+export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfiguration = {
+    placement: 'bottom',
+    fontFamily: 'Arial',
+    fontSize: 40,
+    primaryColor: '#FFFFFF',
+    secondaryColor: '#000000',
+    highlightColor: '#FFFF00',
+    strokeWidth: 4,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    animationType: 'karaoke_block'
+};
 
 export interface ContentProject {
     id: string;
     title: string;
     aspect_ratio: '9:16' | '16:9';
     image_style: string;
-    picture_quality?: 'Fast' | 'Ultra';
+    picture_quality?: 'Fast' | 'Ultra' | 'Ultimate';
     voice_id: string;
     narration_style?: string;
     effect: string;
-    subtitles?: string | null;
+    subtitles?: SubtitleConfiguration | null;
+    voice_file_path?: string | null;
+    subtitle_file_path?: string | null;
+    segment_durations?: number[];
+    render_status?: string;
     status: 'draft' | 'generating' | 'completed' | 'failed';
     created_at: string;
 }
@@ -45,13 +67,13 @@ export const IMAGE_STYLES = [
 
 export const VISUAL_DENSITIES = [
     { id: 'Balanced', name: 'Balanced', description: 'Clean storytelling (~1 img / 2 sentences)' },
-    { id: 'Rich', name: 'Rich', description: 'Fast paced (~1 img / 1 sentence)' },
     { id: 'Low', name: 'Low', description: 'Minimalist (~1 img / 3 sentences)' }
 ];
 
 export const PICTURE_QUALITY_OPTIONS = [
     { id: 'Fast', name: 'Fast', description: 'Quick, affordable clarity' },
-    { id: 'Ultra', name: 'Ultra', description: 'Cinematic detail, premium look' }
+    { id: 'Ultra', name: 'Ultra', description: 'Cinematic detail, premium look' },
+    { id: 'Ultimate', name: 'Ultimate', description: 'Highest resolution, 2K detail' }
 ];
 
 export const EFFECT_PRESETS = [

@@ -4,12 +4,15 @@ import { deleteStory } from './api';
 
 export const ContentStories = ({ session, onToggleSidebar }: any) => {
     const [stories, setStories] = useState<any[]>([]);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         const fetch = async () => {
             const { data } = await supabase
                 .from('content_stories')
-                .select('*, content_projects(aspect_ratio)')
+                .select('*, content_projects(title, aspect_ratio)')
                 .eq('user_id', session.user.id)
                 .order('created_at', { ascending: false });
             setStories(data || []);
@@ -19,16 +22,25 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
         return () => { sub.unsubscribe(); };
     }, [session]);
 
-    const handleDelete = async (e: React.MouseEvent, storyId: string) => {
-        e.stopPropagation();
-        if (window.confirm("Delete this video?")) {
-            try {
-                setStories(prev => prev.filter(s => s.id !== storyId));
-                await deleteStory(storyId, session.user.id);
-            } catch(err) {
-                console.error(err);
-                alert("Failed to delete video");
-            }
+    const handleDelete = async (storyId: string) => {
+        setConfirmDeleteId(null);
+        setIsDeleting(true);
+        try {
+            setStories(prev => prev.filter(s => s.id !== storyId));
+            await deleteStory(storyId, session.user.id);
+        } catch(err) {
+            console.error(err);
+            setError("Failed to delete video. Please try again.");
+            setTimeout(() => setError(null), 5000);
+            // Refresh list on failure
+            const { data } = await supabase
+                .from('content_stories')
+                .select('*, content_projects(title, aspect_ratio)')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: false });
+            setStories(data || []);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -48,7 +60,38 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
             </div>
 
             {/* Desktop Header */}
-            <h2 className="hidden md:block text-3xl font-black mb-8 text-slate-900">Your Stories</h2>
+            <div className="flex items-center justify-between mb-8">
+                <h2 className="hidden md:block text-3xl font-black text-slate-900">Your Stories</h2>
+                {error && (
+                    <div className="text-xs font-bold text-red-600 bg-red-50 px-4 py-2 rounded-xl border border-red-100 animate-shake">
+                        {error}
+                    </div>
+                )}
+            </div>
+
+            {/* Delete Confirmation Modal */}
+            {confirmDeleteId && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter">Delete Video?</h3>
+                        <p className="text-slate-500 text-sm mb-8 font-medium">This will permanently remove the exported video. This action cannot be undone.</p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="flex-1 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={() => handleDelete(confirmDeleteId)}
+                                className="flex-1 py-3 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-200"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="columns-1 md:columns-3 lg:columns-4 gap-6 space-y-6">
                 {stories.map(s => {
@@ -79,9 +122,8 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                                  </div>
                             )}
                             
-                            <div className="p-4 flex justify-between items-center">
-                                <p className="text-xs text-slate-400 font-bold">{new Date(s.created_at).toLocaleDateString()}</p>
-                                <div className="flex gap-2">
+                            <div className="p-4">
+                                <div className="flex justify-end gap-2">
                                     {s.status === 'completed' && (
                                         <button 
                                             onClick={async (e) => {
@@ -120,8 +162,12 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                                         </button>
                                     )}
                                     <button 
-                                        onClick={(e) => handleDelete(e, s.id)}
-                                        className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full transition-colors"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setConfirmDeleteId(s.id);
+                                        }}
+                                        disabled={isDeleting}
+                                        className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50"
                                         title="Delete Video"
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

@@ -16,6 +16,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
     const [session, setSession] = useState<any>(parentSession || null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [credits, setCredits] = useState<number | null>(null);
+    const [customerId, setCustomerId] = useState<string | null>(null);
     
     // URL-Based Navigation Helper (Path based)
     const getPathView = () => {
@@ -49,8 +50,19 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
     useEffect(() => {
         if (session?.user?.id) {
             const fetchCredits = async () => {
-                const { data } = await supabase.from('profiles').select('credits').eq('id', session.user.id).single();
-                setCredits(data?.credits || 0);
+                try {
+                    const { data, error } = await supabase.from('profiles').select('credits, dodo_customer_id').eq('id', session.user.id).single();
+                    if (error) {
+                        console.error("Error fetching profile:", error);
+                        return; // Resilience: Don't set credits to 0 on network error
+                    }
+                    if (data) {
+                        setCredits(data.credits ?? 0);
+                        setCustomerId(data.dodo_customer_id || null);
+                    }
+                } catch (e) {
+                    console.error("Network error fetching profile:", e);
+                }
             };
             fetchCredits();
 
@@ -61,7 +73,12 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                     table: 'profiles',
                     filter: `id=eq.${session.user.id}`
                 }, (payload: any) => {
-                    if (payload.new) setCredits(payload.new.credits);
+                    if (payload.new) {
+                        setCredits(payload.new.credits);
+                        if (payload.new.dodo_customer_id) {
+                            setCustomerId(payload.new.dodo_customer_id);
+                        }
+                    }
                 })
                 .subscribe();
             
@@ -142,7 +159,8 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         return <ContentLanding onLogin={handleLogin} />;
     }
 
-    const showGlobalOverlay = credits !== null && credits <= 0;
+    const showGlobalOverlay = credits !== null && credits <= 0 && !customerId;
+    const showPersistentNotification = credits !== null && credits <= 0 && !!customerId;
 
     return (
         <div className="flex h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden relative">
@@ -155,6 +173,27 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                 session={session}
             />
             <main className="flex-1 flex flex-col relative h-full overflow-hidden md:pt-0">
+                {showPersistentNotification && (
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 pointer-events-none">
+                        <div className="bg-white/80 backdrop-blur-md border border-amber-200 shadow-xl rounded-2xl p-4 flex items-center gap-4 pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-500">
+                            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                                <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">Credits Finished</h4>
+                                <p className="text-xs text-slate-500 font-medium">Top up to continue creating amazing content.</p>
+                            </div>
+                            <button 
+                                onClick={() => onNavigate('/content-creator/creator-pricing')}
+                                className="px-4 py-2 bg-yellow-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-yellow-500 transition-colors shadow-lg shadow-yellow-600/20"
+                            >
+                                Top Up
+                            </button>
+                        </div>
+                    </div>
+                )}
                 {view === 'dashboard' && (
                     <ContentDashboard 
                         session={session} 

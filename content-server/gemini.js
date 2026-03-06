@@ -4,6 +4,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 const MODEL_NAME = "gemini-2.5-flash"; // Using Gemini 3 Pro for reasoning
 const IMAGE_MODEL = "gemini-2.5-flash-image"; // Nano Banana for images (Ultra quality per mapping)
 const FAST_IMAGE_MODEL = "imagen-4.0-fast-generate-001"; // Fast quality per mapping
+const ULTIMATE_IMAGE_MODEL = "gemini-3.1-flash-image-preview";
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 
 export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced') {
@@ -27,7 +28,6 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
 
     SEGMENTATION LOGIC:
     - Count total sentences in the script.
-    - 'Rich': Final segment count MUST equal total sentence count (1 sentence per segment).
     - 'Balanced': Final segment count MUST equal half of total sentences, rounded to nearest whole number (2 sentences per segment).
     - 'Low': Final segment count MUST equal one third of total sentences, rounded to nearest whole number (3 sentences per segment).
     - You may break sentences between segments ONLY if it creates a more significant visual moment.
@@ -81,13 +81,34 @@ export async function generateImage(prompt, aspect, quality = 'Fast') {
     // Model Selection based on Quality Mapping:
     // Fast -> imagen-4.0-fast-generate-001
     // Ultra -> gemini-2.5-flash-image
+    // Ultimate -> gemini-3.1-flash-image-preview
     
     let model = FAST_IMAGE_MODEL;
     if (quality === 'Ultra') {
         model = IMAGE_MODEL;
+    } else if (quality === 'Ultimate') {
+        model = ULTIMATE_IMAGE_MODEL;
     }
 
-    if (model === IMAGE_MODEL) {
+    if (model === ULTIMATE_IMAGE_MODEL) {
+        // Gemini 3.1 Flash Image Flow
+        const response = await ai.models.generateContent({
+            model: ULTIMATE_IMAGE_MODEL,
+            contents: prompt,
+            config: {
+                imageConfig: {
+                    aspectRatio: ar,
+                    imageSize: "2K"
+                }
+            }
+        });
+
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                return part.inlineData.data;
+            }
+        }
+    } else if (model === IMAGE_MODEL) {
         // Nano Banana (Gemini Image) Flow
         const response = await ai.models.generateContent({
             model: IMAGE_MODEL,

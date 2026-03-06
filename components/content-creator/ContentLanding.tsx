@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { CreatorPricingCards } from './CreatorPricingCards';
 import { channels } from './creator-assets';
 
-const ChannelCard = ({ channel }: { channel: typeof channels[0] }) => {
+const ChannelCard: React.FC<{ channel: typeof channels[0] }> = ({ channel }) => {
     const [currentThumbnailIndex, setCurrentThumbnailIndex] = useState(0);
 
     useEffect(() => {

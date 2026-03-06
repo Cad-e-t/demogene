@@ -12,6 +12,8 @@ import { generateStorySegments, generateImage, editImage, generateFullVoiceover 
 import { assembleVideo } from './video-assembler.js';
 import { generateSubtitles, burnSubtitles } from './subtitle-generator.js';
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
+import { AssemblyAI } from 'assemblyai';
+
 
 // --- Setup ---
 const app = express();
@@ -42,12 +44,15 @@ app.use(cors({
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder'; 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
+const client = new AssemblyAI({ apiKey: ASSEMBLYAI_API_KEY });
 
 const TEMP_DIR = os.tmpdir();
 
 // --- Constants & Pricing ---
 const COST_IMAGE_FAST = 2; // Credits per image
 const COST_IMAGE_ULTRA = 4; // Credits per image
+const COST_IMAGE_ULTIMATE = 10.1; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
 const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
@@ -104,6 +109,123 @@ function getKeyFromUrl(url) {
 
 // --- Background Processors ---
 
+async function processAssetsBackground(projectId, segments, voiceId, userId) {
+    console.log(`[ContentServer] Starting background asset generation for project ${projectId}`);
+    let workDir = null;
+    let chargedAmount = 0;
+    try {
+        // Fetch Project Data (to get subtitles config, narration style, etc)
+        const { data: project } = await supabase.from('content_projects').select('*').eq('id', projectId).single();
+        if (!project) throw new Error("Project not found");
+
+        // 1. Generate Full Audio
+        const fullScript = segments.map(s => s.narration).join(" ");
+        const finalVoice = voiceId || project.voice_id;
+        const stylePrompt = project.narration_style || "Read aloud in a lively, confident, and magnetic tone";
+        
+        const audioBuffer = await generateFullVoiceover(fullScript, finalVoice, stylePrompt);
+        
+        workDir = path.join(TEMP_DIR, `assets_${uuidv4()}`);
+        if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
+
+        const rawAudioPath = path.join(workDir, 'raw_audio.pcm');
+        fs.writeFileSync(rawAudioPath, audioBuffer);
+        
+        const audioFilename = `audio_${uuidv4()}.wav`;
+        const audioPath = path.join(workDir, audioFilename);
+        
+        const { execSync } = await import('child_process');
+        try {
+            execSync(`ffmpeg -f s16le -ar 24000 -ac 1 -i "${rawAudioPath}" -y "${audioPath}"`, { stdio: 'ignore' });
+        } catch (e) {
+            console.error("FFmpeg PCM Conversion Failed:", e);
+            throw new Error("Failed to convert TTS audio");
+        }
+
+        // 2. Calculate Duration & Charge
+        const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`);
+        const totalDuration = parseFloat(out.toString());
+        
+        const audioCost = totalDuration * COST_AUDIO_PER_SECOND;
+        const subtitleCost = (project.subtitles && project.subtitles !== 'none') ? totalDuration * COST_SUBTITLE_PER_SECOND : 0;
+        const totalCharge = Math.round((audioCost + subtitleCost) * 100) / 100;
+
+        chargedAmount = totalCharge;
+        await chargeUser(userId, totalCharge, `Asset Gen (Audio+Subs) ${totalDuration.toFixed(1)}s`);
+
+        // 3. Upload Audio
+        const audioKey = `content/${projectId}/${audioFilename}`;
+        const audioBufferFile = fs.readFileSync(audioPath);
+        await s3.send(new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: audioKey,
+            Body: audioBufferFile,
+            ContentType: 'audio/wav'
+        }));
+        const audioUrl = `${R2_PUBLIC_URL}/${audioKey}`;
+
+        // 4. Generate/Save Transcription
+        let transcription = null;
+        if (project.subtitles && project.subtitles !== 'none') {
+            console.log(`[ContentServer] Transcribing audio for project ${projectId}...`);
+            const transcript = await client.transcripts.transcribe({
+                audio: audioPath,
+                speech_models: ["universal-3-pro", "universal-2"],
+                language_detection: true,
+            });
+
+            if (transcript.status === 'error') {
+                throw new Error(`Transcription failed: ${transcript.error}`);
+            }
+            transcription = transcript;
+        }
+
+        // 5. Calculate Segment Durations
+        const segmentDurations = calculateAudioLineDurations(segments, totalDuration);
+
+        // 6. Update Project
+        await supabase.from('content_projects').update({
+            voice_file_path: audioUrl,
+            transcription: transcription, // Store transcription JSON
+            segment_durations: segmentDurations,
+            render_status: 'ready' // Assets ready
+        }).eq('id', projectId);
+
+        // 7. Discard old audio if it exists to prevent storage bloat and caching issues
+        if (project.voice_file_path) {
+            const oldKey = getKeyFromUrl(project.voice_file_path);
+            if (oldKey) {
+                console.log(`[ContentServer] Deleting old audio: ${oldKey}`);
+                await s3.send(new DeleteObjectCommand({
+                    Bucket: R2_BUCKET,
+                    Key: oldKey
+                })).catch(err => console.error("[ContentServer] Failed to delete old audio", err));
+            }
+        }
+
+        console.log(`[ContentServer] Background asset generation complete for project ${projectId}`);
+        
+        return { audioUrl, transcription, segmentDurations };
+
+    } catch (e) {
+        console.error(`[ContentServer] Asset generation failed for project ${projectId}`, e);
+        // Set render_status to failed so frontend can notify
+        await supabase.from('content_projects').update({ render_status: 'failed' }).eq('id', projectId);
+        
+        // Refund if charged
+        if (chargedAmount > 0) {
+            await refundUser(userId, chargedAmount, `Refund: Failed Asset Gen (${projectId})`);
+        }
+
+        // Isolation: failure here doesn't affect images
+        throw e;
+    } finally {
+        if (workDir && fs.existsSync(workDir)) {
+            fs.rmSync(workDir, { recursive: true, force: true });
+        }
+    }
+}
+
 async function processImagesBackground(projectId, segments, aspectRatio, pictureQuality, costPerImage, userId) {
     console.log(`[ContentServer] Starting background image generation for project ${projectId} with quality ${pictureQuality}`);
     
@@ -158,7 +280,7 @@ async function processImagesBackground(projectId, segments, aspectRatio, picture
 // 1. Generate Story Segments (Text First, Images Background)
 app.post('/generate-segments', async (req, res) => {
     try {
-        const { prompt, aspectRatio, style, effect, userId, narrationStyle, visualDensity, pictureQuality, subtitles } = req.body;
+        const { prompt, aspectRatio, style, effect, userId, narrationStyle, visualDensity, pictureQuality, subtitles, voiceId } = req.body;
         console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with density ${visualDensity}, quality ${pictureQuality}, subtitles ${subtitles}`);
         
         // 0. Pre-check Balance
@@ -177,6 +299,7 @@ app.post('/generate-segments', async (req, res) => {
             narration_style: narrationStyle, // Save style to DB
             picture_quality: pictureQuality || 'Fast', // Save picture quality to DB
             subtitles: subtitles || 'none', // Save subtitles to DB
+            voice_id: voiceId || 'Puck', // Save voice to DB
             status: 'draft'
         }).select().single();
         
@@ -189,7 +312,7 @@ app.post('/generate-segments', async (req, res) => {
         console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
         // 3. Determine Cost & Charge
-        const costPerImage = (pictureQuality === 'Ultra') ? COST_IMAGE_ULTRA : COST_IMAGE_FAST;
+        const costPerImage = (pictureQuality === 'Ultimate') ? COST_IMAGE_ULTIMATE : (pictureQuality === 'Ultra' ? COST_IMAGE_ULTRA : COST_IMAGE_FAST);
         const totalCost = segmentsData.length * costPerImage;
 
         // Check balance again before charging
@@ -219,13 +342,21 @@ app.post('/generate-segments', async (req, res) => {
         console.log(`[ContentServer] Segments saved to DB. Returning early response.`);
 
         // 5. Set status to generating
-        await supabase.from('content_projects').update({ status: 'generating' }).eq('id', project.id);
+        await supabase.from('content_projects').update({ 
+            status: 'generating',
+            render_status: 'generating'
+        }).eq('id', project.id);
 
         // 6. Return Response IMMEDIATELY
         res.json({ projectId: project.id, segments: insertedSegments });
 
         // 7. Trigger Background Image Gen (Pass cost for refunds)
         processImagesBackground(project.id, insertedSegments, aspectRatio, pictureQuality || 'Fast', costPerImage, userId);
+
+        // 8. Trigger Background Asset Gen (Audio/Subtitles) - Parallel and Isolated
+        processAssetsBackground(project.id, insertedSegments, voiceId, userId).catch(e => {
+            console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
+        });
 
     } catch (e) {
         console.error("[ContentServer] Error in generate-segments:", e);
@@ -257,7 +388,7 @@ app.post('/regenerate-image', async (req, res) => {
         quality = project.picture_quality || 'Fast';
 
         // 1. Calculate Cost & Charge
-        const cost = quality === 'Ultra' ? COST_IMAGE_ULTRA : COST_IMAGE_FAST;
+        const cost = quality === 'Ultimate' ? COST_IMAGE_ULTIMATE : (quality === 'Ultra' ? COST_IMAGE_ULTRA : COST_IMAGE_FAST);
         const balance = await getCredits(userId);
         
         if (balance < cost) {
@@ -270,24 +401,26 @@ app.post('/regenerate-image', async (req, res) => {
         const base64Img = await generateImage(imagePrompt, aspectRatio, quality);
         const buffer = Buffer.from(base64Img, 'base64');
 
-        // 3. Determine Key
-        let key;
+        // 3. Determine New Key & Delete Old
+        const newKey = `content/${projectId}/${segmentId}_${uuidv4()}.png`;
         const existingKey = getKeyFromUrl(currentImageUrl);
+        
         if (existingKey) {
-            key = existingKey;
-        } else {
-            key = `content/${projectId}/${segmentId}_${uuidv4()}.png`;
+            await s3.send(new DeleteObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: existingKey
+            })).catch(err => console.error("Failed to delete old image during regeneration", err));
         }
 
         // 4. Upload
         await s3.send(new PutObjectCommand({
             Bucket: R2_BUCKET,
-            Key: key,
+            Key: newKey,
             Body: buffer,
             ContentType: 'image/png'
         }));
 
-        const newImageUrl = `${R2_PUBLIC_URL}/${key}`;
+        const newImageUrl = `${R2_PUBLIC_URL}/${newKey}`;
 
         // 5. Update DB
         const { error } = await supabase.from('content_segments')
@@ -302,7 +435,7 @@ app.post('/regenerate-image', async (req, res) => {
         console.error("[ContentServer] Regeneration failed", e);
         // Refund on failure
         if (userId) {
-            const cost = quality === 'Ultra' ? COST_IMAGE_ULTRA : COST_IMAGE_FAST;
+            const cost = quality === 'Ultimate' ? COST_IMAGE_ULTIMATE : (quality === 'Ultra' ? COST_IMAGE_ULTRA : COST_IMAGE_FAST);
             await refundUser(userId, cost, "Refund: Failed Regeneration");
         }
         res.status(500).json({ error: e.message });
@@ -431,193 +564,135 @@ app.delete('/stories/:id', async (req, res) => {
     }
 });
 
-// 5. Generate Video
-app.post('/generate-video', async (req, res) => {
+// 5. Generate Assets (Audio, Subtitles, Metadata) - No Video Assembly
+app.post('/generate-assets', async (req, res) => {
     const { projectId, voiceId, userId } = req.body;
-    console.log(`[ContentServer] Starting video generation for project ${projectId}`);
-    
-    // 0. Pre-check Balance
+    console.log(`[ContentServer] Manual asset generation request for project ${projectId}`);
+
     try {
+        // 0. Pre-check Balance for regeneration
         const userCredits = await getCredits(userId);
-        if (userCredits < MIN_BALANCE) {
-            return res.status(402).json({ error: "Credits below the required minimum (5 credits)." });
+        if (userCredits < 1) {
+            return res.status(402).json({ error: "Insufficient credits for this request. Need at least 1 credit to regenerate audio." });
         }
-    } catch(e) {
-        console.error(e);
-        return res.status(500).json({ error: "Failed to check credits" });
-    }
 
-    let storyId = null;
+        const { data: segments } = await supabase.from('content_segments').select('*').eq('project_id', projectId).order('order_index');
+        if (!segments || segments.length === 0) throw new Error("No segments found for project");
+
+        const result = await processAssetsBackground(projectId, segments, voiceId, userId);
+        res.json({ 
+            success: true, 
+            ...result
+        });
+
+    } catch (e) {
+        console.error("Manual Generate Assets Failed", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 6. Export Video (Stitch Assets)
+app.post('/export-video', async (req, res) => {
+    const { projectId, userId } = req.body;
+    console.log(`[ContentServer] Exporting video for project ${projectId}`);
 
     try {
-        // Fetch segments to get a thumbnail
+        // Fetch Project Data
+        const { data: project } = await supabase.from('content_projects').select('*').eq('id', projectId).single();
         const { data: segments } = await supabase.from('content_segments').select('*').eq('project_id', projectId).order('order_index');
-        const thumbnail = segments[0]?.image_url || null;
 
-        // Create placeholder story entry
+        if (!project.voice_file_path || !project.segment_durations) {
+            return res.status(400).json({ error: "Assets not generated. Please generate assets first." });
+        }
+
+        // Create Story Entry
         const { data: story } = await supabase.from('content_stories').insert({
             user_id: userId,
             project_id: projectId,
-            video_url: '', // Placeholder
-            thumbnail_url: thumbnail,
-            status: 'generating'
+            video_url: '',
+            thumbnail_url: segments[0]?.image_url,
+            status: 'rendering'
         }).select().single();
-        
-        storyId = story.id;
-        
-        // Respond to client immediately
-        res.status(202).json({ message: "Processing started", storyId });
 
-    } catch (e) {
-        console.error("Failed to start generation", e);
-        return res.status(500).json({ error: "Failed to start generation" });
-    }
+        res.status(202).json({ message: "Export started", storyId: story.id });
 
-    // Background Processing
-    (async () => {
-        const workDir = path.join(TEMP_DIR, `content_${uuidv4()}`);
-        if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
+        // Background Processing
+        (async () => {
+            const workDir = path.join(TEMP_DIR, `export_${uuidv4()}`);
+            if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
 
-        let subtitleCost = 0;
-
-        try {
-            // REMOVED: await supabase.from('content_projects').update({ status: 'generating' }).eq('id', projectId);
-
-            // Fetch Data
-            const { data: project } = await supabase.from('content_projects').select('*').eq('id', projectId).single();
-            const { data: segments } = await supabase.from('content_segments').select('*').eq('project_id', projectId).order('order_index');
-
-            // 1. Generate Full Audio
-            console.log(`[ContentServer] Generating full audio...`);
-            const fullScript = segments.map(s => s.narration).join(" ");
-            const finalVoice = voiceId || project.voice_id;
-            const stylePrompt = project.narration_style || "Read aloud in a lively, confident, and magnetic tone";
-            
-            const audioBuffer = await generateFullVoiceover(fullScript, finalVoice, stylePrompt);
-            
-            const rawAudioPath = path.join(workDir, 'raw_audio.pcm');
-            fs.writeFileSync(rawAudioPath, audioBuffer);
-            
-            const audioPath = path.join(workDir, 'full_audio.wav');
-            const { execSync } = await import('child_process');
-            
             try {
-                execSync(`ffmpeg -f s16le -ar 24000 -ac 1 -i "${rawAudioPath}" -y "${audioPath}"`, { stdio: 'ignore' });
-            } catch (e) {
-                console.error("FFmpeg PCM Conversion Failed:", e);
-                throw new Error("Failed to convert TTS audio");
-            }
+                // Download Assets
+                const audioPath = path.join(workDir, 'audio.wav');
+                await downloadUrlToFile(project.voice_file_path, audioPath);
 
-            // 2. Charge for Audio & Subtitles
-            const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`);
-            const totalDuration = parseFloat(out.toString());
-            
-            // New Fractional Calculation Logic
-            const audioCost = totalDuration * COST_AUDIO_PER_SECOND;
-            
-            // Check for subtitles preference
-            const useSubtitles = project.subtitles && project.subtitles !== 'none';
-            if (useSubtitles) {
-                subtitleCost = totalDuration * COST_SUBTITLE_PER_SECOND;
-            }
-
-            // Add then round once
-            const totalChargeRaw = audioCost + subtitleCost;
-            const totalCharge = Math.round(totalChargeRaw * 100) / 100;
-            
-            console.log(`[ContentServer] Audio Duration: ${totalDuration}s. Charge: ${audioCost.toFixed(3)} (Audio) + ${subtitleCost.toFixed(3)} (Subtitles) = ${totalCharge} credits.`);
-            
-            const chargeDesc = useSubtitles 
-                ? `Audio + Subtitles Generation (${totalDuration.toFixed(1)}s)`
-                : `Audio Voiceover (${totalDuration.toFixed(1)}s)`;
-
-            // Allows negative balance
-            await chargeUser(userId, totalCharge, chargeDesc);
-
-            // Update status to rendering
-            await supabase.from('content_stories').update({ status: 'rendering' }).eq('id', storyId);
-
-            // 3. Calc Splits
-            const segmentDurations = calculateAudioLineDurations(segments, totalDuration);
-
-            // 4. Download Images
-            console.log(`[ContentServer] Downloading images...`);
-            for (let i = 0; i < segments.length; i++) {
-                if (segments[i].image_url) {
-                    await downloadUrlToFile(segments[i].image_url, path.join(workDir, `img_${i}.png`));
+                // Download Images
+                for (let i = 0; i < segments.length; i++) {
+                    if (segments[i].image_url) {
+                        await downloadUrlToFile(segments[i].image_url, path.join(workDir, `img_${i}.png`));
+                    }
                 }
-            }
 
-            // 5. Assemble Visuals
-            console.log(`[ContentServer] Assembling video with effect: ${project.effect}`);
-            const assembledPath = await assembleVideo(segments, audioPath, segmentDurations, workDir, project.aspect_ratio, project.effect);
+                // Assemble
+                const assembledPath = await assembleVideo(segments, audioPath, project.segment_durations, workDir, project.aspect_ratio, project.effect);
+                let finalPath = assembledPath;
 
-            let finalPath = assembledPath;
-
-            // 6. Generate & Burn Subtitles (if requested)
-            if (useSubtitles) {
-                console.log(`[ContentServer] Generating subtitles: ${project.subtitles}`);
-                try {
-                    const assPath = await generateSubtitles(audioPath, project.subtitles, project.aspect_ratio);
+        // 4. Generate/Burn Subtitles
+                if (project.subtitles && project.subtitles !== 'none' && project.transcription) {
+                    console.log("[Export] Generating subtitles from stored transcription...");
                     
-                    if (assPath) {
+                    // Ensure config is an object (handle potential double-stringification)
+                    let subConfig = project.subtitles;
+                    if (typeof subConfig === 'string') {
+                        try {
+                            subConfig = JSON.parse(subConfig);
+                        } catch (e) {
+                            console.error("[Export] Failed to parse subtitle config string:", e);
+                        }
+                    }
+
+                    const assContent = await generateSubtitles(project.transcription, subConfig, project.aspect_ratio);
+                    if (assContent) {
+                        const assPath = path.join(workDir, `subtitles_${uuidv4()}.ass`);
+                        fs.writeFileSync(assPath, assContent);
+                        
                         const burnedPath = path.join(workDir, `burned_${uuidv4()}.mp4`);
                         await burnSubtitles(assembledPath, assPath, burnedPath);
                         finalPath = burnedPath;
-                    } else {
-                        throw new Error("Subtitle generation returned no file");
                     }
-                } catch (subError) {
-                    console.warn(`[ContentServer] Subtitle pipeline failed: ${subError.message}. Proceeding without subtitles.`);
-                    
-                    // Graceful Failure: Refund subtitle portion ONLY
-                    if (subtitleCost > 0) {
-                        // Calculate refunded amount based on total paid minus cost of just audio
-                        const audioOnlyCharge = Math.round(audioCost * 100) / 100;
-                        const refundAmount = Math.round((totalCharge - audioOnlyCharge) * 100) / 100;
-
-                        console.log(`[ContentServer] Refunding subtitle cost: ${refundAmount}`);
-                        await refundUser(userId, refundAmount, "Refund: Subtitle Generation Failure");
-                    }
-                    // Fallback: finalPath remains assembledPath (video without subtitles)
                 }
+
+                // Upload
+                const finalBuffer = fs.readFileSync(finalPath);
+                const finalKey = `content/stories/${uuidv4()}.mp4`;
+                await s3.send(new PutObjectCommand({
+                    Bucket: R2_BUCKET,
+                    Key: finalKey,
+                    Body: finalBuffer,
+                    ContentType: 'video/mp4'
+                }));
+                const videoUrl = `${R2_PUBLIC_URL}/${finalKey}`;
+
+                // Update Story
+                await supabase.from('content_stories').update({
+                    video_url: videoUrl,
+                    status: 'completed'
+                }).eq('id', story.id);
+
+            } catch (e) {
+                console.error("Export Failed", e);
+                await supabase.from('content_stories').update({ status: 'failed' }).eq('id', story.id);
+            } finally {
+                fs.rmSync(workDir, { recursive: true, force: true });
             }
+        })();
 
-            // 7. Upload Final
-            console.log(`[ContentServer] Uploading final video...`);
-            const finalBuffer = fs.readFileSync(finalPath);
-            const finalKey = `content/stories/${uuidv4()}.mp4`;
-            
-            await s3.send(new PutObjectCommand({
-                Bucket: R2_BUCKET,
-                Key: finalKey,
-                Body: finalBuffer,
-                ContentType: 'video/mp4'
-            }));
-
-            const videoUrl = `${R2_PUBLIC_URL}/${finalKey}`;
-
-            // 8. Update Story with Result
-            await supabase.from('content_stories').update({
-                video_url: videoUrl,
-                status: 'completed'
-            }).eq('id', storyId);
-
-            // REMOVED: await supabase.from('content_projects').update({ status: 'completed' }).eq('id', projectId);
-            console.log(`[ContentServer] Video generation complete: ${videoUrl}`);
-
-        } catch (e) {
-            console.error("[ContentServer] Video Gen Failed", e);
-            // REMOVED: await supabase.from('content_projects').update({ status: 'failed' }).eq('id', projectId);
-            await supabase.from('content_stories').update({ status: 'failed' }).eq('id', storyId);
-            
-            // Note: We deliberately don't refund audio cost if assembly fails mid-way to prevent abuse,
-            // but we could implement smarter refund logic here if needed.
-        } finally {
-            fs.rmSync(workDir, { recursive: true, force: true });
-        }
-    })();
+    } catch (e) {
+        console.error("Export Request Failed", e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
-const PORT = 8001;
-app.listen(PORT, () => console.log(`Content Creator Server on ${PORT}`));
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));

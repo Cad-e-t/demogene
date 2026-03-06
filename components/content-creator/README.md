@@ -42,7 +42,7 @@ The app leverages the latest Gemini models for different stages of the pipeline:
 
 ### 1. Generation Phase
 1.  **Prompt Analysis**: The user submits a text prompt (e.g., "A day in the life of a cyberpunk detective").
-2.  **Segmentation**: The backend uses Gemini to break the story into logical "segments" based on the selected **Visual Density** (Balanced, Rich, or Low). Each segment contains a portion of the narration and a detailed, style-aware AI image prompt.
+2.  **Segmentation**: The backend uses Gemini to break the story into logical "segments" based on the selected **Visual Density** (Balanced or Low). Each segment contains a portion of the narration and a detailed, style-aware AI image prompt.
 3.  **Parallel Image Generation**: The system triggers parallel requests to generate images for each segment based on the configured **Image Style** (e.g., Anime, Cinematic) and **Picture Quality**.
 4.  **Database Sync**: A project draft is created in Supabase, and segments are populated in real-time as images complete.
 

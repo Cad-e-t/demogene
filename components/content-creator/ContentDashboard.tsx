@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { generateSegments } from './api';
 import { ContentEditor } from './ContentEditor';
-import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, VISUAL_DENSITIES, PICTURE_QUALITY_OPTIONS, SUBTITLE_PRESETS } from './types';
+import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, VISUAL_DENSITIES, PICTURE_QUALITY_OPTIONS, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 import { STYLE_PREVIEWS } from './creator-assets';
@@ -32,9 +32,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [pictureQuality, setPictureQuality] = useState(PICTURE_QUALITY_OPTIONS[0]); // Default to Fast
     
     // Updated Default: Pulse Bold
-    const [subtitles, setSubtitles] = useState(SUBTITLE_PRESETS.find(s => s.id === 'pulse_bold') || SUBTITLE_PRESETS[0]); 
+    const [subtitles, setSubtitles] = useState<SubtitleConfiguration>(DEFAULT_SUBTITLE_CONFIG); 
     
-    const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'density' | 'quality' | 'subtitles'>('main');
+    const [isVisualOpen, setIsVisualOpen] = useState(true);
+    const [isVoiceOpen, setIsVoiceOpen] = useState(true);
+    const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'density' | 'quality'>('main');
 
     // Audio Preview State
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -47,6 +49,21 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     
     // Notification State
     const [notification, setNotification] = useState<{ message: string, type: 'error' | 'success' } | null>(null);
+
+    // Image Count Estimation Logic
+    const sentenceCount = React.useMemo(() => {
+        if (!prompt.trim()) return 0;
+        return prompt.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+    }, [prompt]);
+
+    const estimatedImages = React.useMemo(() => {
+        if (sentenceCount === 0) return 0;
+        let count = 0;
+        if (visualDensity.id === 'Balanced') count = Math.round(sentenceCount / 2);
+        else if (visualDensity.id === 'Low') count = Math.round(sentenceCount / 3);
+        else count = Math.round(sentenceCount / 2);
+        return Math.max(1, count);
+    }, [sentenceCount, visualDensity.id]);
 
     // 0. Init & Credit Check & Typewriter Effect
     useEffect(() => {
@@ -115,8 +132,17 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                         if (q) setPictureQuality(q);
                     }
                     if (data.subtitles) {
-                        const s = SUBTITLE_PRESETS.find(x => x.id === data.subtitles);
-                        if (s) setSubtitles(s);
+                        // Check if it's a string (old preset ID) or object
+                        if (typeof data.subtitles === 'string') {
+                             const s = SUBTITLE_PRESETS.find(x => x.id === data.subtitles);
+                             // If it was a preset, we might want to map it to a config, but for now let's just use default if it's a string to avoid type errors, or maybe we can map it?
+                             // Since we are transitioning, let's just use default if it's a string, or maybe we can try to parse it if it's a JSON string?
+                             // But the previous code stored just the ID.
+                             // Let's just fallback to default for now to be safe and encourage new config.
+                             setSubtitles(DEFAULT_SUBTITLE_CONFIG);
+                        } else {
+                            setSubtitles(data.subtitles as SubtitleConfiguration);
+                        }
                     }
                 }
             } catch (e) {
@@ -149,7 +175,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 narration_style: narrationStyle.id.toString(), // Storing ID or name for easier lookup
                 effect: effect.id,
                 picture_quality: pictureQuality.id,
-                subtitles: subtitles.id,
+                subtitles: subtitles, // Store the full object
                 updated_at: new Date().toISOString()
             });
         };
@@ -183,8 +209,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 if (q) setPictureQuality(q);
             }
             if (initialProjectData.project.subtitles) {
-                const s = SUBTITLE_PRESETS.find(p => p.id === initialProjectData.project.subtitles);
-                if (s) setSubtitles(s);
+                 if (typeof initialProjectData.project.subtitles === 'string') {
+                     setSubtitles(DEFAULT_SUBTITLE_CONFIG);
+                 } else {
+                     setSubtitles(initialProjectData.project.subtitles as SubtitleConfiguration);
+                 }
             }
         }
     }, [initialProjectData]);
@@ -238,7 +267,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         setLoading(true);
         try {
             console.log("[ContentDashboard] Starting generation...");
-            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, visualDensity.id, pictureQuality.id, subtitles.id);
+            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, visualDensity.id, pictureQuality.id, subtitles, voice.id);
             console.log("[ContentDashboard] Text segments received:", res.segments.length);
             
             setProject({ 
@@ -250,7 +279,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 image_style: style,
                 narration_style: narrationStyle.prompt,
                 picture_quality: pictureQuality.id,
-                subtitles: subtitles.id,
+                subtitles: subtitles,
                 status: 'generating'
             });
             setSegments(res.segments);
@@ -306,8 +335,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     absolute inset-y-0 right-0 
                     w-80 bg-white border-l border-slate-200 p-6 
                     transform transition-transform duration-300 ease-in-out z-40 
-                    ${isConfigOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} 
                     overflow-y-auto thin-scrollbar
+                    ${isConfigOpen ? 'translate-x-0' : 'translate-x-full'}
                 `}>
                     
                     {/* Header Row: Title + Close Button */}
@@ -319,16 +348,22 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     </div>
 
                     {configView === 'main' && (
-                        <>
-                            <div className="space-y-6">
-                                {/* --- VISUAL CONFIG SECTION --- */}
-                                <div>
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Visual Config</h4>
-                                    
-                                    <div className="space-y-3">
+                        <div className="space-y-6">
+                            {/* --- VISUAL CONFIG SECTION --- */}
+                            <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                <button 
+                                    onClick={() => setIsVisualOpen(!isVisualOpen)}
+                                    className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition"
+                                >
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visual Config</h4>
+                                    <svg className={`w-5 h-5 text-slate-400 transition-transform ${isVisualOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </button>
+                                
+                                {isVisualOpen && (
+                                    <div className="p-3 bg-slate-50 border-t border-slate-200 space-y-3">
                                         <button 
                                             onClick={() => setConfigView('style')}
-                                            className="w-full flex items-center justify-between p-2 pl-3 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-2 pl-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-200 shrink-0 shadow-sm border border-slate-200">
@@ -344,7 +379,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
                                         <button 
                                             onClick={() => setConfigView('aspect')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
                                         >
                                             <div>
                                                 <span className="text-[10px] font-bold text-slate-400 block leading-tight">Ratio</span>
@@ -355,7 +390,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
                                         <button 
                                             onClick={() => setConfigView('quality')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
                                         >
                                             <div>
                                                 <span className="text-[10px] font-bold text-slate-400 block leading-tight">Quality</span>
@@ -366,7 +401,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
                                         <button 
                                             onClick={() => setConfigView('density')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
                                         >
                                             <div>
                                                 <span className="text-[10px] font-bold text-slate-400 block leading-tight">Density</span>
@@ -377,7 +412,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
                                         <button 
                                             onClick={() => setConfigView('effect')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
                                         >
                                             <div>
                                                 <span className="text-[10px] font-bold text-slate-400 block leading-tight">Effects</span>
@@ -386,16 +421,24 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                             <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                         </button>
                                     </div>
-                                </div>
+                                )}
+                            </div>
 
-                                {/* --- VOICE CONFIG SECTION --- */}
-                                <div>
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-4 border-b border-slate-100 pb-2">Voice Config</h4>
-                                    
-                                    <div className="space-y-3">
+                            {/* --- VOICE CONFIG SECTION --- */}
+                            <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                <button 
+                                    onClick={() => setIsVoiceOpen(!isVoiceOpen)}
+                                    className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition"
+                                >
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Voice Config</h4>
+                                    <svg className={`w-5 h-5 text-slate-400 transition-transform ${isVoiceOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </button>
+                                
+                                {isVoiceOpen && (
+                                    <div className="p-3 bg-slate-50 border-t border-slate-200 space-y-3">
                                         <button 
                                             onClick={() => setConfigView('voice')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
                                         >
                                             <div>
                                                 <span className="text-[10px] font-bold text-slate-400 block leading-tight">Narrator</span>
@@ -406,7 +449,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
                                         <button 
                                             onClick={() => setConfigView('narration_style')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
                                         >
                                             <div className="flex-1 min-w-0 pr-2">
                                                 <span className="text-[10px] font-bold text-slate-400 block leading-tight">Tone</span>
@@ -414,26 +457,10 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                             </div>
                                             <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                         </button>
-
-                                        <button 
-                                            onClick={() => setConfigView('subtitles')}
-                                            className="w-full flex items-center justify-between p-2 pl-3 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
-                                        >
-                                            <div className="flex items-center gap-3 w-full min-w-0">
-                                                <div className="w-12 h-8 rounded border border-slate-200 bg-black shrink-0 overflow-hidden">
-                                                    <SubtitlePreview id={subtitles.id} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <span className="text-[10px] font-bold text-slate-400 block leading-tight">Subtitles</span>
-                                                    <span className="text-slate-900 truncate block">{subtitles.name}</span>
-                                                </div>
-                                            </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                        </button>
                                     </div>
-                                </div>
+                                )}
                             </div>
-                        </>
+                        </div>
                     )}
 
                     {configView === 'density' && (
@@ -589,42 +616,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                         </>
                     )}
 
-                    {configView === 'subtitles' && (
-                        <>
-                             <div className="flex items-center gap-2 mb-6">
-                                <button 
-                                    onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Subtitles</h3>
-                            </div>
-                            
-                            <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
-                                {SUBTITLE_PRESETS.map(s => (
-                                    <button
-                                        key={s.id}
-                                        onClick={() => { setSubtitles(s); setConfigView('main'); }}
-                                        className={`w-full text-left p-3 border rounded-xl transition-all group ${subtitles.id === s.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
-                                    >
-                                        <div className="aspect-video w-full rounded-lg bg-gray-900 mb-3 overflow-hidden border border-slate-200 relative">
-                                            <SubtitlePreview id={s.id} />
-                                            {subtitles.id === s.id && (
-                                                <div className="absolute top-2 right-2 bg-blue-600 rounded-full p-1 shadow-md z-20">
-                                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="font-bold flex items-center justify-between px-1 text-slate-900">
-                                            {s.name}
-                                        </div>
-                                        <div className="text-xs text-slate-400 font-medium px-1 mt-0.5">{s.description}</div>
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
+
 
                     {configView === 'voice' && (
                         <>
@@ -695,7 +687,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 <div className={`flex-1 ${isConfigOpen ? 'md:mr-80' : ''} transition-all duration-300 flex flex-col h-full overflow-hidden bg-white`}>
                     
                     {/* 1. Top Section - Title */}
-                    <div className="flex-none px-6 py-6 border-b border-slate-100 bg-white flex items-center gap-4">
+                    <div className="flex-none px-6 py-6 bg-white flex items-center gap-4">
                         {/* Mobile Sidebar Toggle - Moved here */}
                         <button 
                             onClick={onToggleSidebar}
@@ -717,10 +709,22 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     </div>
 
                     {/* 3. Bottom Section - Actions */}
-                    <div className="flex-none px-6 py-4 bg-white border-t border-slate-100 flex items-center justify-between">
-                         {/* Character Count */}
-                        <div className={`text-xs font-bold transition-colors ${prompt.length > 6000 ? 'text-red-500' : 'text-slate-400'}`}>
-                            {prompt.length} / 6000
+                    <div className="flex-none px-6 py-4 bg-white flex items-center justify-between">
+                         {/* Character Count & Image Estimate */}
+                        <div className="flex items-center gap-4">
+                            <div className={`text-xs font-bold transition-colors ${prompt.length > 6000 ? 'text-red-500' : 'text-slate-400'}`}>
+                                {prompt.length} / 6000
+                            </div>
+                            {sentenceCount > 0 && (
+                                <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full border border-slate-200 shadow-sm animate-in fade-in slide-in-from-left-2 duration-300">
+                                    <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-600">
+                                        ~{estimatedImages} {estimatedImages === 1 ? 'Image' : 'Images'}
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Generate Button */}

@@ -7,101 +7,10 @@ import { spawn } from 'child_process';
 const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
 const client = new AssemblyAI({ apiKey: ASSEMBLYAI_API_KEY });
 
-
-
 // --- Configuration ---
 
-// 1. Placement (Margins from bottom)
-const PLACEMENT = {
-    // 9:16 (1920h) -> Center is 960. 
-    // 650 from bottom puts it at y=1270 (approx lower third).
-    VERTICAL_9_16_MARGIN: 650, 
-    // 16:9 (1080h) -> Center is 540.
-    // 150 from bottom puts it at y=930.
-    HORIZONTAL_16_9_MARGIN: 150, 
-};
-
-// 2. Style Presets
-const PRESETS = {
-    // Bold Social (Viral / Short-Form)
-    // High contrast, yellow highlight, pop-in
-    pulse_bold: { 
-        font: "Edu SA Beginner",
-        fontSize: 180,
-        primaryColor: "&H0000FFFF", // Active: Yellow (BGR)
-        secondaryColor: "&H00FFFFFF", // Inactive: White
-        outlineColor: "&H00000000", // Black outline
-        backColor: "&H80000000", // Semi-transparent shadow
-        bold: -1, // True
-        spacing: 2,
-        borderStyle: 1, // Outline
-        outline: 4,
-        shadow: 2,
-        alignment: 2, // Bottom Center
-        maxWords: 2,
-        threshold: 160, // Strict grouping
-        animationType: 'karaoke_block' // Block highlight
-    },
-    // Clean Pro (Long-Form / Professional)
-    // Minimalist, no highlight, soft shadow
-    glow_focus: { 
-        font: "Inter",
-        fontSize: 85,
-        primaryColor: "&H00FFFFFF", // White
-        secondaryColor: "&H00FFFFFF", // White
-        outlineColor: "&H00000000",
-        backColor: "&H00000000", 
-        bold: 0, // False
-        borderStyle: 1,
-        outline: 0, // No stroke
-        shadow: 3, // Soft shadow
-        alignment: 2,
-        maxWords: 8, // Longer chunks
-        threshold: 300, // Loose grouping
-        animationType: 'fade_group' // Fade in line
-    },
-    // Karaoke / Fun (Entertainment)
-    // Colored, bouncy, interactive
-    impact_pop: { 
-        font: "Edu SA Beginner",
-        fontSize: 180,
-        primaryColor: "&H0000FFFF", // 
-        secondaryColor: "&H00FFFFFF", // Inactive: White
-        outlineColor: "&H00000000",
-        backColor: "&H00000000",
-        bold: -1,
-        spacing: 2,
-        borderStyle: 1,
-        outline: 5,
-        shadow: 0,
-        alignment: 2,
-        maxWords: 1,
-        threshold: 90,
-        animationType: 'karaoke_bounce' // Highlight + Bounce
-    },
-    // Comic / Action (High Energy)
-    // White text, black outline, punchy
-    comic_burst: {
-        font: "Komika Axis",
-        fontSize: 95,
-        primaryColor: "&H00FFFFFF", // White
-        secondaryColor: "&H00FFFFFF", // White (Inactive)
-        outlineColor: "&H00000000", // Black
-        backColor: "&H00000000",
-        bold: 0, // Komika Axis is already bold
-        spacing: 2,
-        borderStyle: 1,
-        outline: 5, // Thick outline
-        shadow: 0,
-        alignment: 2,
-        maxWords: 2,
-        threshold: 90,
-        animationType: 'karaoke_bounce'
-    }
-};
-
-// Default fallback
-const DEFAULT_PRESET = PRESETS.pulse_bold;
+// 1. Style Presets (Removed hardcoded presets, using dynamic config)
+const PRESETS = {}; 
 
 // Helper: Format Time for ASS (h:mm:ss.cc)
 function formatTime(ms) {
@@ -114,38 +23,112 @@ function formatTime(ms) {
     return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
 }
 
+// Helper: Convert Hex to ASS Color (&HAABBGGRR)
+function hexToAssColor(hex) {
+    if (!hex) throw new Error("Missing color hex value");
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    
+    // Default opaque
+    let r = hex.substring(0, 2);
+    let g = hex.substring(2, 4);
+    let b = hex.substring(4, 6);
+    
+    return `&H00${b}${g}${r}`;
+}
+
+// Helper: Convert Hex to ASS Tag Color (&HBBGGRR&)
+function hexToAssTagColor(hex) {
+    if (!hex) return '&HFFFFFF&';
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    let r = hex.substring(0, 2);
+    let g = hex.substring(2, 4);
+    let b = hex.substring(4, 6);
+    return `&H${b}${g}${r}&`;
+}
+
 // Helper: Generate ASS Header
-function getAssHeader(preset, aspectRatio) {
+function getAssHeader(config, aspectRatio) {
+    console.log("[Subtitle] Generating ASS Header...");
     const isLandscape = aspectRatio === '16:9';
     const resX = isLandscape ? 1920 : 1080;
     const resY = isLandscape ? 1080 : 1920;
-    const marginV = isLandscape ? PLACEMENT.HORIZONTAL_16_9_MARGIN : PLACEMENT.VERTICAL_9_16_MARGIN;
+    
+    if (!config || typeof config !== 'object') {
+        console.error("[Subtitle] CRITICAL: Config is missing or not an object in getAssHeader!");
+        throw new Error("Cannot generate ASS header: Invalid configuration object.");
+    }
 
-    // Use default values if preset missing properties
-    const p = { ...DEFAULT_PRESET, ...preset };
+    // Strict Validation: Check for required fields
+    const requiredFields = ['fontFamily', 'fontSize', 'primaryColor', 'secondaryColor', 'strokeWidth', 'letterSpacing', 'placement'];
+    const missing = requiredFields.filter(f => config[f] === undefined || config[f] === null);
+    
+    if (missing.length > 0) {
+        console.error(`[Subtitle] Missing required fields: ${missing.join(', ')}`);
+        throw new Error(`Invalid subtitle config: Missing required fields: ${missing.join(', ')}`);
+    }
 
+    const p = {};
+
+    p.font = config.fontFamily;
+    p.fontSize = config.fontSize * 2; 
+    
+    // Primary = Highlight, Secondary = Base (for Karaoke \k logic)
+    const highlight = config.highlightColor || config.primaryColor;
+    const base = config.primaryColor;
+    const outline = config.secondaryColor;
+    
+    p.primaryColor = hexToAssColor(highlight); 
+    p.secondaryColor = hexToAssColor(base); 
+    p.outlineColor = hexToAssColor(outline);
+    p.backColor = "&H80000000"; 
+    p.bold = -1; 
+    p.spacing = config.letterSpacing * 2; // Scale for export resolution
+    p.outline = config.strokeWidth * 2; // Scale for export resolution
+    p.shadow = 0; 
+    p.borderStyle = 1; 
+    
+    // Map placement to alignment/margin (Match Player 15% logic)
+    if (config.placement === 'top') {
+        p.alignment = 8; 
+        p.marginV = Math.round(resY * 0.15);
+    } else if (config.placement === 'middle') {
+        p.alignment = 5; 
+        p.marginV = 0;
+    } else {
+        p.alignment = 2; 
+        p.marginV = Math.round(resY * 0.15);
+    }
+    
     return `[Script Info]
 ScriptType: v4.00+
 PlayResX: ${resX}
 PlayResY: ${resY}
-WrapStyle: 0
+WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${p.font},${p.fontSize},${p.primaryColor},${p.secondaryColor},${p.outlineColor},${p.backColor},${p.bold},0,0,0,100,100,${p.spacing},0,${p.borderStyle},${p.outline},${p.shadow},${p.alignment},20,20,${marginV},1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Style: Default,${p.font},${p.fontSize},${p.primaryColor},${p.secondaryColor},${p.outlineColor},${p.backColor},${p.bold},0,0,0,100,100,${p.spacing},0,${p.borderStyle},${p.outline},${p.shadow},${p.alignment},20,20,${p.marginV},1
 `;
 }
 
 // Core Logic: Generate Word Events
-function generateEvents(words, preset, aspectRatio) {
+function generateEvents(words, config, aspectRatio) {
     let events = "";
-    // Allow slightly wider text in landscape
-    const maxWords = aspectRatio === '16:9' ? preset.maxWords + 1 : preset.maxWords; 
-    let group = [];
+    if (!config.animationType) {
+        throw new Error("Invalid subtitle config: Missing animationType");
+    }
 
+    const animationType = config.animationType;
+    const isFade = animationType === 'fade_group';
+    const threshold = isFade ? 800 : 300; // Slower pacing for fade
+    const maxCharsPerLine = isFade 
+        ? (aspectRatio === '16:9' ? 60 : 35) 
+        : (aspectRatio === '16:9' ? 45 : 22); 
+
+    let group = [];
+    
     const flushGroup = (nextWordStart) => {
         if (group.length === 0) return "";
 
@@ -154,59 +137,52 @@ function generateEvents(words, preset, aspectRatio) {
 
         const startTime = formatTime(firstWord.start);
         
-        // Determine sensible end time
         let endMs = lastWord.end;
         if (nextWordStart && (nextWordStart - endMs < 300)) {
-             // If next word is close, snap end to next start to prevent flickering
              endMs = nextWordStart;
         } else {
-             // Otherwise give a small hold time
              endMs += 100; 
         }
         const endTime = formatTime(endMs);
 
-        // --- Content Construction ---
         let content = "";
+        const baseColorTag = `{\\1c${hexToAssTagColor(config.primaryColor)}}`;
 
-        if (preset.animationType === 'fade_group') {
-            // Clean Pro: Just text with fade
+        // --- Content Construction ---
+        if (animationType === 'fade_group') {
             const text = group.map(w => w.text).join(' ');
-            content = `{\\fad(150,150)}${text}`;
+            content = `${baseColorTag}{\\fad(200,200)}${text}`; // Fix Color Flip
         } 
+        else if (animationType === 'static' || animationType === 'none') {
+            const text = group.map(w => w.text).join(' ');
+            content = `${baseColorTag}${text}`; // Fix Color Flip
+        }
         else {
-            // Karaoke Styles (Bold Social, Fun)
-            // ASS Karaoke Logic: Text starts in SecondaryColour. \k tags turn it to PrimaryColour.
-            // We set Secondary=White, Primary=Highlight in styles.
-            
-            // Initial tags
-            content = "{\\fad(0,0)}"; 
+            // Karaoke Styles
+            content = "{\\fad(100,100)}"; 
 
             group.forEach((word, idx) => {
                 const duration = word.end - word.start;
-                
-                // Calculate gap to next word in this group
                 let gap = 0;
                 if (idx < group.length - 1) {
                     gap = group[idx+1].start - word.end;
                 }
 
-                // Convert to centiseconds for ASS
                 const kDur = Math.max(1, Math.round(duration / 10));
                 const kGap = Math.max(0, Math.round(gap / 10));
 
-                if (preset.animationType === 'karaoke_bounce') {
-                    // Pop effect: Scale up to 120% then back
-                    // \t(start, end, modifiers) relative to event start
-                    // We approximate per-word bounce using \t timing relative to karaoke flow is hard in one line.
-                    // Simplified: Just scale active word via karaoke tag? No, standard ASS doesn't support \k triggers for transform.
-                    // Advanced: We simply apply the karaoke fill.
-                    content += `{\\k${kDur}}${word.text} `;
+                if (animationType === 'karaoke_bounce') {
+                    // Pop Bounce: Localized transform to reduce jitter
+                    const startOffset = Math.round((word.start - firstWord.start) / 10);
+                    const midOffset = startOffset + Math.round(kDur / 2);
+                    const endOffset = startOffset + kDur;
+                    
+                    content += `{\\k${kDur}\\t(${startOffset},${midOffset},\\fscx115\\fscy115)\\t(${midOffset},${endOffset},\\fscx100\\fscy100)}${word.text} `;
                 } else {
-                    // Block highlight (Bold Social)
+                    // Block highlight
                     content += `{\\k${kDur}}${word.text} `;
                 }
 
-                // Add spacing time
                 if (kGap > 0) content += `{\\k${kGap}} `;
             });
         }
@@ -217,53 +193,40 @@ function generateEvents(words, preset, aspectRatio) {
     for (let i = 0; i < words.length; i++) {
         const word = words[i];
         if (!word.text.trim()) continue;
-
-        let shouldGroup = false;
         
-        // Grouping Logic
-        if (group.length > 0 && group.length < maxWords) {
+        if (config.textTransform === 'uppercase') word.text = word.text.toUpperCase();
+        if (config.textTransform === 'capitalize') word.text = word.text.replace(/\b\w/g, l => l.toUpperCase());
+
+        let shouldGroup = true;
+        
+        // Grouping Logic: Natural pauses and line length
+        if (group.length > 0) {
             const prevWord = group[group.length - 1];
             const gap = word.start - prevWord.end;
-            if (gap <= preset.threshold) {
-                shouldGroup = true;
+            const currentLineLength = group.map(w => w.text).join(' ').length;
+            
+            if (gap > threshold || (currentLineLength + word.text.length > maxCharsPerLine)) {
+                shouldGroup = false;
             }
         }
 
         if (shouldGroup) {
             group.push(word);
         } else {
-            // Flush old group
             events += flushGroup(word.start);
-            // Start new group
             group = [word];
         }
     }
 
-    // Flush final group
     events += flushGroup(null);
-    
     return events;
 }
 
-export async function generateSubtitles(audioPath, styleId, aspectRatio) {
-    if (!ASSEMBLYAI_API_KEY) {
-        console.warn("Skipping subtitles: ASSEMBLYAI_API_KEY not found.");
-        return null;
-    }
-
+export async function generateSubtitles(transcription, config, aspectRatio) {
     try {
-        console.log(`[Subtitle] Transcribing audio...`);
-        const transcript = await client.transcripts.transcribe({
-            audio: audioPath,
-             speech_models: ["universal-3-pro", "universal-2"],
-            language_detection: true,
-        });
-
-        if (transcript.status === 'error') {
-            throw new Error(`Transcription failed: ${transcript.error}`);
-        }
-
-        const { words } = transcript;
+        console.log(`[Subtitle] Generating subtitles from stored transcription...`);
+        
+        const words = transcription.words;
         if (!words || words.length === 0) return null;
 
         // Clean transcription: replace em dashes with spaces
@@ -271,22 +234,18 @@ export async function generateSubtitles(audioPath, styleId, aspectRatio) {
             if (w.text) w.text = w.text.replace(/—/g, ' ');
         });
 
-        // Select Preset
-        const preset = PRESETS[styleId] || PRESETS.pulse_bold;
-
         // Generate Content
-        let assContent = getAssHeader(preset, aspectRatio);
-        assContent += generateEvents(words, preset, aspectRatio);
+        let assContent = getAssHeader(config, aspectRatio);
+        assContent += "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
+        assContent += generateEvents(words, config, aspectRatio);
 
-        const assPath = path.join(path.dirname(audioPath), 'subtitles.ass');
-        fs.writeFileSync(assPath, assContent);
-        
-        console.log(`[Subtitle] Generated ASS file at ${assPath} using preset ${styleId}`);
-        return assPath;
+        // We return the content directly instead of writing to a file, 
+        // to allow in-memory generation for preview and export.
+        return assContent;
 
     } catch (e) {
         console.error("[Subtitle] Generation Error:", e);
-        return null;
+        throw e; // Re-throw to ensure failure is visible
     }
 }
 

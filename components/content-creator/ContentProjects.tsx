@@ -4,6 +4,9 @@ import { deleteProject } from './api';
 
 export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggleSidebar }: any) => {
     const [projects, setProjects] = useState<any[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetch = async () => {
@@ -35,7 +38,8 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
         
         if (error) {
             console.error("[ContentProjects] Failed to load segments", error);
-            alert("Failed to load project");
+            setError("Failed to load project. Please try again.");
+            setTimeout(() => setError(null), 5000);
             return;
         }
 
@@ -46,25 +50,26 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
         }
     };
 
-    const handleDelete = async (e: React.MouseEvent, projectId: string) => {
-        e.stopPropagation();
-        if (window.confirm("Delete this project? This will also remove all generated segments.")) {
-            try {
-                // Optimistic UI update
-                setProjects(prev => prev.filter(p => p.id !== projectId));
-                await deleteProject(projectId, session.user.id);
-            } catch (err) {
-                console.error(err);
-                alert("Failed to delete project");
-                // Refresh list on failure
-                // Re-fetch logic simplified for error handling
-                const { data } = await supabase.from('content_projects').select('*, content_segments(image_url)').eq('user_id', session.user.id).order('created_at', { ascending: false });
-                const formatted = (data || []).map((p: any) => {
-                    const firstValidSegment = p.content_segments?.find((s: any) => s.image_url);
-                    return { ...p, previewUrl: firstValidSegment ? firstValidSegment.image_url : null };
-                });
-                setProjects(formatted);
-            }
+    const handleDelete = async (projectId: string) => {
+        setConfirmDeleteId(null);
+        setDeletingId(projectId);
+        try {
+            // Optimistic UI update
+            setProjects(prev => prev.filter(p => p.id !== projectId));
+            await deleteProject(projectId, session.user.id);
+        } catch (err) {
+            console.error(err);
+            setError("Failed to delete project");
+            setTimeout(() => setError(null), 5000);
+            // Refresh list on failure
+            const { data } = await supabase.from('content_projects').select('*, content_segments(image_url)').eq('user_id', session.user.id).order('created_at', { ascending: false });
+            const formatted = (data || []).map((p: any) => {
+                const firstValidSegment = p.content_segments?.find((s: any) => s.image_url);
+                return { ...p, previewUrl: firstValidSegment ? firstValidSegment.image_url : null };
+            });
+            setProjects(formatted);
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -84,7 +89,38 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
             </div>
 
             {/* Desktop Header */}
-            <h2 className="hidden md:block text-3xl font-black mb-8 text-slate-900">Projects</h2>
+            <div className="flex items-center justify-between mb-8">
+                <h2 className="hidden md:block text-3xl font-black text-slate-900">Projects</h2>
+                {error && (
+                    <div className="text-xs font-bold text-red-600 bg-red-50 px-4 py-2 rounded-xl border border-red-100 animate-shake">
+                        {error}
+                    </div>
+                )}
+            </div>
+
+            {/* Delete Confirmation Modal */}
+            {confirmDeleteId && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter">Delete Project?</h3>
+                        <p className="text-slate-500 text-sm mb-8 font-medium">This will permanently remove all generated segments and assets. This action cannot be undone.</p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="flex-1 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={() => handleDelete(confirmDeleteId)}
+                                className="flex-1 py-3 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-200"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {projects.map(p => (
@@ -95,12 +131,12 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                     >
                         {/* Preview Area */}
                         <div className="w-full aspect-video bg-slate-100 relative overflow-hidden">
-                            {p.status === 'draft' ? (
+                            {p.previewUrl ? (
+                                <img src={p.previewUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="Project Preview" />
+                            ) : p.status === 'draft' ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
                                     <span className="text-slate-400 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-slate-300 px-4 py-2 rounded-xl">Draft</span>
                                 </div>
-                            ) : p.previewUrl ? (
-                                <img src={p.previewUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="Project Preview" />
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
                                     <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
@@ -117,11 +153,19 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                         </div>
                         
                         <button 
-                            onClick={(e) => handleDelete(e, p.id)}
-                            className="absolute bottom-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100 z-10"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeleteId(p.id);
+                            }}
+                            disabled={deletingId === p.id}
+                            className="absolute bottom-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100 z-10 disabled:opacity-50"
                             title="Delete Project"
                         >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            {deletingId === p.id ? (
+                                <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            )}
                         </button>
                     </div>
                 ))}
