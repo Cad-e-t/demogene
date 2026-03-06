@@ -14,7 +14,6 @@ import { generateSubtitles, burnSubtitles } from './subtitle-generator.js';
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
 import { AssemblyAI } from 'assemblyai';
 
-
 // --- Setup ---
 const app = express();
 app.use(express.json());
@@ -25,7 +24,8 @@ const allowedOrigins = new Set([
   'https://creator.productcam.site',
   'https://demogene.vercel.app',
   'https://www.productcam.site',
-  'http://localhost:3000'
+  'http://localhost:3000',
+  'https://crappik.site'
 ]);
 
 app.use(cors({

@@ -612,14 +612,16 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 onChange={(e) => handleSubtitleUpdate({ fontFamily: e.target.value })}
                                 className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-900 outline-none focus:border-blue-500"
                             >
+                                <option value="Architects Daughter">Architects Daughter</option>
                                 <option value="Arial">Arial</option>
-                                <option value="Verdana">Verdana</option>
-                                <option value="Helvetica">Helvetica</option>
-                                <option value="Times New Roman">Times New Roman</option>
-                                <option value="Courier New">Courier New</option>
-                                <option value="Georgia">Georgia</option>
-                                <option value="Impact">Impact</option>
-                                <option value="Comic Sans MS">Comic Sans MS</option>
+                                <option value="Arimo">Arimo</option>
+                                <option value="Chewy">Chewy</option>
+                                <option value="Combo">Combo</option>
+                                <option value="Edu SA Beginner">Edu SA Beginner</option>
+                                <option value="Fredoka Condensed Medium Conden">Fredoka</option>
+                                <option value="Griffy">Griffy</option>
+                                <option value="Komika Hand">Komika Hand</option>
+                                <option value="Tinos">Tinos</option>
                             </select>
                         </div>
 
