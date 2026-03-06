@@ -13,15 +13,15 @@ export interface SubtitleConfiguration {
 }
 
 export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfiguration = {
-    placement: 'bottom',
-    fontFamily: 'Arial',
-    fontSize: 40,
-    primaryColor: '#FFFFFF',
-    secondaryColor: '#000000',
+    placement: 'middle',
+    fontFamily: 'Arimo',
+    fontSize: 24,
+    primaryColor: '#ffffff',
+    secondaryColor: '#0f0f0f',
     highlightColor: '#FFFF00',
     strokeWidth: 4,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
+    letterSpacing: 3,
+    textTransform: 'capitalize',
     animationType: 'karaoke_block'
 };
 
