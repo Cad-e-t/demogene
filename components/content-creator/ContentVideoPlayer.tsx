@@ -133,12 +133,20 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     useEffect(() => {
         if (!transcription || !transcription.words) return;
         
-        const animationType = subtitleStyle?.animationType || 'karaoke_block';
+        const rawAnimationType = subtitleStyle?.animationType || 'pulse_bold';
+        const animationType = rawAnimationType === 'pulse_bold' ? 'karaoke_block' : 
+                             rawAnimationType === 'glow_focus' ? 'fade_group' : 
+                             rawAnimationType === 'impact_pop' ? 'karaoke_bounce' : 
+                             rawAnimationType;
+
         const isFade = animationType === 'fade_group';
         const threshold = isFade ? 800 : 300; // Slower pacing for fade
         const maxCharsPerLine = isFade 
             ? (aspectRatio === '16:9' ? 60 : 35) 
             : (aspectRatio === '16:9' ? 45 : 22);
+        
+        // Word count limits per style
+        const maxWords = animationType === 'karaoke_block' ? 4 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
 
         const lines = [];
         let group = [];
@@ -156,7 +164,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                 const gap = w.start - prevWord.end;
                 const currentLineLength = group.map((g: any) => g.text).join(' ').length;
                 
-                if (gap > (threshold / 1000) || (currentLineLength + w.text.length > maxCharsPerLine)) {
+                if (gap > (threshold / 1000) || (currentLineLength + w.text.length > maxCharsPerLine) || group.length >= maxWords) {
                     shouldGroup = false;
                 }
             }
@@ -184,7 +192,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         setSubtitles(lines);
         if (onLoadComplete) onLoadComplete();
         setIsLoaded(true);
-    }, [transcription]);
+    }, [transcription, subtitleStyle, aspectRatio]);
 
     // Helper: Parse ASS time (h:mm:ss.cc) to seconds
     const parseTime = (timeStr: string) => {
@@ -310,7 +318,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
 
         // Draw Subtitles
         const currentSubtitle = subtitles.find(s => currentTime >= s.start && currentTime <= s.end);
-        if (currentSubtitle) {
+        if (currentSubtitle && subtitleStyle?.enabled !== false) {
             const { 
                 fontFamily = 'Arial', 
                 fontSize = 40, 
@@ -321,8 +329,13 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                 letterSpacing = 0, 
                 textTransform = 'none',
                 placement = 'bottom',
-                animationType = 'karaoke_block'
+                animationType: rawAnimationType = 'pulse_bold'
             } = subtitleStyle || {};
+
+            const animationType = rawAnimationType === 'pulse_bold' ? 'karaoke_block' : 
+                                 rawAnimationType === 'glow_focus' ? 'fade_group' : 
+                                 rawAnimationType === 'impact_pop' ? 'karaoke_bounce' : 
+                                 rawAnimationType;
 
             ctx.font = `bold ${fontSize}px "${fontFamily}"`;
             ctx.textAlign = 'center';
@@ -400,9 +413,9 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
 
                     if (animationType === 'karaoke_block' || animationType === 'karaoke_bounce') {
                         if (currentTime >= w.end) {
-                            fillColor = highlightColor || primaryColor;
+                            fillColor = animationType === 'karaoke_bounce' ? primaryColor : (highlightColor || primaryColor);
                         } else if (currentTime >= w.start) {
-                            fillColor = highlightColor || primaryColor;
+                            fillColor = animationType === 'karaoke_bounce' ? primaryColor : (highlightColor || primaryColor);
                             if (animationType === 'karaoke_bounce') {
                                 // Simulate Pop Bounce: Scale up to 120% then back
                                 const progress = (currentTime - w.start) / (w.end - w.start);
@@ -416,15 +429,19 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                             fillColor = primaryColor;
                         }
                     } else if (animationType === 'fade_group') {
-                        // Simulate Fade: Opacity based on time relative to segment start/end
-                        const fadeDuration = 0.2;
-                        const fadeIn = Math.min((currentTime - currentSubtitle.start) / fadeDuration, 1);
-                        const fadeOut = Math.min((currentSubtitle.end - currentTime) / fadeDuration, 1);
-                        ctx.globalAlpha = Math.min(fadeIn, fadeOut);
                         fillColor = primaryColor;
                     }
 
                     ctx.save();
+                    
+                    if (animationType === 'fade_group') {
+                        // Typewriter style: only show if word has started
+                        if (currentTime < w.start) {
+                            ctx.globalAlpha = 0;
+                        } else {
+                            ctx.globalAlpha = 1;
+                        }
+                    }
                     
                     // Position for this word
                     const wordX = currentX + (w.width / 2);

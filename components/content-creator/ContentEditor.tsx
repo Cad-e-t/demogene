@@ -9,62 +9,6 @@ import { STYLE_PREVIEWS } from './creator-assets';
 import { SubtitlePreview } from './SubtitlePreviews';
 
 
-const safeParseSubtitles = (input: any): SubtitleConfiguration => {
-    if (!input) return DEFAULT_SUBTITLE_CONFIG;
-    
-    let parsed = input;
-    if (typeof parsed === 'string') {
-        try {
-            parsed = JSON.parse(parsed);
-            // Handle double stringification
-            if (typeof parsed === 'string') {
-                parsed = JSON.parse(parsed);
-            }
-        } catch (e) {
-            console.error("Failed to parse subtitles JSON", e);
-            return DEFAULT_SUBTITLE_CONFIG;
-        }
-    }
-    
-    // Check for corruption (array-like object created by spreading a string)
-    if (typeof parsed === 'object' && parsed !== null && '0' in parsed) {
-        console.warn("Detected corrupted subtitle JSON, attempting recovery...");
-        try {
-            // Try to reconstruct the string from numeric keys
-            const numericKeys = Object.keys(parsed)
-                .filter(k => !isNaN(parseInt(k)))
-                .sort((a, b) => parseInt(a) - parseInt(b));
-            
-            const recoveredString = numericKeys.map(k => parsed[k]).join('');
-            
-            let baseObject = {};
-            try {
-                baseObject = JSON.parse(recoveredString);
-                if (typeof baseObject === 'string') {
-                    baseObject = JSON.parse(baseObject);
-                }
-            } catch (e) {
-                console.warn("Could not parse recovered string, using defaults");
-            }
-
-            // Get any valid properties that might have been added to the corrupted object
-            const updates: any = {};
-            Object.keys(parsed).forEach(k => {
-                if (isNaN(parseInt(k))) {
-                    updates[k] = parsed[k];
-                }
-            });
-
-            parsed = { ...DEFAULT_SUBTITLE_CONFIG, ...baseObject, ...updates };
-        } catch (e) {
-            console.error("Failed to recover corrupted subtitles", e);
-            return DEFAULT_SUBTITLE_CONFIG;
-        }
-    }
-
-    return { ...DEFAULT_SUBTITLE_CONFIG, ...parsed };
-};
-
 export const ContentEditor = ({ session, project, initialSegments, onBack, onComplete }: any) => {
     const [segments, setSegments] = useState(initialSegments);
     const [localProject, setLocalProject] = useState(project); // Local project copy for status sync
@@ -117,7 +61,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 setTranscription(data.transcription);
                 setSegmentDurations(data.segment_durations || []);
                 if (data.subtitles) {
-                    setSubtitles(safeParseSubtitles(data.subtitles));
+                    setSubtitles(data.subtitles as SubtitleConfiguration);
                 }
             }
         };
@@ -205,6 +149,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [activeModule, setActiveModule] = useState<'narration' | 'images' | 'effect' | 'captions' | null>('images');
     const [isMobileConfigOpen, setIsMobileConfigOpen] = useState(true);
     const [narrationSection, setNarrationSection] = useState<'voice' | 'style' | null>(null);
+    const [subtitleView, setSubtitleView] = useState<'summary' | 'edit'>('summary');
     
     // Local state for editable settings
     const [voice, setVoice] = useState(VOICES.find(v => v.id === project.voice_id) || VOICES[0]);
@@ -216,7 +161,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
     // Initialize subtitles from project or default
     const [subtitles, setSubtitles] = useState<SubtitleConfiguration>(() => {
-        return safeParseSubtitles(project.subtitles);
+        return project.subtitles as SubtitleConfiguration || DEFAULT_SUBTITLE_CONFIG;
     });
     
     // Audio Preview
@@ -281,7 +226,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                     setIsPlaying(true);
                 }
                 if (payload.new.subtitles) {
-                    setSubtitles(safeParseSubtitles(payload.new.subtitles));
+                    setSubtitles(payload.new.subtitles as SubtitleConfiguration);
                 }
             })
             .subscribe();
@@ -426,15 +371,34 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const handleSubtitleUpdate = (updates: Partial<SubtitleConfiguration>) => {
         const newConfig = { ...subtitles, ...updates };
         setSubtitles(newConfig);
+        // Persist to DB
+        supabase.from('content_projects').update({ subtitles: newConfig }).eq('id', project.id).then();
+    };
+
+    const handleApplySubtitlePreset = (presetId: string) => {
+        let updates: Partial<SubtitleConfiguration> = {};
+        if (presetId === 'pulse_bold') {
+            updates = { animationType: 'pulse_bold', fontFamily: 'Arimo', fontSize: 24, highlightColor: '#FFFF00', primaryColor: '#ffffff', strokeWidth: 4 };
+        } else if (presetId === 'glow_focus') {
+            updates = { animationType: 'glow_focus', fontFamily: 'Griffy', fontSize: 28, primaryColor: '#ffffff', strokeWidth: 0 };
+        } else if (presetId === 'impact_pop') {
+            updates = { animationType: 'impact_pop', fontFamily: 'Chewy', fontSize: 32, highlightColor: '#FFFF00', primaryColor: '#ffffff', strokeWidth: 4 };
+        } else if (presetId === 'comic_burst') {
+            updates = { animationType: 'pulse_bold', fontFamily: 'Komika Hand', fontSize: 30, primaryColor: '#ffffff', secondaryColor: '#000000', strokeWidth: 6 };
+        }
+        handleSubtitleUpdate(updates);
     };
 
     const handleSaveAsDefault = async () => {
         if (!session?.user?.id) return;
         setSaveDefaultStatus('saving');
         try {
+            // Strip 'enabled' flag from global defaults as it should be project-specific
+            const { enabled, ...configToSave } = subtitles;
+            
             await supabase.from('user_configurations').upsert({
                 user_id: session.user.id,
-                subtitles: subtitles,
+                subtitles: configToSave,
                 updated_at: new Date().toISOString()
             });
             setSaveDefaultStatus('success');
@@ -586,8 +550,56 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                     </div>
                 );
             case 'captions':
+                if (subtitleView === 'summary') {
+                    return (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${subtitles.enabled ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-400'}`}>
+                                        <Icons.Captions />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-bold text-slate-900">Subtitles</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                            {subtitles.enabled ? 'Enabled' : 'Disabled'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => handleSubtitleUpdate({ enabled: !subtitles.enabled })}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${subtitles.enabled ? 'bg-slate-900' : 'bg-slate-200'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${subtitles.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+
+                            <button 
+                                onClick={() => setSubtitleView('edit')}
+                                className="w-full p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 transition group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 group-hover:text-slate-900 transition">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    </div>
+                                    <div className="text-left">
+                                        <div className="text-sm font-bold text-slate-900">Edit Style</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Customize appearance</div>
+                                    </div>
+                                </div>
+                                <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                        </div>
+                    );
+                }
                 return (
                     <div className="space-y-4">
+                        <button 
+                            onClick={() => setSubtitleView('summary')}
+                            className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition mb-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            <span className="text-xs font-bold uppercase tracking-wider">Back</span>
+                        </button>
                         {/* Placement */}
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-slate-400 uppercase">Placement</label>
@@ -649,9 +661,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 onChange={(e) => handleSubtitleUpdate({ animationType: e.target.value as any })}
                                 className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-900 outline-none focus:border-blue-500"
                             >
-                                <option value="karaoke_block">Pulse (Highlight)</option>
-                                <option value="fade_group">Clean (Fade)</option>
-                                <option value="karaoke_bounce">Pop (Bounce)</option>
+                                <option value="pulse_bold">Pulse Bold</option>
+                                <option value="glow_focus">Typewriter Glow</option>
+                                <option value="impact_pop">Rapid Pop</option>
                             </select>
                         </div>
 
@@ -684,7 +696,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
 
                         {/* Highlight Color */}
-                        {(subtitles.animationType === 'karaoke_block' || subtitles.animationType === 'karaoke_bounce') && (
+                        {(subtitles.animationType === 'pulse_bold') && (
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-slate-400 uppercase">Highlight Color (Karaoke)</label>
                                 <div className="flex items-center gap-2">

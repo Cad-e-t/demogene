@@ -1,5 +1,6 @@
 
 export interface SubtitleConfiguration {
+    enabled: boolean;
     placement: 'top' | 'middle' | 'bottom';
     fontFamily: string;
     fontSize: number;
@@ -9,10 +10,11 @@ export interface SubtitleConfiguration {
     strokeWidth: number;
     letterSpacing: number;
     textTransform: 'uppercase' | 'none' | 'capitalize';
-    animationType: 'karaoke_block' | 'fade_group' | 'karaoke_bounce';
+    animationType: 'pulse_bold' | 'glow_focus' | 'impact_pop';
 }
 
 export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfiguration = {
+    enabled: true,
     placement: 'middle',
     fontFamily: 'Arimo',
     fontSize: 24,
@@ -22,7 +24,7 @@ export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfiguration = {
     strokeWidth: 4,
     letterSpacing: 3,
     textTransform: 'capitalize',
-    animationType: 'karaoke_block'
+    animationType: 'pulse_bold'
 };
 
 export interface ContentProject {
@@ -66,6 +68,7 @@ export const IMAGE_STYLES = [
 ];
 
 export const VISUAL_DENSITIES = [
+    { id: 'Rich', name: 'Rich', description: 'High retention (~1 img / 1 sentence)' },
     { id: 'Balanced', name: 'Balanced', description: 'Clean storytelling (~1 img / 2 sentences)' },
     { id: 'Low', name: 'Low', description: 'Minimalist (~1 img / 3 sentences)' }
 ];
@@ -87,8 +90,8 @@ export const EFFECT_PRESETS = [
 export const SUBTITLE_PRESETS = [
     { id: 'none', name: 'None', description: 'No subtitles' },
     { id: 'pulse_bold', name: 'Pulse Bold', description: 'High retention, TikTok style' },
-    { id: 'glow_focus', name: 'Glow Focus', description: 'Premium YouTube look' },
-    { id: 'impact_pop', name: 'Impact Pop', description: 'High energy shorts & reels' },
+    { id: 'glow_focus', name: 'Typewriter Glow', description: 'Words appear as read, premium look' },
+    { id: 'impact_pop', name: 'Rapid Pop', description: 'One word at a time, high energy' },
     { id: 'comic_burst', name: 'Comic Burst', description: 'White text, black outline, punchy' }
 ];
 

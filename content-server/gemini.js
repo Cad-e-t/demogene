@@ -1,54 +1,98 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
-const MODEL_NAME = "gemini-2.5-flash"; // Using Gemini 3 Pro for reasoning
+const MODEL_NAME = "gemini-3-flash-preview"; // Using Gemini 3 Pro for reasoning
 const IMAGE_MODEL = "gemini-2.5-flash-image"; // Nano Banana for images (Ultra quality per mapping)
 const FAST_IMAGE_MODEL = "imagen-4.0-fast-generate-001"; // Fast quality per mapping
 const ULTIMATE_IMAGE_MODEL = "gemini-3.1-flash-image-preview";
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 
+const STYLE_OPENINGS = {
+    'Realistic': 'A realistic depiction of',
+    'Cinematic': 'A cinematic shot of',
+    'Anime': 'An anime illustration of',
+    'Cyberpunk': 'A cyberpunk digital art of',
+    'Watercolor': 'A watercolor painting of',
+    'Oil Painting': 'An oil painting of',
+    'Minimalist': 'A minimalist illustration of',
+    'Pixar 3D': 'A Pixar 3D render of',
+    'Vintage Film': 'A vintage film style illustration of',
+    'Sketch': 'A pencil sketch of',
+    '3D Render': 'A 3D render of',
+    'Comic Book': 'A comic book illustration of',
+    'Pixel Art': 'A pixel art of',
+    'Surrealism': 'A surrealist painting of',
+    'Pop Art': 'A pop art illustration of',
+    'Gothic': 'A gothic style illustration of',
+    'Steampunk': 'A steampunk digital art of',
+    'Vaporwave': 'A vaporwave style digital art of',
+    'Ukiyo-e': 'An ukiyo-e style woodblock print of',
+    'Retro': 'A retro style illustration of',
+    'Futuristic': 'A futuristic digital art of',
+    'Abstract': 'An abstract painting of',
+    'Fantasy': 'A fantasy illustration of',
+    'Sci-Fi': 'A sci-fi digital art of',
+    'Horror': 'A horror style illustration of',
+};
+
 export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced') {
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+    const opening = STYLE_OPENINGS[style] || `A ${style} style image of`;
+
     const systemPrompt = `
-    You are an expert visual director.
-    Your task is to take a user's script and split it into visual segments based on a density setting.
+You are an expert visual director and prompt engineer.
+Your task is to analyze a user's script, define a locked visual identity, and split the script into segments with hyper-specific, consistent image prompts.
 
-    INPUTS:
-    - Script: ${prompt}
-    - Aspect Ratio: ${aspect}
-    - Visual Style: ${style}
-    - Visual Density: ${visualDensity}
+INPUTS:
+- Script: ${prompt}
+- Aspect Ratio: ${aspect}
+- Visual Style: ${style}
+- Visual Density: ${visualDensity}
 
-    SCRIPT HANDLING:
-    1. Use the user's text EXACTLY as provided.
-    2. You may ONLY fix obvious spelling or punctuation errors.
-    3. Optimize the script for natural narration flow.
+SCRIPT HANDLING:
+1. Use the user's text EXACTLY as provided.
+2. You may ONLY fix obvious spelling or punctuation errors.
+3. Optimize the script for natural narration flow.
 
-    SEGMENTATION LOGIC:
-    - Count total sentences in the script.
-    - 'Balanced': Final segment count MUST equal half of total sentences, rounded to nearest whole number (2 sentences per segment).
-    - 'Low': Final segment count MUST equal one third of total sentences, rounded to nearest whole number (3 sentences per segment).
-    - You may break sentences between segments ONLY if it creates a more significant visual moment.
+SEGMENTATION LOGIC:
+- Count total sentences in the script.
+- 'Rich': Final segment count MUST equal total sentences (1 sentences per segment).
+- 'Balanced': Final segment count MUST equal half of total sentences, rounded to nearest whole number (2 sentences per segment).
+- 'Low': Final segment count MUST equal one third of total sentences, rounded to nearest whole number (3 sentences per segment).
+- You may break sentences between segments ONLY if it creates a more significant visual moment.
 
-    INSTRUCTIONS:
-    1. Analyze the script for natural visual and narrative breaks.
-    2. Group text according to density while respecting significant moments.
-      3. For each segment, provide:
-         - "narration": The exact text from the script for this segment.
-         - "image_prompt": A highly detailed, descriptive prompt for an AI image generator.
-         - MUST explicitly include the visual style keywords: "${style}".
-         - Describe lighting, camera angle, subject, and mood.
-         - Format for 9:16 vertical video if aspect is 9:16, or 16:9 otherwise.
+VISUAL IDENTITY LOCK:
+Before writing any image prompt, analyze the script and visual style to define and lock the following. Derive each value entirely from the script's tone, subject matter, and the selected visual style — do not use placeholder or example values:
+- One specific color palette
+- One lighting style
+- One mood
+- One recurring environment or background world
 
-    OUTPUT FORMAT:
-    Return ONLY a raw JSON array. No markdown formatting.
-    [
-      { "narration": "...", "image_prompt": "..." },
-      ...
-    ]
+Once defined, these values are fixed for the entire video. Repeat them explicitly in every image prompt without variation. This is what makes all frames feel cut from the same film.
+
+IMAGE PROMPT RULES:
+1. Start every prompt with exactly this opening: "${opening}"
+2. Describe ONE focal subject with surgical precision — specify exact material (e.g. worn leather, brushed steel, cracked concrete), surface texture, dominant and secondary colors, size relative to frame, and exact position in frame (e.g. centered foreground, lower left third, filling upper half)
+3. Describe the environment with equal specificity — name the setting, what surrounds the subject, what is visible in the background, and what is absent or empty. Leave nothing to assumption
+4. Explicitly state the locked lighting direction and quality (e.g. light source position, how it falls on the subject, what shadows it casts), locked mood, locked color palette, and locked environment in every prompt
+5. Vary camera angles across segments — cycle through: wide establishing, close-up, macro, aerial, eye-level, low angle
+6. Prefer objects, environments, and symbols over human figures. If human presence is needed use only hands, silhouettes, or partial figures — never full faces
+7. Format composition for ${aspect === "9:16" ? "9:16 portrait, tall vertical frame" : "16:9 landscape, wide horizontal frame"}
+8. Maximum 100 words per prompt. Use every word to add specificity — no filler, no vague descriptors, no abstract concepts that cannot be seen
+
+OUTPUT FORMAT:
+Return ONLY a raw JSON array. No markdown, no preamble, no explanation.
+[
+  { "narration": "...", "image_prompt": "..." },
+  ...
+]
     `;
+
+    console.log("--- GEMINI INPUT (generateStorySegments) ---");
+    console.log(systemPrompt);
+    console.log("-------------------------------------------");
 
     const response = await ai.models.generateContent({
         model: MODEL_NAME,
@@ -58,6 +102,10 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
             thinkingConfig: { thinkingBudget: 2000 }
         }
     });
+
+    console.log("--- GEMINI RESPONSE (generateStorySegments) ---");
+    console.log(response.text);
+    console.log("----------------------------------------------");
 
     try {
         return JSON.parse(response.text);

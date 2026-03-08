@@ -147,7 +147,7 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
         const totalDuration = parseFloat(out.toString());
         
         const audioCost = totalDuration * COST_AUDIO_PER_SECOND;
-        const subtitleCost = (project.subtitles && project.subtitles !== 'none') ? totalDuration * COST_SUBTITLE_PER_SECOND : 0;
+        const subtitleCost = project.subtitles ? totalDuration * COST_SUBTITLE_PER_SECOND : 0;
         const totalCharge = Math.round((audioCost + subtitleCost) * 100) / 100;
 
         chargedAmount = totalCharge;
@@ -166,7 +166,7 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
 
         // 4. Generate/Save Transcription
         let transcription = null;
-        if (project.subtitles && project.subtitles !== 'none') {
+        if (project.subtitles) {
             console.log(`[ContentServer] Transcribing audio for project ${projectId}...`);
             const transcript = await client.transcripts.transcribe({
                 audio: audioPath,
@@ -178,6 +178,12 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
                 throw new Error(`Transcription failed: ${transcript.error}`);
             }
             transcription = transcript;
+            // Clean transcription: remove specific punctuations
+            if (transcription.words) {
+                transcription.words.forEach(w => {
+                    if (w.text) w.text = w.text.replace(/— |;|\.|\,|:/g, '');
+                });
+            }
         }
 
         // 5. Calculate Segment Durations
@@ -639,8 +645,6 @@ app.post('/export-video', async (req, res) => {
 
         // 4. Generate/Burn Subtitles
                 if (project.subtitles && project.subtitles !== 'none' && project.transcription) {
-                    console.log("[Export] Generating subtitles from stored transcription...");
-                    
                     // Ensure config is an object (handle potential double-stringification)
                     let subConfig = project.subtitles;
                     if (typeof subConfig === 'string') {
@@ -651,14 +655,18 @@ app.post('/export-video', async (req, res) => {
                         }
                     }
 
-                    const assContent = await generateSubtitles(project.transcription, subConfig, project.aspect_ratio);
-                    if (assContent) {
-                        const assPath = path.join(workDir, `subtitles_${uuidv4()}.ass`);
-                        fs.writeFileSync(assPath, assContent);
-                        
-                        const burnedPath = path.join(workDir, `burned_${uuidv4()}.mp4`);
-                        await burnSubtitles(assembledPath, assPath, burnedPath);
-                        finalPath = burnedPath;
+                    // Check if subtitles are explicitly enabled
+                    if (subConfig && subConfig.enabled !== false) {
+                        console.log("[Export] Generating subtitles from stored transcription...");
+                        const assContent = await generateSubtitles(project.transcription, subConfig, project.aspect_ratio);
+                        if (assContent) {
+                            const assPath = path.join(workDir, `subtitles_${uuidv4()}.ass`);
+                            fs.writeFileSync(assPath, assContent);
+                            
+                            const burnedPath = path.join(workDir, `burned_${uuidv4()}.mp4`);
+                            await burnSubtitles(assembledPath, assPath, burnedPath);
+                            finalPath = burnedPath;
+                        }
                     }
                 }
 

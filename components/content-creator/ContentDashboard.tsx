@@ -25,7 +25,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     // Config Defaults
     const [aspect, setAspect] = useState<'9:16' | '16:9'>('9:16');
     const [style, setStyle] = useState(IMAGE_STYLES[0]);
-    const [visualDensity, setVisualDensity] = useState(VISUAL_DENSITIES[0]); // Default Balanced
+    const [visualDensity, setVisualDensity] = useState(VISUAL_DENSITIES.find(d => d.id === 'Balanced') || VISUAL_DENSITIES[0]); 
     const [voice, setVoice] = useState(VOICES[0]);
     const [narrationStyle, setNarrationStyle] = useState(NARRATION_STYLES[0]); // Default to Charisma Dynamo
     const [effect, setEffect] = useState(EFFECT_PRESETS[0]);
@@ -59,7 +59,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const estimatedImages = React.useMemo(() => {
         if (sentenceCount === 0) return 0;
         let count = 0;
-        if (visualDensity.id === 'Balanced') count = Math.round(sentenceCount / 2);
+        if (visualDensity.id === 'Rich') count = sentenceCount;
+        else if (visualDensity.id === 'Balanced') count = Math.round(sentenceCount / 2);
         else if (visualDensity.id === 'Low') count = Math.round(sentenceCount / 3);
         else count = Math.round(sentenceCount / 2);
         return Math.max(1, count);
@@ -209,11 +210,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 if (q) setPictureQuality(q);
             }
             if (initialProjectData.project.subtitles) {
-                 if (typeof initialProjectData.project.subtitles === 'string') {
-                     setSubtitles(DEFAULT_SUBTITLE_CONFIG);
-                 } else {
-                     setSubtitles(initialProjectData.project.subtitles as SubtitleConfiguration);
-                 }
+                setSubtitles(initialProjectData.project.subtitles as SubtitleConfiguration);
             }
         }
     }, [initialProjectData]);

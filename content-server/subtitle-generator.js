@@ -74,18 +74,34 @@ function getAssHeader(config, aspectRatio) {
     p.font = config.fontFamily;
     p.fontSize = config.fontSize * 2; 
     
-    // Primary = Highlight, Secondary = Base (for Karaoke \k logic)
-    const highlight = config.highlightColor || config.primaryColor;
-    const base = config.primaryColor;
-    const outline = config.secondaryColor;
+    // Map original IDs to technical types for the generator
+    const animationType = config.animationType === 'pulse_bold' ? 'karaoke_block' : 
+                         config.animationType === 'glow_focus' ? 'fade_group' : 
+                         config.animationType === 'impact_pop' ? 'karaoke_bounce' : 
+                         config.animationType;
+
+    // Primary = Active (Target), Secondary = Inactive (Start)
+    let activeColor = (config.animationType === 'impact_pop') ? config.primaryColor : (config.highlightColor || config.primaryColor);
+    let inactiveColor = config.primaryColor;
     
-    p.primaryColor = hexToAssColor(highlight); 
-    p.secondaryColor = hexToAssColor(base); 
+    if (animationType === 'fade_group') {
+        activeColor = config.primaryColor; // Target is White
+        inactiveColor = config.primaryColor; // Will be made transparent
+    }
+    
+    p.primaryColor = hexToAssColor(activeColor); 
+    p.secondaryColor = hexToAssColor(inactiveColor); 
+    const outline = config.secondaryColor;
+
+    // For Typewriter (fade_group), make the base color transparent so words "appear" as read
+    if (animationType === 'fade_group') {
+        p.secondaryColor = "&HFF" + p.primaryColor.substring(4);
+    }
     p.outlineColor = hexToAssColor(outline);
     p.backColor = "&H80000000"; 
     p.bold = -1; 
     p.spacing = config.letterSpacing * 2; // Scale for export resolution
-    p.outline = config.strokeWidth * 2; // Scale for export resolution
+    p.outline = config.strokeWidth; // Match visual weight of centered stroke in preview
     p.shadow = 0; 
     p.borderStyle = 1; 
     
@@ -120,9 +136,18 @@ function generateEvents(words, config, aspectRatio) {
         throw new Error("Invalid subtitle config: Missing animationType");
     }
 
-    const animationType = config.animationType;
+    // Map original IDs to technical types for the generator
+    const animationType = config.animationType === 'pulse_bold' ? 'karaoke_block' : 
+                         config.animationType === 'glow_focus' ? 'fade_group' : 
+                         config.animationType === 'impact_pop' ? 'karaoke_bounce' : 
+                         config.animationType;
+
     const isFade = animationType === 'fade_group';
     const threshold = isFade ? 800 : 300; // Slower pacing for fade
+    
+    // Word count limits per style
+    const maxWords = animationType === 'karaoke_block' ? 4 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
+
     const maxCharsPerLine = isFade 
         ? (aspectRatio === '16:9' ? 60 : 35) 
         : (aspectRatio === '16:9' ? 45 : 22); 
@@ -149,17 +174,18 @@ function generateEvents(words, config, aspectRatio) {
         const baseColorTag = `{\\1c${hexToAssTagColor(config.primaryColor)}}`;
 
         // --- Content Construction ---
-        if (animationType === 'fade_group') {
+        if (animationType === 'static' || animationType === 'none') {
             const text = group.map(w => w.text).join(' ');
-            content = `${baseColorTag}{\\fad(200,200)}${text}`; // Fix Color Flip
-        } 
-        else if (animationType === 'static' || animationType === 'none') {
-            const text = group.map(w => w.text).join(' ');
-            content = `${baseColorTag}${text}`; // Fix Color Flip
+            content = `${baseColorTag}${text}`; 
         }
         else {
-            // Karaoke Styles
+            // Karaoke & Typewriter Styles
+            // For these, we rely on the Style's Primary/Secondary colors and \k tags.
+            // We only add \fad for a smooth entry/exit of the block.
             content = "{\\fad(100,100)}"; 
+            if (animationType === 'fade_group') {
+                content += "{\\3a&HFF&}"; // Hide outline for the whole line initially
+            }
 
             group.forEach((word, idx) => {
                 const duration = word.end - word.start;
@@ -178,6 +204,10 @@ function generateEvents(words, config, aspectRatio) {
                     const endOffset = startOffset + kDur;
                     
                     content += `{\\k${kDur}\\t(${startOffset},${midOffset},\\fscx115\\fscy115)\\t(${midOffset},${endOffset},\\fscx100\\fscy100)}${word.text} `;
+                } else if (animationType === 'fade_group') {
+                    // Typewriter: Reveal outline as word appears
+                    const startOffsetMs = Math.round(word.start - firstWord.start);
+                    content += `{\\t(${startOffsetMs},${startOffsetMs + 50},\\3a&H00&)\\k${kDur}}${word.text} `;
                 } else {
                     // Block highlight
                     content += `{\\k${kDur}}${word.text} `;
@@ -199,13 +229,13 @@ function generateEvents(words, config, aspectRatio) {
 
         let shouldGroup = true;
         
-        // Grouping Logic: Natural pauses and line length
+        // Grouping Logic: Natural pauses and line length and word count
         if (group.length > 0) {
             const prevWord = group[group.length - 1];
             const gap = word.start - prevWord.end;
             const currentLineLength = group.map(w => w.text).join(' ').length;
             
-            if (gap > threshold || (currentLineLength + word.text.length > maxCharsPerLine)) {
+            if (gap > threshold || (currentLineLength + word.text.length > maxCharsPerLine) || group.length >= maxWords) {
                 shouldGroup = false;
             }
         }
@@ -229,9 +259,9 @@ export async function generateSubtitles(transcription, config, aspectRatio) {
         const words = transcription.words;
         if (!words || words.length === 0) return null;
 
-        // Clean transcription: replace em dashes with spaces
+        // Clean transcription: remove specific punctuations
         words.forEach(w => {
-            if (w.text) w.text = w.text.replace(/—/g, ' ');
+            if (w.text) w.text = w.text.replace(/— |;|\.|\,|:/g, '') 
         });
 
         // Generate Content
