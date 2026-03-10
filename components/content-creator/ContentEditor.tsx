@@ -39,6 +39,40 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [lastRenderStatus, setLastRenderStatus] = useState<string | null>(project.render_status);
 
     // Timer logic for generation
+    const sanitizeError = (error: any, fallback: string) => {
+        const message = error?.message || String(error) || "";
+        const lowerMessage = message.toLowerCase();
+        
+        const isTechnical = 
+            lowerMessage.includes('quota') || 
+            lowerMessage.includes('limit') || 
+            lowerMessage.includes('rate') ||
+            lowerMessage.includes('credit') || 
+            lowerMessage.includes('balance') || 
+            lowerMessage.includes('insufficient') ||
+            lowerMessage.includes('gemini') || 
+            lowerMessage.includes('ai') || 
+            lowerMessage.includes('model') || 
+            lowerMessage.includes('safety') ||
+            lowerMessage.includes('network') || 
+            lowerMessage.includes('fetch') || 
+            lowerMessage.includes('timeout') ||
+            lowerMessage.includes('{') ||
+            message.length > 100;
+
+        if (isTechnical) {
+            if (lowerMessage.includes('credit') || lowerMessage.includes('balance') || lowerMessage.includes('insufficient')) {
+                return "Insufficient credits to perform this action.";
+            }
+            if (lowerMessage.includes('safety')) {
+                return "The content was flagged by our safety filters. Please try a different prompt.";
+            }
+            return fallback;
+        }
+
+        return message || fallback;
+    };
+
     useEffect(() => {
         let interval: any;
         if (isGeneratingAssets || loadingImage || submitting) {
@@ -91,9 +125,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             return true;
         } catch (e: any) {
             console.error("Asset generation failed", e);
-            setErrorMessage(e.message || "Asset generation failed");
+            const friendlyError = sanitizeError(e, "Asset generation failed. Credits were not charged or have been refunded.");
+            setErrorMessage(friendlyError);
             setNotification({
-                message: e.message || "Asset generation failed. Credits were not charged or have been refunded.",
+                message: friendlyError,
                 type: 'error'
             });
             setTimeout(() => {
@@ -116,9 +151,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             onComplete();
         } catch (e: any) {
             setExportStatus('error');
-            setErrorMessage(e.message || "Export failed");
+            const friendlyError = sanitizeError(e, "Export failed. Please try again.");
+            setErrorMessage(friendlyError);
             setNotification({
-                message: e.message || "Export failed",
+                message: friendlyError,
                 type: 'error'
             });
             setTimeout(() => {
@@ -314,9 +350,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         } catch (e: any) {
             console.error(e);
             setRegenerateStatus('error');
-            setErrorMessage(e.message || "Regeneration failed");
+            const friendlyError = sanitizeError(e, "Image regeneration failed. Credits were not charged or have been refunded.");
+            setErrorMessage(friendlyError);
             setNotification({
-                message: e.message || "Image regeneration failed. Credits were not charged or have been refunded.",
+                message: friendlyError,
                 type: 'error'
             });
             setTimeout(() => {
@@ -343,9 +380,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         } catch (e: any) {
             console.error(e);
             setEditStatus('error');
-            setErrorMessage(e.message || "Edit failed");
+            const friendlyError = sanitizeError(e, "Image edit failed. Credits were not charged or have been refunded.");
+            setErrorMessage(friendlyError);
             setNotification({
-                message: e.message || "Edit failed. Credits were not charged or have been refunded.",
+                message: friendlyError,
                 type: 'error'
             });
             setTimeout(() => {
@@ -969,10 +1007,15 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         <p className="text-slate-500 mb-6 text-sm">This will discard the current audio and generate a new one.</p>
                         <div className="flex gap-3 justify-center">
                             <button onClick={() => { setShowAudioConfirmation(false); setErrorMessage(null); }} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancel</button>
-                            <button onClick={confirmRegenerateVoice} disabled={isGeneratingAssets} className={`px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 ${errorMessage ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-yellow-600 text-black hover:bg-yellow-500'}`}>
-                                {isGeneratingAssets ? `Generating... ${timer}s` : errorMessage ? (errorMessage || 'Failed') : 'Confirm'}
+                            <button onClick={confirmRegenerateVoice} disabled={isGeneratingAssets} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
+                                {isGeneratingAssets ? `Generating... ${timer}s` : 'Confirm'}
                             </button>
                         </div>
+                        {errorMessage && !isGeneratingAssets && (
+                            <div className="mt-4 text-xs font-bold text-red-600 animate-pulse">
+                                {errorMessage}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -984,8 +1027,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         <p className="text-slate-500 mb-6 text-sm">This will discard the current image and generate a new one.</p>
                         <div className="flex gap-3 justify-center">
                             <button onClick={() => setRegeneratingId(null)} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancel</button>
-                            <button onClick={handleRegenerate} disabled={loadingImage} className={`px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 ${regenerateStatus === 'error' ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-yellow-600 text-black hover:bg-yellow-500'}`}>
-                                {loadingImage ? `Generating... ${timer}s` : regenerateStatus === 'error' ? (errorMessage || 'Failed') : 'Confirm'}
+                            <button onClick={handleRegenerate} disabled={loadingImage} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
+                                {loadingImage ? `Generating... ${timer}s` : 'Confirm'}
                             </button>
                         </div>
                         {errorMessage && regenerateStatus === 'error' && (
@@ -1009,8 +1052,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         />
                         <div className="flex justify-end gap-3">
                             <button onClick={() => setEditingImageId(null)} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancel</button>
-                            <button onClick={handleImageEdit} disabled={loadingImage} className={`px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 ${editStatus === 'error' ? 'bg-red-600 text-white hover:bg-red-400' : 'bg-yellow-600 text-black hover:bg-yellow-500'}`}>
-                                {loadingImage ? `Editing... ${timer}s` : editStatus === 'error' ? (errorMessage || 'Failed') : 'Apply Edit'}
+                            <button onClick={handleImageEdit} disabled={loadingImage} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
+                                {loadingImage ? `Editing... ${timer}s` : 'Apply Edit'}
                             </button>
                         </div>
                         {errorMessage && editStatus === 'error' && (
