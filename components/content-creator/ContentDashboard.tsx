@@ -176,14 +176,13 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 narration_style: narrationStyle.id.toString(), // Storing ID or name for easier lookup
                 effect: effect.id,
                 picture_quality: pictureQuality.id,
-                subtitles: subtitles, // Store the full object
                 updated_at: new Date().toISOString()
             });
         };
 
         const timer = setTimeout(saveData, 1000); // 1s debounce
         return () => clearTimeout(timer);
-    }, [prompt, narrationStyle, visualDensity, aspect, style, voice, effect, pictureQuality, subtitles, session]);
+    }, [prompt, narrationStyle, visualDensity, aspect, style, voice, effect, pictureQuality, session]);
 
     // Initialize from props if present (Project Reload)
     useEffect(() => {

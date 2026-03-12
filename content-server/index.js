@@ -52,11 +52,12 @@ const TEMP_DIR = os.tmpdir();
 // --- Constants & Pricing ---
 const COST_IMAGE_FAST = 2; // Credits per image
 const COST_IMAGE_ULTRA = 4; // Credits per image
-const COST_IMAGE_ULTIMATE = 10.1; // Credits per image
+const COST_IMAGE_ULTIMATE = 10.2; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
-const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
+const COST_AUDIO_PER_SECOND = 0.065; // Credits per second (4 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
 const MIN_BALANCE = 5; // Minimum credits required to start
+const MAX_CONCURRENT_IMAGES = 3; // Max parallel image generations to avoid rate limits
 
 // --- Helper: Credits ---
 async function getCredits(userId) {
@@ -236,37 +237,51 @@ async function processImagesBackground(projectId, segments, aspectRatio, picture
     console.log(`[ContentServer] Starting background image generation for project ${projectId} with quality ${pictureQuality}`);
     
     let failedCount = 0;
+    const queue = [...segments];
 
-    await Promise.all(segments.map(async (seg) => {
-        try {
-            console.log(`[ContentServer] Generating image for segment ${seg.order_index} (Project: ${projectId})`);
-            const base64Img = await generateImage(seg.image_prompt, aspectRatio, pictureQuality);
-            
-            console.log(`[ContentServer] Uploading image for segment ${seg.order_index}`);
-            const buffer = Buffer.from(base64Img, 'base64');
-            const key = `content/${projectId}/${seg.order_index}_${uuidv4()}.png`;
-            
-            await s3.send(new PutObjectCommand({
-                Bucket: R2_BUCKET,
-                Key: key,
-                Body: buffer,
-                ContentType: 'image/png'
-            }));
-            
-            const imageUrl = `${R2_PUBLIC_URL}/${key}`;
-            
-            console.log(`[ContentServer] Updating DB for segment ${seg.order_index}`);
-            const { error } = await supabase.from('content_segments')
-                .update({ image_url: imageUrl })
-                .eq('id', seg.id);
-            
-            if (error) console.error(`[ContentServer] DB Update Error for seg ${seg.id}:`, error);
+    // Worker function to process segments from the queue
+    const runWorker = async () => {
+        while (queue.length > 0) {
+            const seg = queue.shift();
+            if (!seg) continue;
 
-        } catch (e) {
-            console.error(`[ContentServer] Image gen failed for segment ${seg.order_index}`, e);
-            failedCount++;
+            try {
+                console.log(`[ContentServer] Generating image for segment ${seg.order_index} (Project: ${projectId})`);
+                const base64Img = await generateImage(seg.image_prompt, aspectRatio, pictureQuality);
+                
+                console.log(`[ContentServer] Uploading image for segment ${seg.order_index}`);
+                const buffer = Buffer.from(base64Img, 'base64');
+                const key = `content/${projectId}/${seg.order_index}_${uuidv4()}.png`;
+                
+                await s3.send(new PutObjectCommand({
+                    Bucket: R2_BUCKET,
+                    Key: key,
+                    Body: buffer,
+                    ContentType: 'image/png'
+                }));
+                
+                const imageUrl = `${R2_PUBLIC_URL}/${key}`;
+                
+                console.log(`[ContentServer] Updating DB for segment ${seg.order_index}`);
+                const { error } = await supabase.from('content_segments')
+                    .update({ image_url: imageUrl })
+                    .eq('id', seg.id);
+                
+                if (error) console.error(`[ContentServer] DB Update Error for seg ${seg.id}:`, error);
+
+            } catch (e) {
+                console.error(`[ContentServer] Image gen failed for segment ${seg.order_index}`, e);
+                failedCount++;
+            }
         }
-    }));
+    };
+
+    // Spawn workers up to the concurrency limit
+    const workerCount = Math.min(MAX_CONCURRENT_IMAGES, segments.length);
+    const workers = Array(workerCount).fill(null).map(() => runWorker());
+
+    // Wait for all workers to finish the queue
+    await Promise.all(workers);
     
     // Refund for failures
     if (failedCount > 0) {

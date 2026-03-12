@@ -64,7 +64,7 @@ export interface ContentStory {
 
 export const IMAGE_STYLES = [
     "Realistic", "Cinematic", "Anime", "Cyberpunk", "Watercolor", 
-    "Oil Painting", "Minimalist", "Pixar 3D", "Vintage Film", "Sketch"
+    "Oil Painting", "Minimalist", "Pixar 3D", "Vintage Film", "Sketch", "Silhouette"
 ];
 
 export const VISUAL_DENSITIES = [

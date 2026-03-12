@@ -9,7 +9,8 @@ export const STYLE_PREVIEWS: Record<string, string> = {
     "Minimalist": "https://assets.productcam.site/image-styles/Minimalist.png",
     "Pixar 3D": "https://assets.productcam.site/image-styles/Pixar3d.png",
     "Vintage Film": "https://assets.productcam.site/image-styles/Vintage.png",
-    "Sketch": "https://assets.productcam.site/image-styles/Sketch.png"
+    "Sketch": "https://assets.productcam.site/image-styles/Sketch.png",
+    "Silhouette": "https://assets.productcam.site/image-styles/Silhouette.png"
 };
 
 export const SUBTITLE_PREVIEWS: Record<string, string> = {

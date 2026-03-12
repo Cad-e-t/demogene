@@ -542,10 +542,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 );
             case 'images':
                 return (
-                    <div className="space-y-4">
+                    <div className="md:space-y-4 space-y-2">
                         {segments.map((seg: any, idx: number) => (
-                            <div key={seg.id} className="flex gap-3 items-start p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                <div className="w-16 aspect-square bg-slate-200 rounded-lg overflow-hidden shrink-0 border border-slate-200 relative cursor-pointer flex items-center justify-center" onClick={() => seg.image_url && setExpandedImage(seg.image_url)}>
+                            <div key={seg.id} className="flex gap-3 items-start p-2 md:p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <div className="w-12 h-12 md:w-16 md:aspect-square bg-slate-200 rounded-lg overflow-hidden shrink-0 border border-slate-200 relative cursor-pointer flex items-center justify-center" onClick={() => seg.image_url && setExpandedImage(seg.image_url)}>
                                     {seg.image_url ? (
                                         <img src={seg.image_url} className="w-full h-full object-cover" />
                                     ) : localProject.status === 'draft' ? (
@@ -630,10 +630,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                     );
                 }
                 return (
-                    <div className="space-y-4">
+                    <div className="md:space-y-4 space-y-2">
                         <button 
                             onClick={() => setSubtitleView('summary')}
-                            className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition mb-2"
+                            className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition mb-1 md:mb-2"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                             <span className="text-xs font-bold uppercase tracking-wider">Back</span>
@@ -881,8 +881,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 <div className="hidden md:block w-4 bg-white shrink-0 border-r border-slate-200/50"></div>
 
                 {/* Video Preview Area */}
-                <div className="flex-1 bg-slate-50 flex flex-col relative overflow-hidden h-full">
-                    <div className="flex-1 flex items-center justify-center p-4 md:p-8 min-h-0 w-full relative">
+                <div className={`flex-1 bg-slate-50 flex flex-col relative overflow-hidden h-full transition-all duration-300 ${isMobileConfigOpen ? 'md:h-full h-[35%]' : 'h-full'}`}>
+                    <div className={`flex-1 flex items-center justify-center p-4 md:p-8 min-h-0 w-full relative transition-all duration-300 ${isMobileConfigOpen ? 'scale-90 md:scale-100' : 'scale-100'}`}>
                         {(!audioUrl || segmentDurations.length === 0) ? (
                             <div className="flex flex-col items-center gap-4">
                                 <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-900 rounded-full animate-spin"></div>
@@ -961,9 +961,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
             {/* Mobile: Settings Drawer */}
             <div className={`md:hidden fixed inset-x-0 bottom-0 bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 transition-transform duration-300 ease-out transform ${isMobileConfigOpen ? 'translate-y-0' : 'translate-y-full'}`}>
-                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                <div className={`p-6 ${activeModule ? 'p-4 max-h-[55vh]' : 'max-h-[70vh]'} overflow-y-auto transition-all duration-300`}>
                     {/* Drawer Handle */}
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" onClick={() => setIsMobileConfigOpen(false)}></div>
+                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4 md:mb-6" onClick={() => setIsMobileConfigOpen(false)}></div>
 
                     {!activeModule ? (
                         // Menu View
