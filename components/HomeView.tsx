@@ -309,7 +309,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                         <div className="w-full flex flex-col md:flex-row items-stretch justify-center gap-6">
                             
-                            {!profile ? (
+                            {!session ? (
+                                // Login State
+                                <button 
+                                    onClick={handleLogin}
+                                    className="flex-1 max-w-lg group relative cursor-pointer transform hover:scale-[1.01] transition-all duration-300 text-left"
+                                >
+                                    <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-[32px] blur-lg opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                                    <div className="relative flex flex-col items-center justify-center gap-6 px-10 py-16 bg-white border-2 border-gray-100 rounded-[32px] shadow-2xl hover:border-blue-300 transition-colors h-full">
+                                        <div className="p-5 bg-blue-50 rounded-3xl text-blue-600 ring-8 ring-blue-50/50 group-hover:scale-110 transition-transform duration-300">
+                                            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                            </svg>
+                                        </div>
+                                        <div className="space-y-2 text-center">
+                                            <span className="block font-black text-3xl text-gray-900 tracking-tight uppercase">Login to Start</span>
+                                            <span className="block text-sm font-bold text-gray-400 uppercase tracking-widest">Continue with Google</span>
+                                        </div>
+                                    </div>
+                                </button>
+                            ) : !profile ? (
                                 // Loading State
                                 <div className="flex-1 max-w-lg h-[320px] bg-gray-100 rounded-[32px] animate-pulse border border-gray-200"></div>
                             ) : (

@@ -14,6 +14,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [localProject, setLocalProject] = useState(project); // Local project copy for status sync
     const [editingImageId, setEditingImageId] = useState<string | null>(null);
     const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+    const [regeneratePrompt, setRegeneratePrompt] = useState('');
     const [editPrompt, setEditPrompt] = useState('');
     const [loadingImage, setLoadingImage] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -62,7 +63,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
         if (isTechnical) {
             if (lowerMessage.includes('credit') || lowerMessage.includes('balance') || lowerMessage.includes('insufficient')) {
-                return "Insufficient credits to perform this action.";
+                // Return the actual error message from the server instead of a generic one
+                return message;
             }
             if (lowerMessage.includes('safety')) {
                 return "The content was flagged by our safety filters. Please try a different prompt.";
@@ -185,6 +187,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [activeModule, setActiveModule] = useState<'narration' | 'images' | 'effect' | 'captions' | null>('images');
     const [isMobileConfigOpen, setIsMobileConfigOpen] = useState(true);
     const [narrationSection, setNarrationSection] = useState<'voice' | 'style' | null>(null);
+    const [narrationView, setNarrationView] = useState<'summary' | 'edit_script'>('summary');
     const [subtitleView, setSubtitleView] = useState<'summary' | 'edit'>('summary');
     
     // Local state for editable settings
@@ -337,10 +340,18 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         setRegenerateStatus('idle');
         setErrorMessage(null);
         try {
+            let finalPrompt = seg.image_prompt;
+            
+            if (regeneratePrompt !== seg.image_prompt) {
+                await supabase.from('content_segments').update({ image_prompt: regeneratePrompt }).eq('id', seg.id);
+                finalPrompt = regeneratePrompt;
+                setSegments((prev: any[]) => prev.map(s => s.id === regeneratingId ? { ...s, image_prompt: regeneratePrompt } : s));
+            }
+
             const res = await regenerateImageSegment(
                 seg.id, 
                 project.id, 
-                seg.image_prompt, 
+                finalPrompt, 
                 project.aspect_ratio,
                 seg.image_url
             );
@@ -464,8 +475,61 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const renderModuleContent = (module: string) => {
         switch (module) {
             case 'narration':
+                if (narrationView === 'edit_script') {
+                    return (
+                        <div className="md:space-y-4 space-y-2">
+                            <button 
+                                onClick={() => setNarrationView('summary')}
+                                className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition mb-1 md:mb-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                <span className="text-xs font-bold uppercase tracking-wider">Back</span>
+                            </button>
+                            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                                {segments.map((seg: any, idx: number) => (
+                                    <div key={seg.id} className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase">Segment {idx + 1}</label>
+                                        <textarea
+                                            value={seg.narration}
+                                            onChange={(e) => {
+                                                const newText = e.target.value;
+                                                setSegments((prev: any[]) => prev.map(s => s.id === seg.id ? { ...s, narration: newText } : s));
+                                            }}
+                                            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none resize-y min-h-[80px]"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    setNarrationView('summary');
+                                    handleRegenerateVoice();
+                                }}
+                                disabled={isGeneratingAssets}
+                                className="w-full py-3 bg-yellow-500 text-black text-sm font-bold rounded-xl hover:bg-yellow-400 disabled:opacity-50 transition shadow-sm mt-4"
+                            >
+                                {isGeneratingAssets ? 'Regenerating...' : 'Save & Regenerate Audio'}
+                            </button>
+                        </div>
+                    );
+                }
+
                 return (
                     <div className="space-y-4">
+                        {/* Script Edit Button */}
+                        <div className="border border-slate-200 rounded-xl overflow-hidden">
+                            <button
+                                onClick={() => setNarrationView('edit_script')}
+                                className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition"
+                            >
+                                <div className="text-left">
+                                    <div className="text-xs font-bold text-slate-400 uppercase">Script</div>
+                                    <div className="font-bold text-slate-900">Edit Segment by Segment</div>
+                                </div>
+                                <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                            </button>
+                        </div>
+
                         {/* Voice Accordion */}
                         <div className="border border-slate-200 rounded-xl overflow-hidden">
                             <button
@@ -564,7 +628,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 <div className="flex-1 min-w-0">
                                     <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Segment {idx + 1}</div>
                                     <div className="flex gap-2 mt-2">
-                                        <button onClick={() => setRegeneratingId(seg.id)} className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 transition">Regenerate</button>
+                                        <button onClick={() => { setRegeneratingId(seg.id); setRegeneratePrompt(seg.image_prompt || ''); }} className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 transition">Regenerate</button>
                                         <button onClick={() => setEditingImageId(seg.id)} className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 transition">Edit</button>
                                     </div>
                                 </div>
@@ -1020,25 +1084,44 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 </div>
             )}
 
-            {regeneratingId && (
-                <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
-                        <h3 className="font-bold text-lg mb-2 text-slate-900">Regenerate Image?</h3>
-                        <p className="text-slate-500 mb-6 text-sm">This will discard the current image and generate a new one.</p>
-                        <div className="flex gap-3 justify-center">
-                            <button onClick={() => setRegeneratingId(null)} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancel</button>
-                            <button onClick={handleRegenerate} disabled={loadingImage} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
-                                {loadingImage ? `Generating... ${timer}s` : 'Confirm'}
-                            </button>
-                        </div>
-                        {errorMessage && regenerateStatus === 'error' && (
-                            <div className="mt-4 text-xs font-bold text-red-600 animate-pulse">
-                                {errorMessage}
+            {regeneratingId && (() => {
+                const seg = segments.find((s: any) => s.id === regeneratingId);
+                return (
+                    <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl">
+                            <h3 className="font-bold text-lg mb-4 text-slate-900">Regenerate Image</h3>
+                            
+                            {seg?.image_url && (
+                                <div className="mb-4 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                                    <img src={seg.image_url} alt="Current" className="w-full h-48 object-contain" />
+                                </div>
+                            )}
+
+                            <div className="text-left">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Image Prompt</label>
+                                <textarea 
+                                    className="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 mb-6 text-sm text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-y min-h-[100px]"
+                                    placeholder="Image prompt..."
+                                    value={regeneratePrompt}
+                                    onChange={(e) => setRegeneratePrompt(e.target.value)}
+                                />
                             </div>
-                        )}
+
+                            <div className="flex justify-end gap-3">
+                                <button onClick={() => setRegeneratingId(null)} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancel</button>
+                                <button onClick={handleRegenerate} disabled={loadingImage} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
+                                    {loadingImage ? `Generating... ${timer}s` : 'Generate'}
+                                </button>
+                            </div>
+                            {errorMessage && regenerateStatus === 'error' && (
+                                <div className="mt-4 text-xs font-bold text-red-600 animate-pulse text-right">
+                                    {errorMessage}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {editingImageId && (
                 <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">

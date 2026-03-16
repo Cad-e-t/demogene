@@ -58,6 +58,7 @@ const usePathRoute = () => {
   if (path === '/about') return { view: 'about', slug: null };
   if (path === '/pricing-details') return { view: 'pricing-details', slug: null };
   if (path.startsWith('/content-creator')) return { view: 'content-creator', slug: null };
+  if (path === '/demo') return { view: 'demo', slug: null };
   return { view: 'home', slug: null };
 };
 
@@ -232,10 +233,11 @@ export default function App() {
 
   const handleProviderLogin = async (provider: 'google') => {
     try { 
+        const isDemo = window.location.pathname === '/demo';
         await (supabase.auth as any).signInWithOAuth({ 
             provider,
             options: {
-                redirectTo: 'https://creator.productcam.site' // Explicit redirect for root path
+                redirectTo: isDemo ? 'https://crappik.site/demo' : 'https://creator.productcam.site'
             }
         }); 
     } 
@@ -507,7 +509,7 @@ export default function App() {
       {showSidebar && (
           <Sidebar 
             currentView={currentView as any} 
-            setCurrentView={(v) => navigateTo(v === 'home' ? '/' : `/${v}`)} 
+            setCurrentView={(v) => navigateTo(v === 'home' ? '/demo' : `/${v}`)} 
             handleLogout={handleLogout} 
             session={session}
           />
@@ -515,7 +517,7 @@ export default function App() {
 
       <main className={`transition-all duration-300 min-h-screen ${showSidebar ? 'md:ml-56 mt-14 md:mt-0' : ''}`}>
           
-          {currentView === 'home' && (
+          {(currentView === 'home' || currentView === 'demo') && (
               <HomeView 
                   file={file} // Pass legacy file for landing page
                   videoUrl={videoUrl}

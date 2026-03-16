@@ -22,23 +22,21 @@ Workflow Focus: Each segment represents a specific user goal (e.g., "Searching f
 Structure: A segment consists of Contributing Actions (Clicking, Typing, Selecting) followed by a Result (List appears, Page loads).
 
 Zoom & Hold Strategy:
-The Mouse Activity marks the start of the action (the initial click).
-The Hold Duration keeps the camera zoomed in to capture the subsequent "contributing actions" (like typing or filling a form) that occur immediately after the click.
-The camera "releases" (zooms out) only when the Result appears.
+The llm should determine the center of attention for each segments.
+The Coordinates (X, Y): These no longer represent a single click. They represent the center point of the general area the user is working in during that segment. This is where the zoom will be applied.
 
 Rules:
 1:1 Mapping: Every segment corresponds to exactly one script line.
-Single Key Action: Identify the primary click that initiates the segment's workflow.
-Idle Segments: If a segment is purely observational (no interaction), mouse_activity must be null.
+Center of Attention: Identify the primary area of focus for the segment's workflow.
+Idle Segments: If a segment is purely observational (no interaction) and requires no zoom, focus_area must be null.
 
 Each segment must include:
 start_time
 end_time
 purpose: The functional goal accomplished.
-mouse_activity: (Object or null)
-timestamp: When the primary initial click happens.
-coordinates: { x, y } (normalized 0–1).
-hold_duration: (Float in seconds). The time to hold the zoom after the initial click.
+focus_area: (Object or null)
+x: (Float normalized 0-1) The center point X coordinate of the general area the user is working in.
+y: (Float normalized 0-1) The center point Y coordinate of the general area the user is working in.
 
 ────────────────────────────────────────────────────────
 2. Generate the full video script (Hook → Body → CTA)
@@ -62,17 +60,16 @@ Final Combined Output Format (Strict)
 "start_time": "00:00.000",
 "end_time": "00:05.500",
 "purpose": "User searches for a company",
-"mouse_activity": {
-"timestamp": "00:01.200",
-"coordinates": { "x": 0.5, "y": 0.5 },
-"hold_duration": 3.0
+"focus_area": {
+"x": 0.5,
+"y": 0.5
 }
 },
 {
 "start_time": "00:05.500",
 "end_time": "03:00.000",
 "purpose": "Observing the dashboard results",
-"mouse_activity": null
+"focus_area": null
 }
 ],
 
@@ -125,19 +122,17 @@ Structure: A segment consists of Contributing Actions (Clicking, Typing, Selecti
 
 Zoom & Hold Strategy:
 
-The Mouse Activity marks the start of the action (the initial click).
+The llm should determine the center of attention for each segments.
 
-The Hold Duration keeps the camera zoomed in to capture the subsequent "contributing actions" (like typing or filling a form) that occur immediately after the click.
-
-The camera "releases" (zooms out) only when the Result appears.
+The Coordinates (X, Y): These no longer represent a single click. They represent the center point of the general area the user is working in during that segment. This is where the zoom will be applied.
 
 Rules:
 
 1:1 Mapping: Every segment corresponds to exactly one script line.
 
-Single Key Action: Identify the primary click that initiates the segment's workflow.
+Center of Attention: Identify the primary area of focus for the segment's workflow.
 
-Idle Segments: If a segment is purely observational (no interaction), mouse_activity must be null.
+Idle Segments: If a segment is purely observational (no interaction) and requires no zoom, focus_area must be null.
 
 Each segment must include:
 
@@ -147,17 +142,11 @@ end_time
 
 purpose: The learner task being accomplished.
 
-mouse_activity: (Object or null)
+focus_area: (Object or null)
 
-timestamp: When the primary initial click happens.
+x: (Float normalized 0-1) The center point X coordinate of the general area the user is working in.
 
-coordinates: { x, y } (normalized 0–1).
-
-hold_duration: (Float in seconds). The time to hold the zoom after the initial click.
-
-For multi-step actions (e.g., click then type): Cover the full duration of the activity until the result appears.
-
-For instant actions: Do NOT set to 0. Set a minimum "smoothness buffer" (e.g., 0.5s – 1.0s) to allow the click animation to register visually before the camera zooms out.
+y: (Float normalized 0-1) The center point Y coordinate of the general area the user is working in.
 
 
 ────────────────────────────────────────────────────────
@@ -198,17 +187,16 @@ Final Combined Output Format (Strict)
 "start_time": "00:00.000",
 "end_time": "00:05.500",
 "purpose": "Create a new design file",
-"mouse_activity": {
-"timestamp": "00:01.200",
-"coordinates": { "x": 0.5, "y": 0.5 },
-"hold_duration": 3.0
+"focus_area": {
+"x": 0.5,
+"y": 0.5
 }
 },
 {
 "start_time": "00:05.500",
 "end_time": "00:10.000",
 "purpose": "Observe the blank canvas",
-"mouse_activity": null
+"focus_area": null
 }
 ],
 

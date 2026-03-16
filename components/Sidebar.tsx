@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 
 interface SidebarProps {
-    currentView: 'home' | 'videos';
+    currentView: 'home' | 'videos' | 'demo';
     setCurrentView: (view: 'home' | 'videos') => void;
     handleLogout: () => void;
     session: any;
@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, h
                  {/* Icons */}
                  <div className="w-full flex flex-col gap-1">
                     <SidebarIcon 
-                        active={currentView === 'home'} 
+                        active={currentView === 'home' || currentView === 'demo'} 
                         onClick={() => setCurrentView('home')} 
                         label="Dashboard"
                         path={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>}
@@ -166,7 +166,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, h
                     <div className="absolute top-14 left-0 right-0 bg-white border-b border-gray-200 shadow-2xl flex flex-col p-4 gap-2 animate-fade-in">
                         <button 
                             onClick={() => handleMobileNav('home')}
-                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium ${currentView === 'home' ? 'bg-green-50 text-green-700 border border-green-100' : 'text-gray-600 hover:bg-gray-50'}`}
+                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium ${currentView === 'home' || currentView === 'demo' ? 'bg-green-50 text-green-700 border border-green-100' : 'text-gray-600 hover:bg-gray-50'}`}
                         >
                             Create New Demo
                         </button>

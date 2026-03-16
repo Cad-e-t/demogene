@@ -259,7 +259,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                 </h2>
                 <div className="w-full rounded-[32px] md:rounded-[48px] overflow-hidden shadow-2xl border-4 border-white/10 relative group">
                     <video 
-                        src="https://assets.productcam.site/outputs/881d7f2a-8379-488d-ad86-04acd51a8421.mp4" 
+                        src="https://assets.productcam.site/crappik.mp4" 
                         autoPlay 
                         muted 
                         loop 
