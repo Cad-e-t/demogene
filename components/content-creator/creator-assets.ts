@@ -1,11 +1,11 @@
 
 export const STYLE_PREVIEWS: Record<string, string> = {
-    "Realistic": "https://assets.productcam.site/previews/realistic.mp4",
-    "Anime": "https://assets.productcam.site/previews/anime.mp4",
-    "Horror": "https://assets.productcam.site/previews/horror.mp4",
-    "Sketch": "https://assets.productcam.site/previews/sketch.mp4",
-    "Silhouette": "https://assets.productcam.site/previews/silhouette.mp4",
-    "Stickman": "https://assets.productcam.site/previews/stickman.mp4"
+    "Realistic": "https://assets.productcam.site/image-styles/realistic.mp4",
+    "Anime": "https://assets.productcam.site/image-styles/anime.mp4",
+    "Horror": "https://assets.productcam.site/image-styles/horror.mp4",
+    "Sketch": "https://assets.productcam.site/image-styles/sketch.mp4",
+    "Silhouette": "https://assets.productcam.site/image-styles/silhouette.mp4",
+    "Stickman": "https://assets.productcam.site/image-styles/stickman.mp4"
 };
 
 export const SUBTITLE_PREVIEWS: Record<string, string> = {
