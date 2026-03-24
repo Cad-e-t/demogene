@@ -3,14 +3,14 @@ import React from 'react';
 export const SubtitlePreview = ({ id }: { id: string }) => {
   if (id === 'none') {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-100/50">
-        <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">No Subtitles</span>
+      <div className="w-full h-full flex items-center justify-center bg-zinc-900/50">
+        <span className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">No Subtitles</span>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full relative bg-gray-900 overflow-hidden rounded-md isolate">
+    <div className="w-full h-full relative bg-black overflow-hidden rounded-md isolate">
         {/* Background Gradient to simulate video content */}
         <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/40 via-purple-900/40 to-black z-0"></div>
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 z-0"></div>

@@ -72,7 +72,7 @@ function getAssHeader(config, aspectRatio) {
     const p = {};
 
     p.font = config.fontFamily;
-    p.fontSize = config.fontSize * 2; 
+    p.fontSize = config.fontSize; 
     
     // Map original IDs to technical types for the generator
     const animationType = config.animationType === 'pulse_bold' ? 'karaoke_block' : 
@@ -81,12 +81,12 @@ function getAssHeader(config, aspectRatio) {
                          config.animationType;
 
     // Primary = Active (Target), Secondary = Inactive (Start)
-    let activeColor = (config.animationType === 'impact_pop') ? config.primaryColor : (config.highlightColor || config.primaryColor);
+    let activeColor = (config.animationType === 'impact_pop' || config.animationType === 'pulse_bold' || config.animationType === 'glow_focus') ? config.primaryColor : (config.highlightColor || config.primaryColor);
     let inactiveColor = config.primaryColor;
     
     if (animationType === 'fade_group') {
-        activeColor = config.primaryColor; // Target is White
-        inactiveColor = config.primaryColor; // Will be made transparent
+        activeColor = config.primaryColor; 
+        inactiveColor = config.primaryColor; 
     }
     
     p.primaryColor = hexToAssColor(activeColor); 
@@ -100,8 +100,8 @@ function getAssHeader(config, aspectRatio) {
     p.outlineColor = hexToAssColor(outline);
     p.backColor = "&H80000000"; 
     p.bold = -1; 
-    p.spacing = config.letterSpacing * 2; // Scale for export resolution
-    p.outline = config.strokeWidth; // Match visual weight of centered stroke in preview
+    p.spacing = config.letterSpacing; // Match 1080p preview resolution
+    p.outline = config.strokeWidth / 2; // Match centered stroke weight of Canvas 2D
     p.shadow = 0; 
     p.borderStyle = 1; 
     
@@ -146,7 +146,7 @@ function generateEvents(words, config, aspectRatio) {
     const threshold = isFade ? 800 : 300; // Slower pacing for fade
     
     // Word count limits per style
-    const maxWords = animationType === 'karaoke_block' ? 4 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
+    const maxWords = animationType === 'karaoke_block' ? 3 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
 
     const maxCharsPerLine = isFade 
         ? (aspectRatio === '16:9' ? 60 : 35) 
@@ -182,10 +182,7 @@ function generateEvents(words, config, aspectRatio) {
             // Karaoke & Typewriter Styles
             // For these, we rely on the Style's Primary/Secondary colors and \k tags.
             // We only add \fad for a smooth entry/exit of the block.
-            content = "{\\fad(100,100)}"; 
-            if (animationType === 'fade_group') {
-                content += "{\\3a&HFF&}"; // Hide outline for the whole line initially
-            }
+            content = animationType === 'fade_group' ? "" : "{\\fad(100,100)}"; 
 
             group.forEach((word, idx) => {
                 const duration = word.end - word.start;
@@ -205,12 +202,31 @@ function generateEvents(words, config, aspectRatio) {
                     
                     content += `{\\k${kDur}\\t(${startOffset},${midOffset},\\fscx115\\fscy115)\\t(${midOffset},${endOffset},\\fscx100\\fscy100)}${word.text} `;
                 } else if (animationType === 'fade_group') {
-                    // Typewriter: Reveal outline as word appears
+                    // Typewriter: Reveal outline and fill as word appears, with transient highlight
                     const startOffsetMs = Math.round(word.start - firstWord.start);
-                    content += `{\\t(${startOffsetMs},${startOffsetMs + 50},\\3a&H00&)\\k${kDur}}${word.text} `;
+                    const endOffsetMs = Math.round(word.end - firstWord.start);
+                    const highlightTag = hexToAssTagColor(config.highlightColor || config.primaryColor);
+                    const primaryTag = hexToAssTagColor(config.primaryColor);
+                    
+                    if (startOffsetMs === 0) {
+                        // First word: already visible, just handle color transition
+                        content += `{\\1c${highlightTag}\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})}${word.text} `;
+                    } else {
+                        // Subsequent words: hidden initially, reveal and highlight at startOffsetMs
+                        content += `{\\1a&HFF&\\3a&HFF&\\t(${startOffsetMs},${startOffsetMs},\\1a&H00&\\3a&H00&)\\1c${highlightTag}\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})}${word.text} `;
+                    }
                 } else {
-                    // Block highlight
-                    content += `{\\k${kDur}}${word.text} `;
+                    // Block highlight: Pulse Bold (karaoke_block) should only highlight the ACTIVE word
+                    const startOffsetMs = Math.round(word.start - firstWord.start);
+                    const endOffsetMs = Math.round(word.end - firstWord.start);
+                    const highlightTag = hexToAssTagColor(config.highlightColor || config.primaryColor);
+                    const primaryTag = hexToAssTagColor(config.primaryColor);
+                    
+                    if (startOffsetMs === 0) {
+                        content += `{\\1c${highlightTag}\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})\\k${kDur}}${word.text} `;
+                    } else {
+                        content += `{\\1c${primaryTag}\\t(${startOffsetMs},${startOffsetMs},\\1c${highlightTag})\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})\\k${kDur}}${word.text} `;
+                    }
                 }
 
                 if (kGap > 0) content += `{\\k${kGap}} `;

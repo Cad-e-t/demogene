@@ -1,8 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { Equal, ChevronRight, ChevronLeft, Mic, Monitor, MonitorPlay, Sparkles, Settings2, Play, Pause } from 'lucide-react';
 import { generateSegments } from './api';
 import { ContentEditor } from './ContentEditor';
-import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, VISUAL_DENSITIES, PICTURE_QUALITY_OPTIONS, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
+import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, PICTURE_QUALITY_OPTIONS, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 import { STYLE_PREVIEWS } from './creator-assets';
@@ -12,9 +13,6 @@ import { supabase } from '../../supabaseClient';
 export const ContentDashboard = ({ session, onViewChange, initialProjectData, onClearProject, onToggleSidebar }: any) => {
     const [prompt, setPrompt] = useState('');
     
-    // Panel Visibility (Default open on large screens)
-    const [isConfigOpen, setIsConfigOpen] = useState(false);
-
     const [loading, setLoading] = useState(false);
     const [credits, setCredits] = useState<number | null>(null);
     
@@ -25,23 +23,32 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     // Config Defaults
     const [aspect, setAspect] = useState<'9:16' | '16:9'>('9:16');
     const [style, setStyle] = useState(IMAGE_STYLES[0]);
-    const [visualDensity, setVisualDensity] = useState(VISUAL_DENSITIES.find(d => d.id === 'Balanced') || VISUAL_DENSITIES[0]); 
-    const [voice, setVoice] = useState(VOICES[0]);
+    const [voice, setVoice] = useState(VOICES[0]); // Default to Charon (now first)
     const [narrationStyle, setNarrationStyle] = useState(NARRATION_STYLES[0]); // Default to Charisma Dynamo
-    const [effect, setEffect] = useState(EFFECT_PRESETS[0]);
-    const [pictureQuality, setPictureQuality] = useState(PICTURE_QUALITY_OPTIONS[0]); // Default to Fast
+    const [effect, setEffect] = useState(EFFECT_PRESETS[0]); // Default to Chaos Mode (now first)
+    const [pictureQuality, setPictureQuality] = useState(PICTURE_QUALITY_OPTIONS[0]); // Default to Ultra
     
-    // Updated Default: Pulse Bold
     const [subtitles, setSubtitles] = useState<SubtitleConfiguration>(DEFAULT_SUBTITLE_CONFIG); 
     
-    const [isVisualOpen, setIsVisualOpen] = useState(true);
-    const [isVoiceOpen, setIsVoiceOpen] = useState(true);
-    const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'density' | 'quality'>('main');
+    const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'quality' | 'mobile_settings'>('main');
+    const [voiceAccordion, setVoiceAccordion] = useState<'narrator' | 'tone' | null>('narrator');
+    const [hoveredStyle, setHoveredStyle] = useState<string | null>(null);
+    const promptBoxRef = useRef<HTMLDivElement>(null);
 
     // Audio Preview State
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const galleryRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (galleryRef.current) {
+            const selectedElement = galleryRef.current.querySelector(`[data-style="${style}"]`);
+            if (selectedElement) {
+                selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+            }
+        }
+    }, [style]);
 
     // Data
     const [project, setProject] = useState<any>(null);
@@ -58,21 +65,12 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
     const estimatedImages = React.useMemo(() => {
         if (sentenceCount === 0) return 0;
-        let count = 0;
-        if (visualDensity.id === 'Rich') count = sentenceCount;
-        else if (visualDensity.id === 'Balanced') count = Math.round(sentenceCount / 2);
-        else if (visualDensity.id === 'Low') count = Math.round(sentenceCount / 3);
-        else count = Math.round(sentenceCount / 2);
+        let count = Math.round(sentenceCount / 2);
         return Math.max(1, count);
-    }, [sentenceCount, visualDensity.id]);
+    }, [sentenceCount]);
 
     // 0. Init & Credit Check & Typewriter Effect
     useEffect(() => {
-        // Open sidebar by default on desktop
-        if (window.innerWidth >= 768) {
-            setIsConfigOpen(true);
-        }
-
         // Fetch Credits (for display only, gating handled in parent)
         const fetchCredits = async () => {
             if (!session?.user?.id) return;
@@ -112,10 +110,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     if (data.aspect_ratio) setAspect(data.aspect_ratio as any);
                     if (data.image_style) setStyle(data.image_style);
                     
-                    if (data.visual_density) {
-                        const d = VISUAL_DENSITIES.find(x => x.id === data.visual_density);
-                        if (d) setVisualDensity(d);
-                    }
                     if (data.voice_id) {
                         const v = VOICES.find(x => x.id === data.voice_id);
                         if (v) setVoice(v);
@@ -171,7 +165,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 prompt,
                 aspect_ratio: aspect,
                 image_style: style,
-                visual_density: visualDensity.id,
                 voice_id: voice.id,
                 narration_style: narrationStyle.id.toString(), // Storing ID or name for easier lookup
                 effect: effect.id,
@@ -182,7 +175,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
         const timer = setTimeout(saveData, 1000); // 1s debounce
         return () => clearTimeout(timer);
-    }, [prompt, narrationStyle, visualDensity, aspect, style, voice, effect, pictureQuality, session]);
+    }, [prompt, narrationStyle, aspect, style, voice, effect, pictureQuality, session]);
 
     // Initialize from props if present (Project Reload)
     useEffect(() => {
@@ -258,12 +251,31 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         setConfigView('main');
     };
 
+    // Close modals on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            const target = event.target as HTMLElement;
+            const isModal = target.closest('.config-modal');
+            const isButton = target.closest('.config-control-button');
+            
+            if (configView !== 'main' && !isModal && !isButton) {
+                setConfigView('main');
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [configView]);
+
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
         setLoading(true);
         try {
             console.log("[ContentDashboard] Starting generation...");
-            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, visualDensity.id, pictureQuality.id, subtitles, voice.id);
+            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, pictureQuality.id, subtitles, voice.id);
             console.log("[ContentDashboard] Text segments received:", res.segments.length);
             
             setProject({ 
@@ -289,6 +301,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         }
     };
 
+    const MAX_CHARS = 6000;
+
     // If project is loaded, show Editor
     const renderContent = () => {
         if (project && segments.length > 0) {
@@ -307,437 +321,445 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         }
 
         return (
-            <div className="flex-1 h-full relative flex flex-col">
-            
-                {/* Mobile Header: Menu + Title - REMOVED (Moved to Top Section) */}
+            <div className="flex-1 h-full relative flex flex-col bg-black overflow-hidden">
+                {/* Credits Low Banner */}
+                {credits !== null && credits < 3 && (
+                    <div className="hidden md:block absolute top-4 right-4 z-50 max-w-[calc(100vw-2rem)] md:max-w-none">
+                        <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-500 whitespace-nowrap">
+                            <div className="w-5 h-5 sm:w-8 sm:h-8 rounded-full bg-amber-900/20 flex items-center justify-center shrink-0">
+                                <svg className="w-3 h-3 sm:w-5 sm:h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <span className="text-[10px] sm:text-[18px] md:text-xs font-black text-zinc-400  tracking-tight">Credits Low Top Up to create amazing content</span>
+                            </div>
+                            <button 
+                                onClick={() => onViewChange('creator-pricing')}
+                                className="px-2 py-1 sm:px-4 sm:py-2 bg-yellow-600 text-white text-[7px] sm:text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-yellow-500 transition-colors shadow-lg shadow-yellow-600/20 shrink-0 ml-1 sm:ml-2"
+                            >
+                                Top Up
+                            </button>
+                        </div>
+                    </div>
+                )}
 
-
-                {/* Config Toggle Icon (Top Right) - Visible on Mobile OR when Desktop panel is closed */}
-                <div className={`absolute top-4 right-4 z-30 ${isConfigOpen && 'md:hidden'}`}>
+                {/* Mobile Sidebar Toggle */}
+                <div className="md:hidden absolute top-4 left-4 z-20">
                     <button 
-                        onClick={() => setIsConfigOpen(!isConfigOpen)} 
-                        className="p-3 text-white bg-black hover:bg-slate-800 rounded-full transition-all shadow-lg hover:shadow-xl transform hover:scale-105 group"
-                        title="Open Configuration"
+                        onClick={onToggleSidebar}
+                        className="p-2 text-zinc-300 hover:bg-zinc-800 rounded-lg transition-colors"
                     >
-                        {/* Sophisticated Sliders Icon */}
-                        <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0h-3m-3 0H3.75m11.25 6h4.5m-4.5 0a1.5 1.5 0 01-3 0m3 0h-3m-3 0H3.75m11.25 6h4.5m-4.5 0a1.5 1.5 0 01-3 0m3 0h-3m-3 0H3.75" />
-                        </svg>
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                     </button>
                 </div>
 
-                {/* Config Panel - Sidebar */}
-                <div className={`
-                    absolute inset-y-0 right-0 
-                    w-80 bg-white border-l border-slate-200 p-6 
-                    transform transition-transform duration-300 ease-in-out z-40 
-                    overflow-y-auto thin-scrollbar
-                    ${isConfigOpen ? 'translate-x-0' : 'translate-x-full'}
-                `}>
+                {/* Style Gallery Section */}
+                <div className="flex-1 flex flex-col items-center justify-center p-4 pb-32 overflow-hidden">
+                    <h1 className="text-sm sm:text-2xl md:text-4xl font-black uppercase tracking-[0.2em] text-zinc-500 mb-8 md:mb-12 text-center whitespace-nowrap">
+                        Faceless Explainer Videos
+                    </h1>
                     
-                    {/* Header Row: Title + Close Button */}
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Configuration</h3>
-                        <button onClick={() => setIsConfigOpen(false)} className="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
+                    <div 
+                        ref={galleryRef}
+                        className="w-full flex gap-4 overflow-x-auto pb-4 thin-scrollbar snap-x snap-mandatory px-4 md:px-12"
+                    >
+                        {IMAGE_STYLES.map((s) => (
+                            <div 
+                                key={s}
+                                data-style={s}
+                                onClick={() => setStyle(s)}
+                                onMouseEnter={() => setHoveredStyle(s)}
+                                onMouseLeave={() => setHoveredStyle(null)}
+                                className={`flex-none snap-start cursor-pointer transition-all duration-300 ${style === s ? 'scale-105' : 'opacity-70 hover:opacity-100'}`}
+                            >
+                                <div className={`relative rounded-2xl overflow-hidden border-4 transition-colors duration-300 ${style === s ? 'border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'border-white/5'}`}>
+                                    <video 
+                                        src={STYLE_PREVIEWS[s]} 
+                                        className="h-[30vh] md:h-[40vh] w-auto aspect-auto object-cover"
+                                        autoPlay={style === s || hoveredStyle === s} 
+                                        muted 
+                                        loop 
+                                        playsInline
+                                        ref={(el) => {
+                                            if (el) {
+                                                if (style === s || hoveredStyle === s) {
+                                                    el.play().catch(() => {});
+                                                } else {
+                                                    el.pause();
+                                                }
+                                            }
+                                        }}
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+                                </div>
+                                <p className={`mt-3 text-center font-black uppercase tracking-widest text-xs transition-colors ${style === s ? 'text-yellow-500' : 'text-zinc-500'}`}>
+                                    {s}
+                                </p>
+                            </div>
+                        ))}
                     </div>
-
-                    {configView === 'main' && (
-                        <div className="space-y-6">
-                            {/* --- VISUAL CONFIG SECTION --- */}
-                            <div className="border border-slate-200 rounded-xl overflow-hidden">
-                                <button 
-                                    onClick={() => setIsVisualOpen(!isVisualOpen)}
-                                    className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition"
-                                >
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visual Config</h4>
-                                    <svg className={`w-5 h-5 text-slate-400 transition-transform ${isVisualOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                </button>
-                                
-                                {isVisualOpen && (
-                                    <div className="p-3 bg-slate-50 border-t border-slate-200 space-y-3">
-                                        <button 
-                                            onClick={() => setConfigView('style')}
-                                            className="w-full flex items-center justify-between p-2 pl-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-200 shrink-0 shadow-sm border border-slate-200">
-                                                    <img src={STYLE_PREVIEWS[style]} alt={style} className="w-full h-full object-cover" />
-                                                </div>
-                                                <div>
-                                                    <span className="text-[10px] font-bold text-slate-400 block leading-tight">Style</span>
-                                                    <span className="text-slate-900">{style}</span>
-                                                </div>
-                                            </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                        </button>
-
-                                        <button 
-                                            onClick={() => setConfigView('aspect')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
-                                        >
-                                            <div>
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Ratio</span>
-                                                <span className="text-slate-900">{aspect === '9:16' ? '9:16 Vertical' : '16:9 Landscape'}</span>
-                                            </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                        </button>
-
-                                        <button 
-                                            onClick={() => setConfigView('quality')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
-                                        >
-                                            <div>
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Quality</span>
-                                                <span className="text-slate-900">{pictureQuality.name}</span>
-                                            </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                        </button>
-
-                                        <button 
-                                            onClick={() => setConfigView('density')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
-                                        >
-                                            <div>
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Density</span>
-                                                <span className="text-slate-900">{visualDensity.name}</span>
-                                            </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                        </button>
-
-                                        <button 
-                                            onClick={() => setConfigView('effect')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
-                                        >
-                                            <div>
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Effects</span>
-                                                <span className="text-slate-900">{effect.name}</span>
-                                            </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* --- VOICE CONFIG SECTION --- */}
-                            <div className="border border-slate-200 rounded-xl overflow-hidden">
-                                <button 
-                                    onClick={() => setIsVoiceOpen(!isVoiceOpen)}
-                                    className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition"
-                                >
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Voice Config</h4>
-                                    <svg className={`w-5 h-5 text-slate-400 transition-transform ${isVoiceOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                </button>
-                                
-                                {isVoiceOpen && (
-                                    <div className="p-3 bg-slate-50 border-t border-slate-200 space-y-3">
-                                        <button 
-                                            onClick={() => setConfigView('voice')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
-                                        >
-                                            <div>
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Narrator</span>
-                                                <span className="text-slate-900">{voice.name}</span>
-                                            </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                        </button>
-
-                                        <button 
-                                            onClick={() => setConfigView('narration_style')}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 text-sm font-bold hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
-                                        >
-                                            <div className="flex-1 min-w-0 pr-2">
-                                                <span className="text-[10px] font-bold text-slate-400 block leading-tight">Tone</span>
-                                                <span className="text-slate-900 block truncate">{narrationStyle.name}</span>
-                                            </div>
-                                            <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {configView === 'density' && (
-                        <>
-                            <div className="flex items-center gap-2 mb-6">
-                                <button 
-                                    onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Visual Density</h3>
-                            </div>
-                            
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
-                                {VISUAL_DENSITIES.map(d => (
-                                    <button
-                                        key={d.id}
-                                        onClick={() => { setVisualDensity(d); setConfigView('main'); }}
-                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${visualDensity.id === d.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
-                                    >
-                                        <div className="font-bold flex items-center justify-between text-slate-900">
-                                            {d.name}
-                                            {visualDensity.id === d.id && <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                                        </div>
-                                        <div className="text-xs text-slate-400 font-medium mt-1">{d.description}</div>
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-
-                    {configView === 'quality' && (
-                        <>
-                            <div className="flex items-center gap-2 mb-6">
-                                <button 
-                                    onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Picture Quality</h3>
-                            </div>
-                            
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
-                                {PICTURE_QUALITY_OPTIONS.map(q => (
-                                    <button
-                                        key={q.id}
-                                        onClick={() => { setPictureQuality(q); setConfigView('main'); }}
-                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${pictureQuality.id === q.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
-                                    >
-                                        <div className="font-bold flex items-center justify-between text-slate-900">
-                                            {q.name}
-                                            {pictureQuality.id === q.id && <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                                        </div>
-                                        <div className="text-xs text-slate-400 font-medium mt-1">{q.description}</div>
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-
-                    {configView === 'aspect' && (
-                        <>
-                            <div className="flex items-center gap-2 mb-6">
-                                <button 
-                                    onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Aspect Ratio</h3>
-                            </div>
-                            
-                            <div className="space-y-2">
-                                {[
-                                    { id: '9:16', label: '9:16 Vertical', desc: 'Best for TikTok, Reels, Shorts' },
-                                    { id: '16:9', label: '16:9 Landscape', desc: 'Best for YouTube, Desktop' }
-                                ].map((opt) => (
-                                    <button
-                                        key={opt.id}
-                                        onClick={() => { setAspect(opt.id as any); setConfigView('main'); }}
-                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${aspect === opt.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
-                                    >
-                                        <div className="font-bold text-slate-900">{opt.label}</div>
-                                        <div className="text-xs text-slate-400 font-medium">{opt.desc}</div>
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-
-                    {configView === 'style' && (
-                        <>
-                             <div className="flex items-center gap-2 mb-6">
-                                <button 
-                                    onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Image Style</h3>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
-                                {IMAGE_STYLES.map(s => (
-                                    <button
-                                        key={s}
-                                        onClick={() => { setStyle(s); setConfigView('main'); }}
-                                        className={`relative group flex flex-col gap-2 p-2 border rounded-xl transition-all text-left overflow-hidden ${style === s ? 'border-blue-500 bg-blue-50' : 'bg-white border-slate-100 hover:border-slate-200'}`}
-                                    >
-                                        <div className="aspect-square w-full rounded-lg bg-slate-200 overflow-hidden relative">
-                                            <img src={STYLE_PREVIEWS[s]} alt={s} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                                            {style === s && (
-                                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
-                                                    <div className="bg-white rounded-full p-1 shadow-sm">
-                                                        <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <span className="font-bold text-xs px-1 text-slate-900">{s}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-
-                    {configView === 'effect' && (
-                        <>
-                             <div className="flex items-center gap-2 mb-6">
-                                <button 
-                                    onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Video Effects</h3>
-                            </div>
-                            
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
-                                {EFFECT_PRESETS.map(e => (
-                                    <button
-                                        key={e.id}
-                                        onClick={() => { setEffect(e); setConfigView('main'); }}
-                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${effect.id === e.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
-                                    >
-                                        <div className="font-bold text-slate-900">{e.name}</div>
-                                        <div className="text-xs text-slate-400 font-medium">{e.description}</div>
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-
-
-
-                    {configView === 'voice' && (
-                        <>
-                            <div className="flex items-center gap-2 mb-6">
-                                <button 
-                                    onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Select Voice</h3>
-                            </div>
-                            
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
-                                {VOICES.map(v => (
-                                    <button
-                                        key={v.id}
-                                        onClick={() => handleVoiceSelect(v)}
-                                        className={`w-full flex items-center justify-between px-4 py-3 text-sm border rounded-xl transition-all ${voice.id === v.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
-                                    >
-                                        <span className="font-bold text-left text-slate-900">{v.name}</span>
-                                        {VOICE_SAMPLES[v.id] && (
-                                            <div 
-                                                onClick={(e) => toggleVoiceSample(e, v.id)} 
-                                                className={`p-1.5 rounded-full shrink-0 ${playingVoiceId === v.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
-                                            >
-                                                {playingVoiceId === v.id ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-
-                    {configView === 'narration_style' && (
-                        <>
-                            <div className="flex items-center gap-2 mb-6">
-                                <button 
-                                    onClick={() => setConfigView('main')} 
-                                    className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">Narration Style</h3>
-                            </div>
-                            
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-140px)] pr-2 thin-scrollbar">
-                                {NARRATION_STYLES.map(s => (
-                                    <button
-                                        key={s.id}
-                                        onClick={() => handleNarrationStyleChange(s)}
-                                        className={`w-full text-left px-4 py-3 border rounded-xl transition-all ${narrationStyle.id === s.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
-                                    >
-                                        <div className="font-bold flex items-center justify-between text-slate-900">
-                                            {s.name}
-                                            {narrationStyle.id === s.id && <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                                        </div>
-                                        <div className="text-xs text-slate-400 font-medium mt-1">({s.description})</div>
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
                 </div>
 
-               {/* Main Content Area */}
-                <div className={`flex-1 ${isConfigOpen ? 'md:mr-80' : ''} transition-all duration-300 flex flex-col h-full overflow-hidden bg-white`}>
-                    
-                    {/* 1. Top Section - Title */}
-                    <div className="flex-none px-6 py-6 bg-white flex items-center gap-4">
-                        {/* Mobile Sidebar Toggle - Moved here */}
-                        <button 
-                            onClick={onToggleSidebar}
-                            className="md:hidden p-2 -ml-2 bg-white hover:bg-slate-50 rounded-lg text-slate-900 border border-slate-200"
-                        >
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-                        </button>
-                         <h3 className="font-black text-xl uppercase tracking-tight text-slate-900">What's your story?</h3>
-                    </div>
-
-                    {/* 2. Middle Section - Text Area */}
-                    <div className="flex-1 bg-slate-50 relative m-4 rounded-xl border border-slate-100">
-                        <textarea 
-                            className="w-full h-full bg-transparent p-8 text-lg font-medium outline-none resize-none placeholder-slate-400 text-slate-800 leading-relaxed rounded-xl"
-                            placeholder={placeholder}
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                        />
-                    </div>
-
-                    {/* 3. Bottom Section - Actions */}
-                    <div className="flex-none px-6 py-4 bg-white flex items-center justify-between">
-                         {/* Character Count & Image Estimate */}
-                        <div className="flex items-center gap-4">
-                            <div className={`text-xs font-bold transition-colors ${prompt.length > 6000 ? 'text-red-500' : 'text-slate-400'}`}>
-                                {prompt.length} / 6000
-                            </div>
-                            {sentenceCount > 0 && (
-                                <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full border border-slate-200 shadow-sm animate-in fade-in slide-in-from-left-2 duration-300">
-                                    <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-600">
-                                        ~{estimatedImages} {estimatedImages === 1 ? 'Image' : 'Images'}
+                {/* Prompt Box Section */}
+                <div className="fixed bottom-0 left-0 right-0 p-4 md:p-8 flex justify-center z-20 pointer-events-none">
+                    <div ref={promptBoxRef} className={`w-full max-w-3xl bg-zinc-900 rounded-3xl shadow-2xl border ${prompt.length > MAX_CHARS ? 'border-red-500 ring-1 ring-red-500' : 'border-white/10'} pointer-events-auto flex flex-col transition-colors duration-200`}>
+                        {/* Text Area Section */}
+                        <div className="p-4 md:p-6 pb-2">
+                            <textarea 
+                                ref={textareaRef}
+                                className="w-full bg-transparent text-zinc-100 text-lg font-medium outline-none resize-none placeholder-zinc-500 leading-relaxed max-h-[30vh] overflow-y-auto thin-scrollbar"
+                                placeholder="Paste your script.."
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                rows={1}
+                            />
+                            {prompt.length > MAX_CHARS && (
+                                <div className="mt-2 text-right animate-in fade-in slide-in-from-top-1 duration-200">
+                                    <span className="text-red-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                                        Limit Exceeded: {prompt.length} / {MAX_CHARS}
                                     </span>
                                 </div>
                             )}
                         </div>
 
-                        {/* Generate Button */}
-                        <button 
-                            onClick={handleGenerate}
-                            disabled={loading || !prompt.trim() || prompt.length > 6000}
-                            className="px-8 py-3 bg-yellow-600 text-black rounded-full font-black uppercase tracking-wider hover:bg-yellow-500 transition disabled:opacity-50 shadow-lg shadow-yellow-500/20 text-sm transform active:scale-95 duration-200"
-                        >
-                            {loading ? 'Thinking...' : 'Generate'}
-                        </button>
+                        {/* Configuration Bar Section */}
+                        <div className="p-3 md:p-4 bg-zinc-900 border-t border-white/5 flex items-center justify-between gap-2 rounded-b-3xl">
+                            {/* Left Side: Config Buttons */}
+                            <div className="flex items-center gap-1.5 flex-wrap pb-1">
+                                        {/* Style Button */}
+                                        <div className="relative">
+                                            <button 
+                                                onClick={() => setConfigView(configView === 'style' ? 'main' : 'style')}
+                                                className={`config-control-button px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${configView === 'style' ? 'bg-yellow-500 text-black' : 'bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60'}`}
+                                            >
+                                                {style}
+                                            </button>
+                                            {configView === 'style' && (
+                                                <div className="config-modal absolute bottom-full left-0 mb-4 w-48 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                    {IMAGE_STYLES.map(s => (
+                                                        <button
+                                                            key={s}
+                                                            onClick={() => { setStyle(s); setConfigView('main'); }}
+                                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${style === s ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                        >
+                                                            {s}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Desktop Only Buttons */}
+                                        <div className="hidden md:flex items-center gap-1.5">
+                                            {/* Ratio Button */}
+                                            <div className="relative">
+                                                <button 
+                                                    onClick={() => setConfigView(configView === 'aspect' ? 'main' : 'aspect')}
+                                                    className={`config-control-button px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${configView === 'aspect' ? 'bg-yellow-500 text-black' : 'bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60'}`}
+                                                >
+                                                    {aspect === '9:16' ? (
+                                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><rect x="6" y="2" width="12" height="20" rx="2" /></svg>
+                                                    ) : (
+                                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><rect x="2" y="6" width="20" height="12" rx="2" /></svg>
+                                                    )}
+                                                    {aspect}
+                                                </button>
+                                                {configView === 'aspect' && (
+                                                    <div className="config-modal absolute bottom-full left-0 mb-4 w-48 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                        {[
+                                                            { id: '9:16', label: '9:16 Vertical' },
+                                                            { id: '16:9', label: '16:9 Landscape' }
+                                                        ].map((opt) => (
+                                                            <button
+                                                                key={opt.id}
+                                                                onClick={() => { setAspect(opt.id as any); setConfigView('main'); }}
+                                                                className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${aspect === opt.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                            >
+                                                                {opt.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Quality Button */}
+                                            <div className="relative">
+                                                <button 
+                                                    onClick={() => setConfigView(configView === 'quality' ? 'main' : 'quality')}
+                                                    className={`config-control-button px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${configView === 'quality' ? 'bg-yellow-500 text-black' : 'bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60'}`}
+                                                >
+                                                    Quality: {pictureQuality.name}
+                                                </button>
+                                                {configView === 'quality' && (
+                                                    <div className="config-modal absolute bottom-full left-0 mb-4 w-56 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                        {PICTURE_QUALITY_OPTIONS.map(q => (
+                                                            <button
+                                                                key={q.id}
+                                                                onClick={() => { setPictureQuality(q); setConfigView('main'); }}
+                                                                className={`w-full text-left px-4 py-2.5 rounded-xl transition-all ${pictureQuality.id === q.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                            >
+                                                                <div className="text-xs font-bold">{q.name}</div>
+                                                                <div className={`text-[10px] opacity-70 ${pictureQuality.id === q.id ? 'text-black' : 'text-zinc-500'}`}>{q.description}</div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Voice Button */}
+                                            <div className="relative">
+                                                <button 
+                                                    onClick={() => setConfigView(configView === 'voice' ? 'main' : 'voice')}
+                                                    className={`config-control-button px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${configView === 'voice' ? 'bg-yellow-500 text-black' : 'bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60'}`}
+                                                >
+                                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                                                    {voice.name}
+                                                </button>
+                                                {configView === 'voice' && (
+                                                    <div className="config-modal absolute bottom-full left-0 mb-4 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-3 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                        {/* Voice Selection Accordion */}
+                                                        <div className="mb-2">
+                                                            <button 
+                                                                onClick={() => setVoiceAccordion(voiceAccordion === 'narrator' ? null : 'narrator')}
+                                                                className="w-full flex items-center justify-between px-2 py-1 mb-1 hover:bg-white/5 rounded-lg transition-colors"
+                                                            >
+                                                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Narrator</h4>
+                                                                <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 ${voiceAccordion === 'narrator' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
+                                                            </button>
+                                                            {voiceAccordion === 'narrator' && (
+                                                                <div className="space-y-1 max-h-48 overflow-y-auto thin-scrollbar pr-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                                    {VOICES.map(v => (
+                                                                        <button
+                                                                            key={v.id}
+                                                                            onClick={() => handleVoiceSelect(v)}
+                                                                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${voice.id === v.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                        >
+                                                                            <span>{v.name}</span>
+                                                                            {VOICE_SAMPLES[v.id] && (
+                                                                                <div 
+                                                                                    onClick={(e) => toggleVoiceSample(e, v.id)} 
+                                                                                    className={`p-1 rounded-full ${playingVoiceId === v.id ? 'bg-black/20 text-black' : 'text-zinc-500 hover:text-white'}`}
+                                                                                >
+                                                                                    {playingVoiceId === v.id ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                                                                                </div>
+                                                                            )}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Tone Selection Accordion */}
+                                                        <div>
+                                                            <button 
+                                                                onClick={() => setVoiceAccordion(voiceAccordion === 'tone' ? null : 'tone')}
+                                                                className="w-full flex items-center justify-between px-2 py-1 mb-1 hover:bg-white/5 rounded-lg transition-colors"
+                                                            >
+                                                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tone</h4>
+                                                                <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 ${voiceAccordion === 'tone' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
+                                                            </button>
+                                                            {voiceAccordion === 'tone' && (
+                                                                <div className="space-y-1 max-h-40 overflow-y-auto thin-scrollbar pr-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                                    {NARRATION_STYLES.map(s => (
+                                                                        <button
+                                                                            key={s.id}
+                                                                            onClick={() => handleNarrationStyleChange(s)}
+                                                                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.id === s.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                        >
+                                                                            {s.name}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Mobile Only Settings Button */}
+                                        <div className="flex md:hidden items-center relative">
+                                            <button 
+                                                onClick={() => setConfigView(configView === 'mobile_settings' ? 'main' : 'mobile_settings')}
+                                                className={`config-control-button p-2 rounded-xl transition-all ${configView === 'mobile_settings' ? 'bg-yellow-500 text-black' : 'bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60'}`}
+                                            >
+                                                <Equal className="w-5 h-5" />
+                                            </button>
+
+                                            {/* Mobile Settings Modal */}
+                                            {configView === 'mobile_settings' && (
+                                                <div className="config-modal absolute bottom-full left-0 mb-4 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                    <button
+                                                        onClick={() => setConfigView('aspect')}
+                                                        className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-black/40 flex items-center justify-center">
+                                                                <Monitor className="w-4 h-4" />
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <div className="text-xs font-black uppercase tracking-widest">Ratio</div>
+                                                                <div className="text-[10px] text-zinc-500">{aspect}</div>
+                                                            </div>
+                                                        </div>
+                                                        <ChevronRight className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setConfigView('quality')}
+                                                        className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-black/40 flex items-center justify-center">
+                                                                <MonitorPlay className="w-4 h-4" />
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <div className="text-xs font-black uppercase tracking-widest">Quality</div>
+                                                                <div className="text-[10px] text-zinc-500">{pictureQuality.name}</div>
+                                                            </div>
+                                                        </div>
+                                                        <ChevronRight className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setConfigView('voice')}
+                                                        className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-black/40 flex items-center justify-center">
+                                                                <Mic className="w-4 h-4" />
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <div className="text-xs font-black uppercase tracking-widest">Voice</div>
+                                                                <div className="text-[10px] text-zinc-500">{voice.name}</div>
+                                                            </div>
+                                                        </div>
+                                                        <ChevronRight className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {/* Sub-modals for mobile */}
+                                            {(configView === 'aspect' || configView === 'quality' || configView === 'voice') && (
+                                                <div className="config-modal md:hidden absolute bottom-full left-0 mb-4 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[70] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                    <button 
+                                                        onClick={() => setConfigView('mobile_settings')}
+                                                        className="flex items-center gap-2 px-2 py-1 mb-2 text-zinc-500 hover:text-white transition-colors"
+                                                    >
+                                                        <ChevronLeft className="w-4 h-4" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
+                                                    </button>
+                                                    
+                                                    {configView === 'aspect' && (
+                                                        <div className="space-y-1">
+                                                            {[
+                                                                { id: '9:16', label: '9:16 Vertical' },
+                                                                { id: '16:9', label: '16:9 Landscape' }
+                                                            ].map((opt) => (
+                                                                <button
+                                                                    key={opt.id}
+                                                                    onClick={() => { setAspect(opt.id as any); setConfigView('main'); }}
+                                                                    className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${aspect === opt.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                >
+                                                                    {opt.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {configView === 'quality' && (
+                                                        <div className="space-y-1">
+                                                            {PICTURE_QUALITY_OPTIONS.map(q => (
+                                                                <button
+                                                                    key={q.id}
+                                                                    onClick={() => { setPictureQuality(q); setConfigView('main'); }}
+                                                                    className={`w-full text-left px-4 py-2.5 rounded-xl transition-all ${pictureQuality.id === q.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                >
+                                                                    <div className="text-xs font-bold">{q.name}</div>
+                                                                    <div className={`text-[10px] opacity-70 ${pictureQuality.id === q.id ? 'text-black' : 'text-zinc-500'}`}>{q.description}</div>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {configView === 'voice' && (
+                                                        <div className="p-1">
+                                                            <div className="mb-2">
+                                                                <button 
+                                                                    onClick={() => setVoiceAccordion(voiceAccordion === 'narrator' ? null : 'narrator')}
+                                                                    className="w-full flex items-center justify-between px-2 py-1 mb-1 hover:bg-white/5 rounded-lg transition-colors"
+                                                                >
+                                                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Narrator</h4>
+                                                                    <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 ${voiceAccordion === 'narrator' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
+                                                                </button>
+                                                                {voiceAccordion === 'narrator' && (
+                                                                    <div className="space-y-1 max-h-48 overflow-y-auto thin-scrollbar pr-1">
+                                                                        {VOICES.map(v => (
+                                                                            <button
+                                                                                key={v.id}
+                                                                                onClick={() => handleVoiceSelect(v)}
+                                                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${voice.id === v.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                            >
+                                                                                <span>{v.name}</span>
+                                                                                {VOICE_SAMPLES[v.id] && (
+                                                                                    <div 
+                                                                                        onClick={(e) => toggleVoiceSample(e, v.id)} 
+                                                                                        className={`p-1 rounded-full ${playingVoiceId === v.id ? 'bg-black/20 text-black' : 'text-zinc-500 hover:text-white'}`}
+                                                                                    >
+                                                                                        {playingVoiceId === v.id ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                                                                                    </div>
+                                                                                )}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                                <button 
+                                                                    onClick={() => setVoiceAccordion(voiceAccordion === 'tone' ? null : 'tone')}
+                                                                    className="w-full flex items-center justify-between px-2 py-1 mb-1 hover:bg-white/5 rounded-lg transition-colors"
+                                                                >
+                                                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tone</h4>
+                                                                    <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 ${voiceAccordion === 'tone' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
+                                                                </button>
+                                                                {voiceAccordion === 'tone' && (
+                                                                    <div className="space-y-1 max-h-40 overflow-y-auto thin-scrollbar pr-1">
+                                                                        {NARRATION_STYLES.map(s => (
+                                                                            <button
+                                                                                key={s.id}
+                                                                                onClick={() => handleNarrationStyleChange(s)}
+                                                                                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.id === s.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                            >
+                                                                                {s.name}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                            </div>
+
+                            {/* Right Side: Generate Button */}
+                            <button 
+                                onClick={handleGenerate}
+                                disabled={loading || !prompt.trim() || prompt.length > MAX_CHARS}
+                                className="w-12 h-12 flex-none bg-yellow-600 text-black rounded-2xl flex items-center justify-center hover:bg-yellow-500 transition disabled:opacity-50 shadow-lg shadow-yellow-500/20 transform active:scale-95 duration-200"
+                            >
+                                {loading ? (
+                                    <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+                                ) : (
+                                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         );
     }
-
-    const MAX_CHARS = 6000;
 
     return (
         <div className="flex-1 h-full relative flex flex-col">
@@ -766,7 +788,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                     )}
                     <span className="font-bold text-sm tracking-wide">{notification.message}</span>
-                    <button onClick={() => setNotification(null)} className="ml-2 hover:bg-white/20 rounded-full p-1 transition-colors">
+                    <button onClick={() => setNotification(null)} className="ml-2 hover:bg-zinc-900/20 rounded-full p-1 transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>

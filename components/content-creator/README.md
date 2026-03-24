@@ -33,7 +33,6 @@ A dedicated Node.js/Express microservice (distinct from the main video processor
 The app leverages the latest Gemini models for different stages of the pipeline:
 - **Scripting & Logic**: `gemini-2.5-flash` or `gemini-3-pro-preview` for high-quality narrative segmentation.
 - **Image Generation**: 
-  - **Fast Mode**: `imagen-4.0-fast-generate-001` for speed and efficiency.
   - **Ultra Mode**: `gemini-2.5-flash-image` for high-fidelity visuals.
 - **Image Editing**: `gemini-2.5-flash-image` allows users to modify generated images via natural language prompts.
 - **Text-to-Speech**: `gemini-2.5-flash-preview-tts` generates human-like voiceovers with specific emotional tones.

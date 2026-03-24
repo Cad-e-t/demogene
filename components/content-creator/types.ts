@@ -32,7 +32,7 @@ export interface ContentProject {
     title: string;
     aspect_ratio: '9:16' | '16:9';
     image_style: string;
-    picture_quality?: 'Fast' | 'Ultra' | 'Ultimate';
+    picture_quality?: 'Ultra' | 'Ultimate';
     voice_id: string;
     narration_style?: string;
     effect: string;
@@ -63,27 +63,19 @@ export interface ContentStory {
 }
 
 export const IMAGE_STYLES = [
-    "Realistic", "Cinematic", "Anime", "Cyberpunk", "Watercolor", 
-    "Oil Painting", "Minimalist", "Pixar 3D", "Vintage Film", "Sketch", "Silhouette"
-];
-
-export const VISUAL_DENSITIES = [
-    { id: 'Rich', name: 'Rich', description: 'High retention (~1 img / 1 sentence)' },
-    { id: 'Balanced', name: 'Balanced', description: 'Clean storytelling (~1 img / 2 sentences)' },
-    { id: 'Low', name: 'Low', description: 'Minimalist (~1 img / 3 sentences)' }
+    "Realistic", "Anime", "Horror", "Sketch", "Silhouette", "Stickman"
 ];
 
 export const PICTURE_QUALITY_OPTIONS = [
-    { id: 'Fast', name: 'Fast', description: 'Quick, affordable clarity' },
     { id: 'Ultra', name: 'Ultra', description: 'Cinematic detail, premium look' },
     { id: 'Ultimate', name: 'Ultimate', description: 'Highest resolution, 2K detail' }
 ];
 
 export const EFFECT_PRESETS = [
+    { id: 'chaos', name: 'Chaos Mode', description: 'Random mix of zooms and slides (Viral)' },
     { id: 'zoom_pulse', name: 'Zoom Pulse', description: 'Aggressive alternating zooms (High Energy)' },
     { id: 'slide_flow', name: 'Slide Flow', description: 'Smooth lateral sliding (Dynamic)' },
     { id: 'cinematic', name: 'Cinematic Pan', description: 'Slow, dramatic push-ins (Storytelling)' },
-    { id: 'chaos', name: 'Chaos Mode', description: 'Random mix of zooms and slides (Viral)' },
     { id: 'handheld_walk', name: 'Handheld Walk', description: 'Natural walking camera motion (Vlog Style)' }
 ];
 

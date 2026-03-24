@@ -7,6 +7,7 @@ import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { generateStorySegments, generateImage, editImage, generateFullVoiceover } from './gemini.js';
 import { assembleVideo } from './video-assembler.js';
@@ -51,14 +52,13 @@ const client = new AssemblyAI({ apiKey: ASSEMBLYAI_API_KEY });
 const TEMP_DIR = os.tmpdir();
 
 // --- Constants & Pricing ---
-const COST_IMAGE_FAST = 2; // Credits per image
 const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_ULTIMATE = 10.2; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
-const COST_AUDIO_PER_SECOND = 0.065; // Credits per second (4 credits per minute)
+const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
-const MIN_BALANCE = 5; // Minimum credits required to start
-const MAX_CONCURRENT_IMAGES = 3; // Max parallel image generations to avoid rate limits
+const MIN_BALANCE = 3; // Minimum credits required to start
+const MAX_CONCURRENT_IMAGES = 2; // Max parallel image generations to avoid rate limits
 
 // --- Helper: Credits ---
 async function getCredits(userId) {
@@ -442,8 +442,8 @@ async function processImagesBackground(projectId, segments, aspectRatio, picture
 // 1. Generate Story Segments (Text First, Images Background)
 app.post('/generate-segments', async (req, res) => {
     try {
-        const { prompt, aspectRatio, style, effect, userId, narrationStyle, visualDensity, pictureQuality, subtitles, voiceId } = req.body;
-        console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with density ${visualDensity}, quality ${pictureQuality}, subtitles ${subtitles}`);
+        const { prompt, aspectRatio, style, effect, userId, narrationStyle, pictureQuality, subtitles, voiceId } = req.body;
+        console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with quality ${pictureQuality}, subtitles ${subtitles}`);
         
         // 0. Pre-check Balance
         const userCredits = await getCredits(userId);
@@ -457,11 +457,11 @@ app.post('/generate-segments', async (req, res) => {
             title: prompt.substring(0, 50),
             aspect_ratio: aspectRatio,
             image_style: style,
-            effect: effect || 'zoom_pulse',
+            effect: effect || 'chaos',
             narration_style: narrationStyle, // Save style to DB
-            picture_quality: pictureQuality || 'Fast', // Save picture quality to DB
+            picture_quality: pictureQuality || 'Ultra', // Save picture quality to DB
             subtitles: subtitles || 'none', // Save subtitles to DB
-            voice_id: voiceId || 'Puck', // Save voice to DB
+            voice_id: voiceId || 'Charon', // Save voice to DB
             status: 'draft'
         }).select().single();
         
@@ -470,11 +470,11 @@ app.post('/generate-segments', async (req, res) => {
 
         // 2. Generate Text Segments
         console.log(`[ContentServer] Generating text segments...`);
-        const segmentsData = await generateStorySegments(prompt, aspectRatio, style, visualDensity);
+        const segmentsData = await generateStorySegments(prompt, aspectRatio, style);
         console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
         // 3. Determine Cost & Charge
-        const costPerImage = (pictureQuality === 'Ultimate') ? COST_IMAGE_ULTIMATE : (pictureQuality === 'Ultra' ? COST_IMAGE_ULTRA : COST_IMAGE_FAST);
+        const costPerImage = (pictureQuality === 'Ultimate') ? COST_IMAGE_ULTIMATE : COST_IMAGE_ULTRA;
         const totalCost = segmentsData.length * costPerImage;
 
         // Check balance again before charging
@@ -513,7 +513,7 @@ app.post('/generate-segments', async (req, res) => {
         res.json({ projectId: project.id, segments: insertedSegments });
 
         // 7. Trigger Background Image Gen (Pass cost for refunds)
-        processImagesBackground(project.id, insertedSegments, aspectRatio, pictureQuality || 'Fast', costPerImage, userId);
+        processImagesBackground(project.id, insertedSegments, aspectRatio, pictureQuality || 'Ultra', costPerImage, userId);
 
         // 8. Trigger Background Asset Gen (Audio/Subtitles) - Parallel and Isolated
         processAssetsBackground(project.id, insertedSegments, voiceId, userId).catch(e => {
@@ -533,7 +533,7 @@ app.post('/regenerate-image', async (req, res) => {
     // We need userId to charge. It should be passed or fetched. 
     // Assuming we fetch it from project to be secure.
     let userId = null;
-    let quality = 'Fast';
+    let quality = 'Ultra';
 
     try {
         console.log(`[ContentServer] Regenerating image for segment ${segmentId}`);
@@ -547,11 +547,15 @@ app.post('/regenerate-image', async (req, res) => {
         
         if (projError || !project) throw new Error("Project not found");
         userId = project.user_id;
-        quality = project.picture_quality || 'Fast';
+        quality = project.picture_quality || 'Ultra';
 
         // 1. Calculate Cost & Charge
-        const cost = quality === 'Ultimate' ? COST_IMAGE_ULTIMATE : (quality === 'Ultra' ? COST_IMAGE_ULTRA : COST_IMAGE_FAST);
+        const cost = quality === 'Ultimate' ? COST_IMAGE_ULTIMATE : COST_IMAGE_ULTRA;
         const balance = await getCredits(userId);
+        
+        if (balance < MIN_BALANCE) {
+            return res.status(402).json({ error: "Insufficient credits for this request." });
+        }
         
         if (balance < cost) {
             return res.status(402).json({ error: `Insufficient credits for this request. Need ${cost} credits.` });
@@ -597,7 +601,7 @@ app.post('/regenerate-image', async (req, res) => {
         console.error("[ContentServer] Regeneration failed", e);
         // Refund on failure
         if (userId) {
-            const cost = quality === 'Ultimate' ? COST_IMAGE_ULTIMATE : (quality === 'Ultra' ? COST_IMAGE_ULTRA : COST_IMAGE_FAST);
+            const cost = quality === 'Ultimate' ? COST_IMAGE_ULTIMATE : COST_IMAGE_ULTRA;
             await refundUser(userId, cost, "Refund: Failed Regeneration");
         }
         res.status(500).json({ error: e.message });
@@ -623,6 +627,11 @@ app.post('/edit-image', async (req, res) => {
         // 1. Check & Charge
         const cost = COST_IMAGE_EDIT;
         const balance = await getCredits(userId);
+        
+        if (balance < MIN_BALANCE) {
+            return res.status(402).json({ error: "Insufficient credits for this request." });
+        }
+
         if (balance < cost) {
             return res.status(402).json({ error: `Insufficient credits for this request. Need ${cost} credits.` });
         }
@@ -660,6 +669,54 @@ app.post('/edit-image', async (req, res) => {
             await refundUser(userId, COST_IMAGE_EDIT, "Refund: Failed Image Edit");
         }
         res.status(500).json({ error: e.message });
+    }
+});
+
+// Generate Upload URL
+app.post('/generate-upload-url', async (req, res) => {
+    try {
+        const { projectId, segmentId, filename, contentType } = req.body;
+        const ext = filename.split('.').pop();
+        const key = `content/uploads/${projectId}/${segmentId}_${Date.now()}.${ext}`;
+        
+        const command = new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: key,
+            ContentType: contentType
+        });
+        
+        const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        
+        res.json({ signedUrl, key, publicUrl: `${R2_PUBLIC_URL}/${key}` });
+    } catch (error) {
+        console.error("Error generating signed URL:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update Segment Image
+app.post('/update-segment-image', async (req, res) => {
+    try {
+        const { segmentId, newImageUrl, oldImageUrl } = req.body;
+        
+        // Delete old image if it exists and is from our R2 bucket
+        if (oldImageUrl && oldImageUrl.includes(R2_PUBLIC_URL)) {
+            const oldKey = oldImageUrl.replace(`${R2_PUBLIC_URL}/`, '');
+            try {
+                await s3.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: oldKey }));
+                console.log(`[ContentServer] Deleted old image: ${oldKey}`);
+            } catch (err) {
+                console.error(`[ContentServer] Failed to delete old image ${oldKey}:`, err);
+            }
+        }
+        
+        // Update DB
+        await supabase.from('content_segments').update({ image_url: newImageUrl }).eq('id', segmentId);
+        
+        res.json({ success: true, imageUrl: newImageUrl });
+    } catch (error) {
+        console.error("Error updating segment image:", error);
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -734,8 +791,8 @@ app.post('/generate-assets', async (req, res) => {
     try {
         // 0. Pre-check Balance for regeneration
         const userCredits = await getCredits(userId);
-        if (userCredits < 1) {
-            return res.status(402).json({ error: "Insufficient credits for this request. Need at least 1 credit to regenerate audio." });
+        if (userCredits < MIN_BALANCE) {
+            return res.status(402).json({ error: "Insufficient credits for this request." });
         }
 
         const { data: segments } = await supabase.from('content_segments').select('*').eq('project_id', projectId).order('order_index');

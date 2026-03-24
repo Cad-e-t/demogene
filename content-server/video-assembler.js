@@ -22,9 +22,9 @@ function runFFmpeg(args) {
 
 const EFFECT_SEQUENCES = {
     'zoom_pulse': ['zoom_in', 'zoom_out'],
-    'slide_flow': ['slide_left', 'slide_right'],
+    'slide_flow': ['slide_left', 'slide_right', 'slide_up', 'slide_down', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
     'cinematic': ['slow_zoom_in'],
-    'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'hard_cut'],
+    'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'slide_up'],
     'handheld_walk': ['handheld_walk']
 };
 
@@ -37,10 +37,10 @@ function getFilterForEffect(effectType, width, height, frames) {
     
     // Fix: Calculate zoom step per frame based on total frames to ensure movement lasts full duration.
     // Increased zoom ranges to make pace faster (covering more distance in same time).
-    const stepIn = (0.8 / frames).toFixed(6); // Range 1.0 -> 1.8
-    const stepOut = (0.8 / frames).toFixed(6); // Range 1.8 -> 1.0
+    const stepIn = (0.5 / frames).toFixed(6); // Range 1.0 -> 1.8
+    const stepOut = (0.5 / frames).toFixed(6); // Range 1.8 -> 1.0
     const stepCinematic = (0.4 / frames).toFixed(6); // Range 1.0 -> 1.4
-    const stepHandheld = (0.4 / frames).toFixed(6); // Range 1.1 -> 1.5
+    const stepHandheld = (0.2 / frames).toFixed(6); // Range 1.1 -> 1.3
 
     switch (effectType) {
         case 'zoom_in':
@@ -56,21 +56,29 @@ function getFilterForEffect(effectType, width, height, frames) {
              return `zoompan=z='min(zoom+${stepCinematic},1.4)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
 
         case 'slide_left':
-            // Zoom at 1.25 allows good context while enabling lateral movement.
-            return `zoompan=z='1.25':x='(1-on/${frames})*(iw-iw/zoom)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
-
+            return `zoompan=z='1.15':x='(1-on/${frames})*(iw-iw/zoom)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
         case 'slide_right':
-            // Zoom at 1.25 allows good context while enabling lateral movement.
-            return `zoompan=z='1.25':x='(on/${frames})*(iw-iw/zoom)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
+            return `zoompan=z='1.15':x='(on/${frames})*(iw-iw/zoom)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
+        case 'slide_up':
+            return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)':y='(1-on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
+        case 'slide_down':
+            return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)':y='(on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
+        case 'slide_up_left':
+            return `zoompan=z='1.15':x='(1-on/${frames})*(iw-iw/zoom)':y='(1-on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
+        case 'slide_up_right':
+            return `zoompan=z='1.2':x='(on/${frames})*(iw-iw/zoom)':y='(1-on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
+        case 'slide_down_left':
+            return `zoompan=z='1.15':x='(1-on/${frames})*(iw-iw/zoom)':y='(on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
+        case 'slide_down_right':
+            return `zoompan=z='1.15':x='(on/${frames})*(iw-iw/zoom)':y='(on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
 
         case 'handheld_walk':
             // Simulates holding a camera while walking with subtle shake.
-            // Z: Starts at 1.1, zooms into 1.5 (faster pace).
-            // X: Combination of slow drift (on/40) and faster walking sway (on/4).
-            // Y: Combination of slow bob (on/50) and faster walking step (on/5).
-            return `zoompan=z='if(eq(on,0),1.1,min(zoom+${stepHandheld},1.5))':x='iw/2-(iw/zoom/2)+(iw/zoom/60)*sin(on/40)+(iw/zoom/180)*sin(on/4)':y='ih/2-(ih/zoom/2)+(ih/zoom/75)*cos(on/50)+(ih/zoom/210)*cos(on/5)':d=${frames}:s=${width}x${height}`;
+            // Z: Starts at 1.1, zooms into 1.3 (reduced range).
+            // X: Combination of slow drift (on/60) and faster walking sway (on/8).
+            // Y: Combination of slow bob (on/70) and faster walking step (on/10).
+            return `zoompan=z='if(eq(on,0),1.1,min(zoom+${stepHandheld},1.3))':x='iw/2-(iw/zoom/2)+(iw/zoom/100)*sin(on/50)+(iw/zoom/300)*sin(on/7)':y='ih/2-(ih/zoom/2)+(ih/zoom/120)*cos(on/70)+(ih/zoom/350)*cos(on/10)':d=${frames}:s=${width}x${height}`;
 
-        case 'static':
         default:
             // Minimal movement to prevent static boredom, or true static
             return `scale=${width}x${height}`;
@@ -108,14 +116,9 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         // Standardize fps
         const fpsFilter = `fps=30`;
 
-        if (effectType === 'static') {
-             // For static, we just scale to fit
-             filter = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,${fpsFilter}`;
-        } else {
-             // Chain filters: Scale Input -> Effect (ZoomPan) -> Output
-             // Note: Zoompan output resolution is set in the function
-             filter = `${inputScale},${effectFilter},${fpsFilter},setsar=1`;
-        }
+        // Chain filters: Scale Input -> Effect (ZoomPan) -> Output
+        // Note: Zoompan output resolution is set in the function
+        filter = `${inputScale},${effectFilter},${fpsFilter},setsar=1`;
 
         await runFFmpeg([
             '-loop', '1',

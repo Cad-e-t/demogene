@@ -1,16 +1,11 @@
 
 export const STYLE_PREVIEWS: Record<string, string> = {
-    "Realistic": "https://assets.productcam.site/image-styles/Realistic.png",
-    "Cinematic": "https://assets.productcam.site/image-styles/Cinematic.png",
-    "Anime": "https://assets.productcam.site/image-styles/Anime.png",
-    "Cyberpunk": "https://assets.productcam.site/image-styles/Cyberpunk.png",
-    "Watercolor": "https://assets.productcam.site/image-styles/Watercolor.png",
-    "Oil Painting": "https://assets.productcam.site/image-styles/Oilpainiting.png",
-    "Minimalist": "https://assets.productcam.site/image-styles/Minimalist.png",
-    "Pixar 3D": "https://assets.productcam.site/image-styles/Pixar3d.png",
-    "Vintage Film": "https://assets.productcam.site/image-styles/Vintage.png",
-    "Sketch": "https://assets.productcam.site/image-styles/Sketch.png",
-    "Silhouette": "https://assets.productcam.site/image-styles/Silhouette.png"
+    "Realistic": "https://assets.productcam.site/previews/realistic.mp4",
+    "Anime": "https://assets.productcam.site/previews/anime.mp4",
+    "Horror": "https://assets.productcam.site/previews/horror.mp4",
+    "Sketch": "https://assets.productcam.site/previews/sketch.mp4",
+    "Silhouette": "https://assets.productcam.site/previews/silhouette.mp4",
+    "Stickman": "https://assets.productcam.site/previews/stickman.mp4"
 };
 
 export const SUBTITLE_PREVIEWS: Record<string, string> = {

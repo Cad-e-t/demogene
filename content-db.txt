@@ -7,7 +7,7 @@ create table public.content_projects (
   title text,
   aspect_ratio text check (aspect_ratio in ('9:16', '16:9')),
   image_style text,
-  picture_quality text default 'Fast',
+  picture_quality text default 'Ultra',
   voice_id text,
   narration_style text,
   effect text default 'zoom_pulse',

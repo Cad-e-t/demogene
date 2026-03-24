@@ -159,11 +159,10 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         return <ContentLanding onLogin={handleLogin} />;
     }
 
-    const showGlobalOverlay = credits !== null && credits <= 0 && !customerId;
-    const showPersistentNotification = credits !== null && credits <= 0 && !!customerId;
+    const showGlobalOverlay = false; // Paywall removed as per user request
 
     return (
-        <div className="flex h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden relative">
+        <div className="flex h-screen bg-black text-white font-sans overflow-hidden relative">
             <ContentSidebar 
                 currentView={view} 
                 setView={() => {}} 
@@ -171,29 +170,9 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                 isOpen={isSidebarOpen}
                 onClose={() => setIsSidebarOpen(false)}
                 session={session}
+                credits={credits}
             />
             <main className="flex-1 flex flex-col relative h-full overflow-hidden md:pt-0">
-                {showPersistentNotification && (
-                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 pointer-events-none">
-                        <div className="bg-white/80 backdrop-blur-md border border-amber-200 shadow-xl rounded-2xl p-4 flex items-center gap-4 pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-500">
-                            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                                <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">Credits Finished</h4>
-                                <p className="text-xs text-slate-500 font-medium">Top up to continue creating amazing content.</p>
-                            </div>
-                            <button 
-                                onClick={() => onNavigate('/content-creator/creator-pricing')}
-                                className="px-4 py-2 bg-yellow-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-yellow-500 transition-colors shadow-lg shadow-yellow-600/20"
-                            >
-                                Top Up
-                            </button>
-                        </div>
-                    </div>
-                )}
                 {view === 'dashboard' && (
                     <ContentDashboard 
                         session={session} 
@@ -233,14 +212,14 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
 
             {/* Global Pricing Overlay Gatekeeper */}
             {showGlobalOverlay && (
-                <div className="fixed inset-0 z-[100] bg-slate-900/20 backdrop-blur-sm overflow-y-auto animate-fade-in">
+                <div className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-sm overflow-y-auto animate-fade-in">
                     <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
-                        <div className="w-full max-w-6xl flex flex-col items-center bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl rounded-[3rem] p-8 md:p-12 my-8 relative">
+                        <div className="w-full max-w-6xl flex flex-col items-center bg-zinc-900/90 backdrop-blur-xl border border-white/50 shadow-2xl rounded-[3rem] p-8 md:p-12 my-8 relative">
                             <div className="text-center mb-10">
-                                <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-4 uppercase tracking-tighter">
+                                <h2 className="text-3xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter">
                                     Unlock Creator Studio
                                 </h2>
-                                <p className="text-lg text-slate-500 font-medium max-w-xl mx-auto">
+                                <p className="text-lg text-zinc-400 font-medium max-w-xl mx-auto">
                                     You need credits to continue creating. Purchase a pack to unlock the studio instantly.
                                 </p>
                             </div>
@@ -252,7 +231,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                             
                             <button 
                                 onClick={handleLogout}
-                                className="mt-12 text-slate-400 font-bold text-sm uppercase tracking-widest hover:text-slate-600 transition-colors"
+                                className="mt-12 text-zinc-500 font-bold text-sm uppercase tracking-widest hover:text-zinc-300 transition-colors"
                             >
                                 Log Out
                             </button>

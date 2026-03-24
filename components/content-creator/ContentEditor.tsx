@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo } from './api';
+import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage } from './api';
 import { ContentVideoPlayer } from './ContentVideoPlayer';
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
@@ -19,6 +19,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [loadingImage, setLoadingImage] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [showAudioConfirmation, setShowAudioConfirmation] = useState(false);
+
+    const [uploadConfirmSegmentId, setUploadConfirmSegmentId] = useState<string | null>(null);
+    const [uploadingSegmentId, setUploadingSegmentId] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // New State for Real-time Preview
     const [audioUrl, setAudioUrl] = useState<string | null>(project.voice_file_path || null);
@@ -140,6 +144,56 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             return false;
         } finally {
             setIsGeneratingAssets(false);
+        }
+    };
+
+    const handleUploadClick = (segmentId: string, hasImage: boolean) => {
+        if (hasImage) {
+            setUploadConfirmSegmentId(segmentId);
+        } else {
+            setUploadingSegmentId(segmentId);
+            setTimeout(() => fileInputRef.current?.click(), 0);
+        }
+    };
+
+    const handleConfirmUpload = () => {
+        setUploadingSegmentId(uploadConfirmSegmentId);
+        setUploadConfirmSegmentId(null);
+        setTimeout(() => fileInputRef.current?.click(), 0);
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !uploadingSegmentId) return;
+
+        try {
+            setLoadingImage(true);
+            const segment = segments.find((s: any) => s.id === uploadingSegmentId);
+            
+            const { signedUrl, publicUrl } = await generateUploadUrl(project.id, uploadingSegmentId, file.name, file.type);
+
+            const uploadRes = await fetch(signedUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': file.type },
+                body: file
+            });
+            
+            if (!uploadRes.ok) throw new Error("Failed to upload image");
+
+            await updateSegmentImage(uploadingSegmentId, publicUrl, segment?.image_url);
+            
+            setSegments((prev: any[]) => prev.map(s => s.id === uploadingSegmentId ? { ...s, image_url: publicUrl } : s));
+        } catch (err: any) {
+            console.error("Upload failed", err);
+            setNotification({
+                message: err.message || "Failed to upload image.",
+                type: 'error'
+            });
+            setTimeout(() => setNotification(null), 6000);
+        } finally {
+            setLoadingImage(false);
+            setUploadingSegmentId(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -480,7 +534,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         <div className="md:space-y-4 space-y-2">
                             <button 
                                 onClick={() => setNarrationView('summary')}
-                                className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition mb-1 md:mb-2"
+                                className="flex items-center gap-2 text-zinc-500 hover:text-white transition mb-1 md:mb-2"
                             >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 <span className="text-xs font-bold uppercase tracking-wider">Back</span>
@@ -488,14 +542,14 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                                 {segments.map((seg: any, idx: number) => (
                                     <div key={seg.id} className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase">Segment {idx + 1}</label>
+                                        <label className="text-[10px] font-bold text-zinc-500 uppercase">Segment {idx + 1}</label>
                                         <textarea
                                             value={seg.narration}
                                             onChange={(e) => {
                                                 const newText = e.target.value;
                                                 setSegments((prev: any[]) => prev.map(s => s.id === seg.id ? { ...s, narration: newText } : s));
                                             }}
-                                            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none resize-y min-h-[80px]"
+                                            className="w-full p-3 bg-black border border-white/10 rounded-xl text-sm text-zinc-200 focus:border-white/10 focus:ring-1 focus:ring-white/20 outline-none resize-y min-h-[80px]"
                                         />
                                     </div>
                                 ))}
@@ -517,42 +571,42 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 return (
                     <div className="space-y-4">
                         {/* Script Edit Button */}
-                        <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="border border-white/10 rounded-xl overflow-hidden">
                             <button
                                 onClick={() => setNarrationView('edit_script')}
-                                className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition"
+                                className="w-full flex items-center justify-between p-4 bg-black hover:bg-zinc-900 transition"
                             >
                                 <div className="text-left">
-                                    <div className="text-xs font-bold text-slate-400 uppercase">Script</div>
-                                    <div className="font-bold text-slate-900">Edit Segment by Segment</div>
+                                    <div className="text-xs font-bold text-zinc-500 uppercase">Script</div>
+                                    <div className="font-bold text-white">Edit Segment by Segment</div>
                                 </div>
-                                <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                             </button>
                         </div>
 
                         {/* Voice Accordion */}
-                        <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="border border-white/10 rounded-xl overflow-hidden">
                             <button
                                 onClick={() => setNarrationSection(narrationSection === 'voice' ? null : 'voice')}
-                                className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition"
+                                className="w-full flex items-center justify-between p-4 bg-black hover:bg-zinc-900 transition"
                             >
                                 <div className="text-left">
-                                    <div className="text-xs font-bold text-slate-400 uppercase">Voice</div>
-                                    <div className="font-bold text-slate-900">{voice.name}</div>
+                                    <div className="text-xs font-bold text-zinc-500 uppercase">Voice</div>
+                                    <div className="font-bold text-white">{voice.name}</div>
                                 </div>
-                                <svg className={`w-5 h-5 text-slate-400 transition-transform ${narrationSection === 'voice' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                <svg className={`w-5 h-5 text-zinc-500 transition-transform ${narrationSection === 'voice' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                             </button>
                             {narrationSection === 'voice' && (
-                                <div className="p-2 bg-slate-50 border-t border-slate-200 space-y-2 max-h-60 overflow-y-auto">
+                                <div className="p-2 bg-zinc-900 border-t border-white/10 space-y-2 max-h-60 overflow-y-auto">
                                     {VOICES.map(v => (
                                         <button
                                             key={v.id}
                                             onClick={() => handleVoiceSelect(v)}
-                                            className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-all ${voice.id === v.id ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'}`}
+                                            className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-all ${voice.id === v.id ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
                                         >
                                             <span className="font-bold">{v.name}</span>
                                             {VOICE_SAMPLES[v.id] && (
-                                                <div onClick={(e) => toggleVoiceSample(e, v.id)} className={`p-1 rounded-full ${voice.id === v.id ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'}`}>
+                                                <div onClick={(e) => toggleVoiceSample(e, v.id)} className={`p-1 rounded-full ${voice.id === v.id ? 'bg-zinc-700 text-zinc-600' : 'bg-black hover:bg-zinc-900 text-zinc-400'}`}>
                                                     {playingVoiceId === v.id ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
                                                 </div>
                                             )}
@@ -563,27 +617,27 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
 
                         {/* Style Accordion */}
-                        <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="border border-white/10 rounded-xl overflow-hidden">
                             <button
                                 onClick={() => setNarrationSection(narrationSection === 'style' ? null : 'style')}
-                                className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition"
+                                className="w-full flex items-center justify-between p-4 bg-black hover:bg-zinc-900 transition"
                             >
                                 <div className="text-left">
-                                    <div className="text-xs font-bold text-slate-400 uppercase">Narration Style</div>
-                                    <div className="font-bold text-slate-900">{narrationStyle.name}</div>
+                                    <div className="text-xs font-bold text-zinc-500 uppercase">Narration Style</div>
+                                    <div className="font-bold text-white">{narrationStyle.name}</div>
                                 </div>
-                                <svg className={`w-5 h-5 text-slate-400 transition-transform ${narrationSection === 'style' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                <svg className={`w-5 h-5 text-zinc-500 transition-transform ${narrationSection === 'style' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                             </button>
                             {narrationSection === 'style' && (
-                                <div className="p-2 bg-slate-50 border-t border-slate-200 space-y-2 max-h-60 overflow-y-auto">
+                                <div className="p-2 bg-zinc-900 border-t border-white/10 space-y-2 max-h-60 overflow-y-auto">
                                     {NARRATION_STYLES.map(s => (
                                         <button
                                             key={s.prompt}
                                             onClick={() => handleNarrationStyleChange(s)}
-                                            className={`w-full text-left px-3 py-2 text-sm border rounded-lg transition-all ${narrationStyle.prompt === s.prompt ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'}`}
+                                            className={`w-full text-left px-3 py-2 text-sm border rounded-lg transition-all ${narrationStyle.prompt === s.prompt ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
                                         >
                                             <div className="font-bold">{s.name}</div>
-                                            <div className={`text-[10px] ${narrationStyle.prompt === s.prompt ? 'text-slate-400' : 'text-slate-400'}`}>{s.description}</div>
+                                            <div className={`text-[10px] ${narrationStyle.prompt === s.prompt ? 'text-zinc-500' : 'text-zinc-500'}`}>{s.description}</div>
                                         </button>
                                     ))}
                                 </div>
@@ -608,8 +662,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 return (
                     <div className="md:space-y-4 space-y-2">
                         {segments.map((seg: any, idx: number) => (
-                            <div key={seg.id} className="flex gap-3 items-start p-2 md:p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                <div className="w-12 h-12 md:w-16 md:aspect-square bg-slate-200 rounded-lg overflow-hidden shrink-0 border border-slate-200 relative cursor-pointer flex items-center justify-center" onClick={() => seg.image_url && setExpandedImage(seg.image_url)}>
+                            <div key={seg.id} className="flex gap-3 items-start p-2 md:p-3 bg-zinc-900 rounded-xl border border-white/5">
+                                <div className="w-12 h-12 md:w-16 md:aspect-square bg-zinc-900 rounded-lg overflow-hidden shrink-0 border border-white/10 relative cursor-pointer flex items-center justify-center" onClick={() => seg.image_url && setExpandedImage(seg.image_url)}>
                                     {seg.image_url ? (
                                         <img src={seg.image_url} className="w-full h-full object-cover" />
                                     ) : localProject.status === 'draft' ? (
@@ -620,16 +674,19 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                         </div>
                                     ) : (
                                         <div className="flex flex-col items-center gap-1">
-                                            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
-                                            <div className="text-[8px] font-bold text-slate-400 uppercase">Generating</div>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-transparent rounded-full animate-spin"></div>
+                                            <div className="text-[8px] font-bold text-zinc-500 uppercase">Generating</div>
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Segment {idx + 1}</div>
+                                    <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1">Segment {idx + 1}</div>
                                     <div className="flex gap-2 mt-2">
-                                        <button onClick={() => { setRegeneratingId(seg.id); setRegeneratePrompt(seg.image_prompt || ''); }} className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 transition">Regenerate</button>
-                                        <button onClick={() => setEditingImageId(seg.id)} className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 transition">Edit</button>
+                                        <button onClick={() => { setRegeneratingId(seg.id); setRegeneratePrompt(seg.image_prompt || ''); }} className="px-3 py-1.5 bg-black border border-white/10 hover:bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-200 transition">Regenerate</button>
+                                        <button onClick={() => setEditingImageId(seg.id)} className="px-3 py-1.5 bg-black border border-white/10 hover:bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-200 transition">Edit</button>
+                                        <button onClick={() => handleUploadClick(seg.id, !!seg.image_url)} className="p-1.5 bg-black border border-white/10 hover:bg-zinc-900 rounded-lg text-zinc-200 transition flex items-center justify-center" title="Upload Image">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -643,10 +700,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             <button
                                 key={e.id}
                                 onClick={() => handleEffectChange(e)}
-                                className={`w-full text-left px-3 py-3 border rounded-xl transition-all ${effect.id === e.id ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'}`}
+                                className={`w-full text-left px-3 py-3 border rounded-xl transition-all ${effect.id === e.id ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
                             >
                                 <div className="font-bold text-sm">{e.name}</div>
-                                <div className={`text-[10px] ${effect.id === e.id ? 'text-slate-400' : 'text-slate-400'}`}>{e.description}</div>
+                                <div className={`text-[10px] ${effect.id === e.id ? 'text-zinc-500' : 'text-zinc-500'}`}>{e.description}</div>
                             </button>
                         ))}
                     </div>
@@ -655,40 +712,40 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 if (subtitleView === 'summary') {
                     return (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="flex items-center justify-between p-4 bg-zinc-900 rounded-2xl border border-white/5">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${subtitles.enabled ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-400'}`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${subtitles.enabled ? 'bg-green-900/20 text-green-600' : 'bg-zinc-900 text-zinc-500'}`}>
                                         <Icons.Captions />
                                     </div>
                                     <div>
-                                        <div className="text-sm font-bold text-slate-900">Subtitles</div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                        <div className="text-sm font-bold text-white">Subtitles</div>
+                                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">
                                             {subtitles.enabled ? 'Enabled' : 'Disabled'}
                                         </div>
                                     </div>
                                 </div>
                                 <button 
                                     onClick={() => handleSubtitleUpdate({ enabled: !subtitles.enabled })}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${subtitles.enabled ? 'bg-slate-900' : 'bg-slate-200'}`}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${subtitles.enabled ? 'bg-zinc-900' : 'bg-zinc-900'}`}
                                 >
-                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${subtitles.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${subtitles.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                                 </button>
                             </div>
 
                             <button 
                                 onClick={() => setSubtitleView('edit')}
-                                className="w-full p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 transition group"
+                                className="w-full p-4 bg-black border border-white/10 rounded-2xl flex items-center justify-between hover:border-white/20 transition group"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 group-hover:text-slate-900 transition">
+                                    <div className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-zinc-500 group-hover:text-white transition">
                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                     </div>
                                     <div className="text-left">
-                                        <div className="text-sm font-bold text-slate-900">Edit Style</div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Customize appearance</div>
+                                        <div className="text-sm font-bold text-white">Edit Style</div>
+                                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Customize appearance</div>
                                     </div>
                                 </div>
-                                <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                <svg className="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                             </button>
                         </div>
                     );
@@ -697,20 +754,20 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                     <div className="md:space-y-4 space-y-2">
                         <button 
                             onClick={() => setSubtitleView('summary')}
-                            className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition mb-1 md:mb-2"
+                            className="flex items-center gap-2 text-zinc-500 hover:text-white transition mb-1 md:mb-2"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                             <span className="text-xs font-bold uppercase tracking-wider">Back</span>
                         </button>
                         {/* Placement */}
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400 uppercase">Placement</label>
+                            <label className="text-xs font-bold text-zinc-500 uppercase">Placement</label>
                             <div className="flex gap-2">
                                 {['top', 'middle', 'bottom'].map((p) => (
                                     <button
                                         key={p}
                                         onClick={() => handleSubtitleUpdate({ placement: p as any })}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${subtitles.placement === p ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${subtitles.placement === p ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 text-zinc-200 hover:border-white/20'}`}
                                     >
                                         {p.toUpperCase()}
                                     </button>
@@ -720,11 +777,11 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
                         {/* Font Family */}
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400 uppercase">Font</label>
+                            <label className="text-xs font-bold text-zinc-500 uppercase">Font</label>
                             <select
                                 value={subtitles.fontFamily}
                                 onChange={(e) => handleSubtitleUpdate({ fontFamily: e.target.value })}
-                                className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-900 outline-none focus:border-blue-500"
+                                className="w-full p-2 bg-black border border-white/10 rounded-lg text-sm font-bold text-white outline-none focus:border-yellow-500"
                             >
                                 <option value="Architects Daughter">Architects Daughter</option>
                                 <option value="Arial">Arial</option>
@@ -742,26 +799,26 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         {/* Font Size */}
                         <div className="space-y-2">
                             <div className="flex justify-between">
-                                <label className="text-xs font-bold text-slate-400 uppercase">Size</label>
-                                <span className="text-xs font-bold text-slate-900">{subtitles.fontSize}px</span>
+                                <label className="text-xs font-bold text-zinc-500 uppercase">Size</label>
+                                <span className="text-xs font-bold text-white">{subtitles.fontSize}px</span>
                             </div>
                             <input
                                 type="range"
                                 min="10"
-                                max="100"
+                                max="150"
                                 value={subtitles.fontSize}
                                 onChange={(e) => handleSubtitleUpdate({ fontSize: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                                className="w-full h-2 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-yellow-500"
                             />
                         </div>
 
                         {/* Animation Type */}
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400 uppercase">Animation Style</label>
+                            <label className="text-xs font-bold text-zinc-500 uppercase">Animation Style</label>
                             <select
                                 value={subtitles.animationType}
                                 onChange={(e) => handleSubtitleUpdate({ animationType: e.target.value as any })}
-                                className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-900 outline-none focus:border-blue-500"
+                                className="w-full p-2 bg-black border border-white/10 rounded-lg text-sm font-bold text-white outline-none focus:border-yellow-500"
                             >
                                 <option value="pulse_bold">Pulse Bold</option>
                                 <option value="glow_focus">Typewriter Glow</option>
@@ -772,43 +829,43 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         {/* Colors */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase">Text Color</label>
+                                <label className="text-xs font-bold text-zinc-500 uppercase">Text Color</label>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="color"
                                         value={subtitles.primaryColor}
                                         onChange={(e) => handleSubtitleUpdate({ primaryColor: e.target.value })}
-                                        className="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0 overflow-hidden"
+                                        className="w-8 h-8 rounded-lg border border-white/10 cursor-pointer p-0 overflow-hidden"
                                     />
-                                    <span className="text-xs font-mono text-slate-500">{subtitles.primaryColor}</span>
+                                    <span className="text-xs font-mono text-zinc-400">{subtitles.primaryColor}</span>
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase">Outline Color</label>
+                                <label className="text-xs font-bold text-zinc-500 uppercase">Outline Color</label>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="color"
                                         value={subtitles.secondaryColor}
                                         onChange={(e) => handleSubtitleUpdate({ secondaryColor: e.target.value })}
-                                        className="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0 overflow-hidden"
+                                        className="w-8 h-8 rounded-lg border border-white/10 cursor-pointer p-0 overflow-hidden"
                                     />
-                                    <span className="text-xs font-mono text-slate-500">{subtitles.secondaryColor}</span>
+                                    <span className="text-xs font-mono text-zinc-400">{subtitles.secondaryColor}</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Highlight Color */}
-                        {(subtitles.animationType === 'pulse_bold') && (
+                        {(subtitles.animationType === 'pulse_bold' || subtitles.animationType === 'glow_focus') && (
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase">Highlight Color (Karaoke)</label>
+                                <label className="text-xs font-bold text-zinc-500 uppercase">Highlight Color (Karaoke)</label>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="color"
                                         value={subtitles.highlightColor}
                                         onChange={(e) => handleSubtitleUpdate({ highlightColor: e.target.value })}
-                                        className="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0 overflow-hidden"
+                                        className="w-8 h-8 rounded-lg border border-white/10 cursor-pointer p-0 overflow-hidden"
                                     />
-                                    <span className="text-xs font-mono text-slate-500">{subtitles.highlightColor}</span>
+                                    <span className="text-xs font-mono text-zinc-400">{subtitles.highlightColor}</span>
                                 </div>
                             </div>
                         )}
@@ -816,24 +873,24 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         {/* Stroke Width */}
                         <div className="space-y-2">
                             <div className="flex justify-between">
-                                <label className="text-xs font-bold text-slate-400 uppercase">Outline Width</label>
-                                <span className="text-xs font-bold text-slate-900">{subtitles.strokeWidth}px</span>
+                                <label className="text-xs font-bold text-zinc-500 uppercase">Outline Width</label>
+                                <span className="text-xs font-bold text-white">{subtitles.strokeWidth}px</span>
                             </div>
                             <input
                                 type="range"
                                 min="0"
-                                max="10"
+                                max="20"
                                 value={subtitles.strokeWidth}
                                 onChange={(e) => handleSubtitleUpdate({ strokeWidth: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                                className="w-full h-2 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-yellow-500"
                             />
                         </div>
 
                         {/* Letter Spacing */}
                         <div className="space-y-2">
                             <div className="flex justify-between">
-                                <label className="text-xs font-bold text-slate-400 uppercase">Letter Spacing</label>
-                                <span className="text-xs font-bold text-slate-900">{subtitles.letterSpacing}px</span>
+                                <label className="text-xs font-bold text-zinc-500 uppercase">Letter Spacing</label>
+                                <span className="text-xs font-bold text-white">{subtitles.letterSpacing}px</span>
                             </div>
                             <input
                                 type="range"
@@ -841,19 +898,19 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 max="20"
                                 value={subtitles.letterSpacing}
                                 onChange={(e) => handleSubtitleUpdate({ letterSpacing: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                                className="w-full h-2 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-yellow-500"
                             />
                         </div>
 
                         {/* Text Transform */}
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400 uppercase">Transform</label>
+                            <label className="text-xs font-bold text-zinc-500 uppercase">Transform</label>
                             <div className="flex gap-2">
                                 {['none', 'uppercase', 'capitalize'].map((t) => (
                                     <button
                                         key={t}
                                         onClick={() => handleSubtitleUpdate({ textTransform: t as any })}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${subtitles.textTransform === t ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${subtitles.textTransform === t ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 text-zinc-200 hover:border-white/20'}`}
                                     >
                                         {t === 'none' ? 'Normal' : t.charAt(0).toUpperCase() + t.slice(1)}
                                     </button>
@@ -862,14 +919,14 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
 
                         {/* Save Buttons */}
-                        <div className="pt-4 border-t border-slate-200 space-y-3">
+                        <div className="pt-4 border-t border-white/10 space-y-3">
                             <button
                                 onClick={handleSaveAsDefault}
                                 disabled={saveDefaultStatus === 'saving'}
                                 className={`w-full py-3 text-sm font-bold rounded-xl transition shadow-sm flex items-center justify-center gap-2 ${
                                     saveDefaultStatus === 'success' ? 'bg-green-500 text-white border border-green-500' :
                                     saveDefaultStatus === 'error' ? 'bg-red-500 text-white border border-red-500' :
-                                    'bg-white border border-slate-200 text-slate-900 hover:bg-slate-50'
+                                    'bg-black border border-white/10 text-white hover:bg-zinc-900'
                                 }`}
                             >
                                 {saveDefaultStatus === 'saving' && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>}
@@ -887,7 +944,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col h-full overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-zinc-900 flex flex-col h-full overflow-hidden">
             {/* Notifications */}
             {notification && (
                 <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in-down ${notification.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
@@ -897,7 +954,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     )}
                     <span className="font-bold text-sm tracking-wide">{notification.message}</span>
-                    <button onClick={() => setNotification(null)} className="ml-2 hover:bg-white/20 rounded-full p-1 transition-colors">
+                    <button onClick={() => setNotification(null)} className="ml-2 hover:bg-black/20 rounded-full p-1 transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
@@ -906,7 +963,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             {/* Modals */}
             {expandedImage && (
                 <div 
-                    className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
+                    className="fixed inset-0 z-[100] bg-zinc-900/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
                     onClick={() => setExpandedImage(null)}
                 >
                     <img src={expandedImage} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
@@ -917,13 +974,13 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             )}
             
             {/* Top Bar (Full Width) */}
-            <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-30 relative">
-                <button onClick={onBack} className="text-slate-500 hover:text-slate-900 text-sm font-bold flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+            <div className="h-16 bg-black border-b border-white/10 flex items-center justify-between px-6 shrink-0 z-30 relative">
+                <button onClick={onBack} className="text-zinc-400 hover:text-white text-sm font-bold flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-black transition-colors">
                     ← Back
                 </button>
                 <div className="flex items-center gap-4">
                     {isGeneratingAssets && (
-                        <div className="flex items-center gap-2 text-[10px] text-yellow-600 font-bold animate-pulse bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">
+                        <div className="flex items-center gap-2 text-[10px] text-yellow-600 font-bold animate-pulse bg-yellow-900/20 px-3 py-1 rounded-full border border-yellow-900/30">
                             <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
                             GENERATING ASSETS... {timer}s
                         </div>
@@ -942,15 +999,15 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             <div className="flex-1 flex overflow-hidden relative">
                 
                 {/* Left Margin Frame */}
-                <div className="hidden md:block w-4 bg-white shrink-0 border-r border-slate-200/50"></div>
+                <div className="hidden md:block w-4 bg-black shrink-0 border-r border-white/10/50"></div>
 
                 {/* Video Preview Area */}
-                <div className={`flex-1 bg-slate-50 flex flex-col relative overflow-hidden h-full transition-all duration-300 ${isMobileConfigOpen ? 'md:h-full h-[35%]' : 'h-full'}`}>
+                <div className={`flex-1 bg-zinc-900 flex flex-col relative overflow-hidden h-full transition-all duration-300 ${isMobileConfigOpen ? 'md:h-full h-[35%]' : 'h-full'}`}>
                     <div className={`flex-1 flex items-center justify-center p-4 md:p-8 min-h-0 w-full relative transition-all duration-300 ${isMobileConfigOpen ? 'scale-90 md:scale-100' : 'scale-100'}`}>
                         {(!audioUrl || segmentDurations.length === 0) ? (
                             <div className="flex flex-col items-center gap-4">
-                                <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-900 rounded-full animate-spin"></div>
-                                <div className="text-sm font-bold text-slate-500 uppercase tracking-widest animate-pulse">Preparing Preview...</div>
+                                <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                <div className="text-sm font-bold text-zinc-400 uppercase tracking-widest animate-pulse">Preparing Preview...</div>
                             </div>
                         ) : (
                             <ContentVideoPlayer
@@ -973,40 +1030,40 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 </div>
 
                 {/* Desktop: Config Panel (Strip + Wing) */}
-                <div className="hidden md:flex h-full shrink-0 z-20 shadow-xl relative border-l border-slate-200">
+                <div className="hidden md:flex h-full shrink-0 z-20 shadow-xl relative border-l border-white/10">
                     {/* Wing (Content) */}
-                    <div className={`bg-white border-r border-slate-200 overflow-y-auto transition-all duration-300 ease-in-out ${activeModule ? 'w-80 opacity-100' : 'w-0 opacity-0 overflow-hidden border-none'}`}>
+                    <div className={`bg-black border-r border-white/10 overflow-y-auto transition-all duration-300 ease-in-out ${activeModule ? 'w-80 opacity-100' : 'w-0 opacity-0 overflow-hidden border-none'}`}>
                         <div className="p-6 min-w-[20rem]">
                             {activeModule && renderModuleContent(activeModule)}
                         </div>
                     </div>
 
                     {/* Strip (Icons) */}
-                    <div className="w-24 bg-white flex flex-col items-center py-6 gap-4 z-30">
+                    <div className="w-24 bg-black flex flex-col items-center py-6 gap-4 z-30">
                         <button 
                             onClick={() => setActiveModule(activeModule === 'narration' ? null : 'narration')}
-                            className={`w-20 h-20 flex flex-col items-center justify-center rounded-xl transition-all ${activeModule === 'narration' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
+                            className={`w-20 h-20 flex flex-col items-center justify-center rounded-xl transition-all ${activeModule === 'narration' ? 'bg-zinc-900 text-white shadow-lg' : 'text-zinc-500 hover:text-white hover:bg-zinc-900'}`}
                         >
                             <Icons.Narration />
                             <span className="text-[10px] font-black mt-2 uppercase tracking-tight">Audio</span>
                         </button>
                         <button 
                             onClick={() => setActiveModule(activeModule === 'images' ? null : 'images')}
-                            className={`w-20 h-20 flex flex-col items-center justify-center rounded-xl transition-all ${activeModule === 'images' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
+                            className={`w-20 h-20 flex flex-col items-center justify-center rounded-xl transition-all ${activeModule === 'images' ? 'bg-zinc-900 text-white shadow-lg' : 'text-zinc-500 hover:text-white hover:bg-zinc-900'}`}
                         >
                             <Icons.Images />
                             <span className="text-[10px] font-black mt-2 uppercase tracking-tight">Images</span>
                         </button>
                         <button 
                             onClick={() => setActiveModule(activeModule === 'effect' ? null : 'effect')}
-                            className={`w-20 h-20 flex flex-col items-center justify-center rounded-xl transition-all ${activeModule === 'effect' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
+                            className={`w-20 h-20 flex flex-col items-center justify-center rounded-xl transition-all ${activeModule === 'effect' ? 'bg-zinc-900 text-white shadow-lg' : 'text-zinc-500 hover:text-white hover:bg-zinc-900'}`}
                         >
                             <Icons.Effect />
                             <span className="text-[10px] font-black mt-2 uppercase tracking-tight text-center leading-none">Video<br/>Effects</span>
                         </button>
                         <button 
                             onClick={() => setActiveModule(activeModule === 'captions' ? null : 'captions')}
-                            className={`w-20 h-20 flex flex-col items-center justify-center rounded-xl transition-all ${activeModule === 'captions' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
+                            className={`w-20 h-20 flex flex-col items-center justify-center rounded-xl transition-all ${activeModule === 'captions' ? 'bg-zinc-900 text-white shadow-lg' : 'text-zinc-500 hover:text-white hover:bg-zinc-900'}`}
                         >
                             <Icons.Captions />
                             <span className="text-[10px] font-black mt-2 uppercase tracking-tight">Subtitles</span>
@@ -1017,43 +1074,43 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
             {/* Mobile: Edit FAB */}
             <button 
-                className="md:hidden absolute bottom-20 right-4 w-14 h-14 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center z-40"
+                className="md:hidden absolute bottom-20 right-4 w-14 h-14 bg-zinc-900 text-white rounded-full shadow-2xl flex items-center justify-center z-40"
                 onClick={() => setIsMobileConfigOpen(true)}
             >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
             </button>
 
             {/* Mobile: Settings Drawer */}
-            <div className={`md:hidden fixed inset-x-0 bottom-0 bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 transition-transform duration-300 ease-out transform ${isMobileConfigOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+            <div className={`md:hidden fixed inset-x-0 bottom-0 bg-black rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 transition-transform duration-300 ease-out transform ${isMobileConfigOpen ? 'translate-y-0' : 'translate-y-full'}`}>
                 <div className={`p-6 ${activeModule ? 'p-4 max-h-[55vh]' : 'max-h-[70vh]'} overflow-y-auto transition-all duration-300`}>
                     {/* Drawer Handle */}
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4 md:mb-6" onClick={() => setIsMobileConfigOpen(false)}></div>
+                    <div className="w-12 h-1.5 bg-zinc-900 rounded-full mx-auto mb-4 md:mb-6" onClick={() => setIsMobileConfigOpen(false)}></div>
 
                     {!activeModule ? (
                         // Menu View
                         <div className="grid grid-cols-2 gap-4">
-                            <button onClick={() => setActiveModule('narration')} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center gap-3 active:scale-95 transition">
-                                <div className="p-3 bg-white rounded-full shadow-sm text-slate-900"><Icons.Narration /></div>
-                                <span className="font-bold text-sm text-slate-700">Audio</span>
+                            <button onClick={() => setActiveModule('narration')} className="p-4 bg-zinc-900 rounded-2xl border border-white/5 flex flex-col items-center gap-3 active:scale-95 transition">
+                                <div className="p-3 bg-black rounded-full shadow-sm text-white"><Icons.Narration /></div>
+                                <span className="font-bold text-sm text-zinc-200">Audio</span>
                             </button>
-                            <button onClick={() => setActiveModule('images')} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center gap-3 active:scale-95 transition">
-                                <div className="p-3 bg-white rounded-full shadow-sm text-slate-900"><Icons.Images /></div>
-                                <span className="font-bold text-sm text-slate-700">Images</span>
+                            <button onClick={() => setActiveModule('images')} className="p-4 bg-zinc-900 rounded-2xl border border-white/5 flex flex-col items-center gap-3 active:scale-95 transition">
+                                <div className="p-3 bg-black rounded-full shadow-sm text-white"><Icons.Images /></div>
+                                <span className="font-bold text-sm text-zinc-200">Images</span>
                             </button>
-                            <button onClick={() => setActiveModule('effect')} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center gap-3 active:scale-95 transition">
-                                <div className="p-3 bg-white rounded-full shadow-sm text-slate-900"><Icons.Effect /></div>
-                                <span className="font-bold text-sm text-slate-700">Video Effects</span>
+                            <button onClick={() => setActiveModule('effect')} className="p-4 bg-zinc-900 rounded-2xl border border-white/5 flex flex-col items-center gap-3 active:scale-95 transition">
+                                <div className="p-3 bg-black rounded-full shadow-sm text-white"><Icons.Effect /></div>
+                                <span className="font-bold text-sm text-zinc-200">Video Effects</span>
                             </button>
-                            <button onClick={() => setActiveModule('captions')} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center gap-3 active:scale-95 transition">
-                                <div className="p-3 bg-white rounded-full shadow-sm text-slate-900"><Icons.Captions /></div>
-                                <span className="font-bold text-sm text-slate-700">Subtitles</span>
+                            <button onClick={() => setActiveModule('captions')} className="p-4 bg-zinc-900 rounded-2xl border border-white/5 flex flex-col items-center gap-3 active:scale-95 transition">
+                                <div className="p-3 bg-black rounded-full shadow-sm text-white"><Icons.Captions /></div>
+                                <span className="font-bold text-sm text-zinc-200">Subtitles</span>
                             </button>
                         </div>
                     ) : (
                         // Detail View
                         <div className="animate-fadeIn">
                             <div className="flex items-center gap-4 mb-6">
-                                <button onClick={() => setActiveModule(null)} className="p-2 -ml-2 text-slate-400 hover:text-slate-900">
+                                <button onClick={() => setActiveModule(null)} className="p-2 -ml-2 text-zinc-500 hover:text-white">
                                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
                             </div>
@@ -1066,11 +1123,11 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             {/* Modals (Regenerate/Edit) - Reused from previous implementation */}
             {showAudioConfirmation && (
                 <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
-                        <h3 className="font-bold text-lg mb-2 text-slate-900">Regenerate Audio?</h3>
-                        <p className="text-slate-500 mb-6 text-sm">This will discard the current audio and generate a new one.</p>
+                    <div className="bg-black rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+                        <h3 className="font-bold text-lg mb-2 text-white">Regenerate Audio?</h3>
+                        <p className="text-zinc-400 mb-6 text-sm">This will discard the current audio and generate a new one.</p>
                         <div className="flex gap-3 justify-center">
-                            <button onClick={() => { setShowAudioConfirmation(false); setErrorMessage(null); }} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancel</button>
+                            <button onClick={() => { setShowAudioConfirmation(false); setErrorMessage(null); }} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition">Cancel</button>
                             <button onClick={confirmRegenerateVoice} disabled={isGeneratingAssets} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
                                 {isGeneratingAssets ? `Generating... ${timer}s` : 'Confirm'}
                             </button>
@@ -1088,19 +1145,19 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 const seg = segments.find((s: any) => s.id === regeneratingId);
                 return (
                     <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl">
-                            <h3 className="font-bold text-lg mb-4 text-slate-900">Regenerate Image</h3>
+                        <div className="bg-black rounded-2xl p-6 max-w-lg w-full shadow-2xl">
+                            <h3 className="font-bold text-lg mb-4 text-white">Regenerate Image</h3>
                             
                             {seg?.image_url && (
-                                <div className="mb-4 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                                <div className="mb-4 rounded-xl overflow-hidden bg-black border border-white/10">
                                     <img src={seg.image_url} alt="Current" className="w-full h-48 object-contain" />
                                 </div>
                             )}
 
                             <div className="text-left">
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Image Prompt</label>
+                                <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-2">Image Prompt</label>
                                 <textarea 
-                                    className="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 mb-6 text-sm text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-y min-h-[100px]"
+                                    className="w-full p-4 bg-zinc-900 rounded-xl border border-white/10 mb-6 text-sm text-white placeholder-zinc-500 focus:ring-2 focus:ring-yellow-500 outline-none transition-all resize-y min-h-[100px]"
                                     placeholder="Image prompt..."
                                     value={regeneratePrompt}
                                     onChange={(e) => setRegeneratePrompt(e.target.value)}
@@ -1108,7 +1165,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             </div>
 
                             <div className="flex justify-end gap-3">
-                                <button onClick={() => setRegeneratingId(null)} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancel</button>
+                                <button onClick={() => setRegeneratingId(null)} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition">Cancel</button>
                                 <button onClick={handleRegenerate} disabled={loadingImage} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
                                     {loadingImage ? `Generating... ${timer}s` : 'Generate'}
                                 </button>
@@ -1125,16 +1182,16 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
             {editingImageId && (
                 <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl">
-                        <h3 className="font-bold text-lg mb-4 text-slate-900">Edit Image</h3>
+                    <div className="bg-black rounded-2xl p-6 max-w-lg w-full shadow-2xl">
+                        <h3 className="font-bold text-lg mb-4 text-white">Edit Image</h3>
                         <input 
-                            className="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                            className="w-full p-4 bg-zinc-900 rounded-xl border border-white/10 mb-4 text-white placeholder-zinc-500 focus:ring-2 focus:ring-yellow-500 outline-none transition-all"
                             placeholder="Describe change..."
                             value={editPrompt}
                             onChange={(e) => setEditPrompt(e.target.value)}
                         />
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setEditingImageId(null)} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancel</button>
+                            <button onClick={() => setEditingImageId(null)} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition">Cancel</button>
                             <button onClick={handleImageEdit} disabled={loadingImage} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
                                 {loadingImage ? `Editing... ${timer}s` : 'Apply Edit'}
                             </button>
@@ -1144,6 +1201,33 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 {errorMessage}
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Hidden File Input */}
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleFileChange} 
+            />
+
+            {/* Upload Confirmation Modal */}
+            {uploadConfirmSegmentId && (
+                <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-black rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                        <h3 className="font-bold text-lg mb-4 text-white">Replace Image?</h3>
+                        <p className="text-sm text-zinc-300 mb-6">
+                            This segment already has an image. Uploading a new one will discard the existing image. Do you want to continue?
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button onClick={() => setUploadConfirmSegmentId(null)} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition">Cancel</button>
+                            <button onClick={handleConfirmUpload} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-red-600 text-white hover:bg-red-500">
+                                Continue
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -6,11 +6,38 @@ import { supabase } from "../../supabaseClient";
 
 const API_URL = "https://content-creator-417540185411.us-central1.run.app"; // Or env var
 
-export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: string, visualDensity: string, pictureQuality: string, subtitles: SubtitleConfiguration, voiceId: string) {
+export async function generateUploadUrl(projectId: string, segmentId: string, filename: string, contentType: string) {
+    const res = await fetch(`${API_URL}/generate-upload-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, segmentId, filename, contentType })
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to generate upload URL");
+    }
+    return await res.json();
+}
+
+export async function updateSegmentImage(segmentId: string, newImageUrl: string, oldImageUrl: string) {
+    const res = await fetch(`${API_URL}/update-segment-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ segmentId, newImageUrl, oldImageUrl })
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to update segment image");
+    }
+    return await res.json();
+}
+
+export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: string, pictureQuality: string, subtitles: SubtitleConfiguration, voiceId: string, signal?: AbortSignal) {
     const res = await fetch(`${API_URL}/generate-segments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, visualDensity, pictureQuality, subtitles, voiceId })
+        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, pictureQuality, subtitles, voiceId }),
+        signal
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));

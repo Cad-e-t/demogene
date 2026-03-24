@@ -17,9 +17,9 @@ interface ContentVideoPlayerProps {
 
 const EFFECT_SEQUENCES = {
     'zoom_pulse': ['zoom_in', 'zoom_out'],
-    'slide_flow': ['slide_left', 'slide_right'],
+    'slide_flow': ['slide_left', 'slide_right', 'slide_up', 'slide_down', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
     'cinematic': ['slow_zoom_in'],
-    'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'hard_cut'],
+    'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'slide_up'],
     'handheld_walk': ['handheld_walk']
 };
 
@@ -47,6 +47,14 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     const [isHovering, setIsHovering] = useState(false);
     const [isSeeking, setIsSeeking] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const currentTimeRef = useRef(currentTime);
+    const visualTimeRef = useRef(currentTime);
+    const lastTimestampRef = useRef(0);
+
+    useEffect(() => {
+        currentTimeRef.current = currentTime;
+        if (!isPlaying) visualTimeRef.current = currentTime;
+    }, [currentTime, isPlaying]);
 
     // Click outside handler
     useEffect(() => {
@@ -146,7 +154,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             : (aspectRatio === '16:9' ? 45 : 22);
         
         // Word count limits per style
-        const maxWords = animationType === 'karaoke_block' ? 4 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
+        const maxWords = animationType === 'karaoke_block' ? 3 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
 
         const lines = [];
         let group = [];
@@ -201,11 +209,35 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     };
 
     // 6. Render Loop
-    const render = () => {
+    const render = (timestamp: number) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
+
+        // Calculate smooth time
+        if (!lastTimestampRef.current) lastTimestampRef.current = timestamp;
+        const elapsed = (timestamp - lastTimestampRef.current) / 1000;
+        lastTimestampRef.current = timestamp;
+
+        let drawTime;
+        if (isPlaying && audioRef.current) {
+            const audioTime = audioRef.current.currentTime;
+            // Smoothly advance visual time
+            if (Math.abs(audioTime - visualTimeRef.current) > 0.15) {
+                // Large discrepancy (seek or jump), snap
+                visualTimeRef.current = audioTime;
+            } else {
+                // Advance by elapsed time
+                visualTimeRef.current += elapsed;
+                // Gently pull towards audio clock to prevent drift
+                visualTimeRef.current += (audioTime - visualTimeRef.current) * 0.1;
+            }
+            drawTime = visualTimeRef.current;
+        } else {
+            drawTime = currentTimeRef.current;
+            visualTimeRef.current = drawTime;
+        }
 
         // Clear
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -214,7 +246,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         let accumulatedTime = 0;
         let currentSegmentIndex = 0;
         for (let i = 0; i < segmentDurations.length; i++) {
-            if (currentTime >= accumulatedTime && currentTime < accumulatedTime + segmentDurations[i]) {
+            if (drawTime >= accumulatedTime && drawTime < accumulatedTime + segmentDurations[i]) {
                 currentSegmentIndex = i;
                 break;
             }
@@ -224,7 +256,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         // Draw Image
         const img = images[currentSegmentIndex];
         if (img && img.complete) {
-            const segmentTime = currentTime - accumulatedTime;
+            const segmentTime = drawTime - accumulatedTime;
             const duration = segmentDurations[currentSegmentIndex];
             const progress = Math.min(segmentTime / duration, 1);
             const totalFrames = Math.ceil(duration * 30); // Use 30fps as base
@@ -248,66 +280,86 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             const baseScale = Math.max(w / iw, h / ih);
 
             // Use continuous frame count for smoother math at 60fps
-            // Server uses 30fps, so we match the 'on' variable frequency
             const continuousFrame = segmentTime * 30;
 
+            const iw_visible = w / baseScale;
+            const ih_visible = h / baseScale;
+
             switch (effectType) {
-                case 'zoom_in': {
-                    // Range 1.0 -> 1.8 (Matches server stepIn = 0.8/frames)
-                    scale = 1.0 + (progress * 0.8);
+                case 'zoom_in':
+                    scale = 1.0 + (progress * 0.5);
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
                     break;
-                }
-                case 'zoom_out': {
-                    // Range 1.8 -> 1.0 (Matches server stepOut = 0.8/frames)
-                    scale = 1.8 - (progress * 0.8);
+                case 'zoom_out':
+                    scale = 1.8 - (progress * 0.5);
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
                     break;
-                }
-                case 'slow_zoom_in': {
-                    // Range 1.0 -> 1.4 (Matches server stepCinematic = 0.4/frames)
+                case 'slow_zoom_in':
                     scale = 1.0 + (progress * 0.4);
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
                     break;
-                }
-                case 'slide_left': {
-                    scale = 1.25;
-                    // x='(1-on/frames)*(iw-iw/zoom)'
-                    const maxOffset = (iw - iw / scale);
-                    offsetX = (1 - progress) * maxOffset;
+                case 'slide_left':
+                    scale = 1.15;
+                    offsetX = (1 - progress) * (iw - iw_visible / scale);
+                    offsetY = (ih - ih_visible / scale) / 2;
                     break;
-                }
-                case 'slide_right': {
-                    scale = 1.25;
-                    // x='(on/frames)*(iw-iw/zoom)'
-                    const maxOffset = (iw - iw / scale);
-                    offsetX = progress * maxOffset;
+                case 'slide_right':
+                    scale = 1.15;
+                    offsetX = progress * (iw - iw_visible / scale);
+                    offsetY = (ih - ih_visible / scale) / 2;
                     break;
-                }
-                case 'handheld_walk': {
-                    // z='if(eq(on,0),1.1,min(zoom+stepHandheld,1.5))'
-                    scale = 1.1 + (progress * 0.4);
-                    
-                    // x='iw/2-(iw/zoom/2)+(iw/zoom/60)*sin(on/40)+(iw/zoom/180)*sin(on/4)'
-                    // y='ih/2-(ih/zoom/2)+(ih/zoom/75)*cos(on/50)+(ih/zoom/210)*cos(on/5)'
-                    const swayX = (iw / scale / 60) * Math.sin(continuousFrame / 40) + (iw / scale / 180) * Math.sin(continuousFrame / 4);
-                    const swayY = (ih / scale / 75) * Math.cos(continuousFrame / 50) + (ih / scale / 210) * Math.cos(continuousFrame / 5);
-                    
-                    offsetX = swayX;
-                    offsetY = swayY;
+                case 'slide_up':
+                    scale = 1.2;
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (1 - progress) * (ih - ih_visible / scale);
                     break;
-                }
+                case 'slide_down':
+                    scale = 1.2;
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = progress * (ih - ih_visible / scale);
+                    break;
+                case 'slide_up_left':
+                    scale = 1.15;
+                    offsetX = (1 - progress) * (iw - iw_visible / scale);
+                    offsetY = (1 - progress) * (ih - ih_visible / scale);
+                    break;
+                case 'slide_up_right':
+                    scale = 1.2;
+                    offsetX = progress * (iw - iw_visible / scale);
+                    offsetY = (1 - progress) * (ih - ih_visible / scale);
+                    break;
+                case 'slide_down_left':
+                    scale = 1.15;
+                    offsetX = (1 - progress) * (iw - iw_visible / scale);
+                    offsetY = progress * (ih - ih_visible / scale);
+                    break;
+                case 'slide_down_right':
+                    scale = 1.2;
+                    offsetX = progress * (iw - iw_visible / scale);
+                    offsetY = progress * (ih - ih_visible / scale);
+                    break;
+                case 'handheld_walk':
+                    scale = 1.1 + (progress * 0.2);
+                    const swayX = (iw_visible / scale / 100) * Math.sin(continuousFrame / 50) + (iw_visible / scale / 300) * Math.sin(continuousFrame / 7);
+                    const swayY = (ih_visible / scale / 120) * Math.cos(continuousFrame / 70) + (ih_visible / scale / 350) * Math.cos(continuousFrame / 10);
+                    offsetX = (iw - iw_visible / scale) / 2 + swayX;
+                    offsetY = (ih - ih_visible / scale) / 2 + swayY;
+                    break;
                 default:
                     scale = 1;
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
             }
 
             const dw = iw * baseScale * scale;
             const dh = ih * baseScale * scale;
             
-            // Calculate center position with offsets
-            // dx = (w - dw) / 2 - (offsetX * baseScale * scale)
-            // But ffmpeg's X is the crop start. 
-            // If x=0, we see the left side.
-            // Our dx/dy logic:
-            const dx = (w - dw) / 2 - (offsetX * baseScale);
-            const dy = (h - dh) / 2 - (offsetY * baseScale);
+            // dx/dy logic matching ffmpeg crop behavior
+            const dx = -offsetX * baseScale * scale;
+            const dy = -offsetY * baseScale * scale;
 
             ctx.drawImage(img, dx, dy, dw, dh);
         } else {
@@ -317,7 +369,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         }
 
         // Draw Subtitles
-        const currentSubtitle = subtitles.find(s => currentTime >= s.start && currentTime <= s.end);
+        const currentSubtitle = subtitles.find(s => drawTime >= s.start && drawTime <= s.end);
         if (currentSubtitle && subtitleStyle?.enabled !== false) {
             const { 
                 fontFamily = 'Arial', 
@@ -411,14 +463,13 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                     let fillColor = primaryColor;
                     let scale = 1;
 
-                    if (animationType === 'karaoke_block' || animationType === 'karaoke_bounce') {
-                        if (currentTime >= w.end) {
-                            fillColor = animationType === 'karaoke_bounce' ? primaryColor : (highlightColor || primaryColor);
-                        } else if (currentTime >= w.start) {
+                    if (animationType === 'karaoke_block' || animationType === 'karaoke_bounce' || animationType === 'fade_group') {
+                        // Pulse Bold (karaoke_block) and Typewriter Glow (fade_group) should only highlight the ACTIVE word
+                        if (drawTime >= w.start && drawTime < w.end) {
                             fillColor = animationType === 'karaoke_bounce' ? primaryColor : (highlightColor || primaryColor);
                             if (animationType === 'karaoke_bounce') {
                                 // Simulate Pop Bounce: Scale up to 120% then back
-                                const progress = (currentTime - w.start) / (w.end - w.start);
+                                const progress = (drawTime - w.start) / (w.end - w.start);
                                 if (progress < 0.5) {
                                     scale = 1 + (progress * 0.4); // 1.0 -> 1.2
                                 } else {
@@ -428,15 +479,13 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                         } else {
                             fillColor = primaryColor;
                         }
-                    } else if (animationType === 'fade_group') {
-                        fillColor = primaryColor;
                     }
 
                     ctx.save();
                     
                     if (animationType === 'fade_group') {
                         // Typewriter style: only show if word has started
-                        if (currentTime < w.start) {
+                        if (drawTime < w.start) {
                             ctx.globalAlpha = 0;
                         } else {
                             ctx.globalAlpha = 1;
@@ -468,23 +517,24 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     };
 
     useEffect(() => {
+        lastTimestampRef.current = 0;
         requestRef.current = requestAnimationFrame(render);
         return () => {
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         };
-    }, [currentTime, images, subtitles, effect, subtitleStyle, segmentDurations]);
+    }, [isPlaying, images, subtitles, effect, subtitleStyle, segmentDurations]);
 
     // Resize Canvas
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        // Set resolution based on aspect ratio
+        // Set resolution based on aspect ratio to match export (1080p)
         if (aspectRatio === '9:16') {
-            canvas.width = 1080 / 2; // Preview resolution
-            canvas.height = 1920 / 2;
+            canvas.width = 1080;
+            canvas.height = 1920;
         } else {
-            canvas.width = 1920 / 2;
-            canvas.height = 1080 / 2;
+            canvas.width = 1920;
+            canvas.height = 1080;
         }
     }, [aspectRatio]);
 
@@ -542,7 +592,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                             onTouchStart={() => setIsSeeking(true)}
                             onTouchEnd={() => setIsSeeking(false)}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-white hover:accent-yellow-500 transition-all"
+                            className="w-full h-1 bg-zinc-900/30 rounded-lg appearance-none cursor-pointer accent-white hover:accent-yellow-500 transition-all"
                         />
                         <div className="flex justify-between items-center text-[9px] font-mono text-white font-bold tracking-widest drop-shadow-md">
                             <span>{new Date(currentTime * 1000).toISOString().substr(14, 5)}</span>

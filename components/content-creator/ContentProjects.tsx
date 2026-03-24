@@ -74,25 +74,25 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
     };
 
     return (
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-black">
             
             {/* Mobile Header */}
-            <div className="md:hidden flex items-center justify-between mb-6 sticky top-0 bg-slate-50 z-20 py-2">
+            <div className="md:hidden flex items-center justify-between mb-6 sticky top-0 bg-black z-20 py-2">
                 <button 
                     onClick={onToggleSidebar}
-                    className="p-2 -ml-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                    className="p-2 -ml-2 text-zinc-300 hover:bg-zinc-800 rounded-lg transition-colors"
                 >
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                 </button>
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Projects</h2>
+                <h2 className="text-xl font-black text-white uppercase tracking-tighter">Projects</h2>
                 <div className="w-8"></div> {/* Spacer for centering */}
             </div>
 
             {/* Desktop Header */}
             <div className="flex items-center justify-between mb-8">
-                <h2 className="hidden md:block text-3xl font-black text-slate-900">Projects</h2>
+                <h2 className="hidden md:block text-3xl font-black text-white">Projects</h2>
                 {error && (
-                    <div className="text-xs font-bold text-red-600 bg-red-50 px-4 py-2 rounded-xl border border-red-100 animate-shake">
+                    <div className="text-xs font-bold text-red-600 bg-red-900/20 px-4 py-2 rounded-xl border border-red-900/30 animate-shake">
                         {error}
                     </div>
                 )}
@@ -100,14 +100,14 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
 
             {/* Delete Confirmation Modal */}
             {confirmDeleteId && (
-                <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
-                        <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter">Delete Project?</h3>
-                        <p className="text-slate-500 text-sm mb-8 font-medium">This will permanently remove all generated segments and assets. This action cannot be undone.</p>
+                <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <h3 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Delete Project?</h3>
+                        <p className="text-zinc-400 text-sm mb-8 font-medium">This will permanently remove all generated segments and assets. This action cannot be undone.</p>
                         <div className="flex gap-3">
                             <button 
                                 onClick={() => setConfirmDeleteId(null)}
-                                className="flex-1 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition"
+                                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:bg-black rounded-xl transition"
                             >
                                 Cancel
                             </button>
@@ -127,19 +127,19 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                     <div 
                         key={p.id} 
                         onClick={() => handleProjectClick(p)}
-                        className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg transition text-left group cursor-pointer relative overflow-hidden flex flex-col"
+                        className="bg-zinc-900 rounded-3xl border border-white/5 shadow-sm hover:shadow-lg transition text-left group cursor-pointer relative overflow-hidden flex flex-col"
                     >
                         {/* Preview Area */}
-                        <div className="w-full aspect-video bg-slate-100 relative overflow-hidden">
+                        <div className="w-full aspect-video bg-zinc-900 relative overflow-hidden">
                             {p.previewUrl ? (
                                 <img src={p.previewUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="Project Preview" />
                             ) : p.status === 'draft' ? (
-                                <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
-                                    <span className="text-slate-400 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-slate-300 px-4 py-2 rounded-xl">Draft</span>
+                                <div className="absolute inset-0 flex items-center justify-center bg-black">
+                                    <span className="text-zinc-500 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-white/20 px-4 py-2 rounded-xl">Draft</span>
                                 </div>
                             ) : (
-                                <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
-                                    <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+                                <div className="absolute inset-0 flex items-center justify-center bg-black">
+                                    <div className="w-8 h-8 border-4 border-yellow-500/30 border-t-blue-500 rounded-full animate-spin"></div>
                                 </div>
                             )}
                             
@@ -148,8 +148,8 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                         </div>
 
                         <div className="p-5 relative">
-                            <h3 className="font-bold text-lg mb-1 truncate text-slate-900 group-hover:text-blue-600 transition-colors pr-8">{p.title}</h3>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{new Date(p.created_at).toLocaleDateString()}</p>
+                            <h3 className="font-bold text-lg mb-1 truncate text-white group-hover:text-yellow-600 transition-colors pr-8">{p.title}</h3>
+                            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{new Date(p.created_at).toLocaleDateString()}</p>
                         </div>
                         
                         <button 
@@ -158,7 +158,7 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                                 setConfirmDeleteId(p.id);
                             }}
                             disabled={deletingId === p.id}
-                            className="absolute bottom-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100 z-10 disabled:opacity-50"
+                            className="absolute bottom-4 right-4 p-2 text-zinc-600 hover:text-red-500 hover:bg-red-900/20 rounded-full transition-colors opacity-0 group-hover:opacity-100 z-10 disabled:opacity-50"
                             title="Delete Project"
                         >
                             {deletingId === p.id ? (

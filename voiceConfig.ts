@@ -8,16 +8,16 @@ export interface VoiceConfigItem extends VoiceOption {
 // Centralized list of voices. Add new voices here to extend the application.
 export const ALL_VOICES: VoiceConfigItem[] = [
   { 
-    id: "Puck", 
-    name: "Puck (Male)", 
-    gender: "Male",
-    sampleUrl: "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/assets/sample_audio/puck.wav"
-  },
-  { 
     id: "Charon", 
     name: "Charon (Male)", 
     gender: "Male",
     sampleUrl: "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/assets/sample_audio/charon.wav"
+  },
+  { 
+    id: "Puck", 
+    name: "Puck (Male)", 
+    gender: "Male",
+    sampleUrl: "https://ceccojjvzimljcdltjxy.supabase.co/storage/v1/object/public/assets/sample_audio/puck.wav"
   },
   { 
     id: "Kore", 
