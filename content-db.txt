@@ -11,6 +11,7 @@ create table public.content_projects (
   voice_id text,
   narration_style text,
   effect text default 'zoom_pulse',
+  subtitle_state text default 'enabled',
   subtitles text,
   voice_file_path text,
   subtitle_file_path text,

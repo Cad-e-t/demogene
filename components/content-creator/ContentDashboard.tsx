@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Equal, ChevronRight, ChevronLeft, Mic, Monitor, MonitorPlay, Sparkles, Settings2, Play, Pause } from 'lucide-react';
 import { generateSegments } from './api';
 import { ContentEditor } from './ContentEditor';
-import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, PICTURE_QUALITY_OPTIONS, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
+import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 import { STYLE_PREVIEWS } from './creator-assets';
@@ -26,12 +26,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [voice, setVoice] = useState(VOICES[0]); // Default to Charon (now first)
     const [narrationStyle, setNarrationStyle] = useState(NARRATION_STYLES[0]); // Default to Charisma Dynamo
     const [effect, setEffect] = useState(EFFECT_PRESETS[0]); // Default to Chaos Mode (now first)
-    const [pictureQuality, setPictureQuality] = useState(PICTURE_QUALITY_OPTIONS[0]); // Default to Ultra
     
     const [subtitles, setSubtitles] = useState<SubtitleConfiguration>(DEFAULT_SUBTITLE_CONFIG); 
     
-    const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'quality' | 'mobile_settings'>('main');
-    const [voiceAccordion, setVoiceAccordion] = useState<'narrator' | 'tone' | null>('narrator');
+    const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'mobile_settings'>('main');
+    const [voiceAccordion, setVoiceAccordion] = useState<'narrator' | 'tone' | null>(null);
     const [hoveredStyle, setHoveredStyle] = useState<string | null>(null);
     const promptBoxRef = useRef<HTMLDivElement>(null);
 
@@ -122,10 +121,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                         const e = EFFECT_PRESETS.find(x => x.id === data.effect);
                         if (e) setEffect(e);
                     }
-                    if (data.picture_quality) {
-                        const q = PICTURE_QUALITY_OPTIONS.find(x => x.id === data.picture_quality);
-                        if (q) setPictureQuality(q);
-                    }
                     if (data.subtitles) {
                         // Check if it's a string (old preset ID) or object
                         if (typeof data.subtitles === 'string') {
@@ -168,14 +163,13 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 voice_id: voice.id,
                 narration_style: narrationStyle.id.toString(), // Storing ID or name for easier lookup
                 effect: effect.id,
-                picture_quality: pictureQuality.id,
                 updated_at: new Date().toISOString()
             });
         };
 
         const timer = setTimeout(saveData, 1000); // 1s debounce
         return () => clearTimeout(timer);
-    }, [prompt, narrationStyle, aspect, style, voice, effect, pictureQuality, session]);
+    }, [prompt, narrationStyle, aspect, style, voice, effect, session]);
 
     // Initialize from props if present (Project Reload)
     useEffect(() => {
@@ -196,10 +190,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             if (initialProjectData.project.narration_style) {
                 const n = NARRATION_STYLES.find(s => s.prompt === initialProjectData.project.narration_style);
                 if (n) setNarrationStyle(n);
-            }
-            if (initialProjectData.project.picture_quality) {
-                const q = PICTURE_QUALITY_OPTIONS.find(o => o.id === initialProjectData.project.picture_quality);
-                if (q) setPictureQuality(q);
             }
             if (initialProjectData.project.subtitles) {
                 setSubtitles(initialProjectData.project.subtitles as SubtitleConfiguration);
@@ -275,7 +265,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         setLoading(true);
         try {
             console.log("[ContentDashboard] Starting generation...");
-            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, pictureQuality.id, subtitles, voice.id);
+            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, subtitles, voice.id);
             console.log("[ContentDashboard] Text segments received:", res.segments.length);
             
             setProject({ 
@@ -286,7 +276,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 effect: effect.id,
                 image_style: style,
                 narration_style: narrationStyle.prompt,
-                picture_quality: pictureQuality.id,
                 subtitles: subtitles,
                 status: 'generating'
             });
@@ -483,30 +472,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                 )}
                                             </div>
 
-                                            {/* Quality Button */}
-                                            <div className="relative">
-                                                <button 
-                                                    onClick={() => setConfigView(configView === 'quality' ? 'main' : 'quality')}
-                                                    className={`config-control-button px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${configView === 'quality' ? 'bg-yellow-500 text-black' : 'bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60'}`}
-                                                >
-                                                    Quality: {pictureQuality.name}
-                                                </button>
-                                                {configView === 'quality' && (
-                                                    <div className="config-modal absolute bottom-full left-0 mb-4 w-56 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                                        {PICTURE_QUALITY_OPTIONS.map(q => (
-                                                            <button
-                                                                key={q.id}
-                                                                onClick={() => { setPictureQuality(q); setConfigView('main'); }}
-                                                                className={`w-full text-left px-4 py-2.5 rounded-xl transition-all ${pictureQuality.id === q.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
-                                                            >
-                                                                <div className="text-xs font-bold">{q.name}</div>
-                                                                <div className={`text-[10px] opacity-70 ${pictureQuality.id === q.id ? 'text-black' : 'text-zinc-500'}`}>{q.description}</div>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-
                                             {/* Voice Button */}
                                             <div className="relative">
                                                 <button 
@@ -556,7 +521,12 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                                 onClick={() => setVoiceAccordion(voiceAccordion === 'tone' ? null : 'tone')}
                                                                 className="w-full flex items-center justify-between px-2 py-1 mb-1 hover:bg-white/5 rounded-lg transition-colors"
                                                             >
-                                                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tone</h4>
+                                                                <div className="flex flex-col items-start">
+                                                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tone</h4>
+                                                                    {voiceAccordion !== 'tone' && (
+                                                                        <span className="text-[10px] text-yellow-500 font-bold">{narrationStyle.name}</span>
+                                                                    )}
+                                                                </div>
                                                                 <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 ${voiceAccordion === 'tone' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
                                                             </button>
                                                             {voiceAccordion === 'tone' && (
@@ -565,9 +535,30 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                                         <button
                                                                             key={s.id}
                                                                             onClick={() => handleNarrationStyleChange(s)}
-                                                                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.id === s.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.id === s.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
                                                                         >
-                                                                            {s.name}
+                                                                            <span>{s.name}</span>
+                                                                            {s.sampleUrl && (
+                                                                                <div 
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        if (playingVoiceId === `style-${s.id}`) {
+                                                                                            audioRef.current?.pause();
+                                                                                            setPlayingVoiceId(null);
+                                                                                        } else {
+                                                                                            if (audioRef.current) audioRef.current.pause();
+                                                                                            const audio = new Audio(s.sampleUrl);
+                                                                                            audioRef.current = audio;
+                                                                                            audio.play();
+                                                                                            setPlayingVoiceId(`style-${s.id}`);
+                                                                                            audio.onended = () => setPlayingVoiceId(null);
+                                                                                        }
+                                                                                    }} 
+                                                                                    className={`p-1 rounded-full ${playingVoiceId === `style-${s.id}` ? 'bg-black/20 text-black' : 'text-zinc-500 hover:text-white'}`}
+                                                                                >
+                                                                                    {playingVoiceId === `style-${s.id}` ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                                                                                </div>
+                                                                            )}
                                                                         </button>
                                                                     ))}
                                                                 </div>
@@ -606,21 +597,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                         <ChevronRight className="w-4 h-4" />
                                                     </button>
                                                     <button
-                                                        onClick={() => setConfigView('quality')}
-                                                        className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all"
-                                                    >
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-lg bg-black/40 flex items-center justify-center">
-                                                                <MonitorPlay className="w-4 h-4" />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <div className="text-xs font-black uppercase tracking-widest">Quality</div>
-                                                                <div className="text-[10px] text-zinc-500">{pictureQuality.name}</div>
-                                                            </div>
-                                                        </div>
-                                                        <ChevronRight className="w-4 h-4" />
-                                                    </button>
-                                                    <button
                                                         onClick={() => setConfigView('voice')}
                                                         className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all"
                                                     >
@@ -639,7 +615,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                             )}
 
                                             {/* Sub-modals for mobile */}
-                                            {(configView === 'aspect' || configView === 'quality' || configView === 'voice') && (
+                                            {(configView === 'aspect' || configView === 'voice') && (
                                                 <div className="config-modal md:hidden absolute bottom-full left-0 mb-4 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[70] animate-in fade-in slide-in-from-bottom-2 duration-200">
                                                     <button 
                                                         onClick={() => setConfigView('mobile_settings')}
@@ -661,21 +637,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                                     className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${aspect === opt.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
                                                                 >
                                                                     {opt.label}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {configView === 'quality' && (
-                                                        <div className="space-y-1">
-                                                            {PICTURE_QUALITY_OPTIONS.map(q => (
-                                                                <button
-                                                                    key={q.id}
-                                                                    onClick={() => { setPictureQuality(q); setConfigView('main'); }}
-                                                                    className={`w-full text-left px-4 py-2.5 rounded-xl transition-all ${pictureQuality.id === q.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
-                                                                >
-                                                                    <div className="text-xs font-bold">{q.name}</div>
-                                                                    <div className={`text-[10px] opacity-70 ${pictureQuality.id === q.id ? 'text-black' : 'text-zinc-500'}`}>{q.description}</div>
                                                                 </button>
                                                             ))}
                                                         </div>
@@ -705,7 +666,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                                                         onClick={(e) => toggleVoiceSample(e, v.id)} 
                                                                                         className={`p-1 rounded-full ${playingVoiceId === v.id ? 'bg-black/20 text-black' : 'text-zinc-500 hover:text-white'}`}
                                                                                     >
-                                                                                        {playingVoiceId === v.id ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                                                                                        {playingVoiceId === v.id ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
                                                                                     </div>
                                                                                 )}
                                                                             </button>
@@ -718,7 +679,12 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                                     onClick={() => setVoiceAccordion(voiceAccordion === 'tone' ? null : 'tone')}
                                                                     className="w-full flex items-center justify-between px-2 py-1 mb-1 hover:bg-white/5 rounded-lg transition-colors"
                                                                 >
-                                                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tone</h4>
+                                                                    <div className="flex flex-col items-start">
+                                                                        <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tone</h4>
+                                                                        {voiceAccordion !== 'tone' && (
+                                                                            <span className="text-[10px] text-yellow-500 font-bold">{narrationStyle.name}</span>
+                                                                        )}
+                                                                    </div>
                                                                     <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 ${voiceAccordion === 'tone' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
                                                                 </button>
                                                                 {voiceAccordion === 'tone' && (
@@ -727,9 +693,30 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                                             <button
                                                                                 key={s.id}
                                                                                 onClick={() => handleNarrationStyleChange(s)}
-                                                                                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.id === s.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.id === s.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
                                                                             >
-                                                                                {s.name}
+                                                                                <span>{s.name}</span>
+                                                                                {s.sampleUrl && (
+                                                                                    <div 
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            if (playingVoiceId === `style-${s.id}`) {
+                                                                                                audioRef.current?.pause();
+                                                                                                setPlayingVoiceId(null);
+                                                                                            } else {
+                                                                                                if (audioRef.current) audioRef.current.pause();
+                                                                                                const audio = new Audio(s.sampleUrl);
+                                                                                                audioRef.current = audio;
+                                                                                                audio.play();
+                                                                                                setPlayingVoiceId(`style-${s.id}`);
+                                                                                                audio.onended = () => setPlayingVoiceId(null);
+                                                                                            }
+                                                                                        }} 
+                                                                                        className={`p-1 rounded-full ${playingVoiceId === `style-${s.id}` ? 'bg-black/20 text-black' : 'text-zinc-500 hover:text-white'}`}
+                                                                                    >
+                                                                                        {playingVoiceId === `style-${s.id}` ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                                                                                    </div>
+                                                                                )}
                                                                             </button>
                                                                         ))}
                                                                     </div>

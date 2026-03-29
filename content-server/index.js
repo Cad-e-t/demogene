@@ -53,11 +53,12 @@ const TEMP_DIR = os.tmpdir();
 
 // --- Constants & Pricing ---
 const COST_IMAGE_ULTRA = 4; // Credits per image
-const COST_IMAGE_ULTIMATE = 10.2; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
 const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
-const MIN_BALANCE = 3; // Minimum credits required to start
+const TOKENS_PER_CREDIT = 1000;
+const MAX_ANALYSIS_COST = 7;
+const MIN_BALANCE = 4; // Minimum credits required to start
 const MAX_CONCURRENT_IMAGES = 2; // Max parallel image generations to avoid rate limits
 
 // --- Helper: Credits ---
@@ -314,7 +315,7 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
             // Clean transcription: remove specific punctuations
             if (transcription.words) {
                 transcription.words.forEach(w => {
-                    if (w.text) w.text = w.text.replace(/— |;|\.|\,|:/g, '');
+                    if (w.text) w.text = w.text.replace(/— |;|:|(?<!\d)[.,]|[.,](?!\d)/g, '');
                 });
             }
         }
@@ -374,8 +375,8 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
     }
 }
 
-async function processImagesBackground(projectId, segments, aspectRatio, pictureQuality, costPerImage, userId) {
-    console.log(`[ContentServer] Starting background image generation for project ${projectId} with quality ${pictureQuality}`);
+async function processImagesBackground(projectId, segments, aspectRatio, costPerImage, userId) {
+    console.log(`[ContentServer] Starting background image generation for project ${projectId}`);
     
     let failedCount = 0;
     const queue = [...segments];
@@ -388,7 +389,7 @@ async function processImagesBackground(projectId, segments, aspectRatio, picture
 
             try {
                 console.log(`[ContentServer] Generating image for segment ${seg.order_index} (Project: ${projectId})`);
-                const base64Img = await generateImage(seg.image_prompt, aspectRatio, pictureQuality);
+                const base64Img = await generateImage(seg.image_prompt, aspectRatio);
                 
                 console.log(`[ContentServer] Uploading image for segment ${seg.order_index}`);
                 const buffer = Buffer.from(base64Img, 'base64');
@@ -442,12 +443,13 @@ async function processImagesBackground(projectId, segments, aspectRatio, picture
 // 1. Generate Story Segments (Text First, Images Background)
 app.post('/generate-segments', async (req, res) => {
     try {
-        const { prompt, aspectRatio, style, effect, userId, narrationStyle, pictureQuality, subtitles, voiceId } = req.body;
-        console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with quality ${pictureQuality}, subtitles ${subtitles}`);
+        const { prompt, aspectRatio, style, effect, userId, narrationStyle, subtitles, voiceId } = req.body;
+        console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with subtitles ${subtitles}`);
         
         // 0. Pre-check Balance
         const userCredits = await getCredits(userId);
-        if (userCredits < MIN_BALANCE) {
+        const requiredMinBalance = COST_IMAGE_ULTRA;
+        if (userCredits < requiredMinBalance) {
             return res.status(402).json({ error: "Insufficient credits for this request." });
         }
 
@@ -459,7 +461,6 @@ app.post('/generate-segments', async (req, res) => {
             image_style: style,
             effect: effect || 'chaos',
             narration_style: narrationStyle, // Save style to DB
-            picture_quality: pictureQuality || 'Ultra', // Save picture quality to DB
             subtitles: subtitles || 'none', // Save subtitles to DB
             voice_id: voiceId || 'Charon', // Save voice to DB
             status: 'draft'
@@ -470,23 +471,47 @@ app.post('/generate-segments', async (req, res) => {
 
         // 2. Generate Text Segments
         console.log(`[ContentServer] Generating text segments...`);
-        const segmentsData = await generateStorySegments(prompt, aspectRatio, style);
+        const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style);
         console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
         // 3. Determine Cost & Charge
-        const costPerImage = (pictureQuality === 'Ultimate') ? COST_IMAGE_ULTIMATE : COST_IMAGE_ULTRA;
-        const totalCost = segmentsData.length * costPerImage;
+        const outputTokens = usageMetadata?.candidatesTokenCount || 0;
+        let analysisCost = outputTokens / TOKENS_PER_CREDIT;
+        let isCapped = false;
+        if (analysisCost > MAX_ANALYSIS_COST) {
+            analysisCost = MAX_ANALYSIS_COST;
+            isCapped = true;
+        }
+
+        const costPerImage = COST_IMAGE_ULTRA;
+        const totalCost = (segmentsData.length * costPerImage) + analysisCost;
+
+        console.log(`[Billing] Analysis Tokens: ${outputTokens}`);
+        console.log(`[Billing] Calculated Analysis Cost: ${analysisCost.toFixed(4)} credits (Capped: ${isCapped})`);
+        console.log(`[Billing] Total Potential Cost: ${totalCost.toFixed(2)} credits`);
 
         // Check balance again before charging
         const currentBalance = await getCredits(userId);
+        
+        let finalSegmentsData = segmentsData;
+        let maxImages = segmentsData.length;
+        let creditsLow = false;
+
         if (currentBalance < totalCost) {
-            // Delete the draft project to keep it clean? Or leave it. Leaving it is fine.
-            return res.status(402).json({ error: `Insufficient credits for this request. Need ${totalCost} credits.` });
+            creditsLow = true;
+            const availableForImages = currentBalance - analysisCost;
+            maxImages = Math.floor(Math.max(0, availableForImages) / costPerImage);
+            
+            finalSegmentsData = segmentsData.slice(0, maxImages);
         }
 
-        await chargeUser(userId, totalCost, `Image Gen Batch (${pictureQuality}) - ${segmentsData.length} images`);
+        const finalTotalCost = (finalSegmentsData.length * costPerImage) + analysisCost;
+        console.log(`[Billing] Final Total Charged: ${finalTotalCost.toFixed(2)} credits (Images: ${finalSegmentsData.length}, Analysis: ${analysisCost.toFixed(2)})`);
+
+        await chargeUser(userId, finalTotalCost, `Image Gen Batch - ${finalSegmentsData.length} images + AI Analysis`);
 
         // 4. Save Text Segments to DB (Image NULL)
+        // We save ALL segments to avoid waste, even if we don't generate images for all
         const segmentsToInsert = segmentsData.map((s, idx) => ({
             project_id: project.id,
             narration: s.narration,
@@ -501,7 +526,7 @@ app.post('/generate-segments', async (req, res) => {
             .select();
 
         if (segError) throw segError;
-        console.log(`[ContentServer] Segments saved to DB. Returning early response.`);
+        console.log(`[ContentServer] Segments saved to DB. Triggering background tasks.`);
 
         // 5. Set status to generating
         await supabase.from('content_projects').update({ 
@@ -509,16 +534,28 @@ app.post('/generate-segments', async (req, res) => {
             render_status: 'generating'
         }).eq('id', project.id);
 
-        // 6. Return Response IMMEDIATELY
+        // 6. Trigger Background Image Gen (Pass cost for refunds)
+        // Only process the segments we actually charged for
+        const segmentsToProcess = insertedSegments.slice(0, maxImages);
+        processImagesBackground(project.id, segmentsToProcess, aspectRatio, costPerImage, userId);
+
+        // 7. Trigger Background Asset Gen (Audio/Subtitles) - ONLY if NOT creditsLow
+        if (!creditsLow) {
+            processAssetsBackground(project.id, insertedSegments, voiceId, userId).catch(e => {
+                console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
+            });
+        }
+
+        // 8. Return Response
+        if (creditsLow) {
+            return res.status(402).json({ 
+                error: "Credits low, top up to continue.",
+                projectId: project.id, 
+                segments: insertedSegments 
+            });
+        }
+
         res.json({ projectId: project.id, segments: insertedSegments });
-
-        // 7. Trigger Background Image Gen (Pass cost for refunds)
-        processImagesBackground(project.id, insertedSegments, aspectRatio, pictureQuality || 'Ultra', costPerImage, userId);
-
-        // 8. Trigger Background Asset Gen (Audio/Subtitles) - Parallel and Isolated
-        processAssetsBackground(project.id, insertedSegments, voiceId, userId).catch(e => {
-            console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
-        });
 
     } catch (e) {
         console.error("[ContentServer] Error in generate-segments:", e);
@@ -533,7 +570,6 @@ app.post('/regenerate-image', async (req, res) => {
     // We need userId to charge. It should be passed or fetched. 
     // Assuming we fetch it from project to be secure.
     let userId = null;
-    let quality = 'Ultra';
 
     try {
         console.log(`[ContentServer] Regenerating image for segment ${segmentId}`);
@@ -541,16 +577,15 @@ app.post('/regenerate-image', async (req, res) => {
         // 0. Fetch Project
         const { data: project, error: projError } = await supabase
             .from('content_projects')
-            .select('user_id, picture_quality')
+            .select('user_id')
             .eq('id', projectId)
             .single();
         
         if (projError || !project) throw new Error("Project not found");
         userId = project.user_id;
-        quality = project.picture_quality || 'Ultra';
 
         // 1. Calculate Cost & Charge
-        const cost = quality === 'Ultimate' ? COST_IMAGE_ULTIMATE : COST_IMAGE_ULTRA;
+        const cost = COST_IMAGE_ULTRA;
         const balance = await getCredits(userId);
         
         if (balance < MIN_BALANCE) {
@@ -561,10 +596,10 @@ app.post('/regenerate-image', async (req, res) => {
             return res.status(402).json({ error: `Insufficient credits for this request. Need ${cost} credits.` });
         }
 
-        await chargeUser(userId, cost, `Image Regeneration (${quality})`);
+        await chargeUser(userId, cost, `Image Regeneration`);
 
         // 2. Generate new image
-        const base64Img = await generateImage(imagePrompt, aspectRatio, quality);
+        const base64Img = await generateImage(imagePrompt, aspectRatio);
         const buffer = Buffer.from(base64Img, 'base64');
 
         // 3. Determine New Key & Delete Old
@@ -601,7 +636,7 @@ app.post('/regenerate-image', async (req, res) => {
         console.error("[ContentServer] Regeneration failed", e);
         // Refund on failure
         if (userId) {
-            const cost = quality === 'Ultimate' ? COST_IMAGE_ULTIMATE : COST_IMAGE_ULTRA;
+            const cost = COST_IMAGE_ULTRA;
             await refundUser(userId, cost, "Refund: Failed Regeneration");
         }
         res.status(500).json({ error: e.message });
@@ -857,7 +892,7 @@ app.post('/export-video', async (req, res) => {
                 let finalPath = assembledPath;
 
         // 4. Generate/Burn Subtitles
-                if (project.subtitles && project.subtitles !== 'none' && project.transcription) {
+                if (project.subtitle_state === 'enabled' && project.subtitles && project.subtitles !== 'none' && project.transcription) {
                     // Ensure config is an object (handle potential double-stringification)
                     let subConfig = project.subtitles;
                     if (typeof subConfig === 'string') {
@@ -868,18 +903,15 @@ app.post('/export-video', async (req, res) => {
                         }
                     }
 
-                    // Check if subtitles are explicitly enabled
-                    if (subConfig && subConfig.enabled !== false) {
-                        console.log("[Export] Generating subtitles from stored transcription...");
-                        const assContent = await generateSubtitles(project.transcription, subConfig, project.aspect_ratio);
-                        if (assContent) {
-                            const assPath = path.join(workDir, `subtitles_${uuidv4()}.ass`);
-                            fs.writeFileSync(assPath, assContent);
-                            
-                            const burnedPath = path.join(workDir, `burned_${uuidv4()}.mp4`);
-                            await burnSubtitles(assembledPath, assPath, burnedPath);
-                            finalPath = burnedPath;
-                        }
+                    console.log("[Export] Generating subtitles from stored transcription...");
+                    const assContent = await generateSubtitles(project.transcription, subConfig, project.aspect_ratio);
+                    if (assContent) {
+                        const assPath = path.join(workDir, `subtitles_${uuidv4()}.ass`);
+                        fs.writeFileSync(assPath, assContent);
+                        
+                        const burnedPath = path.join(workDir, `burned_${uuidv4()}.mp4`);
+                        await burnSubtitles(assembledPath, assPath, burnedPath);
+                        finalPath = burnedPath;
                     }
                 }
 

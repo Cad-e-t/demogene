@@ -176,7 +176,7 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                                                 e.preventDefault();
                                                 try {
                                                     const response = await fetch(s.video_url);
-                                                    if (!response.ok) throw new Error('Network response was not ok');
+                                                    if (!response.ok) throw new Error('Failed to download video. Please try again later.');
                                                     const blob = await response.blob();
                                                     const url = window.URL.createObjectURL(blob);
                                                     const a = document.createElement('a');

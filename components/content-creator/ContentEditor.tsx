@@ -4,7 +4,7 @@ import { ContentVideoPlayer } from './ContentVideoPlayer';
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
-import { EFFECT_PRESETS, NARRATION_STYLES, PICTURE_QUALITY_OPTIONS, SUBTITLE_PRESETS, SubtitleConfiguration, DEFAULT_SUBTITLE_CONFIG } from './types';
+import { EFFECT_PRESETS, NARRATION_STYLES, SUBTITLE_PRESETS, SubtitleConfiguration, DEFAULT_SUBTITLE_CONFIG } from './types';
 import { STYLE_PREVIEWS } from './creator-assets';
 import { SubtitlePreview } from './SubtitlePreviews';
 
@@ -178,7 +178,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 body: file
             });
             
-            if (!uploadRes.ok) throw new Error("Failed to upload image");
+            if (!uploadRes.ok) throw new Error("Failed to upload image. Please try again.");
 
             await updateSegmentImage(uploadingSegmentId, publicUrl, segment?.image_url);
             
@@ -256,13 +256,11 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [subtitles, setSubtitles] = useState<SubtitleConfiguration>(() => {
         return project.subtitles as SubtitleConfiguration || DEFAULT_SUBTITLE_CONFIG;
     });
+    const [subtitleState, setSubtitleState] = useState<'enabled' | 'disabled'>(project.subtitle_state || 'enabled');
     
     // Audio Preview
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-
-    // Display Picture Quality
-    const pictureQuality = PICTURE_QUALITY_OPTIONS.find(q => q.id === project.picture_quality) || PICTURE_QUALITY_OPTIONS[0];
 
     // --- SYNC LOGIC ---
 
@@ -320,6 +318,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 }
                 if (payload.new.subtitles) {
                     setSubtitles(payload.new.subtitles as SubtitleConfiguration);
+                }
+                if (payload.new.subtitle_state) {
+                    setSubtitleState(payload.new.subtitle_state);
                 }
             })
             .subscribe();
@@ -478,6 +479,12 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         supabase.from('content_projects').update({ subtitles: newConfig }).eq('id', project.id).then();
     };
 
+    const handleSubtitleStateToggle = () => {
+        const newState = subtitleState === 'enabled' ? 'disabled' : 'enabled';
+        setSubtitleState(newState);
+        supabase.from('content_projects').update({ subtitle_state: newState }).eq('id', project.id).then();
+    };
+
     const handleApplySubtitlePreset = (presetId: string) => {
         let updates: Partial<SubtitleConfiguration> = {};
         if (presetId === 'pulse_bold') {
@@ -634,10 +641,33 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                         <button
                                             key={s.prompt}
                                             onClick={() => handleNarrationStyleChange(s)}
-                                            className={`w-full text-left px-3 py-2 text-sm border rounded-lg transition-all ${narrationStyle.prompt === s.prompt ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
+                                            className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-all ${narrationStyle.prompt === s.prompt ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
                                         >
-                                            <div className="font-bold">{s.name}</div>
-                                            <div className={`text-[10px] ${narrationStyle.prompt === s.prompt ? 'text-zinc-500' : 'text-zinc-500'}`}>{s.description}</div>
+                                            <div className="text-left">
+                                                <div className="font-bold">{s.name}</div>
+                                                <div className={`text-[10px] ${narrationStyle.prompt === s.prompt ? 'text-zinc-500' : 'text-zinc-500'}`}>{s.description}</div>
+                                            </div>
+                                            {s.sampleUrl && (
+                                                <div 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (playingVoiceId === `style-${s.id}`) {
+                                                            audioRef.current?.pause();
+                                                            setPlayingVoiceId(null);
+                                                        } else {
+                                                            if (audioRef.current) audioRef.current.pause();
+                                                            const audio = new Audio(s.sampleUrl);
+                                                            audioRef.current = audio;
+                                                            audio.play();
+                                                            setPlayingVoiceId(`style-${s.id}`);
+                                                            audio.onended = () => setPlayingVoiceId(null);
+                                                        }
+                                                    }} 
+                                                    className={`p-1 rounded-full ${playingVoiceId === `style-${s.id}` ? 'bg-zinc-700 text-zinc-600' : 'bg-black hover:bg-zinc-900 text-zinc-400'}`}
+                                                >
+                                                    {playingVoiceId === `style-${s.id}` ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                                                </div>
+                                            )}
                                         </button>
                                     ))}
                                 </div>
@@ -714,21 +744,21 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         <div className="space-y-6">
                             <div className="flex items-center justify-between p-4 bg-zinc-900 rounded-2xl border border-white/5">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${subtitles.enabled ? 'bg-green-900/20 text-green-600' : 'bg-zinc-900 text-zinc-500'}`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${subtitleState === 'enabled' ? 'bg-green-900/20 text-green-600' : 'bg-zinc-900 text-zinc-500'}`}>
                                         <Icons.Captions />
                                     </div>
                                     <div>
                                         <div className="text-sm font-bold text-white">Subtitles</div>
                                         <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">
-                                            {subtitles.enabled ? 'Enabled' : 'Disabled'}
+                                            {subtitleState === 'enabled' ? 'Enabled' : 'Disabled'}
                                         </div>
                                     </div>
                                 </div>
                                 <button 
-                                    onClick={() => handleSubtitleUpdate({ enabled: !subtitles.enabled })}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${subtitles.enabled ? 'bg-zinc-900' : 'bg-zinc-900'}`}
+                                    onClick={handleSubtitleStateToggle}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${subtitleState === 'enabled' ? 'bg-green-600' : 'bg-zinc-900'}`}
                                 >
-                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${subtitles.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${subtitleState === 'enabled' ? 'translate-x-6' : 'translate-x-1'}`} />
                                 </button>
                             </div>
 
@@ -1018,6 +1048,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 aspectRatio={project.aspect_ratio}
                                 effect={effect}
                                 subtitleStyle={subtitles}
+                                subtitleState={subtitleState}
                                 isPlaying={isPlaying}
                                 onPlayPause={togglePlay}
                                 currentTime={currentTime}
@@ -1127,7 +1158,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         <h3 className="font-bold text-lg mb-2 text-white">Regenerate Audio?</h3>
                         <p className="text-zinc-400 mb-6 text-sm">This will discard the current audio and generate a new one.</p>
                         <div className="flex gap-3 justify-center">
-                            <button onClick={() => { setShowAudioConfirmation(false); setErrorMessage(null); }} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition">Cancel</button>
+                            <button onClick={() => { setShowAudioConfirmation(false); setErrorMessage(null); }} disabled={isGeneratingAssets} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
                             <button onClick={confirmRegenerateVoice} disabled={isGeneratingAssets} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
                                 {isGeneratingAssets ? `Generating... ${timer}s` : 'Confirm'}
                             </button>
@@ -1165,7 +1196,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             </div>
 
                             <div className="flex justify-end gap-3">
-                                <button onClick={() => setRegeneratingId(null)} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition">Cancel</button>
+                                <button onClick={() => setRegeneratingId(null)} disabled={loadingImage} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
                                 <button onClick={handleRegenerate} disabled={loadingImage} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
                                     {loadingImage ? `Generating... ${timer}s` : 'Generate'}
                                 </button>
@@ -1191,7 +1222,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             onChange={(e) => setEditPrompt(e.target.value)}
                         />
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setEditingImageId(null)} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition">Cancel</button>
+                            <button onClick={() => setEditingImageId(null)} disabled={loadingImage} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
                             <button onClick={handleImageEdit} disabled={loadingImage} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
                                 {loadingImage ? `Editing... ${timer}s` : 'Apply Edit'}
                             </button>

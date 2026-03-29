@@ -8,6 +8,7 @@ interface ContentVideoPlayerProps {
     aspectRatio: '9:16' | '16:9';
     effect: any; // Video effect
     subtitleStyle: any;
+    subtitleState?: 'enabled' | 'disabled';
     isPlaying: boolean;
     onPlayPause: () => void;
     currentTime: number;
@@ -17,10 +18,10 @@ interface ContentVideoPlayerProps {
 
 const EFFECT_SEQUENCES = {
     'zoom_pulse': ['zoom_in', 'zoom_out'],
-    'slide_flow': ['slide_left', 'slide_right', 'slide_up', 'slide_down', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
+    'slide_flow': ['slide_down', 'slide_right', 'slide_up', 'slide_left', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
     'cinematic': ['slow_zoom_in'],
     'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'slide_up'],
-    'handheld_walk': ['handheld_walk']
+    'handheld_walk': ['handheld_walk', 'slide_down', 'handheld_walk', 'zoom_out', 'handheld_walk' ]
 };
 
 export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
@@ -31,6 +32,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     aspectRatio,
     effect,
     subtitleStyle,
+    subtitleState = 'enabled',
     isPlaying,
     onPlayPause,
     currentTime,
@@ -322,7 +324,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                     offsetY = progress * (ih - ih_visible / scale);
                     break;
                 case 'slide_up_left':
-                    scale = 1.15;
+                    scale = 1.2;
                     offsetX = (1 - progress) * (iw - iw_visible / scale);
                     offsetY = (1 - progress) * (ih - ih_visible / scale);
                     break;
@@ -332,7 +334,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                     offsetY = (1 - progress) * (ih - ih_visible / scale);
                     break;
                 case 'slide_down_left':
-                    scale = 1.15;
+                    scale = 1.2;
                     offsetX = (1 - progress) * (iw - iw_visible / scale);
                     offsetY = progress * (ih - ih_visible / scale);
                     break;
@@ -343,10 +345,15 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                     break;
                 case 'handheld_walk':
                     scale = 1.1 + (progress * 0.2);
-                    const swayX = (iw_visible / scale / 100) * Math.sin(continuousFrame / 50) + (iw_visible / scale / 300) * Math.sin(continuousFrame / 7);
-                    const swayY = (ih_visible / scale / 120) * Math.cos(continuousFrame / 70) + (ih_visible / scale / 350) * Math.cos(continuousFrame / 10);
-                    offsetX = (iw - iw_visible / scale) / 2 + swayX;
-                    offsetY = (ih - ih_visible / scale) / 2 + swayY;
+                    // Smooth, continuous circular drift (elliptical path)
+                    // We use drawTime (global video time) to ensure the motion is seamless across segments
+                    const globalFrame = drawTime * 30;
+                    const driftFreq = 1 / 20; // Approx 4.2s period
+                    const driftX = (iw_visible / scale / 30) * Math.sin(globalFrame * driftFreq);
+                    const driftY = (ih_visible / scale / 40) * Math.cos(globalFrame * driftFreq);
+                    
+                    offsetX = (iw - iw_visible / scale) / 2 + driftX;
+                    offsetY = (ih - ih_visible / scale) / 2 + driftY;
                     break;
                 default:
                     scale = 1;
@@ -362,6 +369,27 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             const dy = -offsetY * baseScale * scale;
 
             ctx.drawImage(img, dx, dy, dw, dh);
+
+            // Static Cinematic Vignette (Faint Shade)
+            const intensity = 0.1; // Faint darkening at edges
+            ctx.save();
+            
+            const diagonal = Math.sqrt(canvas.width ** 2 + canvas.height ** 2) / 2;
+            const nearestEdge = Math.min(canvas.width, canvas.height) / 2;
+            
+            // Radius logic: center stays untouched, only outer edges fade
+            const innerRadius = nearestEdge * 1.1; 
+            const outerRadius = diagonal * 1.2;
+
+            const grad = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, innerRadius,
+                canvas.width / 2, canvas.height / 2, outerRadius
+            );
+            grad.addColorStop(0, 'rgba(0,0,0,0)');
+            grad.addColorStop(1, `rgba(0,0,0,${intensity})`);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
         } else {
             // Placeholder
             ctx.fillStyle = '#000';
@@ -370,7 +398,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
 
         // Draw Subtitles
         const currentSubtitle = subtitles.find(s => drawTime >= s.start && drawTime <= s.end);
-        if (currentSubtitle && subtitleStyle?.enabled !== false) {
+        if (currentSubtitle && subtitleState === 'enabled') {
             const { 
                 fontFamily = 'Arial', 
                 fontSize = 40, 
@@ -522,7 +550,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         return () => {
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         };
-    }, [isPlaying, images, subtitles, effect, subtitleStyle, segmentDurations]);
+    }, [isPlaying, images, subtitles, effect, subtitleStyle, subtitleState, segmentDurations]);
 
     // Resize Canvas
     useEffect(() => {

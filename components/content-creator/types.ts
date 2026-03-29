@@ -17,7 +17,7 @@ export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfiguration = {
     enabled: true,
     placement: 'middle',
     fontFamily: 'Arimo',
-    fontSize: 24,
+    fontSize: 54,
     primaryColor: '#ffffff',
     secondaryColor: '#0f0f0f',
     highlightColor: '#FFFF00',
@@ -32,11 +32,11 @@ export interface ContentProject {
     title: string;
     aspect_ratio: '9:16' | '16:9';
     image_style: string;
-    picture_quality?: 'Ultra' | 'Ultimate';
     voice_id: string;
     narration_style?: string;
     effect: string;
     subtitles?: SubtitleConfiguration | null;
+    subtitle_state?: 'enabled' | 'disabled';
     voice_file_path?: string | null;
     subtitle_file_path?: string | null;
     segment_durations?: number[];
@@ -66,11 +66,6 @@ export const IMAGE_STYLES = [
     "Realistic", "Anime", "Horror", "Sketch", "Silhouette", "Stickman"
 ];
 
-export const PICTURE_QUALITY_OPTIONS = [
-    { id: 'Ultra', name: 'Ultra', description: 'Cinematic detail, premium look' },
-    { id: 'Ultimate', name: 'Ultimate', description: 'Highest resolution, 2K detail' }
-];
-
 export const EFFECT_PRESETS = [
     { id: 'chaos', name: 'Chaos Mode', description: 'Random mix of zooms and slides (Viral)' },
     { id: 'zoom_pulse', name: 'Zoom Pulse', description: 'Aggressive alternating zooms (High Energy)' },
@@ -88,17 +83,9 @@ export const SUBTITLE_PRESETS = [
 ];
 
 export const NARRATION_STYLES = [
-    { id: 10, name: "Charisma Dynamo", prompt: "Read in a confident, magnetic tone with dynamic pacing", description: "confident, magnetic" },
-    { id: 1, name: "Shadow Puppeteer", prompt: "Read in a deep, mysterious tone with brisk, continuous delivery", description: "deep, mysterious" },
-    { id: 2, name: "Firebrand", prompt: "Read in a fiery, energetic tone with brisk, continuous delivery", description: "fiery, energetic" },
-    { id: 3, name: "Whispering Wind", prompt: "Read in a soft, soothing tone with flowing pacing", description: "soft, soothing" },
-    { id: 4, name: "Siren's Call", prompt: "Read in a smooth, seductive tone with brisk, continuous delivery", description: "smooth, seductive" },
-    { id: 5, name: "Thunder King", prompt: "Read in a bold, commanding tone with brisk, continuous delivery", description: "bold, commanding" },
-    { id: 6, name: "Trickster Fox", prompt: "Read in a playful, mischievous tone with lively pacing", description: "playful, mischievous" },
-    { id: 7, name: "Midnight Oracle", prompt: "Read in a deep, mystical tone with brisk, continuous delivery", description: "deep, mystical" },
-    { id: 8, name: "Lightning Spark", prompt: "Read in an energetic, punchy tone with brisk, continuous delivery", description: "energetic, punchy" },
-    { id: 9, name: "Iron Sage", prompt: "Read in a calm, deliberate tone with brisk, continuous delivery", description: "calm, deliberate" },
-    { id: 11, name: "Gravel Titan", prompt: "Read in a gravelly, commanding tone with brisk, continuous delivery", description: "gravelly, commanding" },
-    { id: 11, name: "Rumble King", prompt: "Read aloud in a raspy, powerful tone with brisk, continuous delivery", description: "raspy, powerful" },
-
+    { id: 1, name: "Charismatic", prompt: "Read in a confident, magnetic tone with dynamic pacing", description: "confident, magnetic", sampleUrl: "https://assets.productcam.site/audio-assets/charismatic.wav" },
+    { id: 2, name: "High-energy", prompt: "Read in a fiery, energetic tone with brisk, continuous delivery", description: "fiery, energetic", sampleUrl: "https://assets.productcam.site/audio-assets/high-energy.wav" },
+    { id: 3, name: "Gentle", prompt: "Read in a soft, soothing tone with flowing pacing", description: "soft, soothing", sampleUrl: "https://assets.productcam.site/audio-assets/gentle.mp3" },
+    { id: 4, name: "Cheeky", prompt: "Read in a playful, mischievous tone with lively pacing", description: "playful, mischievous", sampleUrl: "https://assets.productcam.site/audio-assets/cheeky.wav" },
+    { id: 5, name: "Intense", prompt: "Read aloud in a raspy, powerful tone with brisk, continuous delivery", description: "raspy, powerful", sampleUrl: "https://assets.productcam.site/audio-assets/confident.wav" },
 ];

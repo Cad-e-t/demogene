@@ -22,13 +22,13 @@ function runFFmpeg(args) {
 
 const EFFECT_SEQUENCES = {
     'zoom_pulse': ['zoom_in', 'zoom_out'],
-    'slide_flow': ['slide_left', 'slide_right', 'slide_up', 'slide_down', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
+    'slide_flow': ['slide_down', 'slide_right', 'slide_up', 'slide_left', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
     'cinematic': ['slow_zoom_in'],
     'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'slide_up'],
-    'handheld_walk': ['handheld_walk']
+    'handheld_walk': ['handheld_walk', 'slide_down', 'handheld_walk', 'zoom_out', 'handheld_walk' ]
 };
 
-function getFilterForEffect(effectType, width, height, frames) {
+function getFilterForEffect(effectType, width, height, frames, startFrame = 0) {
     // Zoom/Pan expressions for ffmpeg zoompan filter
     // d = duration in frames
     // s = output size
@@ -64,20 +64,23 @@ function getFilterForEffect(effectType, width, height, frames) {
         case 'slide_down':
             return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)':y='(on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
         case 'slide_up_left':
-            return `zoompan=z='1.15':x='(1-on/${frames})*(iw-iw/zoom)':y='(1-on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
+            return `zoompan=z='1.2':x='(1-on/${frames})*(iw-iw/zoom)':y='(1-on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
         case 'slide_up_right':
             return `zoompan=z='1.2':x='(on/${frames})*(iw-iw/zoom)':y='(1-on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
         case 'slide_down_left':
-            return `zoompan=z='1.15':x='(1-on/${frames})*(iw-iw/zoom)':y='(on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
+            return `zoompan=z='1.2':x='(1-on/${frames})*(iw-iw/zoom)':y='(on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
         case 'slide_down_right':
-            return `zoompan=z='1.15':x='(on/${frames})*(iw-iw/zoom)':y='(on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
+            return `zoompan=z='1.2':x='(on/${frames})*(iw-iw/zoom)':y='(on/${frames})*(ih-ih/zoom)':d=${frames}:s=${width}x${height}`;
 
         case 'handheld_walk':
-            // Simulates holding a camera while walking with subtle shake.
-            // Z: Starts at 1.1, zooms into 1.3 (reduced range).
-            // X: Combination of slow drift (on/60) and faster walking sway (on/8).
-            // Y: Combination of slow bob (on/70) and faster walking step (on/10).
-            return `zoompan=z='if(eq(on,0),1.1,min(zoom+${stepHandheld},1.3))':x='iw/2-(iw/zoom/2)+(iw/zoom/100)*sin(on/50)+(iw/zoom/300)*sin(on/7)':y='ih/2-(ih/zoom/2)+(ih/zoom/120)*cos(on/70)+(ih/zoom/350)*cos(on/10)':d=${frames}:s=${width}x${height}`;
+            // Simulates a smooth, continuous circular drift (elliptical path).
+            // We use (on + startFrame) to ensure the motion is seamless across the entire video.
+            // Z: Starts at 1.1, zooms into 1.3.
+            // X/Y: Traces a gentle elliptical path (Right -> Up -> Left -> Down).
+            const globalFrame = `(on+${startFrame})`;
+            const driftX = `(iw/zoom/30)*sin(${globalFrame}/20)`;
+            const driftY = `(ih/zoom/40)*cos(${globalFrame}/20)`;
+            return `zoompan=z='if(eq(on,0),1.1,min(zoom+${stepHandheld},1.3))':x='iw/2-(iw/zoom/2)+${driftX}':y='ih/2-(ih/zoom/2)+${driftY}':d=${frames}:s=${width}x${height}`;
 
         default:
             // Minimal movement to prevent static boredom, or true static
@@ -94,6 +97,7 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
     // Get sequence for the chosen preset
     const sequence = EFFECT_SEQUENCES[effectPreset] || EFFECT_SEQUENCES['zoom_pulse'];
 
+    let currentStartFrame = 0;
     for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
         const duration = audioDurations[i] || 3; // Fallback duration
@@ -111,14 +115,19 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         // We'll scale to 2x target resolution to keep quality during zoom
         const inputScale = `scale=${width*2}:-1`; 
         
-        const effectFilter = getFilterForEffect(effectType, width, height, frames);
+        const effectFilter = getFilterForEffect(effectType, width, height, frames, currentStartFrame);
         
         // Standardize fps
         const fpsFilter = `fps=30`;
 
-        // Chain filters: Scale Input -> Effect (ZoomPan) -> Output
+        // Chain filters: Scale Input -> Effect (ZoomPan) -> Output -> Atmospheric Breathing (Vignette)
         // Note: Zoompan output resolution is set in the function
-        filter = `${inputScale},${effectFilter},${fpsFilter},setsar=1`;
+        // We use the highly optimized built-in vignette filter to create a static shade,
+        // and then blend it over the original video at a static 10% opacity.
+        // This creates a faint cinematic edge shadow while remaining lightning fast.
+        // angle='PI/10' ensures a very wide falloff that keeps the center untouched.
+        const vignetteFilter = `split[base][vignetted];[vignetted]vignette=angle='PI/10':x0=w/2:y0=h/2[vignetted];[vignetted][base]blend=all_opacity=0.1`;
+        filter = `${inputScale},${effectFilter},${fpsFilter},setsar=1,${vignetteFilter}`;
 
         await runFFmpeg([
             '-loop', '1',
@@ -129,6 +138,7 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         ]);
         
         clipPaths.push(clipPath);
+        currentStartFrame += Math.round(duration * 30);
     }
 
     // 2. Concatenate Clips

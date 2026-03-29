@@ -5,7 +5,6 @@ import { supabase } from '../../supabaseClient';
 
 export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any) => {
     const [credits, setCredits] = useState(0);
-    const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
 
@@ -21,15 +20,6 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                     .single();
                 
                 if (profile) setCredits(profile.credits || 0);
-
-                // Fetch Transactions from creator_transactions table
-                const { data: txs } = await supabase
-                    .from('creator_transactions')
-                    .select('*')
-                    .eq('user_id', session.user.id)
-                    .order('created_at', { ascending: false });
-                
-                if (txs) setTransactions(txs);
 
             } catch (e) {
                 console.error("Error fetching billing data", e);
@@ -65,7 +55,7 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                     <div className="flex flex-col items-start">
                         <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-2">Current Balance</h2>
                         <div className={`text-5xl font-black ${credits < 0 ? 'text-red-600' : 'text-yellow-600'}`}>
-                            {loading ? '...' : credits.toLocaleString()} <span className="text-xl text-zinc-600 font-bold">Credits</span>
+                            {loading ? '...' : Math.round(credits).toLocaleString()} <span className="text-xl text-zinc-600 font-bold">Credits</span>
                         </div>
                         <button 
                             onClick={() => setIsPricingModalOpen(true)}
@@ -80,43 +70,6 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                     >
                         Add Credits
                     </button>
-                </div>
-
-                {/* Transactions */}
-                <div>
-                    <h3 className="text-xl font-black text-white mb-6">Recent Transactions</h3>
-                    <div className="bg-zinc-900 rounded-3xl shadow-sm border border-white/5 overflow-hidden">
-                        <div className="overflow-x-auto">
-                            {transactions.length === 0 ? (
-                                <div className="p-8 text-center text-zinc-500 font-medium">No transactions found.</div>
-                            ) : (
-                                <table className="w-full text-left min-w-[500px]">
-                                    <thead className="bg-black border-b border-white/5">
-                                        <tr>
-                                            <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">Date</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">Description</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest text-right">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-white/5">
-                                        {transactions.map(tx => (
-                                            <tr key={tx.id} className="hover:bg-black/50 transition">
-                                                <td className="px-6 py-4 text-sm font-bold text-zinc-400">
-                                                    {new Date(tx.created_at).toLocaleDateString()}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm font-bold text-white">
-                                                    {tx.description}
-                                                </td>
-                                                <td className={`px-6 py-4 text-sm font-black text-right ${tx.amount > 0 ? 'text-green-600' : 'text-white'}`}>
-                                                    {tx.amount > 0 ? '+' : ''}{tx.amount}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -139,10 +92,6 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                                         <span className="text-sm font-black text-yellow-600">4 credits / image</span>
                                     </div>
                                     <div className="flex justify-between items-center p-3 bg-black rounded-xl border border-white/5">
-                                        <span className="text-sm font-bold text-zinc-200">Ultimate Quality</span>
-                                        <span className="text-sm font-black text-yellow-600">10.2 credits / image</span>
-                                    </div>
-                                    <div className="flex justify-between items-center p-3 bg-black rounded-xl border border-white/5">
                                         <span className="text-sm font-bold text-zinc-200">Image Editing</span>
                                         <span className="text-sm font-black text-yellow-600">4 credits / edit</span>
                                     </div>
@@ -163,7 +112,7 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                             </div>
                             <div className="mt-6 p-4 bg-yellow-600/10 border border-yellow-600/20 rounded-xl">
                                 <p className="text-sm font-bold text-yellow-600 text-center">
-                                    A min video cost approximately 28 - 44 credits for ULTRA and 64 - 104 credits for ULTIMATE
+                                    A min video cost approximately 28 - 44 credits
                                 </p>
                             </div>
                         </div>

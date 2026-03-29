@@ -77,7 +77,7 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,transparent_70%,#eab308_100%)] animate-[spin_4s_linear_infinite]" />
                          <div className="relative bg-zinc-900 rounded-[15px] p-6 flex flex-col items-start justify-center h-full w-full">
                              <div className="text-3xl font-black text-white mb-1">
-                                 {credits !== null ? credits : '0'}
+                                 {credits !== null ? Math.round(credits) : '0'}
                              </div>
                              <button 
                                 onClick={() => navigate('billing')}

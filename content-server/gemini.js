@@ -3,7 +3,6 @@ import { GoogleGenAI, Modality } from "@google/genai";
 
 const MODEL_NAME = "gemini-2.5-pro"; //gemini-3-flash-preview"; // Using Gemini 3 Pro for reasoning
 const IMAGE_MODEL = "gemini-2.5-flash-image"; // Nano Banana for images (Ultra quality per mapping)
-const ULTIMATE_IMAGE_MODEL = "gemini-3.1-flash-image-preview";
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 
 
@@ -206,14 +205,17 @@ Return ONLY a raw JSON array. No markdown, no preamble, no explanation.
     console.log("----------------------------------------------");
 
     try {
-        return JSON.parse(response.text);
+        return {
+            segments: JSON.parse(response.text),
+            usageMetadata: response.usageMetadata
+        };
     } catch (e) {
         console.error("Failed to parse Gemini response", response.text);
         throw new Error("AI Generation failed to produce valid JSON");
     }
 }
 
-export async function generateImage(prompt, aspect, quality = 'Ultra') {
+export async function generateImage(prompt, aspect) {
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
@@ -224,49 +226,20 @@ export async function generateImage(prompt, aspect, quality = 'Ultra') {
     
     const ar = aspect === '9:16' ? '9:16' : '16:9';
 
-    // Model Selection based on Quality Mapping:
-    // Ultra -> gemini-2.5-flash-image
-    // Ultimate -> gemini-3.1-flash-image-preview
-    
-    let model = IMAGE_MODEL;
-    if (quality === 'Ultimate') {
-        model = ULTIMATE_IMAGE_MODEL;
-    }
-
-    if (model === ULTIMATE_IMAGE_MODEL) {
-        // Gemini 3.1 Flash Image Flow
-        const response = await ai.models.generateContent({
-            model: ULTIMATE_IMAGE_MODEL,
-            contents: prompt,
-            config: {
-                imageConfig: {
-                    aspectRatio: ar,
-                    imageSize: "2K"
-                }
-            }
-        });
-
-        for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData) {
-                return part.inlineData.data;
+    // Nano Banana (Gemini Image) Flow
+    const response = await ai.models.generateContent({
+        model: IMAGE_MODEL,
+        contents: { parts: [{ text: prompt }] },
+        config: {
+            imageConfig: {
+                aspectRatio: ar
             }
         }
-    } else if (model === IMAGE_MODEL) {
-        // Nano Banana (Gemini Image) Flow
-        const response = await ai.models.generateContent({
-            model: IMAGE_MODEL,
-            contents: { parts: [{ text: prompt }] },
-            config: {
-                imageConfig: {
-                    aspectRatio: ar
-                }
-            }
-        });
+    });
 
-        for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData) {
-                return part.inlineData.data;
-            }
+    for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+            return part.inlineData.data;
         }
     }
 
