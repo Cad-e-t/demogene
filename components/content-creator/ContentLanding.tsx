@@ -427,6 +427,39 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                 </div>
             </div>
 
+            {/* --- CHOOSE ANY STYLE YOU LIKE --- */}
+            <div className="relative z-10 w-full py-24 px-6 md:px-12 bg-black border-t border-white/5 min-h-screen flex items-center justify-center overflow-hidden">
+                <motion.div 
+                    initial={{ y: 100, opacity: 0 }}
+                    whileInView={{ y: 0, opacity: 1 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="max-w-7xl mx-auto flex flex-col items-center w-full"
+                >
+                    <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter mb-16 text-white text-center">
+                        CHOOSE ANY STYLE YOU LIKE
+                    </h2>
+                    
+                    <div className="flex flex-nowrap overflow-x-auto hide-scrollbar justify-start md:justify-center gap-4 md:gap-6 w-full px-4 pb-4 snap-x">
+                        {Object.entries(STYLE_PREVIEWS).map(([name, src]) => (
+                            <div key={name} className="relative w-[120px] md:w-[200px] aspect-[9/16] shrink-0 snap-center">
+                                <div className="w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-zinc-900 relative">
+                                    <video 
+                                        src={src} 
+                                        muted playsInline 
+                                        className="w-full h-full object-cover block pointer-events-none"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
+                                    <div className="absolute bottom-4 left-4 right-4 pointer-events-none text-center">
+                                        <span className="text-sm md:text-base font-bold text-white uppercase tracking-widest">{name}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </motion.div>
+            </div>
+
             {/* Smooth Transition Gradient */}
             <div className="relative z-10 w-full h-40 -mb-1 bg-gradient-to-b from-transparent to-black pointer-events-none"></div>
 
@@ -498,7 +531,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                     {/* Content */}
                     <div className="relative z-10 max-w-5xl mx-auto px-6 flex flex-col items-center">
                         <h2 className="text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter mb-12 text-white leading-[1.1]">
-                            Create videos people can't wait to waatch
+                            Start making viral videos 
                         </h2>
                         
                         <button 
