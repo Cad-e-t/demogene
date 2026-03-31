@@ -8,6 +8,22 @@ export const STYLE_PREVIEWS: Record<string, string> = {
     "Stickman": "https://assets.productcam.site/image-styles/stickman.mp4"
 };
 
+export const DEMO_CLIPS: Record<string, string> = {
+  "1": "https://assets.productcam.site/steps/paste-script.jpeg",
+  "2": "https://assets.productcam.site/steps/powerful-voiceovers.jpeg",
+  "3": "https://assets.productcam.site/steps/customize.jpeg",
+  "4": "https://assets.productcam.site/steps/download.jpeg"
+}
+
+export const LANDING_PREVIEWS: Record<string, string> = {
+    "Travel to ancient times": "https://assets.productcam.site/image-styles/horror.mp4",
+    "Water horrors": "https://assets.productcam.site/image-styles/sketch.mp4",
+    "Earth orbits saturn": "https://assets.productcam.site/image-styles/earth-orbits-saturn.mp4",
+    "How to reach B2b audience on tiktok": "https://assets.productcam.site/image-styles/b2b.mp4",
+};
+
+
+
 export const SUBTITLE_PREVIEWS: Record<string, string> = {
     "none": "https://placehold.co/600x338/111/FFF?text=No+Subtitles",
     "pulse_bold": "https://placehold.co/600x338/111/FFF?text=Pulse+Bold",
@@ -18,14 +34,14 @@ export const SUBTITLE_PREVIEWS: Record<string, string> = {
 
 export const channels = [
   {
-    name: "Cruise Like a Pro",
-    handle: "@CruiseLikeaPro",
+    name: "Oddly Specific Lives",
+    handle: "@OddlySpecificLives",
     subs: "14K subscribers",
-    link: "https://www.youtube.com/@CruiseLikeaPro",
-    profilePic: "https://yt3.googleusercontent.com/rqITTSRiDWS5HK5vOQ0aBjS0tugMZHcNkE90qo2-MutMnhU5hGTIhewi-aZbBoe-xkGHt-gV2A=s160-c-k-c0x00ffffff-no-rj",
+    link: "https://www.youtube.com/@OddlySpecificLive",
+    profilePic: "https://yt3.googleusercontent.com/kA8Wh5aNNz-hDGv-slXceQAOFClj6KFPdZOVb5Dov9p-nht4uzxWHd9E2wOGDRDG5225uiyp=s160-c-k-c0x00ffffff-no-rj",
     thumbnails: [
-      "https://img.youtube.com/vi/2t5r76GJMXs/hqdefault.jpg",
-      "https://img.youtube.com/vi/iI6_yHo5hXk/hqdefault.jpg"
+      "https://i.ytimg.com/an_webp/Hv8PNpsgGBc/mqdefault_6s.webp?du=3000&sqp=CMeIqc4G&rs=AOn4CLBGHdEsm8AvvXExAKyzfgBbQ3aMlw",
+      "https://i.ytimg.com/an_webp/OqvXTQMxnOo/mqdefault_6s.webp?du=3000&sqp=CM70qM4G&rs=AOn4CLBxQlUVaoYnzK2iZ1gOPWlajXjXvg"
     ]
   },
   {

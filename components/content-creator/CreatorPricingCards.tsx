@@ -24,19 +24,21 @@ const PricingCard: React.FC<PricingCardProps> = ({ title, price, highlights, fea
             </div>
         )}
         
-        <div className="mb-8 text-center">
-            <h3 className={`text-2xl font-black uppercase tracking-tighter ${color}`}>{title}</h3>
-            <div className="flex items-center justify-center gap-1 mt-4">
-                <span className="text-5xl font-black text-white">${price}</span>
-                <span className="text-sm font-bold text-zinc-400 self-end mb-2">/ pack</span>
+        <div className="mb-8 flex items-center justify-between">
+            <h3 className={`text-xl lg:text-2xl font-black uppercase tracking-tighter ${color}`}>{title}</h3>
+            <div className="flex items-center gap-1">
+                <span className="text-3xl lg:text-4xl font-black text-white">${price}</span>
             </div>
         </div>
 
         <button 
             onClick={onAction}
-            className={`w-full py-4 mb-8 rounded-xl font-black uppercase tracking-widest text-sm transition-all shadow-lg active:scale-95 ${isPopular ? 'bg-yellow-600 text-black hover:bg-yellow-700' : 'bg-zinc-900 text-white hover:bg-zinc-800'}`}
+            className={`w-full py-4 mb-8 rounded-xl font-black uppercase tracking-widest text-sm transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${isPopular ? 'bg-yellow-600 text-black hover:bg-yellow-700' : 'bg-zinc-900 text-white hover:bg-zinc-800 border border-white/20 hover:border-white/40'}`}
         >
-            {buttonLabel}
+            <span>{buttonLabel}</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
         </button>
 
         <div className="mb-8 space-y-3 text-center">
@@ -65,15 +67,13 @@ interface CreatorPricingCardsProps {
 
 export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onAction, actionLabel }) => {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl mx-auto items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 w-full max-w-7xl mx-auto items-stretch">
             <PricingCard 
                 title="Starter"
                 price="19"
                 color="text-white"
                 highlights={
                     <>
-                        <p className="font-black text-xl block mt-1 text-white">30 Short Videos / month
-                        </p>
                         <p className="text-sm font-bold text-zinc-400">700 Credits per Month</p>
                     </>
                 }
@@ -98,11 +98,6 @@ export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onActi
                 color="text-yellow-500"
                 highlights={
                     <>
-                        <p className="font-black text-xl block mt-1 text-white">100 Short Videos / month
-                        </p>
-                        <p className="text-base text-zinc-300 leading-tight font-bold">
-                            + 30 Long Videos
-                        </p>
                         <p className="text-sm font-bold text-yellow-400 pt-1">1800 Credits per Month</p>
                     </>
                 }
@@ -125,11 +120,6 @@ export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onActi
                 color="text-purple-500"
                 highlights={
                     <>
-                        <p className="font-black text-xl block mt-1 text-white">250 Short Videos / month
-                        </p>
-                        <p className="text-base text-zinc-300 leading-tight font-bold">
-                            + 100 Long Videos
-                        </p>
                         <p className="text-sm font-bold text-purple-400 pt-1">5500 Credits per Month</p>
                     </>
                 }
