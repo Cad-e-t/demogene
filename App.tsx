@@ -14,6 +14,7 @@ import { AboutPage } from './components/AboutPage';
 import { PricingPageSEO } from './components/PricingPageSEO';
 import { ContentApp } from './components/content-creator/ContentApp';
 import { ContentLanding } from './components/content-creator/ContentLanding';
+import { TermsOfService } from './components/TermsOfService';
 
 import { CropData, TrimData, VoiceOption, VideoProject, TimeRange, BackgroundOption } from './types';
 import { VOICES, BACKGROUNDS } from './constants';
@@ -56,6 +57,7 @@ const usePathRoute = () => {
   if (path === '/pricing') return { view: 'pricing', slug: null };
   if (path === '/features') return { view: 'features', slug: null };
   if (path === '/about') return { view: 'about', slug: null };
+  if (path === '/terms') return { view: 'terms', slug: null };
   if (path === '/pricing-details') return { view: 'pricing-details', slug: null };
   if (path.startsWith('/content-creator')) return { view: 'content-creator', slug: null };
   if (path === '/demo') return { view: 'demo', slug: null };
@@ -487,7 +489,7 @@ export default function App() {
   if (!session && currentView === 'home') {
       return (
         <>
-            <ContentLanding onLogin={handleLogin} />
+            <ContentLanding onLogin={handleLogin} onNavigate={navigateTo} />
             {showAuthSelection && (
                 <AuthSelectionModal 
                     onClose={() => setShowAuthSelection(false)} 
@@ -557,6 +559,7 @@ export default function App() {
           {currentView === 'blog-post' && <BlogPostView slug={route.slug || ''} onNavigate={navigateTo} />}
           {currentView === 'features' && <FeaturesPage onNavigate={navigateTo} />}
           {currentView === 'about' && <AboutPage onNavigate={navigateTo} />}
+          {currentView === 'terms' && <TermsOfService onNavigate={navigateTo} />}
           {currentView === 'pricing-details' && <PricingPageSEO onNavigate={navigateTo} />}
 
           {currentView === 'videos' && (

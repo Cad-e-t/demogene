@@ -97,14 +97,16 @@ const TikTokIcon = ({ className }: { className?: string }) => (
 );
 
 const FAQS = [
-    { q: "How do credits work?", a: "Credits are the currency for creating content. Images, voiceovers, and video rendering consume credits based on quality and duration. A typical 30-second video uses about 40-60 credits." },
-    { q: "Do credits expire?", a: "No. Your credits are yours forever. They roll over indefinitely until you use them." },
+    { q: "Do credits expire?", a: "We currently offer a pay-as-you go service, so your credits are yours forever. They roll over indefinitely until you use them." },
     { q: "Can I use the videos commercially?", a: "Yes. You have full commercial rights to all content you generate on the platform." },
     { q: "What happens if I run out of credits?", a: "You can purchase more credits at any time. We don't charge monthly subscriptions, so you only pay for what you use." },
-    { q: "Is there a watermark?", a: "No. All paid credit tiers generate watermark-free videos." }
+    { q: "Is there a watermark?", a: "No. All paid credit tiers generate watermark-free videos." },
+    { q: "Do we offer free trials?", a: "Since it costs us real computing power to generate each unique video, we don't offer a free trial at the moment. However, our entry-level pack is designed to be super affordable so you can test the waters without a big commitment!" },
+    { q: "Are my payments secure?", a: "Absolutely. We use Dodo Payments, a highly secure platform trusted by Stripe, to handle all transactions. Your sensitive payment info never even touches our servers." },
+    { q: "Can I get a refund?", a: "We want you to be happy! If you have unused credits and it's been less than 30 days since your purchase, just reach out and we'll happily process a refund for you." }
 ];
 
-export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
+export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, onNavigate?: (path: string) => void }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
     const [galleryStyles, setGalleryStyles] = useState(['Anime','Realistic', 'Stickman']);
@@ -257,7 +259,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
             {/* --- TRUSTED BY CREATORS --- */}
             <div className="relative z-10 w-full py-12 border-t border-white/5 bg-black/50 backdrop-blur-sm">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col items-center">
-                    <span className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-[0.2em] mb-8">Trusted by Creators</span>
+                    <span className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-[0.2em] mb-8">Trusted by Top Creators</span>
                     <div className="flex items-center -space-x-4">
                         {[
                             "https://i.pravatar.cc/100?img=21",
@@ -440,7 +442,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                         CHOOSE ANY STYLE YOU LIKE
                     </h2>
                     
-                    <div className="flex flex-nowrap overflow-x-auto hide-scrollbar justify-start md:justify-center gap-4 md:gap-6 w-full px-4 pb-4 snap-x">
+                    <div className="flex flex-nowrap overflow-x-auto justify-start md:justify-center gap-4 md:gap-6 w-full px-4 pb-8 snap-x [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.1)_transparent]">
                         {Object.entries(STYLE_PREVIEWS).map(([name, src]) => (
                             <div key={name} className="relative w-[120px] md:w-[200px] aspect-[9/16] shrink-0 snap-center">
                                 <div className="w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-zinc-900 relative">
@@ -472,7 +474,7 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
                         SIMPLE AND TRANSPARENT
                     </h2>
                     <p className="text-xl font-medium text-gray-400 max-w-2xl">
-                        No subscriptions. Pay only when you create.
+                        Start as low as $19 - pay as you go
                     </p>
                 </div>
                 
@@ -530,9 +532,12 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
 
                     {/* Content */}
                     <div className="relative z-10 max-w-5xl mx-auto px-6 flex flex-col items-center">
-                        <h2 className="text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter mb-12 text-white leading-[1.1]">
-                            Start making viral videos 
+                        <h2 className="text-3xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter mb-12 text-white leading-[1.1]">
+                            Goodbye to Boring videos 👋 
                         </h2>
+                         <p className="text-xl font-medium text-gray-400 max-w-2xl mb-10">
+                        Start making engaging contents that gets you followed
+                        </p>
                         
                         <button 
                             onClick={onLogin}
@@ -547,9 +552,19 @@ export const ContentLanding = ({ onLogin }: { onLogin: () => void }) => {
 
             {/* Footer */}
             <div className="relative z-10 w-full bg-black border-t border-white/10 py-12 px-6 md:px-12 text-center">
-                <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest">
-                    ProductCam Creator © 2025
-                </p>
+                <div className="flex flex-col items-center gap-4">
+                    <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest">
+                        Crappik © 2026
+                    </p>
+                    {onNavigate && (
+                        <button 
+                            onClick={() => onNavigate('/terms')}
+                            className="text-xs font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors"
+                        >
+                            Terms of Service
+                        </button>
+                    )}
+                </div>
             </div>
 
         </div>
