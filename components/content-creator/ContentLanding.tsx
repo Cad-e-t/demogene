@@ -533,7 +533,7 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                     {/* Content */}
                     <div className="relative z-10 max-w-5xl mx-auto px-6 flex flex-col items-center">
                         <h2 className="text-3xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter mb-12 text-white leading-[1.1]">
-                            Goodbye to Boring videos 👋 
+                            Say Goodbye to Boring videos 👋 
                         </h2>
                          <p className="text-xl font-medium text-gray-400 max-w-2xl mb-10">
                         Start making engaging contents that gets you followed
