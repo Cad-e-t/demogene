@@ -3,15 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Sidebar } from './components/Sidebar';
+
 import { HomeView } from './components/HomeView';
-import { VideoGallery } from './components/VideoGallery';
 import { VideoModal } from './components/VideoModal';
-import { BlogView } from './components/BlogView';
-import { BlogPostView } from './components/BlogPostView';
-import { FeaturesPage } from './components/FeaturesPage';
-import { AboutPage } from './components/AboutPage';
-import { PricingPageSEO } from './components/PricingPageSEO';
 import { ContentApp } from './components/content-creator/ContentApp';
 import { ContentLanding } from './components/content-creator/ContentLanding';
 import { TermsOfService } from './components/TermsOfService';
@@ -503,20 +497,11 @@ export default function App() {
   // Hide sidebar if we are on blog pages, pricing, not logged in, or in the editor (active video is null is technically home)
   const isPublicReaderView = ['blog', 'blog-post', 'pricing', 'features', 'about', 'pricing-details'].includes(currentView);
   
-  const showSidebar = session && !isPublicReaderView; 
+  const showSidebar = false; // session && !isPublicReaderView; 
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-green-500 selection:text-white overflow-x-hidden">
       
-      {showSidebar && (
-          <Sidebar 
-            currentView={currentView as any} 
-            setCurrentView={(v) => navigateTo(v === 'home' ? '/demo' : `/${v}`)} 
-            handleLogout={handleLogout} 
-            session={session}
-          />
-      )}
-
       <main className={`transition-all duration-300 min-h-screen ${showSidebar ? 'md:ml-56 mt-14 md:mt-0' : ''}`}>
           
           {(currentView === 'home' || currentView === 'demo') && (
@@ -555,21 +540,8 @@ export default function App() {
               />
           )}
 
-          {currentView === 'blog' && <BlogView onNavigate={navigateTo} />}
-          {currentView === 'blog-post' && <BlogPostView slug={route.slug || ''} onNavigate={navigateTo} />}
-          {currentView === 'features' && <FeaturesPage onNavigate={navigateTo} />}
-          {currentView === 'about' && <AboutPage onNavigate={navigateTo} />}
           {currentView === 'terms' && <TermsOfService onNavigate={navigateTo} />}
-          {currentView === 'pricing-details' && <PricingPageSEO onNavigate={navigateTo} />}
 
-          {currentView === 'videos' && (
-              <VideoGallery 
-                  videos={videos} 
-                  onSelectVideo={setSelectedVideo}
-                  onDeleteVideo={handleDeleteVideo}
-                  fetchVideos={fetchVideos}
-              />
-          )}
       </main>
 
       {selectedVideo && (

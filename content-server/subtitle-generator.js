@@ -105,17 +105,10 @@ function getAssHeader(config, aspectRatio) {
     p.shadow = 0; 
     p.borderStyle = 1; 
     
-    // Map placement to alignment/margin (Match Player 15% logic)
-    if (config.placement === 'top') {
-        p.alignment = 8; 
-        p.marginV = Math.round(resY * 0.15);
-    } else if (config.placement === 'middle') {
-        p.alignment = 5; 
-        p.marginV = 0;
-    } else {
-        p.alignment = 2; 
-        p.marginV = Math.round(resY * 0.15);
-    }
+    // Map placement to alignment/margin (Match Player logic)
+    p.alignment = 2; // Bottom center
+    const placementValue = typeof config.placement === 'number' ? config.placement : 15;
+    p.marginV = Math.round(resY * (placementValue / 100));
     
     return `[Script Info]
 ScriptType: v4.00+
@@ -146,7 +139,8 @@ function generateEvents(words, config, aspectRatio) {
     const threshold = isFade ? 800 : 300; // Slower pacing for fade
     
     // Word count limits per style
-    const maxWords = animationType === 'karaoke_block' ? 3 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
+    const defaultMaxWords = animationType === 'karaoke_block' ? 3 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
+    const maxWords = config.maxWords !== undefined ? config.maxWords : defaultMaxWords;
 
     const maxCharsPerLine = isFade 
         ? (aspectRatio === '16:9' ? 60 : 35) 
@@ -241,7 +235,8 @@ function generateEvents(words, config, aspectRatio) {
         if (!word.text.trim()) continue;
         
         if (config.textTransform === 'uppercase') word.text = word.text.toUpperCase();
-        if (config.textTransform === 'capitalize') word.text = word.text.replace(/\b\w/g, l => l.toUpperCase());
+        else if (config.textTransform === 'lowercase') word.text = word.text.toLowerCase();
+        else if (config.textTransform === 'capitalize') word.text = word.text.replace(/\b\w/g, l => l.toUpperCase());
 
         let shouldGroup = true;
         

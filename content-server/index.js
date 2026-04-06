@@ -16,6 +16,8 @@ import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
 import { AssemblyAI } from 'assemblyai';
 import numberToWords from 'number-to-words';
 
+import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset } from './demo-maker/controllers.js';
+
 // --- Setup ---
 const app = express();
 app.use(express.json());
@@ -40,7 +42,6 @@ app.use(cors({
     }
   }
 }));
-
 
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
@@ -946,6 +947,14 @@ app.post('/export-video', async (req, res) => {
     }
 });
 
+// --- Demo Maker Routes ---
+app.post('/demo/generate-upload-url', demoGenerateUploadUrl);
+app.delete('/demo/videos/:id', demoDeleteVideo);
+app.post('/demo/process-video', demoProcessVideo);
+app.post('/demo/export', exportDemoVideo);
+app.post('/demo/generate-hook-upload-url', generateHookUploadUrl);
+app.post('/demo/generate-hook-image', generateHookImage);
+app.post('/demo/delete-hook-asset', deleteHookAsset);
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));

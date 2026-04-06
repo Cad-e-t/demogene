@@ -16,7 +16,24 @@ interface ContentVideoPlayerProps {
     onLoadComplete?: () => void;
 }
 
-const EFFECT_SEQUENCES = {
+export const EFFECT_TYPES = [
+    { id: 'none', name: 'None', description: 'Static frame' },
+    { id: 'zoom_in', name: 'Zoom In', description: 'Slow push in' },
+    { id: 'zoom_out', name: 'Zoom Out', description: 'Slow pull out' },
+    { id: 'slow_zoom_in', name: 'Cinematic Zoom', description: 'Very slow push in' },
+    { id: 'slide_left', name: 'Pan Left', description: 'Slide camera left' },
+    { id: 'slide_right', name: 'Pan Right', description: 'Slide camera right' },
+    { id: 'slide_up', name: 'Pan Up', description: 'Slide camera up' },
+    { id: 'slide_down', name: 'Pan Down', description: 'Slide camera down' },
+    { id: 'slide_up_left', name: 'Pan Up Left', description: 'Slide camera up and left' },
+    { id: 'slide_up_right', name: 'Pan Up Right', description: 'Slide camera up and right' },
+    { id: 'slide_down_left', name: 'Pan Down Left', description: 'Slide camera down and left' },
+    { id: 'slide_down_right', name: 'Pan Down Right', description: 'Slide camera down and right' },
+    { id: 'handheld_walk', name: 'Handheld Walk', description: 'Natural walking motion' }
+];
+
+export const EFFECT_SEQUENCES = {
+    'none': ['none'],
     'zoom_pulse': ['zoom_in', 'zoom_out'],
     'slide_flow': ['slide_down', 'slide_right', 'slide_up', 'slide_left', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
     'cinematic': ['slow_zoom_in'],
@@ -41,7 +58,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const requestRef = useRef<number>();
+    const requestRef = useRef<number | null>(null);
     const [images, setImages] = useState<HTMLImageElement[]>([]);
     const [subtitles, setSubtitles] = useState<any[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -156,10 +173,11 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             : (aspectRatio === '16:9' ? 45 : 22);
         
         // Word count limits per style
-        const maxWords = animationType === 'karaoke_block' ? 3 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
+        const defaultMaxWords = animationType === 'karaoke_block' ? 3 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
+        const maxWords = subtitleStyle?.maxWords !== undefined ? subtitleStyle.maxWords : defaultMaxWords;
 
-        const lines = [];
-        let group = [];
+        const lines: any[] = [];
+        let group: any[] = [];
 
         transcription.words.forEach((word: any, i: number) => {
             const w = {
@@ -265,9 +283,14 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             const currentFrame = Math.floor(segmentTime * 30);
 
             // Effect Logic matching video-assembler.js
-            const effectPreset = effect?.id || 'zoom_pulse';
-            const sequence = EFFECT_SEQUENCES[effectPreset] || EFFECT_SEQUENCES['zoom_pulse'];
-            const effectType = sequence[currentSegmentIndex % sequence.length];
+            const effectPreset = (effect?.id || 'zoom_pulse') as keyof typeof EFFECT_SEQUENCES;
+            let effectType;
+            if (Array.isArray(effect)) {
+                effectType = effect[currentSegmentIndex % effect.length];
+            } else {
+                const sequence = EFFECT_SEQUENCES[effectPreset] || EFFECT_SEQUENCES['zoom_pulse'];
+                effectType = sequence[currentSegmentIndex % sequence.length];
+            }
 
             let scale = 1;
             let offsetX = 0;
@@ -355,6 +378,11 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                     offsetX = (iw - iw_visible / scale) / 2 + driftX;
                     offsetY = (ih - ih_visible / scale) / 2 + driftY;
                     break;
+                case 'none':
+                    scale = 1;
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
+                    break;
                 default:
                     scale = 1;
                     offsetX = (iw - iw_visible / scale) / 2;
@@ -429,11 +457,8 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             }
 
             let x = canvas.width / 2;
-            let y = canvas.height * 0.85; // Default bottom
-
-            if (placement === 'top') y = canvas.height * 0.15;
-            if (placement === 'middle') y = canvas.height * 0.5;
-            if (placement === 'bottom') y = canvas.height * 0.85;
+            // placement is a number from 0 to 100 representing percentage from bottom
+            let y = canvas.height * (1 - (typeof placement === 'number' ? placement : 15) / 100);
 
             // Prepare text parts
             const words = currentSubtitle.words || [{ text: currentSubtitle.text, start: currentSubtitle.start, end: currentSubtitle.end }];
@@ -473,14 +498,8 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             const lineHeight = fontSize * 1.2;
             const totalHeight = lines.length * lineHeight;
             
-            let startY = y;
-            if (placement === 'bottom') {
-                startY = y - (totalHeight - lineHeight);
-            } else if (placement === 'middle') {
-                startY = y - (totalHeight / 2) + (lineHeight / 2);
-            } else if (placement === 'top') {
-                startY = y;
-            }
+            // Anchor the bottom of the text block to 'y'
+            let startY = y - (totalHeight - lineHeight);
 
             lines.forEach((lineWords) => {
                 const lineWidth = lineWords.reduce((acc, lw) => acc + lw.width, 0);

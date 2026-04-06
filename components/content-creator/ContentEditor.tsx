@@ -1,19 +1,153 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage } from './api';
-import { ContentVideoPlayer } from './ContentVideoPlayer';
+import { ContentVideoPlayer, EFFECT_TYPES, EFFECT_SEQUENCES } from './ContentVideoPlayer';
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 import { EFFECT_PRESETS, NARRATION_STYLES, SUBTITLE_PRESETS, SubtitleConfiguration, DEFAULT_SUBTITLE_CONFIG } from './types';
 import { STYLE_PREVIEWS } from './creator-assets';
 import { SubtitlePreview } from './SubtitlePreviews';
+import { SubtitleConfigurationPanel } from './SubtitleConfigurationPanel';
+import { motion, AnimatePresence } from 'motion/react';
 
+export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectType: string, imageUrl: string, aspectRatio: '9:16' | '16:9' }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [image, setImage] = useState<HTMLImageElement | null>(null);
+
+    useEffect(() => {
+        const img = new Image();
+        img.src = imageUrl;
+        img.onload = () => setImage(img);
+    }, [imageUrl]);
+
+    useEffect(() => {
+        if (!image || !canvasRef.current) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        let frameId: number;
+        const startTime = performance.now();
+        const duration = 3000;
+
+        const render = (now: number) => {
+            const elapsed = (now - startTime) % duration;
+            const progress = elapsed / duration;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            const iw = image.width;
+            const ih = image.height;
+            const baseScale = Math.max(w / iw, h / ih);
+
+            let scale = 1;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            const iw_visible = w / baseScale;
+            const ih_visible = h / baseScale;
+
+            switch (effectType) {
+                case 'zoom_in':
+                    scale = 1.0 + (progress * 0.5);
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
+                    break;
+                case 'zoom_out':
+                    scale = 1.8 - (progress * 0.5);
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
+                    break;
+                case 'slow_zoom_in':
+                    scale = 1.0 + (progress * 0.4);
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
+                    break;
+                case 'slide_left':
+                    scale = 1.15;
+                    offsetX = (1 - progress) * (iw - iw_visible / scale);
+                    offsetY = (ih - ih_visible / scale) / 2;
+                    break;
+                case 'slide_right':
+                    scale = 1.15;
+                    offsetX = progress * (iw - iw_visible / scale);
+                    offsetY = (ih - ih_visible / scale) / 2;
+                    break;
+                case 'slide_up':
+                    scale = 1.2;
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (1 - progress) * (ih - ih_visible / scale);
+                    break;
+                case 'slide_down':
+                    scale = 1.2;
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = progress * (ih - ih_visible / scale);
+                    break;
+                case 'slide_up_left':
+                    scale = 1.2;
+                    offsetX = (1 - progress) * (iw - iw_visible / scale);
+                    offsetY = (1 - progress) * (ih - ih_visible / scale);
+                    break;
+                case 'slide_up_right':
+                    scale = 1.2;
+                    offsetX = progress * (iw - iw_visible / scale);
+                    offsetY = (1 - progress) * (ih - ih_visible / scale);
+                    break;
+                case 'slide_down_left':
+                    scale = 1.2;
+                    offsetX = (1 - progress) * (iw - iw_visible / scale);
+                    offsetY = progress * (ih - ih_visible / scale);
+                    break;
+                case 'slide_down_right':
+                    scale = 1.2;
+                    offsetX = progress * (iw - iw_visible / scale);
+                    offsetY = progress * (ih - ih_visible / scale);
+                    break;
+                case 'handheld_walk':
+                    scale = 1.1 + (progress * 0.2);
+                    const globalFrame = (elapsed / 1000) * 30;
+                    const driftFreq = 1 / 20;
+                    const driftX = (iw_visible / scale / 30) * Math.sin(globalFrame * driftFreq);
+                    const driftY = (ih_visible / scale / 40) * Math.cos(globalFrame * driftFreq);
+                    offsetX = (iw - iw_visible / scale) / 2 + driftX;
+                    offsetY = (ih - ih_visible / scale) / 2 + driftY;
+                    break;
+            }
+
+            const dw = iw * baseScale * scale;
+            const dh = ih * baseScale * scale;
+            const dx = -offsetX * baseScale * scale;
+            const dy = -offsetY * baseScale * scale;
+
+            ctx.drawImage(image, dx, dy, dw, dh);
+            frameId = requestAnimationFrame(render);
+        };
+
+        frameId = requestAnimationFrame(render);
+        return () => cancelAnimationFrame(frameId);
+    }, [image, effectType]);
+
+    return (
+        <canvas 
+            ref={canvasRef} 
+            width={aspectRatio === '9:16' ? 180 : 320} 
+            height={aspectRatio === '9:16' ? 320 : 180}
+            className="w-full h-full object-cover rounded-lg"
+        />
+    );
+};
 
 export const ContentEditor = ({ session, project, initialSegments, onBack, onComplete }: any) => {
     const [segments, setSegments] = useState(initialSegments);
     const [localProject, setLocalProject] = useState(project); // Local project copy for status sync
     const [editingImageId, setEditingImageId] = useState<string | null>(null);
     const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+    const [animatingSegmentId, setAnimatingSegmentId] = useState<string | null>(null);
+    const [imageEditModalId, setImageEditModalId] = useState<string | null>(null);
+    const [imageEditTab, setImageEditTab] = useState<'regenerate' | 'edit' | 'upload'>('regenerate');
+    
     const [regeneratePrompt, setRegeneratePrompt] = useState('');
     const [editPrompt, setEditPrompt] = useState('');
     const [loadingImage, setLoadingImage] = useState(false);
@@ -246,10 +380,57 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     
     // Local state for editable settings
     const [voice, setVoice] = useState(VOICES.find(v => v.id === project.voice_id) || VOICES[0]);
-    const [effect, setEffect] = useState(EFFECT_PRESETS.find(e => e.id === project.effect) || EFFECT_PRESETS[0]);
+    
+    const [effect, setEffect] = useState<string | string[]>(() => {
+        let parsedEffect = project.effect;
+        if (typeof project.effect === 'string') {
+            try {
+                parsedEffect = JSON.parse(project.effect);
+            } catch (e) {
+                // Not JSON, keep as string
+            }
+        }
+
+        if (Array.isArray(parsedEffect)) return parsedEffect;
+        
+        // Migration: If it's a string, convert to sequence
+        const baseSequence = EFFECT_SEQUENCES[parsedEffect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos'];
+        // Expand to match segments if possible
+        if (initialSegments?.length) {
+            const expanded = [];
+            for (let i = 0; i < initialSegments.length; i++) {
+                expanded.push(baseSequence[i % baseSequence.length]);
+            }
+            return expanded;
+        }
+        return baseSequence;
+    });
+
+    // Migration logic
+    useEffect(() => {
+        let parsedEffect = project.effect;
+        if (typeof project.effect === 'string') {
+            try {
+                parsedEffect = JSON.parse(project.effect);
+            } catch (e) {
+                // Not JSON, keep as string
+            }
+        }
+
+        if (typeof parsedEffect === 'string' && Object.keys(EFFECT_SEQUENCES).includes(parsedEffect)) {
+            const baseSequence = EFFECT_SEQUENCES[parsedEffect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos'];
+            const expanded = [];
+            const targetLength = segments?.length || 5;
+            for (let i = 0; i < targetLength; i++) {
+                expanded.push(baseSequence[i % baseSequence.length]);
+            }
+            setEffect(expanded);
+            supabase.from('content_projects').update({ effect: expanded }).eq('id', project.id).then();
+        }
+    }, [project.id, project.effect, segments?.length]);
     
     // Default style or match by prompt text
-    const initialStyle = NARRATION_STYLES.find(s => s.prompt === project.narration_style) || NARRATION_STYLES[0];
+    const initialStyle = project.narration_style || NARRATION_STYLES[0].prompt;
     const [narrationStyle, setNarrationStyle] = useState(initialStyle);
 
     // Initialize subtitles from project or default
@@ -463,13 +644,33 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const handleEffectChange = async (newEffect: any) => {
-        setEffect(newEffect);
-        await supabase.from('content_projects').update({ effect: newEffect.id }).eq('id', project.id);
+        const baseSequence = EFFECT_SEQUENCES[newEffect.id as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos'];
+        const expanded = [];
+        for (let i = 0; i < segments.length; i++) {
+            expanded.push(baseSequence[i % baseSequence.length]);
+        }
+        setEffect(expanded);
+        await supabase.from('content_projects').update({ effect: expanded }).eq('id', project.id);
     };
 
-    const handleNarrationStyleChange = async (newStyle: any) => {
-        setNarrationStyle(newStyle);
-        await supabase.from('content_projects').update({ narration_style: newStyle.prompt }).eq('id', project.id);
+    const handleSegmentEffectChange = async (segmentIndex: number, effectType: string) => {
+        const currentEffect = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos']);
+        const newSequence = [...currentEffect];
+        
+        // Ensure sequence is long enough to cover all segments
+        while (newSequence.length < segments.length) {
+            newSequence.push(newSequence[newSequence.length % newSequence.length] || 'zoom_in');
+        }
+        
+        newSequence[segmentIndex] = effectType;
+        setEffect(newSequence);
+        await supabase.from('content_projects').update({ effect: newSequence }).eq('id', project.id);
+        setAnimatingSegmentId(null);
+    };
+
+    const handleNarrationStyleChange = async (newPrompt: string) => {
+        setNarrationStyle(newPrompt);
+        await supabase.from('content_projects').update({ narration_style: newPrompt }).eq('id', project.id);
     };
 
     const handleSubtitleUpdate = (updates: Partial<SubtitleConfiguration>) => {
@@ -629,47 +830,34 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 onClick={() => setNarrationSection(narrationSection === 'style' ? null : 'style')}
                                 className="w-full flex items-center justify-between p-4 bg-black hover:bg-zinc-900 transition"
                             >
-                                <div className="text-left">
+                                <div className="text-left w-full pr-4 overflow-hidden">
                                     <div className="text-xs font-bold text-zinc-500 uppercase">Narration Style</div>
-                                    <div className="font-bold text-white">{narrationStyle.name}</div>
+                                    <div className="font-bold text-white truncate w-full">{narrationStyle}</div>
                                 </div>
-                                <svg className={`w-5 h-5 text-zinc-500 transition-transform ${narrationSection === 'style' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                <svg className={`w-5 h-5 text-zinc-500 transition-transform shrink-0 ${narrationSection === 'style' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                             </button>
                             {narrationSection === 'style' && (
                                 <div className="p-2 bg-zinc-900 border-t border-white/10 space-y-2 max-h-60 overflow-y-auto">
-                                    {NARRATION_STYLES.map(s => (
-                                        <button
-                                            key={s.prompt}
-                                            onClick={() => handleNarrationStyleChange(s)}
-                                            className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-all ${narrationStyle.prompt === s.prompt ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
-                                        >
-                                            <div className="text-left">
-                                                <div className="font-bold">{s.name}</div>
-                                                <div className={`text-[10px] ${narrationStyle.prompt === s.prompt ? 'text-zinc-500' : 'text-zinc-500'}`}>{s.description}</div>
-                                            </div>
-                                            {s.sampleUrl && (
-                                                <div 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (playingVoiceId === `style-${s.id}`) {
-                                                            audioRef.current?.pause();
-                                                            setPlayingVoiceId(null);
-                                                        } else {
-                                                            if (audioRef.current) audioRef.current.pause();
-                                                            const audio = new Audio(s.sampleUrl);
-                                                            audioRef.current = audio;
-                                                            audio.play();
-                                                            setPlayingVoiceId(`style-${s.id}`);
-                                                            audio.onended = () => setPlayingVoiceId(null);
-                                                        }
-                                                    }} 
-                                                    className={`p-1 rounded-full ${playingVoiceId === `style-${s.id}` ? 'bg-zinc-700 text-zinc-600' : 'bg-black hover:bg-zinc-900 text-zinc-400'}`}
-                                                >
-                                                    {playingVoiceId === `style-${s.id}` ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                                    <textarea
+                                        value={narrationStyle}
+                                        onChange={(e) => handleNarrationStyleChange(e.target.value)}
+                                        placeholder="Enter custom narration style..."
+                                        className="w-full bg-black border border-white/10 rounded-xl p-3 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500 resize-none min-h-[80px]"
+                                    />
+                                    <div className="space-y-1">
+                                        {NARRATION_STYLES.map(s => (
+                                            <button
+                                                key={s.prompt}
+                                                onClick={() => handleNarrationStyleChange(s.prompt)}
+                                                className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-all ${narrationStyle === s.prompt ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
+                                            >
+                                                <div className="text-left">
+                                                    <div className="font-bold">{s.name}</div>
+                                                    <div className={`text-[10px] ${narrationStyle === s.prompt ? 'text-zinc-500' : 'text-zinc-500'}`}>{s.description}</div>
                                                 </div>
-                                            )}
-                                        </button>
-                                    ))}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -712,10 +900,24 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 <div className="flex-1 min-w-0">
                                     <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1">Segment {idx + 1}</div>
                                     <div className="flex gap-2 mt-2">
-                                        <button onClick={() => { setRegeneratingId(seg.id); setRegeneratePrompt(seg.image_prompt || ''); }} className="px-3 py-1.5 bg-black border border-white/10 hover:bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-200 transition">Regenerate</button>
-                                        <button onClick={() => setEditingImageId(seg.id)} className="px-3 py-1.5 bg-black border border-white/10 hover:bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-200 transition">Edit</button>
-                                        <button onClick={() => handleUploadClick(seg.id, !!seg.image_url)} className="p-1.5 bg-black border border-white/10 hover:bg-zinc-900 rounded-lg text-zinc-200 transition flex items-center justify-center" title="Upload Image">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                                        <button 
+                                            onClick={() => {
+                                                setImageEditModalId(seg.id);
+                                                setRegeneratePrompt(seg.image_prompt || '');
+                                                setEditPrompt('');
+                                                setImageEditTab('regenerate');
+                                            }} 
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-black border border-white/10 hover:bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-200 transition"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                            Edit
+                                        </button>
+                                        <button 
+                                            onClick={() => setAnimatingSegmentId(seg.id)} 
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-black border border-white/10 hover:bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-200 transition"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            Animate
                                         </button>
                                     </div>
                                 </div>
@@ -726,227 +928,47 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             case 'effect':
                 return (
                     <div className="space-y-2">
-                        {EFFECT_PRESETS.map(e => (
-                            <button
-                                key={e.id}
-                                onClick={() => handleEffectChange(e)}
-                                className={`w-full text-left px-3 py-3 border rounded-xl transition-all ${effect.id === e.id ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
-                            >
-                                <div className="font-bold text-sm">{e.name}</div>
-                                <div className={`text-[10px] ${effect.id === e.id ? 'text-zinc-500' : 'text-zinc-500'}`}>{e.description}</div>
-                            </button>
-                        ))}
+                        {EFFECT_PRESETS.map(e => {
+                            const isSelected = !Array.isArray(effect) ? effect === e.id : false; // This is tricky after migration
+                            // For now, let's just check if it matches the preset ID if we had one
+                            return (
+                                <button
+                                    key={e.id}
+                                    onClick={() => handleEffectChange(e)}
+                                    className={`w-full text-left px-3 py-3 border rounded-xl transition-all ${isSelected ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
+                                >
+                                    <div className="font-bold text-sm">{e.name}</div>
+                                    <div className={`text-[10px] text-zinc-500`}>{e.description}</div>
+                                </button>
+                            );
+                        })}
                     </div>
                 );
             case 'captions':
                 if (subtitleView === 'summary') {
                     return (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between p-4 bg-zinc-900 rounded-2xl border border-white/5">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${subtitleState === 'enabled' ? 'bg-green-900/20 text-green-600' : 'bg-zinc-900 text-zinc-500'}`}>
-                                        <Icons.Captions />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-bold text-white">Subtitles</div>
-                                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">
-                                            {subtitleState === 'enabled' ? 'Enabled' : 'Disabled'}
-                                        </div>
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={handleSubtitleStateToggle}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${subtitleState === 'enabled' ? 'bg-green-600' : 'bg-zinc-900'}`}
-                                >
-                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${subtitleState === 'enabled' ? 'translate-x-6' : 'translate-x-1'}`} />
-                                </button>
-                            </div>
-
-                            <button 
-                                onClick={() => setSubtitleView('edit')}
-                                className="w-full p-4 bg-black border border-white/10 rounded-2xl flex items-center justify-between hover:border-white/20 transition group"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-zinc-500 group-hover:text-white transition">
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                    </div>
-                                    <div className="text-left">
-                                        <div className="text-sm font-bold text-white">Edit Style</div>
-                                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Customize appearance</div>
-                                    </div>
-                                </div>
-                                <svg className="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                            </button>
+                            <SubtitleConfigurationPanel
+                                subtitles={subtitles}
+                                subtitleState={subtitleState}
+                                subtitleView={subtitleView}
+                                setSubtitleView={setSubtitleView}
+                                handleSubtitleStateToggle={handleSubtitleStateToggle}
+                                handleSubtitleUpdate={handleSubtitleUpdate}
+                            />
                         </div>
                     );
                 }
                 return (
                     <div className="md:space-y-4 space-y-2">
-                        <button 
-                            onClick={() => setSubtitleView('summary')}
-                            className="flex items-center gap-2 text-zinc-500 hover:text-white transition mb-1 md:mb-2"
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                            <span className="text-xs font-bold uppercase tracking-wider">Back</span>
-                        </button>
-                        {/* Placement */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-zinc-500 uppercase">Placement</label>
-                            <div className="flex gap-2">
-                                {['top', 'middle', 'bottom'].map((p) => (
-                                    <button
-                                        key={p}
-                                        onClick={() => handleSubtitleUpdate({ placement: p as any })}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${subtitles.placement === p ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 text-zinc-200 hover:border-white/20'}`}
-                                    >
-                                        {p.toUpperCase()}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Font Family */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-zinc-500 uppercase">Font</label>
-                            <select
-                                value={subtitles.fontFamily}
-                                onChange={(e) => handleSubtitleUpdate({ fontFamily: e.target.value })}
-                                className="w-full p-2 bg-black border border-white/10 rounded-lg text-sm font-bold text-white outline-none focus:border-yellow-500"
-                            >
-                                <option value="Architects Daughter">Architects Daughter</option>
-                                <option value="Arial">Arial</option>
-                                <option value="Arimo">Arimo</option>
-                                <option value="Chewy">Chewy</option>
-                                <option value="Combo">Combo</option>
-                                <option value="Edu SA Beginner">Edu SA Beginner</option>
-                                <option value="Fredoka Condensed Medium Conden">Fredoka</option>
-                                <option value="Griffy">Griffy</option>
-                                <option value="Komika Hand">Komika Hand</option>
-                                <option value="Tinos">Tinos</option>
-                            </select>
-                        </div>
-
-                        {/* Font Size */}
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <label className="text-xs font-bold text-zinc-500 uppercase">Size</label>
-                                <span className="text-xs font-bold text-white">{subtitles.fontSize}px</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="10"
-                                max="150"
-                                value={subtitles.fontSize}
-                                onChange={(e) => handleSubtitleUpdate({ fontSize: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-yellow-500"
-                            />
-                        </div>
-
-                        {/* Animation Type */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-zinc-500 uppercase">Animation Style</label>
-                            <select
-                                value={subtitles.animationType}
-                                onChange={(e) => handleSubtitleUpdate({ animationType: e.target.value as any })}
-                                className="w-full p-2 bg-black border border-white/10 rounded-lg text-sm font-bold text-white outline-none focus:border-yellow-500"
-                            >
-                                <option value="pulse_bold">Pulse Bold</option>
-                                <option value="glow_focus">Typewriter Glow</option>
-                                <option value="impact_pop">Rapid Pop</option>
-                            </select>
-                        </div>
-
-                        {/* Colors */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-zinc-500 uppercase">Text Color</label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="color"
-                                        value={subtitles.primaryColor}
-                                        onChange={(e) => handleSubtitleUpdate({ primaryColor: e.target.value })}
-                                        className="w-8 h-8 rounded-lg border border-white/10 cursor-pointer p-0 overflow-hidden"
-                                    />
-                                    <span className="text-xs font-mono text-zinc-400">{subtitles.primaryColor}</span>
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-zinc-500 uppercase">Outline Color</label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="color"
-                                        value={subtitles.secondaryColor}
-                                        onChange={(e) => handleSubtitleUpdate({ secondaryColor: e.target.value })}
-                                        className="w-8 h-8 rounded-lg border border-white/10 cursor-pointer p-0 overflow-hidden"
-                                    />
-                                    <span className="text-xs font-mono text-zinc-400">{subtitles.secondaryColor}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Highlight Color */}
-                        {(subtitles.animationType === 'pulse_bold' || subtitles.animationType === 'glow_focus') && (
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-zinc-500 uppercase">Highlight Color (Karaoke)</label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="color"
-                                        value={subtitles.highlightColor}
-                                        onChange={(e) => handleSubtitleUpdate({ highlightColor: e.target.value })}
-                                        className="w-8 h-8 rounded-lg border border-white/10 cursor-pointer p-0 overflow-hidden"
-                                    />
-                                    <span className="text-xs font-mono text-zinc-400">{subtitles.highlightColor}</span>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Stroke Width */}
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <label className="text-xs font-bold text-zinc-500 uppercase">Outline Width</label>
-                                <span className="text-xs font-bold text-white">{subtitles.strokeWidth}px</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="20"
-                                value={subtitles.strokeWidth}
-                                onChange={(e) => handleSubtitleUpdate({ strokeWidth: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-yellow-500"
-                            />
-                        </div>
-
-                        {/* Letter Spacing */}
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <label className="text-xs font-bold text-zinc-500 uppercase">Letter Spacing</label>
-                                <span className="text-xs font-bold text-white">{subtitles.letterSpacing}px</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="-2"
-                                max="20"
-                                value={subtitles.letterSpacing}
-                                onChange={(e) => handleSubtitleUpdate({ letterSpacing: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-yellow-500"
-                            />
-                        </div>
-
-                        {/* Text Transform */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-zinc-500 uppercase">Transform</label>
-                            <div className="flex gap-2">
-                                {['none', 'uppercase', 'capitalize'].map((t) => (
-                                    <button
-                                        key={t}
-                                        onClick={() => handleSubtitleUpdate({ textTransform: t as any })}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${subtitles.textTransform === t ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 text-zinc-200 hover:border-white/20'}`}
-                                    >
-                                        {t === 'none' ? 'Normal' : t.charAt(0).toUpperCase() + t.slice(1)}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                        <SubtitleConfigurationPanel
+                            subtitles={subtitles}
+                            subtitleState={subtitleState}
+                            subtitleView={subtitleView}
+                            setSubtitleView={setSubtitleView}
+                            handleSubtitleStateToggle={handleSubtitleStateToggle}
+                            handleSubtitleUpdate={handleSubtitleUpdate}
+                        />
 
                         {/* Save Buttons */}
                         <div className="pt-4 border-t border-white/10 space-y-3">
@@ -1151,6 +1173,185 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 </div>
             </div>
 
+            {/* Image Edit Modal */}
+            <AnimatePresence>
+                {imageEditModalId && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
+                        >
+                            {/* Left: Current Image */}
+                            <div className="md:w-1/2 bg-black flex items-center justify-center p-4 border-b md:border-b-0 md:border-r border-white/10">
+                                {(() => {
+                                    const seg = segments.find((s: any) => s.id === imageEditModalId);
+                                    return seg?.image_url ? (
+                                        <img src={seg.image_url} className="max-w-full max-h-[40vh] md:max-h-[60vh] object-contain rounded-xl shadow-lg" />
+                                    ) : (
+                                        <div className="text-zinc-500 font-bold uppercase tracking-widest">No Image</div>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Right: Actions */}
+                            <div className="md:w-1/2 p-6 flex flex-col">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-lg font-bold text-white">Edit Image</h3>
+                                    <button onClick={() => setImageEditModalId(null)} className="p-2 hover:bg-white/5 rounded-full transition">
+                                        <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+
+                                {/* Tabs */}
+                                <div className="flex gap-1 p-1 bg-black rounded-xl mb-6">
+                                    {(['regenerate', 'edit', 'upload'] as const).map((tab) => (
+                                        <button
+                                            key={tab}
+                                            onClick={() => setImageEditTab(tab)}
+                                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all capitalize ${imageEditTab === tab ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                        >
+                                            {tab}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="flex-1 space-y-6">
+                                    {imageEditTab === 'regenerate' && (
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-zinc-500 uppercase">Generation Prompt</label>
+                                                <textarea 
+                                                    value={regeneratePrompt}
+                                                    onChange={(e) => setRegeneratePrompt(e.target.value)}
+                                                    className="w-full p-4 bg-black border border-white/10 rounded-2xl text-sm text-white focus:border-yellow-500/50 outline-none resize-none h-32"
+                                                    placeholder="Describe the image you want to generate..."
+                                                />
+                                            </div>
+                                            <button 
+                                                onClick={() => {
+                                                    setRegeneratingId(imageEditModalId);
+                                                    handleRegenerate().then(() => setImageEditModalId(null));
+                                                }}
+                                                disabled={loadingImage}
+                                                className="w-full py-4 bg-yellow-500 text-black font-bold rounded-2xl hover:bg-yellow-400 disabled:opacity-50 transition shadow-lg flex items-center justify-center gap-2"
+                                            >
+                                                {loadingImage ? <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> : null}
+                                                Regenerate Image
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {imageEditTab === 'edit' && (
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-zinc-500 uppercase">Edit Instructions</label>
+                                                <textarea 
+                                                    value={editPrompt}
+                                                    onChange={(e) => setEditPrompt(e.target.value)}
+                                                    className="w-full p-4 bg-black border border-white/10 rounded-2xl text-sm text-white focus:border-blue-500/50 outline-none resize-none h-32"
+                                                    placeholder="e.g. 'Add a red hat', 'Change background to a forest'..."
+                                                />
+                                            </div>
+                                            <button 
+                                                onClick={() => {
+                                                    setEditingImageId(imageEditModalId);
+                                                    handleImageEdit().then(() => setImageEditModalId(null));
+                                                }}
+                                                disabled={loadingImage || !editPrompt}
+                                                className="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-500 disabled:opacity-50 transition shadow-lg flex items-center justify-center gap-2"
+                                            >
+                                                {loadingImage ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                                                Apply Edit
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {imageEditTab === 'upload' && (
+                                        <div className="flex flex-col items-center justify-center h-full py-8 border-2 border-dashed border-white/10 rounded-3xl bg-black/20">
+                                            <svg className="w-12 h-12 text-zinc-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            <p className="text-sm text-zinc-400 mb-6">Replace current image with a file</p>
+                                            <button 
+                                                onClick={() => {
+                                                    handleUploadClick(imageEditModalId, false);
+                                                    setImageEditModalId(null);
+                                                }}
+                                                className="px-8 py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition"
+                                            >
+                                                Choose File
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Animate Modal */}
+            <AnimatePresence>
+                {animatingSegmentId && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                            className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
+                        >
+                            <div className="p-6 border-b border-white/10 flex items-center justify-between bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
+                                <div>
+                                    <h3 className="text-lg font-bold text-white">Segment Animation</h3>
+                                    <p className="text-xs text-zinc-500">Choose how this image moves in the video</p>
+                                </div>
+                                <button onClick={() => setAnimatingSegmentId(null)} className="p-2 hover:bg-white/5 rounded-full transition">
+                                    <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {EFFECT_TYPES.map((eff) => {
+                                        const seg = segments.find((s: any) => s.id === animatingSegmentId);
+                                        const idx = segments.findIndex((s: any) => s.id === animatingSegmentId);
+                                        const currentEffectArray = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos']);
+                                        const isCurrent = currentEffectArray[idx % currentEffectArray.length] === eff.id;
+
+                                        return (
+                                            <button
+                                                key={eff.id}
+                                                onClick={() => handleSegmentEffectChange(idx, eff.id)}
+                                                className={`group relative flex flex-col text-left bg-black border rounded-2xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] ${isCurrent ? 'border-yellow-500 ring-1 ring-yellow-500/50' : 'border-white/10 hover:border-white/20'}`}
+                                            >
+                                                <div className="aspect-video w-full bg-zinc-900 relative">
+                                                    {seg?.image_url && (
+                                                        <EffectPreview 
+                                                            effectType={eff.id} 
+                                                            imageUrl={seg.image_url} 
+                                                            aspectRatio={project.aspect_ratio} 
+                                                        />
+                                                    )}
+                                                    {isCurrent && (
+                                                        <div className="absolute top-2 right-2 bg-yellow-500 text-black p-1 rounded-full shadow-lg">
+                                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="p-3">
+                                                    <div className="text-xs font-bold text-white group-hover:text-yellow-500 transition-colors">{eff.name}</div>
+                                                    <div className="text-[10px] text-zinc-500 line-clamp-1">{eff.description}</div>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* Modals (Regenerate/Edit) - Reused from previous implementation */}
             {showAudioConfirmation && (
                 <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
@@ -1165,70 +1366,6 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
                         {errorMessage && !isGeneratingAssets && (
                             <div className="mt-4 text-xs font-bold text-red-600 animate-pulse">
-                                {errorMessage}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {regeneratingId && (() => {
-                const seg = segments.find((s: any) => s.id === regeneratingId);
-                return (
-                    <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-                        <div className="bg-black rounded-2xl p-6 max-w-lg w-full shadow-2xl">
-                            <h3 className="font-bold text-lg mb-4 text-white">Regenerate Image</h3>
-                            
-                            {seg?.image_url && (
-                                <div className="mb-4 rounded-xl overflow-hidden bg-black border border-white/10">
-                                    <img src={seg.image_url} alt="Current" className="w-full h-48 object-contain" />
-                                </div>
-                            )}
-
-                            <div className="text-left">
-                                <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-2">Image Prompt</label>
-                                <textarea 
-                                    className="w-full p-4 bg-zinc-900 rounded-xl border border-white/10 mb-6 text-sm text-white placeholder-zinc-500 focus:ring-2 focus:ring-yellow-500 outline-none transition-all resize-y min-h-[100px]"
-                                    placeholder="Image prompt..."
-                                    value={regeneratePrompt}
-                                    onChange={(e) => setRegeneratePrompt(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="flex justify-end gap-3">
-                                <button onClick={() => setRegeneratingId(null)} disabled={loadingImage} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
-                                <button onClick={handleRegenerate} disabled={loadingImage} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
-                                    {loadingImage ? `Generating... ${timer}s` : 'Generate'}
-                                </button>
-                            </div>
-                            {errorMessage && regenerateStatus === 'error' && (
-                                <div className="mt-4 text-xs font-bold text-red-600 animate-pulse text-right">
-                                    {errorMessage}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                );
-            })()}
-
-            {editingImageId && (
-                <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-black rounded-2xl p-6 max-w-lg w-full shadow-2xl">
-                        <h3 className="font-bold text-lg mb-4 text-white">Edit Image</h3>
-                        <input 
-                            className="w-full p-4 bg-zinc-900 rounded-xl border border-white/10 mb-4 text-white placeholder-zinc-500 focus:ring-2 focus:ring-yellow-500 outline-none transition-all"
-                            placeholder="Describe change..."
-                            value={editPrompt}
-                            onChange={(e) => setEditPrompt(e.target.value)}
-                        />
-                        <div className="flex justify-end gap-3">
-                            <button onClick={() => setEditingImageId(null)} disabled={loadingImage} className="px-4 py-2 font-bold text-zinc-400 hover:bg-black rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
-                            <button onClick={handleImageEdit} disabled={loadingImage} className="px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-500">
-                                {loadingImage ? `Editing... ${timer}s` : 'Apply Edit'}
-                            </button>
-                        </div>
-                        {errorMessage && editStatus === 'error' && (
-                            <div className="mt-4 text-xs font-bold text-red-600 animate-pulse text-right">
                                 {errorMessage}
                             </div>
                         )}

@@ -1,7 +1,7 @@
 
 export interface SubtitleConfiguration {
     enabled: boolean;
-    placement: 'top' | 'middle' | 'bottom';
+    placement: number;
     fontFamily: string;
     fontSize: number;
     primaryColor: string;
@@ -11,11 +11,12 @@ export interface SubtitleConfiguration {
     letterSpacing: number;
     textTransform: 'uppercase' | 'none' | 'capitalize';
     animationType: 'pulse_bold' | 'glow_focus' | 'impact_pop';
+    maxWords?: number;
 }
 
 export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfiguration = {
     enabled: true,
-    placement: 'middle',
+    placement: 15,
     fontFamily: 'Arimo',
     fontSize: 54,
     primaryColor: '#ffffff',
@@ -34,7 +35,7 @@ export interface ContentProject {
     image_style: string;
     voice_id: string;
     narration_style?: string;
-    effect: string;
+    effect: string | string[];
     subtitles?: SubtitleConfiguration | null;
     subtitle_state?: 'enabled' | 'disabled';
     voice_file_path?: string | null;
@@ -83,7 +84,7 @@ export const SUBTITLE_PRESETS = [
 ];
 
 export const NARRATION_STYLES = [
-    { id: 1, name: "Charismatic", prompt: "Read in a confident, magnetic tone with dynamic pacing", description: "confident, magnetic", sampleUrl: "https://assets.productcam.site/audio-assets/charismatic.wav" },
+    { id: 1, name: "Charismatic", prompt: "Read in a calm, magnetic tone with brisk pacing", description: "confident, magnetic", sampleUrl: "https://assets.productcam.site/audio-assets/charismatic.wav" },
     { id: 2, name: "High-energy", prompt: "Read in a fiery, energetic tone with brisk, continuous delivery", description: "fiery, energetic", sampleUrl: "https://assets.productcam.site/audio-assets/high-energy.wav" },
     { id: 3, name: "Gentle", prompt: "Read in a soft, soothing tone with flowing pacing", description: "soft, soothing", sampleUrl: "https://assets.productcam.site/audio-assets/gentle.mp3" },
     { id: 4, name: "Cheeky", prompt: "Read in a playful, mischievous tone with lively pacing", description: "playful, mischievous", sampleUrl: "https://assets.productcam.site/audio-assets/cheeky.wav" },

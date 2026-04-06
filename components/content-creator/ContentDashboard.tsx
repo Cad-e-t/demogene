@@ -24,7 +24,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [aspect, setAspect] = useState<'9:16' | '16:9'>('9:16');
     const [style, setStyle] = useState(IMAGE_STYLES[0]);
     const [voice, setVoice] = useState(VOICES[0]); // Default to Charon (now first)
-    const [narrationStyle, setNarrationStyle] = useState(NARRATION_STYLES[0]); // Default to Charisma Dynamo
+    const [narrationStyle, setNarrationStyle] = useState(NARRATION_STYLES[0].prompt); // Default to Charismatic prompt
     const [effect, setEffect] = useState(EFFECT_PRESETS[0]); // Default to Chaos Mode (now first)
     
     const [subtitles, setSubtitles] = useState<SubtitleConfiguration>(DEFAULT_SUBTITLE_CONFIG); 
@@ -114,8 +114,9 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                         if (v) setVoice(v);
                     }
                     if (data.narration_style) {
-                        const s = NARRATION_STYLES.find(x => x.id.toString() === data.narration_style || x.name === data.narration_style);
-                        if (s) setNarrationStyle(s);
+                        const s = NARRATION_STYLES.find(x => x.id.toString() === data.narration_style || x.name === data.narration_style || x.prompt === data.narration_style);
+                        if (s) setNarrationStyle(s.prompt);
+                        else setNarrationStyle(data.narration_style);
                     }
                     if (data.effect) {
                         const e = EFFECT_PRESETS.find(x => x.id === data.effect);
@@ -161,7 +162,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 aspect_ratio: aspect,
                 image_style: style,
                 voice_id: voice.id,
-                narration_style: narrationStyle.id.toString(), // Storing ID or name for easier lookup
+                narration_style: narrationStyle,
                 effect: effect.id,
                 updated_at: new Date().toISOString()
             });
@@ -188,8 +189,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 if (v) setVoice(v);
             }
             if (initialProjectData.project.narration_style) {
-                const n = NARRATION_STYLES.find(s => s.prompt === initialProjectData.project.narration_style);
-                if (n) setNarrationStyle(n);
+                setNarrationStyle(initialProjectData.project.narration_style);
             }
             if (initialProjectData.project.subtitles) {
                 setSubtitles(initialProjectData.project.subtitles as SubtitleConfiguration);
@@ -236,9 +236,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         setConfigView('main');
     };
 
-    const handleNarrationStyleChange = (s: any) => {
-        setNarrationStyle(s);
-        setConfigView('main');
+    const handleNarrationStyleChange = (prompt: string) => {
+        setNarrationStyle(prompt);
     };
 
     // Close modals on click outside
@@ -265,7 +264,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         setLoading(true);
         try {
             console.log("[ContentDashboard] Starting generation...");
-            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle.prompt, subtitles, voice.id);
+            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle, subtitles, voice.id);
             console.log("[ContentDashboard] Text segments received:", res.segments.length);
             
             setProject({ 
@@ -275,7 +274,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 voice_id: voice.id,
                 effect: effect.id,
                 image_style: style,
-                narration_style: narrationStyle.prompt,
+                narration_style: narrationStyle,
                 subtitles: subtitles,
                 status: 'generating'
             });
@@ -521,46 +520,33 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                                 onClick={() => setVoiceAccordion(voiceAccordion === 'tone' ? null : 'tone')}
                                                                 className="w-full flex items-center justify-between px-2 py-1 mb-1 hover:bg-white/5 rounded-lg transition-colors"
                                                             >
-                                                                <div className="flex flex-col items-start">
+                                                                <div className="flex flex-col items-start w-full pr-4 overflow-hidden">
                                                                     <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tone</h4>
                                                                     {voiceAccordion !== 'tone' && (
-                                                                        <span className="text-[10px] text-yellow-500 font-bold">{narrationStyle.name}</span>
+                                                                        <span className="text-[10px] text-yellow-500 font-bold truncate w-full text-left">{narrationStyle}</span>
                                                                     )}
                                                                 </div>
-                                                                <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 ${voiceAccordion === 'tone' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
+                                                                <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 shrink-0 ${voiceAccordion === 'tone' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
                                                             </button>
                                                             {voiceAccordion === 'tone' && (
-                                                                <div className="space-y-1 max-h-40 overflow-y-auto thin-scrollbar pr-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                                    {NARRATION_STYLES.map(s => (
-                                                                        <button
-                                                                            key={s.id}
-                                                                            onClick={() => handleNarrationStyleChange(s)}
-                                                                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.id === s.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
-                                                                        >
-                                                                            <span>{s.name}</span>
-                                                                            {s.sampleUrl && (
-                                                                                <div 
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        if (playingVoiceId === `style-${s.id}`) {
-                                                                                            audioRef.current?.pause();
-                                                                                            setPlayingVoiceId(null);
-                                                                                        } else {
-                                                                                            if (audioRef.current) audioRef.current.pause();
-                                                                                            const audio = new Audio(s.sampleUrl);
-                                                                                            audioRef.current = audio;
-                                                                                            audio.play();
-                                                                                            setPlayingVoiceId(`style-${s.id}`);
-                                                                                            audio.onended = () => setPlayingVoiceId(null);
-                                                                                        }
-                                                                                    }} 
-                                                                                    className={`p-1 rounded-full ${playingVoiceId === `style-${s.id}` ? 'bg-black/20 text-black' : 'text-zinc-500 hover:text-white'}`}
-                                                                                >
-                                                                                    {playingVoiceId === `style-${s.id}` ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
-                                                                                </div>
-                                                                            )}
-                                                                        </button>
-                                                                    ))}
+                                                                <div className="space-y-2 max-h-60 overflow-y-auto thin-scrollbar pr-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                                    <textarea
+                                                                        value={narrationStyle}
+                                                                        onChange={(e) => setNarrationStyle(e.target.value)}
+                                                                        placeholder="Enter custom narration style..."
+                                                                        className="w-full bg-black border border-white/10 rounded-xl p-3 text-xs font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500 resize-none min-h-[60px]"
+                                                                    />
+                                                                    <div className="space-y-1">
+                                                                        {NARRATION_STYLES.map(s => (
+                                                                            <button
+                                                                                key={s.id}
+                                                                                onClick={() => handleNarrationStyleChange(s.prompt)}
+                                                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle === s.prompt ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                            >
+                                                                                <span>{s.name}</span>
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -679,46 +665,33 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                                     onClick={() => setVoiceAccordion(voiceAccordion === 'tone' ? null : 'tone')}
                                                                     className="w-full flex items-center justify-between px-2 py-1 mb-1 hover:bg-white/5 rounded-lg transition-colors"
                                                                 >
-                                                                    <div className="flex flex-col items-start">
+                                                                    <div className="flex flex-col items-start w-full pr-4 overflow-hidden">
                                                                         <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tone</h4>
                                                                         {voiceAccordion !== 'tone' && (
-                                                                            <span className="text-[10px] text-yellow-500 font-bold">{narrationStyle.name}</span>
+                                                                            <span className="text-[10px] text-yellow-500 font-bold truncate w-full text-left">{narrationStyle}</span>
                                                                         )}
                                                                     </div>
-                                                                    <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 ${voiceAccordion === 'tone' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
+                                                                    <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 shrink-0 ${voiceAccordion === 'tone' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
                                                                 </button>
                                                                 {voiceAccordion === 'tone' && (
-                                                                    <div className="space-y-1 max-h-40 overflow-y-auto thin-scrollbar pr-1">
-                                                                        {NARRATION_STYLES.map(s => (
-                                                                            <button
-                                                                                key={s.id}
-                                                                                onClick={() => handleNarrationStyleChange(s)}
-                                                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.id === s.id ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
-                                                                            >
-                                                                                <span>{s.name}</span>
-                                                                                {s.sampleUrl && (
-                                                                                    <div 
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            if (playingVoiceId === `style-${s.id}`) {
-                                                                                                audioRef.current?.pause();
-                                                                                                setPlayingVoiceId(null);
-                                                                                            } else {
-                                                                                                if (audioRef.current) audioRef.current.pause();
-                                                                                                const audio = new Audio(s.sampleUrl);
-                                                                                                audioRef.current = audio;
-                                                                                                audio.play();
-                                                                                                setPlayingVoiceId(`style-${s.id}`);
-                                                                                                audio.onended = () => setPlayingVoiceId(null);
-                                                                                            }
-                                                                                        }} 
-                                                                                        className={`p-1 rounded-full ${playingVoiceId === `style-${s.id}` ? 'bg-black/20 text-black' : 'text-zinc-500 hover:text-white'}`}
-                                                                                    >
-                                                                                        {playingVoiceId === `style-${s.id}` ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                                                                                    </div>
-                                                                                )}
-                                                                            </button>
-                                                                        ))}
+                                                                    <div className="space-y-2 max-h-60 overflow-y-auto thin-scrollbar pr-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                                        <textarea
+                                                                            value={narrationStyle}
+                                                                            onChange={(e) => setNarrationStyle(e.target.value)}
+                                                                            placeholder="Enter custom narration style..."
+                                                                            className="w-full bg-black border border-white/10 rounded-xl p-3 text-xs font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500 resize-none min-h-[60px]"
+                                                                        />
+                                                                        <div className="space-y-1">
+                                                                            {NARRATION_STYLES.map(s => (
+                                                                                <button
+                                                                                    key={s.id}
+                                                                                    onClick={() => handleNarrationStyleChange(s.prompt)}
+                                                                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle === s.prompt ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                                >
+                                                                                    <span>{s.name}</span>
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
                                                                     </div>
                                                                 )}
                                                             </div>

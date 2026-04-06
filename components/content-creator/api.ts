@@ -4,7 +4,7 @@
 import { ContentProject, ContentSegment, SubtitleConfiguration } from "./types";
 import { supabase } from "../../supabaseClient";
 
-const API_URL = "https://content-creator-417540185411.us-central1.run.app"; // Or env var
+export const API_URL = "https://content-creator-417540185411.us-central1.run.app"; // Or env var
 
 const sanitizeError = (error: string, fallback: string) => {
     if (!error) return fallback;

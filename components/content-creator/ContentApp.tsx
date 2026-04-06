@@ -7,6 +7,8 @@ import { ContentStories } from './ContentStories';
 import { ContentSidebar } from './ContentSidebar';
 import { BillingDashboard } from './BillingDashboard';
 import { CreatorPricingView } from './CreatorPricingView';
+import { DemoVideoPage } from './demo-creator/DemoVideoPage';
+import { DemoEditor } from './demo-creator/DemoEditor';
 import { supabase } from '../../supabaseClient';
 import { ContentProject, ContentSegment } from './types';
 import { CreatorPricingCards } from './CreatorPricingCards';
@@ -25,11 +27,14 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         if (path.includes('/stories')) return 'stories';
         if (path.includes('/billing')) return 'billing';
         if (path.includes('/creator-pricing')) return 'creator-pricing';
+        if (path.includes('/demo-creator')) return 'demo-creator';
+        if (path.includes('/demo-editor')) return 'demo-editor';
         return 'dashboard';
     };
 
-    const [view, setView] = useState<'landing' | 'dashboard' | 'projects' | 'stories' | 'billing' | 'creator-pricing'>('landing');
+    const [view, setView] = useState<'landing' | 'dashboard' | 'projects' | 'stories' | 'billing' | 'creator-pricing' | 'demo-creator' | 'demo-editor'>('landing');
     const [activeProjectData, setActiveProjectData] = useState<{project: ContentProject, segments: ContentSegment[]} | null>(null);
+    const [activeDemoProjectId, setActiveDemoProjectId] = useState<string | null>(null);
 
     // Sync session from parent prop or fetch if missing
     useEffect(() => {
@@ -45,6 +50,16 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
             });
         }
     }, [parentSession]);
+
+    // Listen to custom event for opening demo projects
+    useEffect(() => {
+        const handleOpenDemoProject = (e: any) => {
+            setActiveDemoProjectId(e.detail.projectId);
+            onNavigate('/content-creator/demo-editor');
+        };
+        window.addEventListener('open-demo-project', handleOpenDemoProject);
+        return () => window.removeEventListener('open-demo-project', handleOpenDemoProject);
+    }, [onNavigate]);
 
     // Fetch credits and subscribe to changes - USING 'profiles' TABLE
     useEffect(() => {
@@ -206,6 +221,24 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                 {view === 'creator-pricing' && (
                     <CreatorPricingView 
                         onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
+                    />
+                )}
+                {view === 'demo-creator' && (
+                    <DemoVideoPage 
+                        session={session}
+                        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                        onProjectCreated={(projectId) => {
+                            setActiveDemoProjectId(projectId);
+                            onNavigate('/content-creator/demo-editor');
+                        }}
+                    />
+                )}
+                {view === 'demo-editor' && (
+                    <DemoEditor 
+                        session={session}
+                        projectId={activeDemoProjectId}
+                        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                        onBack={() => onNavigate('/content-creator/projects')}
                     />
                 )}
             </main>

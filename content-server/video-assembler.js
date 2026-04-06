@@ -20,13 +20,6 @@ function runFFmpeg(args) {
     });
 }
 
-const EFFECT_SEQUENCES = {
-    'zoom_pulse': ['zoom_in', 'zoom_out'],
-    'slide_flow': ['slide_down', 'slide_right', 'slide_up', 'slide_left', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
-    'cinematic': ['slow_zoom_in'],
-    'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'slide_up'],
-    'handheld_walk': ['handheld_walk', 'slide_down', 'handheld_walk', 'zoom_out', 'handheld_walk' ]
-};
 
 function getFilterForEffect(effectType, width, height, frames, startFrame = 0) {
     // Zoom/Pan expressions for ffmpeg zoompan filter
@@ -82,20 +75,34 @@ function getFilterForEffect(effectType, width, height, frames, startFrame = 0) {
             const driftY = `(ih/zoom/40)*cos(${globalFrame}/20)`;
             return `zoompan=z='if(eq(on,0),1.1,min(zoom+${stepHandheld},1.3))':x='iw/2-(iw/zoom/2)+${driftX}':y='ih/2-(ih/zoom/2)+${driftY}':d=${frames}:s=${width}x${height}`;
 
+        case 'none':
+            return `scale=${width}x${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`;
+
         default:
             // Minimal movement to prevent static boredom, or true static
             return `scale=${width}x${height}`;
     }
 }
 
-export async function assembleVideo(segments, audioPath, audioDurations, workDir, aspectRatio, effectPreset = 'zoom_pulse') {
+export async function assembleVideo(segments, audioPath, audioDurations, workDir, aspectRatio, effectPreset) {
     // 1. Create video clips from images with zoom effect
     const clipPaths = [];
     const width = aspectRatio === '9:16' ? 720 : 1280;
     const height = aspectRatio === '9:16' ? 1280 : 720;
     
-    // Get sequence for the chosen preset
-    const sequence = EFFECT_SEQUENCES[effectPreset] || EFFECT_SEQUENCES['zoom_pulse'];
+    // Use the effect array directly from the database. 
+    // If it's a string, attempt to parse it first.
+    let parsedEffect = effectPreset;
+    if (typeof effectPreset === 'string') {
+        try {
+            parsedEffect = JSON.parse(effectPreset);
+        } catch (e) {
+            // Ignore parse errors
+        }
+    }
+    
+    // If it's not an array (legacy or missing), fallback to a simple zoom_in for all segments.
+    const sequence = Array.isArray(parsedEffect) ? parsedEffect : ['zoom_in'];
 
     let currentStartFrame = 0;
     for (let i = 0; i < segments.length; i++) {

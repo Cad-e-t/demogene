@@ -11,29 +11,65 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
     useEffect(() => {
         const fetch = async () => {
             console.log("[ContentProjects] Fetching projects...");
-            // Join segments to get preview image
-            const { data } = await supabase
+            // Fetch content_projects
+            const { data: contentData } = await supabase
                 .from('content_projects')
                 .select('*, content_segments(image_url)')
                 .eq('user_id', session.user.id)
                 .order('created_at', { ascending: false });
             
-            // Format data to attach previewUrl from first valid segment
-            const formatted = (data || []).map((p: any) => {
+            // Format content_projects
+            const formattedContent = (contentData || []).map((p: any) => {
                 const firstValidSegment = p.content_segments?.find((s: any) => s.image_url);
                 return {
                     ...p,
+                    type: 'faceless',
                     previewUrl: firstValidSegment ? firstValidSegment.image_url : null
                 };
             });
-            setProjects(formatted);
+
+            // Fetch demo_projects
+            const { data: demoData } = await supabase
+                .from('demo_projects')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: false });
+
+            const formattedDemo = (demoData || []).map((p: any) => {
+                return {
+                    ...p,
+                    type: 'demo',
+                    previewUrl: null // We could extract a frame later, but for now null
+                };
+            });
+
+            // Combine and sort
+            const combined = [...formattedContent, ...formattedDemo].sort((a, b) => {
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            });
+
+            setProjects(combined);
         };
         fetch();
     }, [session]);
 
     const handleProjectClick = async (project: any) => {
         console.log(`[ContentProjects] Loading project: ${project.id}`);
-        // Fetch segments ordered
+        
+        if (project.type === 'demo') {
+            // Use onViewChange to navigate to demo-editor, but we need to pass the ID.
+            // Wait, ContentApp handles routing. We can just use window.location or a callback.
+            // Let's use a custom event or update ContentApp to handle it.
+            // Actually, ContentApp passes onViewChange which calls onNavigate.
+            // We can append the ID to the URL or use local storage.
+            // Better: update ContentApp to accept a project ID for demo-editor.
+            // For now, let's just trigger a custom event that ContentApp can listen to.
+            const event = new CustomEvent('open-demo-project', { detail: { projectId: project.id } });
+            window.dispatchEvent(event);
+            return;
+        }
+
+        // Fetch segments ordered for faceless projects
         const { data: segments, error } = await supabase.from('content_segments').select('*').eq('project_id', project.id).order('order_index');
         
         if (error) {

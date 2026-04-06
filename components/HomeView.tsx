@@ -1,9 +1,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { VideoCropper } from './VideoCropper';
-import { AdvancedEditorModal } from './AdvancedEditorModal';
 import { InteractiveDemo } from './InteractiveDemo';
-import { AssetLibrary } from './AssetLibrary';
 import { CropData, TrimData, VoiceOption, BackgroundOption, TimeRange, VideoProject } from '../types';
 import { VOICES, BACKGROUNDS } from '../constants';
 import { VOICE_SAMPLES } from '../voiceSamples';
@@ -438,14 +436,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </div>
                 </div>
 
-                {showAssetLibrary && (
-                    <AssetLibrary 
-                        session={session}
-                        onSelect={handleVideoSelection}
-                        onUpload={handleFileUploadStart}
-                        onClose={() => setShowAssetLibrary(false)}
-                    />
-                )}
+                {/* Asset Library Modal */}
             </div>
         );
     }
@@ -752,18 +743,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                  </div>
              </div>
 
-             {showAdvancedEditor && activeVideo.input_video_url && (
-                 <AdvancedEditorModal 
-                    videoUrl={activeVideo.input_video_url}
-                    initialSegments={segments}
-                    duration={trim.end === 0 ? 1 : trim.end}
-                    onClose={() => setShowAdvancedEditor(false)}
-                    onSave={(newSegments) => {
-                        setSegments(newSegments);
-                        setShowAdvancedEditor(false);
-                    }}
-                 />
-             )}
+             {/* Advanced Editor Modal removed */}
         </div>
     );
 };

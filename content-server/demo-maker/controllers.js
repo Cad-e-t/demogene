@@ -2,9 +2,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
+import { s3, R2_BUCKET, R2_PUBLIC_URL } from '../storage.js';
 import { supabase } from './supabase.js';
-import { runVideoProcessing } from './background-job.js';
+import { runDemoProcessing, runDemoExport } from './background-job.js';
+import { generateImage } from '../gemini.js';
 
 export const generateUploadUrl = async (req, res) => {
   try {
@@ -99,10 +100,37 @@ export const deleteVideo = async (req, res) => {
     }
 };
 
+export const exportDemoVideo = async (req, res) => {
+    try {
+        const { projectId, userId } = req.body;
+        if (!userId || !projectId) {
+            return res.status(400).json({ error: 'Missing userId or projectId' });
+        }
+
+        // 1. Charge Credit
+        const { error: chargeError } = await supabase.rpc('charge_credit', { p_user_id: userId });
+        if (chargeError) {
+            return res.status(402).json({ error: 'Insufficient credits.' });
+        }
+
+        // 2. Update status
+        await supabase.from('demo_projects').update({ status: 'rendering' }).eq('id', projectId);
+
+        res.status(202).json({ message: 'Export started' });
+
+        // 3. Run background export
+        runDemoExport({ projectId, userId });
+
+    } catch (error) {
+        console.error("Export Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const processVideo = async (req, res) => {
   try {
     // Note: videoId here refers to the SOURCE video uploaded by the user
-    let { videoId, crop, trim, segments, voiceId, backgroundId, userId, appName, appDescription, scriptRules, stylePrompt, disableZoom, videoType, tutorialGoal } = req.body;
+    let { videoId, hookText, bodyText, voiceId, hookStyle, userId, aspectRatio } = req.body;
     
     if (!userId) {
         return res.status(401).json({ error: 'Unauthorized: Missing User ID' });
@@ -111,10 +139,6 @@ export const processVideo = async (req, res) => {
     if (!videoId) {
         return res.status(400).json({ error: 'Missing videoId' });
     }
-
-    try { if (typeof crop === 'string') crop = JSON.parse(crop); } catch(e){}
-    try { if (typeof trim === 'string') trim = JSON.parse(trim); } catch(e){}
-    try { if (typeof segments === 'string') segments = JSON.parse(segments); } catch(e){}
 
     // 1. Charge Credit Immediately (Prevents Race Condition)
     const { error: chargeError } = await supabase.rpc('charge_credit', { p_user_id: userId });
@@ -143,23 +167,20 @@ export const processVideo = async (req, res) => {
     }
 
     // 3. Create a NEW Record for the "Output" (Project)
-    // This ensures we do not overwrite the user's raw upload, allowing for re-generations.
     const newVideoId = uuidv4();
     const newTitle = sourceVideo.title.includes('(Demo)') ? sourceVideo.title : `${sourceVideo.title} (Demo)`;
 
     const { error: insertError } = await supabase
-        .from('videos')
+        .from('demo_projects')
         .insert({
             id: newVideoId,
             user_id: userId,
             title: newTitle,
-            input_video_url: sourceVideo.input_video_url, // Copy the source URL
+            video_url: sourceVideo.input_video_url, // Copy the source URL
             status: 'processing',
             voice_id: voiceId,
-            background_id: backgroundId,
-            crop_data: crop,
-            trim_data: trim
-            // analysis_result will be populated during processing
+            hook_style: { style: hookStyle },
+            aspect_ratio: aspectRatio || '16:9'
         });
     
     if (insertError) {
@@ -181,15 +202,95 @@ export const processVideo = async (req, res) => {
     });
 
     // 5. Trigger Asynchronous Processing with the NEW ID
-    runVideoProcessing({
-        videoId: newVideoId, // Pass the NEW ID
-        crop, trim, segments, voiceId, backgroundId, userId, 
-        appName, appDescription, scriptRules, stylePrompt, disableZoom,
-        videoType, tutorialGoal
+    runDemoProcessing({
+        projectId: newVideoId,
+        sourceVideoUrl: sourceVideo.input_video_url,
+        hookText,
+        bodyText,
+        voiceId,
+        hookStyle,
+        userId
     });
 
   } catch (error) {
     console.error("Server Error:", error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+export const generateHookUploadUrl = async (req, res) => {
+  try {
+    const { fileName, fileType } = req.body;
+    if (!fileName || !fileType) return res.status(400).json({ error: 'Missing fileName or fileType' });
+
+    const key = `hook_assets/${uuidv4()}_${fileName}`;
+    
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key,
+      ContentType: fileType,
+    });
+
+    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+    const publicUrl = `${R2_PUBLIC_URL}/${key}`;
+
+    res.json({ uploadUrl, publicUrl, key });
+  } catch (err) {
+    console.error("Presigned URL Error:", err);
+    res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+};
+
+export const generateHookImage = async (req, res) => {
+  try {
+    const { prompt, aspectRatio, userId } = req.body;
+    if (!prompt || !userId) return res.status(400).json({ error: 'Missing prompt or userId' });
+
+    // Deduct 4 credits
+    const { error: chargeError } = await supabase.rpc('charge_creator_credits', {
+        p_user_id: userId,
+        p_amount: 4,
+        p_description: 'AI Image Generation for Hook'
+    });
+    if (chargeError) {
+        return res.status(402).json({ error: 'Insufficient credits.' });
+    }
+
+    const base64Image = await generateImage(prompt, aspectRatio || '16:9');
+    const buffer = Buffer.from(base64Image, 'base64');
+    
+    const key = `hook_assets/${uuidv4()}.png`;
+    await s3.send(new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: key,
+        Body: buffer,
+        ContentType: 'image/png'
+    }));
+
+    const publicUrl = `${R2_PUBLIC_URL}/${key}`;
+    res.json({ publicUrl, key });
+  } catch (err) {
+    console.error("AI Image Generation Error:", err);
+    res.status(500).json({ error: "Failed to generate image" });
+  }
+};
+
+export const deleteHookAsset = async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'Missing url' });
+
+    const baseUrl = R2_PUBLIC_URL.endsWith('/') ? R2_PUBLIC_URL : `${R2_PUBLIC_URL}/`;
+    if (url.startsWith(baseUrl)) {
+        const key = url.replace(baseUrl, '');
+        await s3.send(new DeleteObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: key
+        }));
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete Asset Error:", err);
+    res.status(500).json({ error: "Failed to delete asset" });
   }
 };

@@ -19,16 +19,6 @@ export const PREPROCESS_FLAGS = [
     "-an"
 ];
 
-export const HIGH_QUALITY_FLAGS = [
-    "-c:v", "libx264",
-    "-preset", "fast", 
-    "-crf", "18",
-    "-r", "30",
-    "-pix_fmt", "yuv420p",
-    "-movflags", "+faststart",
-    "-an"
-];
-
 function runFFmpeg(args) {
   return new Promise((resolve, reject) => {
     console.log(`[FFmpeg] Executing: ffmpeg ${args.join(' ')}`);
@@ -214,82 +204,9 @@ function transformSegmentData(segments, params) {
         newSeg.start_time = Math.max(0.0, start - timeTrim);
         newSeg.end_time = Math.max(0.0, end - timeTrim);
         
-        let focus = newSeg.focus_area || newSeg.mouse_activity;
-        if (focus) {
-            let cx = focus.coordinates ? focus.coordinates.x : focus.x;
-            let cy = focus.coordinates ? focus.coordinates.y : focus.y;
-            
-            if (cx !== undefined && cy !== undefined) {
-                // Remap coordinates relative to the new background/canvas resolution
-                cx = (padding + (cx * vidW)) / bgW;
-                cy = (padding + (cy * vidH)) / bgH;
-                newSeg.focus_area = { x: cx, y: cy };
-            } else {
-                newSeg.focus_area = null;
-            }
-            delete newSeg.mouse_activity;
-        } else {
-            newSeg.focus_area = null;
-        }
         newSegments.push(newSeg);
     }
     return newSegments;
-}
-
-async function applySegmentZoomEffect(inPath, outPath, prevFocus, currentFocus, workDir) {
-    const { width, height } = getResolution(inPath);
-    const D = getDuration(inPath);
-    
-    if (!prevFocus && !currentFocus) {
-        fs.copyFileSync(inPath, outPath);
-        return;
-    }
-
-    const ZOOM_FACTOR = 1.8;
-    const TRANSITION = Math.max(0.01, Math.min(0.8, D / 2)); 
-    const fps = 30;
-    const frames = Math.ceil(D * fps);
-    
-    const sw = width * 3;
-    const sh = height * 3;
-
-    let zExpr, cxExpr, cyExpr;
-    const ease = `(0.5-0.5*cos(min(time/${TRANSITION},1)*PI))`;
-
-    if (!prevFocus && currentFocus) {
-        zExpr = `1+${ZOOM_FACTOR-1}*${ease}`;
-        cxExpr = `${currentFocus.x}`;
-        cyExpr = `${currentFocus.y}`;
-    } else if (prevFocus && !currentFocus) {
-        zExpr = `${ZOOM_FACTOR}-(${ZOOM_FACTOR-1})*${ease}`;
-        cxExpr = `${prevFocus.x}`;
-        cyExpr = `${prevFocus.y}`;
-    } else {
-        const dist = Math.hypot(currentFocus.x - prevFocus.x, currentFocus.y - prevFocus.y);
-        if (dist < 0.25) {
-            zExpr = `${ZOOM_FACTOR}`;
-            cxExpr = `${prevFocus.x}+(${currentFocus.x - prevFocus.x})*${ease}`;
-            cyExpr = `${prevFocus.y}+(${currentFocus.y - prevFocus.y})*${ease}`;
-        } else {
-            zExpr = `1+${ZOOM_FACTOR-1}*abs(cos(min(time/${TRANSITION},1)*PI))`;
-            cxExpr = `${prevFocus.x}+(${currentFocus.x - prevFocus.x})*${ease}`;
-            cyExpr = `${prevFocus.y}+(${currentFocus.y - prevFocus.y})*${ease}`;
-        }
-    }
-
-    const xExpr = `min(max((${cxExpr})*iw-iw/(2*zoom),0),iw-iw/zoom)`;
-    const yExpr = `min(max((${cyExpr})*ih-ih/(2*zoom),0),ih-ih/zoom)`;
-    
-    const filter = `scale=${sw}:${sh},zoompan=z='${zExpr}':x='${xExpr}':y='${yExpr}':d=${frames}:s=${sw}x${sh}:fps=${fps},scale=${width}:${height},trim=duration=${D}`;
-    
-    await runFFmpeg([
-        '-i', inPath, 
-        '-vf', filter, 
-        '-sws_flags', 'bicubic',
-        ...FF_FLAGS, 
-        '-an', 
-        '-y', outPath
-    ]);
 }
 
 export async function preprocessVideo(inputPath, crop, trim, segments, outputPath, flags = PREPROCESS_FLAGS) {
@@ -347,7 +264,6 @@ export async function processVideoPipeline(
     analysis, 
     finalOutputPath,
     backgroundId,
-    disableZoom = false,
     shouldWatermark = false
 ) {
     const workDir = path.join(os.tmpdir(), 'temp_' + uuidv4());
@@ -368,7 +284,6 @@ export async function processVideoPipeline(
         const scenePromises = Array.from({ length: count }, (_, i) => (async () => {
             console.log(`[Scene ${i}] Start processing...`);
             const seg = transformedSegments[i];
-            const prevSeg = i > 0 ? transformedSegments[i - 1] : null;
             
             let audioDur = audioDurations[i];
             const start = parseTime(seg.start_time);
@@ -379,19 +294,6 @@ export async function processVideoPipeline(
             await runFFmpeg(['-i', intermediateStyled, '-ss', start.toString(), '-t', duration.toString(), '-an', ...FF_FLAGS, '-y', rawSegPath]);
             
             let currentSource = rawSegPath;
-            if (!disableZoom) {
-                const currentFocus = seg.focus_area;
-                const prevFocus = prevSeg ? prevSeg.focus_area : null;
-                
-                if (currentFocus || prevFocus) {
-                    console.log(`[Scene ${i}] Applying continuous zoom effect...`);
-                    const zoomedPath = path.join(workDir, `zoomed_${i}.mp4`);
-                    await applySegmentZoomEffect(rawSegPath, zoomedPath, prevFocus, currentFocus, workDir);
-                    currentSource = zoomedPath;
-                }
-            } else {
-                console.log(`[Scene ${i}] Skipping zoom effects (disabled)...`);
-            }
             
             const visualDur = getDuration(currentSource);
             const finalSegPath = path.join(workDir, `proc_${i}.mp4`);
