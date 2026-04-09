@@ -376,7 +376,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [isMobileConfigOpen, setIsMobileConfigOpen] = useState(true);
     const [narrationSection, setNarrationSection] = useState<'voice' | 'style' | null>(null);
     const [narrationView, setNarrationView] = useState<'summary' | 'edit_script'>('summary');
-    const [subtitleView, setSubtitleView] = useState<'summary' | 'edit'>('summary');
+    const [subtitleView, setSubtitleView] = useState<'summary' | 'edit' | 'transcription'>('summary');
     
     // Local state for editable settings
     const [voice, setVoice] = useState(VOICES.find(v => v.id === project.voice_id) || VOICES[0]);
@@ -680,6 +680,11 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         supabase.from('content_projects').update({ subtitles: newConfig }).eq('id', project.id).then();
     };
 
+    const handleTranscriptionUpdate = (newTranscription: any) => {
+        setTranscription(newTranscription);
+        supabase.from('content_projects').update({ transcription: newTranscription }).eq('id', project.id).then();
+    };
+
     const handleSubtitleStateToggle = () => {
         const newState = subtitleState === 'enabled' ? 'disabled' : 'enabled';
         setSubtitleState(newState);
@@ -955,6 +960,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 setSubtitleView={setSubtitleView}
                                 handleSubtitleStateToggle={handleSubtitleStateToggle}
                                 handleSubtitleUpdate={handleSubtitleUpdate}
+                                transcription={transcription}
+                                currentTime={currentTime}
+                                handleTranscriptionUpdate={handleTranscriptionUpdate}
                             />
                         </div>
                     );
@@ -968,6 +976,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             setSubtitleView={setSubtitleView}
                             handleSubtitleStateToggle={handleSubtitleStateToggle}
                             handleSubtitleUpdate={handleSubtitleUpdate}
+                            transcription={transcription}
+                            currentTime={currentTime}
+                            handleTranscriptionUpdate={handleTranscriptionUpdate}
                         />
 
                         {/* Save Buttons */}

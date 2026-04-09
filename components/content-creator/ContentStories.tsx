@@ -56,7 +56,7 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
         const fetch = async () => {
             const { data } = await supabase
                 .from('content_stories')
-                .select('*, content_projects(title, aspect_ratio)')
+                .select('*, content_projects(title, aspect_ratio), demo_projects(title, aspect_ratio)')
                 .eq('user_id', session.user.id)
                 .order('created_at', { ascending: false });
             setStories(data || []);
@@ -79,7 +79,7 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
             // Refresh list on failure
             const { data } = await supabase
                 .from('content_stories')
-                .select('*, content_projects(title, aspect_ratio)')
+                .select('*, content_projects(title, aspect_ratio), demo_projects(title, aspect_ratio)')
                 .eq('user_id', session.user.id)
                 .order('created_at', { ascending: false });
             setStories(data || []);
@@ -139,8 +139,9 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
 
             <div className="columns-1 md:columns-3 lg:columns-4 gap-6 space-y-6">
                 {stories.map(s => {
-                    const isLandscape = s.content_projects?.aspect_ratio === '16:9';
+                    const isLandscape = (s.content_projects?.aspect_ratio || s.demo_projects?.aspect_ratio) === '16:9';
                     const aspectClass = isLandscape ? 'aspect-video' : 'aspect-[9/16]';
+                    const title = s.content_projects?.title || s.demo_projects?.title || 'Untitled Story';
 
                     return (
                         <div key={s.id} className="break-inside-avoid bg-zinc-900 rounded-2xl overflow-hidden shadow-lg group relative">

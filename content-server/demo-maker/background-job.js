@@ -76,7 +76,7 @@ export async function runDemoProcessing(jobData) {
 
             const fullScript = segments.map(s => s.narration).join(" ");
             
-            const audioBuffer = await generateFullVoiceover(fullScript, voiceId, "Read aloud in a lively, confident, and magnetic tone");
+            const audioBuffer = await generateFullVoiceover(fullScript, voiceId, "Read aloud in a calm, deliberate tone with brisk continuous delivery");
             
             const rawAudioPath = path.join(TEMP_DIR, `raw_audio_${uuidv4()}.pcm`);
             filesToDelete.push(rawAudioPath);
@@ -109,8 +109,11 @@ export async function runDemoProcessing(jobData) {
             const aaiClient = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
             transcription = await aaiClient.transcripts.transcribe({
                 audio: audioPath,
-                language_code: "en"
+                speech_models: ["universal-2"],
+                language_detection: true,
             });
+
+            
 
             console.log('--- Aligning Segments ---');
             segmentDurations = alignSegmentsWithTranscription(segments, transcription, totalAudioDuration);
@@ -365,18 +368,21 @@ export async function runDemoExport({ projectId, userId }) {
         }));
         const videoUrl = `${R2_PUBLIC_URL}/${finalKey}`;
 
-        // 7. Create Story Entry
-        const { data: story, error: storyError } = await supabase.from('content_stories').insert({
-            user_id: userId,
-            project_id: projectId,
+        // 7. Update Story Entry
+        const { data: story, error: storyError } = await supabase.from('content_stories').update({
             video_url: videoUrl,
-            thumbnail_url: null,
             status: 'completed'
-        }).select().single();
+        }).eq('demo_project_id', projectId).select().single();
 
         if (storyError) {
-            console.error("Failed to create story:", storyError);
-            throw new Error("Failed to create story");
+            console.error("Failed to update story:", storyError);
+            // Fallback: try to insert if update failed for some reason
+            await supabase.from('content_stories').insert({
+                user_id: userId,
+                demo_project_id: projectId,
+                video_url: videoUrl,
+                status: 'completed'
+            });
         }
 
         await supabase.from('demo_projects').update({ status: 'ready' }).eq('id', projectId);
@@ -385,6 +391,7 @@ export async function runDemoExport({ projectId, userId }) {
     } catch (error) {
         console.error(`[Demo Export] Error for Project ${projectId}:`, error);
         await supabase.from('demo_projects').update({ status: 'failed' }).eq('id', projectId);
+        await supabase.from('content_stories').update({ status: 'failed' }).eq('demo_project_id', projectId);
     } finally {
         cleanup(filesToDelete);
         if (fs.existsSync(workDir)) {

@@ -16,7 +16,7 @@ export interface SubtitleConfiguration {
 
 export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfiguration = {
     enabled: true,
-    placement: 15,
+    placement: 39,
     fontFamily: 'Arimo',
     fontSize: 54,
     primaryColor: '#ffffff',
@@ -84,9 +84,9 @@ export const SUBTITLE_PRESETS = [
 ];
 
 export const NARRATION_STYLES = [
-    { id: 1, name: "Charismatic", prompt: "Read in a calm, magnetic tone with brisk pacing", description: "confident, magnetic", sampleUrl: "https://assets.productcam.site/audio-assets/charismatic.wav" },
+    { id: 1, name: "Charismatic", prompt: "Read aloud in a calm, deliberate tone with brisk continuous delivery", description: "confident, magnetic", sampleUrl: "https://assets.productcam.site/audio-assets/charismatic.wav" },
     { id: 2, name: "High-energy", prompt: "Read in a fiery, energetic tone with brisk, continuous delivery", description: "fiery, energetic", sampleUrl: "https://assets.productcam.site/audio-assets/high-energy.wav" },
-    { id: 3, name: "Gentle", prompt: "Read in a soft, soothing tone with flowing pacing", description: "soft, soothing", sampleUrl: "https://assets.productcam.site/audio-assets/gentle.mp3" },
+    { id: 3, name: "Gentle", prompt: "Read in a quick, gentle tone", description: "soft, soothing", sampleUrl: "https://assets.productcam.site/audio-assets/gentle.mp3" },
     { id: 4, name: "Cheeky", prompt: "Read in a playful, mischievous tone with lively pacing", description: "playful, mischievous", sampleUrl: "https://assets.productcam.site/audio-assets/cheeky.wav" },
     { id: 5, name: "Intense", prompt: "Read aloud in a raspy, powerful tone with brisk, continuous delivery", description: "raspy, powerful", sampleUrl: "https://assets.productcam.site/audio-assets/confident.wav" },
 ];

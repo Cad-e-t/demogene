@@ -116,9 +116,16 @@ export const exportDemoVideo = async (req, res) => {
         // 2. Update status
         await supabase.from('demo_projects').update({ status: 'rendering' }).eq('id', projectId);
 
+        // 3. Create placeholder in content_stories
+        await supabase.from('content_stories').insert({
+            user_id: userId,
+            demo_project_id: projectId,
+            status: 'rendering'
+        });
+
         res.status(202).json({ message: 'Export started' });
 
-        // 3. Run background export
+        // 4. Run background export
         runDemoExport({ projectId, userId });
 
     } catch (error) {

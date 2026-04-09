@@ -13,9 +13,10 @@ interface DemoEditorProps {
     projectId: string | null;
     onToggleSidebar: () => void;
     onBack: () => void;
+    onNavigate: (path: string) => void;
 }
 
-export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onToggleSidebar, onBack }) => {
+export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onToggleSidebar, onBack, onNavigate }) => {
     const [project, setProject] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -23,7 +24,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const [exporting, setExporting] = useState(false);
     const [activeModule, setActiveModule] = useState<string | null>(null);
     const [showHookStyleModal, setShowHookStyleModal] = useState(false);
-    const [subtitleView, setSubtitleView] = useState<'summary' | 'edit'>('summary');
+    const [subtitleView, setSubtitleView] = useState<'summary' | 'edit' | 'transcription'>('summary');
     const [subtitleState, setSubtitleState] = useState<'enabled' | 'disabled'>('enabled');
 
     useEffect(() => {
@@ -104,6 +105,10 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
         updateProject({ subtitles: newConfig });
     };
 
+    const handleTranscriptionUpdate = (newTranscription: any) => {
+        updateProject({ transcription: newTranscription });
+    };
+
     const handleExport = async () => {
         if (!project) return;
         setExporting(true);
@@ -117,8 +122,8 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                 const data = await res.json();
                 throw new Error(data.error || 'Export failed');
             }
-            alert('Export started! Check your projects later.');
-            onBack();
+            // Navigate to stories immediately
+            onNavigate('/content-creator/stories');
         } catch (e: any) {
             console.error(e);
             alert(`Export failed: ${e.message}`);
@@ -290,6 +295,9 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                 setSubtitleView={setSubtitleView}
                                                 handleSubtitleStateToggle={handleSubtitleStateToggle}
                                                 handleSubtitleUpdate={handleSubtitleUpdate}
+                                                transcription={project.transcription}
+                                                currentTime={currentTime}
+                                                handleTranscriptionUpdate={handleTranscriptionUpdate}
                                             />
                                         </div>
                                     )}

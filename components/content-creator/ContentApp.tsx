@@ -239,6 +239,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                         projectId={activeDemoProjectId}
                         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                         onBack={() => onNavigate('/content-creator/projects')}
+                        onNavigate={onNavigate}
                     />
                 )}
             </main>

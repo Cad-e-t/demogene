@@ -37,6 +37,7 @@ create table public.content_stories (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users not null,
   project_id uuid references public.content_projects on delete set null,
+  demo_project_id uuid references public.demo_projects on delete set null,
   video_url text,
   thumbnail_url text,
   status text default 'completed',

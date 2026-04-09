@@ -4,10 +4,13 @@ import { SubtitleConfiguration } from './types';
 interface SubtitleConfigurationPanelProps {
     subtitles: SubtitleConfiguration;
     subtitleState: 'enabled' | 'disabled';
-    subtitleView: 'summary' | 'edit';
-    setSubtitleView: (view: 'summary' | 'edit') => void;
+    subtitleView: 'summary' | 'edit' | 'transcription';
+    setSubtitleView: (view: 'summary' | 'edit' | 'transcription') => void;
     handleSubtitleStateToggle: () => void;
     handleSubtitleUpdate: (updates: Partial<SubtitleConfiguration>) => void;
+    transcription?: any;
+    currentTime?: number;
+    handleTranscriptionUpdate?: (newTranscription: any) => void;
 }
 
 export const SubtitleConfigurationPanel: React.FC<SubtitleConfigurationPanelProps> = ({
@@ -16,8 +19,21 @@ export const SubtitleConfigurationPanel: React.FC<SubtitleConfigurationPanelProp
     subtitleView,
     setSubtitleView,
     handleSubtitleStateToggle,
-    handleSubtitleUpdate
+    handleSubtitleUpdate,
+    transcription,
+    currentTime = 0,
+    handleTranscriptionUpdate
 }) => {
+    const [isEditingTranscription, setIsEditingTranscription] = React.useState(false);
+    const [editedTranscriptionText, setEditedTranscriptionText] = React.useState('');
+    const [transcriptionError, setTranscriptionError] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (subtitleView === 'transcription' && transcription?.words) {
+            setEditedTranscriptionText(transcription.words.map((w: any) => w.text).join(' '));
+        }
+    }, [subtitleView, transcription]);
+
     if (subtitleView === 'summary') {
         return (
             <div className="space-y-6">
@@ -41,21 +57,131 @@ export const SubtitleConfigurationPanel: React.FC<SubtitleConfigurationPanelProp
                     </button>
                 </div>
 
-                <button 
-                    onClick={() => setSubtitleView('edit')}
-                    className="w-full p-4 bg-black border border-white/10 rounded-2xl flex items-center justify-between hover:border-white/20 transition group"
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-zinc-500 group-hover:text-white transition">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                <div className="grid grid-cols-1 gap-3">
+                    <button 
+                        onClick={() => setSubtitleView('edit')}
+                        className="w-full p-4 bg-black border border-white/10 rounded-2xl flex items-center justify-between hover:border-white/20 transition group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-zinc-500 group-hover:text-white transition">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </div>
+                            <div className="text-left">
+                                <div className="text-sm font-bold text-white">Edit Style</div>
+                                <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Customize appearance</div>
+                            </div>
                         </div>
-                        <div className="text-left">
-                            <div className="text-sm font-bold text-white">Edit Style</div>
-                            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Customize appearance</div>
+                        <svg className="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    </button>
+
+                    <button 
+                        onClick={() => setSubtitleView('transcription')}
+                        className="w-full p-4 bg-black border border-white/10 rounded-2xl flex items-center justify-between hover:border-white/20 transition group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-zinc-500 group-hover:text-white transition">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            </div>
+                            <div className="text-left">
+                                <div className="text-sm font-bold text-white">Transcription</div>
+                                <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Edit spoken words</div>
+                            </div>
                         </div>
-                    </div>
-                    <svg className="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                </button>
+                        <svg className="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (subtitleView === 'transcription') {
+        const handleSaveTranscription = () => {
+            if (!transcription?.words || !handleTranscriptionUpdate) return;
+            
+            const newWords = editedTranscriptionText.trim().split(/\s+/);
+            if (newWords.length !== transcription.words.length) {
+                setTranscriptionError(`Word count must remain ${transcription.words.length}. Current: ${newWords.length}`);
+                return;
+            }
+
+            const updatedTranscription = {
+                ...transcription,
+                words: transcription.words.map((w: any, i: number) => ({
+                    ...w,
+                    text: newWords[i]
+                }))
+            };
+
+            handleTranscriptionUpdate(updatedTranscription);
+            setIsEditingTranscription(false);
+            setTranscriptionError(null);
+        };
+
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                    <button 
+                        onClick={() => {
+                            setSubtitleView('summary');
+                            setIsEditingTranscription(false);
+                            setTranscriptionError(null);
+                        }}
+                        className="flex items-center gap-2 text-zinc-500 hover:text-white transition"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                        <span className="text-xs font-bold uppercase tracking-wider">Back</span>
+                    </button>
+                    <button 
+                        onClick={() => {
+                            if (isEditingTranscription) {
+                                handleSaveTranscription();
+                            } else {
+                                setIsEditingTranscription(true);
+                            }
+                        }}
+                        className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-white transition"
+                    >
+                        {isEditingTranscription ? (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        )}
+                    </button>
+                </div>
+
+                <div className="relative">
+                    {isEditingTranscription ? (
+                        <textarea
+                            value={editedTranscriptionText}
+                            onChange={(e) => setEditedTranscriptionText(e.target.value)}
+                            className="w-full h-[400px] p-4 bg-black border border-white/10 rounded-2xl text-sm leading-relaxed text-white focus:border-yellow-500 outline-none resize-none"
+                        />
+                    ) : (
+                        <div className="w-full h-[400px] p-4 bg-black border border-white/10 rounded-2xl overflow-y-auto custom-scrollbar">
+                            <div className="flex flex-wrap gap-x-1 gap-y-2">
+                                {transcription?.words?.map((word: any, i: number) => {
+                                    const isHighlighted = currentTime * 1000 >= word.start && currentTime * 1000 <= word.end;
+                                    return (
+                                        <span 
+                                            key={i}
+                                            className={`text-sm transition-colors duration-200 ${isHighlighted ? 'text-yellow-500 font-bold' : 'text-zinc-400'}`}
+                                        >
+                                            {word.text}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    {transcriptionError && (
+                        <div className="mt-2 p-2 bg-red-900/20 border border-red-900/50 rounded-lg text-[10px] text-red-500 font-bold uppercase">
+                            {transcriptionError}
+                        </div>
+                    )}
+                </div>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">
+                    {isEditingTranscription ? 'Word count must remain unchanged' : 'Karaoke highlighting active during playback'}
+                </p>
             </div>
         );
     }
