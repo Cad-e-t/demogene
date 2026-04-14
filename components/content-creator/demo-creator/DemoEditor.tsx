@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../supabaseClient';
 import { DemoVideoPlayer } from './DemoVideoPlayer';
 import { API_URL } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
 import { SubtitleConfigurationPanel } from '../SubtitleConfigurationPanel';
 import { DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from '../types';
-import { Layout, Type, Layers, ChevronLeft, Settings2 } from 'lucide-react';
+import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2 } from 'lucide-react';
 import { HookStyleModal } from './HookStyleModal';
 
 interface DemoEditorProps {
@@ -27,6 +27,15 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const [subtitleView, setSubtitleView] = useState<'summary' | 'edit' | 'transcription'>('summary');
     const [subtitleState, setSubtitleState] = useState<'enabled' | 'disabled'>('enabled');
 
+    const [history, setHistory] = useState<any[]>([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
+    const historyIndexRef = useRef(-1);
+    const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        historyIndexRef.current = historyIndex;
+    }, [historyIndex]);
+
     useEffect(() => {
         if (!projectId) return;
 
@@ -42,6 +51,8 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                 console.error("Error fetching project:", error);
             } else {
                 setProject(data);
+                setHistory([data]);
+                setHistoryIndex(0);
                 if (data.subtitle_state) {
                     setSubtitleState(data.subtitle_state);
                 }
@@ -61,7 +72,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             }, (payload) => {
                 setProject((prev: any) => {
                     if (!prev) return payload.new;
-                    return {
+                    const updated = {
                         ...prev,
                         ...payload.new,
                         // Preserve large JSONB columns if they are missing from the payload due to TOAST
@@ -71,6 +82,18 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                         hook_style: payload.new.hook_style || prev.hook_style,
                         subtitles: payload.new.subtitles || prev.subtitles
                     };
+                    
+                    setHistory(h => {
+                        const idx = historyIndexRef.current;
+                        if (h.length > 0 && idx >= 0 && idx < h.length) {
+                            const newH = [...h];
+                            newH[idx] = { ...newH[idx], ...updated };
+                            return newH;
+                        }
+                        return h;
+                    });
+
+                    return updated;
                 });
             })
             .subscribe();
@@ -80,11 +103,35 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
         };
     }, [projectId]);
 
-    const updateProject = async (updates: any) => {
+    const updateProject = async (updates: any, skipHistory = false) => {
         if (!project) return;
         
+        const newState = { ...project, ...updates };
+        
+        if (!skipHistory) {
+            if (updates.video_transform) {
+                if (historyTimeoutRef.current) clearTimeout(historyTimeoutRef.current);
+                historyTimeoutRef.current = setTimeout(() => {
+                    setHistory(prev => {
+                        const newHistory = prev.slice(0, historyIndexRef.current + 1);
+                        newHistory.push(newState);
+                        setHistoryIndex(newHistory.length - 1);
+                        return newHistory;
+                    });
+                }, 500);
+            } else {
+                if (historyTimeoutRef.current) clearTimeout(historyTimeoutRef.current);
+                setHistory(prev => {
+                    const newHistory = prev.slice(0, historyIndexRef.current + 1);
+                    newHistory.push(newState);
+                    setHistoryIndex(newHistory.length - 1);
+                    return newHistory;
+                });
+            }
+        }
+        
         // Optimistic update
-        setProject((prev: any) => ({ ...prev, ...updates }));
+        setProject(newState);
 
         const { error } = await supabase
             .from('demo_projects')
@@ -92,6 +139,40 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             .eq('id', project.id);
         
         if (error) console.error("Update failed:", error);
+    };
+
+    const applyHistoryState = async (state: any) => {
+        const updates = {
+            subtitle_state: state.subtitle_state,
+            subtitles: state.subtitles,
+            transcription: state.transcription,
+            background_type: state.background_type,
+            aspect_ratio: state.aspect_ratio,
+            hook_style: state.hook_style,
+            video_transform: state.video_transform
+        };
+        
+        if (updates.subtitle_state) {
+            setSubtitleState(updates.subtitle_state);
+        }
+        
+        await updateProject(updates, true);
+    };
+
+    const handleUndo = () => {
+        if (historyIndex > 0) {
+            const newIndex = historyIndex - 1;
+            setHistoryIndex(newIndex);
+            applyHistoryState(history[newIndex]);
+        }
+    };
+
+    const handleRedo = () => {
+        if (historyIndex < history.length - 1) {
+            const newIndex = historyIndex + 1;
+            setHistoryIndex(newIndex);
+            applyHistoryState(history[newIndex]);
+        }
     };
 
     const handleSubtitleStateToggle = () => {
@@ -154,6 +235,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const MODULES = [
         { id: 'frames', icon: Layers, label: 'Frames' },
         { id: 'subtitles', icon: Type, label: 'Subtitles' },
+        { id: 'background', icon: Palette, label: 'Background' },
         { id: 'size', icon: Layout, label: 'Size' }
     ];
 
@@ -165,6 +247,26 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                         <ChevronLeft className="w-6 h-6" />
                     </button>
                     <h1 className="text-xl font-bold truncate max-w-[200px] md:max-w-md">{project.title}</h1>
+                    
+                    <div className="flex items-center gap-2 ml-2 border-l border-white/10 pl-4">
+                        <button 
+                            onClick={handleUndo}
+                            disabled={historyIndex <= 0}
+                            className="p-2 text-zinc-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            title="Undo"
+                        >
+                            <Undo2 className="w-5 h-5" />
+                        </button>
+                        <button 
+                            onClick={handleRedo}
+                            disabled={historyIndex >= history.length - 1}
+                            className="p-2 text-zinc-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            title="Redo"
+                        >
+                            <Redo2 className="w-5 h-5" />
+                        </button>
+                    </div>
+
                     {isProcessing && (
                         <span className="px-2 py-1 bg-yellow-500/20 text-yellow-500 text-xs font-bold rounded-full animate-pulse">
                             Processing...
@@ -214,6 +316,11 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                             onPlayPause={() => setIsPlaying(!isPlaying)}
                             currentTime={currentTime}
                             onTimeUpdate={setCurrentTime}
+                            videoTransform={project.video_transform}
+                            onVideoTransformChange={async (transform) => {
+                                updateProject({ video_transform: transform });
+                            }}
+                            backgroundType={project.background_type || 'white'}
                         />
                     )}
                 </div>
@@ -299,6 +406,46 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                 currentTime={currentTime}
                                                 handleTranscriptionUpdate={handleTranscriptionUpdate}
                                             />
+                                        </div>
+                                    )}
+
+                                    {activeModule === 'background' && (
+                                        <div className="space-y-6">
+                                            <h2 className="text-lg font-bold">Background Style</h2>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {[
+                                                    { id: 'white', label: 'White', color: '#FFFFFF' },
+                                                    { id: 'black', label: 'Black', color: '#000000' },
+                                                    { id: 'blur', label: 'Blur', isBlur: true },
+                                                    { id: 'grid', label: 'Grid', isGrid: true },
+                                                    { id: 'blue', label: 'Blue', color: '#3B82F6', isGrid: true },
+                                                    { id: 'purple', label: 'Purple', color: '#8B5CF6', isGrid: true },
+                                                    { id: 'green', label: 'Green', color: '#10B981', isGrid: true },
+                                                    { id: 'red', label: 'Red', color: '#EF4444', isGrid: true }
+                                                ].map((bg) => (
+                                                    <button
+                                                        key={bg.id}
+                                                        onClick={() => updateProject({ background_type: bg.id })}
+                                                        className={`p-3 rounded-xl border transition-all flex flex-col items-center gap-2 ${project.background_type === bg.id || (!project.background_type && bg.id === 'white') ? 'bg-yellow-500/10 border-yellow-500' : 'bg-zinc-800/50 border-white/5 hover:border-white/20'}`}
+                                                    >
+                                                        <div 
+                                                            className="w-full aspect-video rounded-lg border border-white/10 overflow-hidden relative"
+                                                            style={{ 
+                                                                backgroundImage: bg.isGrid ? `linear-gradient(to right, ${bg.id === 'grid' ? '#e5e7eb' : 'rgba(255,255,255,0.2)'} 1px, transparent 1px), linear-gradient(to bottom, ${bg.id === 'grid' ? '#e5e7eb' : 'rgba(255,255,255,0.2)'} 1px, transparent 1px)` : undefined,
+                                                                backgroundSize: bg.isGrid ? '10px 10px' : undefined,
+                                                                backgroundColor: bg.id === 'grid' ? '#ffffff' : bg.color
+                                                            }}
+                                                        >
+                                                            {bg.isBlur && (
+                                                                <div className="absolute inset-0 bg-zinc-700 flex items-center justify-center">
+                                                                    <div className="w-8 h-8 bg-white/20 rounded-full blur-md"></div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-xs font-bold">{bg.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
 

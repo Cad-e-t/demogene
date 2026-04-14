@@ -1,11 +1,13 @@
 
 export const STYLE_PREVIEWS: Record<string, string> = {
     "Realistic": "https://assets.productcam.site/image-styles/realistic.mp4",
-    "Anime": "https://assets.productcam.site/image-styles/anime.mp4",
+    "Anime": "https://assets.productcam.site/image-styles/anime1.mp4",
     "Horror": "https://assets.productcam.site/image-styles/horror.mp4",
     "Sketch": "https://assets.productcam.site/image-styles/sketch.mp4",
-    "Silhouette": "https://assets.productcam.site/image-styles/silhouette.mp4",
-    "Stickman": "https://assets.productcam.site/image-styles/stickman.mp4"
+    "Stickman": "https://assets.productcam.site/image-styles/stickman.mp4",
+    'Exaggerated2D': "https://assets.productcam.site/image-styles/exaggerated2d.mp4", 
+    'FlatCartoon': "https://assets.productcam.site/image-styles/flatcartoon.mp4", 
+    'SoftCartoon': "https://assets.productcam.site/image-styles/softcartoon.mp4"
 };
 
 export const DEMO_CLIPS: Record<string, string> = {
@@ -15,11 +17,13 @@ export const DEMO_CLIPS: Record<string, string> = {
   "4": "https://assets.productcam.site/steps/download.jpeg"
 }
 
-export const LANDING_PREVIEWS: Record<string, string> = {
-    "Travel to ancient times": "https://assets.productcam.site/image-styles/horror.mp4",
-    "Water horrors": "https://assets.productcam.site/image-styles/sketch.mp4",
-    "Earth orbits saturn": "https://assets.productcam.site/image-styles/earth-orbits-saturn.mp4",
-    "How to reach B2b audience on tiktok": "https://assets.productcam.site/image-styles/b2b.mp4",
+export const LANDING_PREVIEWS: Record<string, { src: string, aspectRatio: string }> = {
+    "Immersive Long Forms ": { src: "https://assets.productcam.site/image-styles/example1.mp4", aspectRatio: "16:9" },
+    "Hoorror Story": { src: "https://assets.productcam.site/image-styles/horror-story.mp4", aspectRatio: "9:16" },
+    "Science Shorts": { src: "https://assets.productcam.site/image-styles/earth-orbits-saturn.mp4", aspectRatio: "9:16" },
+    "Historical Tales": { src: "https://assets.productcam.site/image-styles/exaggerated2d.mp4", aspectRatio: "9:16" },
+    "Educational Contents": { src: "https://assets.productcam.site/image-styles/flatcartoon.mp4", aspectRatio: "9:16" },
+    "Motivational": { src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4", aspectRatio: "16:9" }
 };
 
 

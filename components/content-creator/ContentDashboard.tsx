@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Equal, ChevronRight, ChevronLeft, Mic, Monitor, MonitorPlay, Sparkles, Settings2, Play, Pause } from 'lucide-react';
 import { generateSegments } from './api';
 import { ContentEditor } from './ContentEditor';
-import { IMAGE_STYLES, EFFECT_PRESETS, NARRATION_STYLES, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
+import { IMAGE_STYLES, EFFECT_PRESETS, LONG_FORM_PRESETS, NARRATION_STYLES, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 import { STYLE_PREVIEWS } from './creator-assets';
@@ -26,6 +26,15 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [voice, setVoice] = useState(VOICES[0]); // Default to Charon (now first)
     const [narrationStyle, setNarrationStyle] = useState(NARRATION_STYLES[0].prompt); // Default to Charismatic prompt
     const [effect, setEffect] = useState(EFFECT_PRESETS[0]); // Default to Chaos Mode (now first)
+
+    useEffect(() => {
+        if (aspect === '16:9' && effect.id === 'chaos') {
+            const docPreset = LONG_FORM_PRESETS.find(p => p.id === 'documentary');
+            if (docPreset) setEffect(docPreset);
+        } else if (aspect === '9:16' && (effect.id === 'documentary' || effect.id === 'immersive' || effect.id === 'storyteller' || effect.id === 'minimalist')) {
+            setEffect(EFFECT_PRESETS[0]);
+        }
+    }, [aspect]);
     
     const [subtitles, setSubtitles] = useState<SubtitleConfiguration>(DEFAULT_SUBTITLE_CONFIG); 
     
@@ -264,7 +273,14 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         setLoading(true);
         try {
             console.log("[ContentDashboard] Starting generation...");
-            const res = await generateSegments(prompt, aspect, style, effect.id, session.user.id, narrationStyle, subtitles, voice.id);
+            
+            // Ensure we use the correct default if user hasn't touched it
+            let finalEffectId = effect.id;
+            if (aspect === '16:9' && finalEffectId === 'chaos') {
+                finalEffectId = 'documentary';
+            }
+
+            const res = await generateSegments(prompt, aspect, style, finalEffectId, session.user.id, narrationStyle, subtitles, voice.id);
             console.log("[ContentDashboard] Text segments received:", res.segments.length);
             
             setProject({ 
@@ -345,7 +361,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 {/* Style Gallery Section */}
                 <div className="flex-1 flex flex-col items-center justify-center p-4 pb-32 overflow-hidden">
                     <h1 className="text-sm sm:text-2xl md:text-4xl font-black uppercase tracking-[0.2em] text-zinc-500 mb-8 md:mb-12 text-center whitespace-nowrap">
-                        Faceless Explainer Videos
+                        Pick Any Style
                     </h1>
                     
                     <div 

@@ -21,7 +21,6 @@ export const DemoVideoPage: React.FC<Props> = ({ session, onToggleSidebar, onPro
     const [hookText, setHookText] = useState('');
     const [bodyText, setBodyText] = useState('');
     const [voiceId, setVoiceIdState] = useState(VOICES[0].id);
-    const [hookStyle, setHookStyle] = useState('blurred'); // 'blurred' or 'white'
     const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16'>('16:9');
     const [isProcessing, setIsProcessing] = useState(false);
     const [processingStatus, setProcessingStatus] = useState<string | null>(null);
@@ -175,7 +174,6 @@ export const DemoVideoPage: React.FC<Props> = ({ session, onToggleSidebar, onPro
                     hookText,
                     bodyText,
                     voiceId,
-                    hookStyle,
                     aspectRatio,
                     videoType: 'demo'
                 })
@@ -270,36 +268,6 @@ export const DemoVideoPage: React.FC<Props> = ({ session, onToggleSidebar, onPro
                                 />
                             </div>
 
-                            {hookText.trim() && (
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Hook Style</label>
-                                    <div className="flex gap-4">
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input 
-                                                type="radio" 
-                                                name="hookStyle" 
-                                                value="blurred" 
-                                                checked={hookStyle === 'blurred'} 
-                                                onChange={() => setHookStyle('blurred')} 
-                                                className="text-yellow-500 focus:ring-yellow-500 bg-zinc-800 border-zinc-600"
-                                            />
-                                            <span className="text-white text-sm">Subtitle over blurred background</span>
-                                        </label>
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input 
-                                                type="radio" 
-                                                name="hookStyle" 
-                                                value="white" 
-                                                checked={hookStyle === 'white'} 
-                                                onChange={() => setHookStyle('white')} 
-                                                className="text-yellow-500 focus:ring-yellow-500 bg-zinc-800 border-zinc-600"
-                                            />
-                                            <span className="text-white text-sm">Subtitle over white background</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            )}
-                            
                             <div className="flex flex-col gap-2">
                                 <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Body Script</label>
                                 <textarea 

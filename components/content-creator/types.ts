@@ -16,7 +16,7 @@ export interface SubtitleConfiguration {
 
 export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfiguration = {
     enabled: true,
-    placement: 39,
+    placement: 35,
     fontFamily: 'Arimo',
     fontSize: 54,
     primaryColor: '#ffffff',
@@ -64,7 +64,7 @@ export interface ContentStory {
 }
 
 export const IMAGE_STYLES = [
-    "Realistic", "Anime", "Horror", "Sketch", "Silhouette", "Stickman"
+    "Realistic", "Anime", "Horror", 'SoftCartoon', 'Exaggerated2D', "Sketch", "Stickman", 'FlatCartoon'
 ];
 
 export const EFFECT_PRESETS = [
@@ -73,6 +73,13 @@ export const EFFECT_PRESETS = [
     { id: 'slide_flow', name: 'Slide Flow', description: 'Smooth lateral sliding (Dynamic)' },
     { id: 'cinematic', name: 'Cinematic Pan', description: 'Slow, dramatic push-ins (Storytelling)' },
     { id: 'handheld_walk', name: 'Handheld Walk', description: 'Natural walking camera motion (Vlog Style)' }
+];
+
+export const LONG_FORM_PRESETS = [
+    { id: 'documentary', name: 'Documentary', description: 'Subtle pushes and slow drifts (Professional)' },
+    { id: 'immersive', name: 'Immersive', description: 'Organic floating and slow reveals (Cinematic)' },
+    { id: 'storyteller', name: 'Storyteller', description: 'Slow dolly moves and breathing camera (Engaging)' },
+    { id: 'minimalist', name: 'Minimalist', description: 'Static frames with very subtle motion (Clean)' }
 ];
 
 export const SUBTITLE_PRESETS = [
@@ -86,7 +93,7 @@ export const SUBTITLE_PRESETS = [
 export const NARRATION_STYLES = [
     { id: 1, name: "Charismatic", prompt: "Read aloud in a calm, deliberate tone with brisk continuous delivery", description: "confident, magnetic", sampleUrl: "https://assets.productcam.site/audio-assets/charismatic.wav" },
     { id: 2, name: "High-energy", prompt: "Read in a fiery, energetic tone with brisk, continuous delivery", description: "fiery, energetic", sampleUrl: "https://assets.productcam.site/audio-assets/high-energy.wav" },
-    { id: 3, name: "Gentle", prompt: "Read in a quick, gentle tone", description: "soft, soothing", sampleUrl: "https://assets.productcam.site/audio-assets/gentle.mp3" },
+    { id: 3, name: "Gentle", prompt: "Read briskly in a soft tone", description: "soft, soothing", sampleUrl: "https://assets.productcam.site/audio-assets/gentle.mp3" },
     { id: 4, name: "Cheeky", prompt: "Read in a playful, mischievous tone with lively pacing", description: "playful, mischievous", sampleUrl: "https://assets.productcam.site/audio-assets/cheeky.wav" },
     { id: 5, name: "Intense", prompt: "Read aloud in a raspy, powerful tone with brisk, continuous delivery", description: "raspy, powerful", sampleUrl: "https://assets.productcam.site/audio-assets/confident.wav" },
 ];

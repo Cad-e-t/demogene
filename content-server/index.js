@@ -764,20 +764,37 @@ app.delete('/projects/:id', async (req, res) => {
         
         console.log(`[ContentServer] Deleting project ${id} for user ${userId}`);
 
-        // Verify ownership
-        const { data: project } = await supabase.from('content_projects').select('user_id').eq('id', id).single();
+        // Verify ownership and get file paths
+        const { data: project } = await supabase.from('content_projects').select('user_id, voice_file_path, subtitle_file_path').eq('id', id).single();
         if (!project || project.user_id !== userId) return res.status(403).json({ error: "Unauthorized" });
 
         // Get segments to find images to delete
         const { data: segments } = await supabase.from('content_segments').select('image_url').eq('project_id', id);
         
-        // Delete images from S3
+        // Collect all storage keys to delete
+        const keysToDelete = [];
+
+        // Add image keys
         if (segments && segments.length > 0) {
-            const keys = segments
-                .map(s => getKeyFromUrl(s.image_url))
-                .filter(k => k !== null);
-                
-            await Promise.allSettled(keys.map(key => 
+            segments.forEach(s => {
+                const key = getKeyFromUrl(s.image_url);
+                if (key) keysToDelete.push(key);
+            });
+        }
+
+        // Add audio and subtitle keys
+        if (project.voice_file_path) {
+            const audioKey = getKeyFromUrl(project.voice_file_path);
+            if (audioKey) keysToDelete.push(audioKey);
+        }
+        if (project.subtitle_file_path) {
+            const subtitleKey = getKeyFromUrl(project.subtitle_file_path);
+            if (subtitleKey) keysToDelete.push(subtitleKey);
+        }
+        
+        // Delete all files from S3
+        if (keysToDelete.length > 0) {
+            await Promise.allSettled(keysToDelete.map(key => 
                 s3.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key }))
             ));
         }

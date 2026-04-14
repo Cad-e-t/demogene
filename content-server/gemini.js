@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
+
 const MODEL_NAME = "gemini-2.5-pro"; //gemini-3-flash-preview"; // Using Gemini 3 Pro for reasoning
 const IMAGE_MODEL = "gemini-2.5-flash-image"; // Nano Banana for images (Ultra quality per mapping)
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
@@ -11,8 +12,12 @@ const STYLE_OPENINGS = {
     'Anime': '2D anime illustration',
     'Sketch': 'Pencil sketch illustration',
     'Stickman':'Minimalist stickman illustration',
-    'Silhouette': 'Flat minimal editorial illustration',
     'Horror': 'Dark horror illustration',
+    'Exaggerated2D': 'Highly exaggerated 2D cartoon illustration',
+    'FlatCartoon': 'Simple flat 2D cartoon illustration',
+    'SemiRealisticCartoon': 'Semi-realistic stylized cartoon illustration',
+    'Skeleton': 'Cinematic photo-realistic scene'
+
 };
 
 export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced') {
@@ -27,7 +32,11 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
         'Anime': `Every image is a 2D anime-style depiction with clean, consistent line art. Colors are applied as flat or softly shaded fills with a consistent palette. Characters, objects, and environments are rendered in a cohesive anime style across all scenes. No photorealism.`,
         'Horror': `Every image is a dark, realistic illustration with low-key lighting and strong shadows. Scenes are dimly lit with high contrast between light and darkness. Colors are muted and desaturated with a dark overall tone. Subjects and environments are grounded and eerie. No bright colors, no flat lighting, no cartoon or stylized rendering.`,
         'Sketch': `Every image is a hand-drawn pencil sketch illustration. All characters, objects, and environments are drawn using visible pencil lines and light sketch strokes. Lines vary slightly in thickness with a natural hand-drawn feel. Minimal use of soft grayscale shading. No color, no digital clean lines, no solid fills or rendering.`,
-        'Silhouette': `Every image is a flat minimal editorial illustration. Pure white background. Flat matte black silhouette figures. All props and environment rendered as flat matte black outlines. No color, no shading, no lighting, no texture anywhere. Mood is communicated through posture, body language, and composition only.`
+        'Exaggerated2D': `Every image is a highly exaggerated 2D cartoon depiction with bold outlines and dynamic shapes. Characters use extreme squash and stretch, oversized facial expressions, and dramatic poses to convey emotion and action. Motion is implied through deformation, speed lines, and exaggerated perspective. Colors are vibrant and high-contrast with simple shading. Environments are stylized and slightly distorted to match the character energy. No realism. Every scene emphasizes visual humor, impact, and clarity of action.`,
+        'FlatCartoon': `Every image is a simple flat 2D cartoon depiction using clean shapes and minimal detail. Characters are built from basic geometric forms with clear silhouettes and expressive faces. Colors are flat, solid, and consistent across scenes with no gradients or textures. Linework is minimal or uniform. Environments are simplified and uncluttered to keep focus on the subject. A character is present in every scene and uses subtle but clear expressions and poses to reflect the narration. No realism.`,
+        'SoftCartoon': `Every image is a semi-realistic cartoon depiction blending stylized characters with believable proportions and detail. Characters maintain realistic anatomy with slightly exaggerated features for expression. Lighting is soft and cinematic with gentle shading and depth. Colors are rich and cohesive with subtle gradients. Materials and environments have mild texture but remain stylized, not photorealistic. Composition and framing are more grounded and cinematic. Expressions are controlled rather than extreme. No full realism.`,
+        'Skeleton': `Every image is a cinematic, photo-realistic depiction of a real-world or story-driven environment with natural lighting, depth, and grounded textures. A single stylized skeleton is the main subject in every scene. It has smooth off-white bones, slightly rounded edges, clean structure, and no cracks or damage. The skull is proportionate with full, natural human eyes. The jaw is complete and articulated. Movement and posture are human-like. The skeleton can wear modern or context-appropriate outfits. It is always clearly visible and framed as the subject. The skeleton experiences or acts out the scene. Other characters are natural and photo-realistic.`
+    
     };
 
     const defaultVisualIdentityBlock = `
@@ -165,18 +174,15 @@ IMAGE PROMPT RULES:
 
 5. Every prompt must reflect the Visual Identity Lock (environment, lighting, palette, mood).
 
-6. When human presence is needed:
-- show figures from behind, side, distance, or obscured
-- never show visible facial features or identifiable faces
-- never use vague terms like “a person” — always describe the subject with specific physical details even without showing the face
-
-7. Maximum 150 words per prompt.
+6. Maximum 150 words per prompt.
 Every word must add visual clarity.
 No filler. No vague or purely stylistic descriptions.
 
-8. Repeat full subject and anchor descriptions verbatim in every prompt. Do not shorten, summarize, or replace them with terms like “the”, “this”, or pronouns—any deviation is incorrect.
+7. Repeat full subject and anchor descriptions verbatim in every prompt. Do not shorten, summarize, or replace them with terms like “the”, “this”, or pronouns—any deviation is incorrect.
 
-9. Do not include any text, words, letters, captions, or labels inside the image. Only visual elements are allowed.
+8. Do not include any text, words, letters, captions, or labels inside the image. Only visual elements are allowed.
+
+9. Add these keywords to the end of every prompt: "full bleed, no borders"
 
 OUTPUT FORMAT:
 Return ONLY a raw JSON array. No markdown, no preamble, no explanation.

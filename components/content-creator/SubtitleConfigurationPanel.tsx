@@ -99,16 +99,11 @@ export const SubtitleConfigurationPanel: React.FC<SubtitleConfigurationPanelProp
             if (!transcription?.words || !handleTranscriptionUpdate) return;
             
             const newWords = editedTranscriptionText.trim().split(/\s+/);
-            if (newWords.length !== transcription.words.length) {
-                setTranscriptionError(`Word count must remain ${transcription.words.length}. Current: ${newWords.length}`);
-                return;
-            }
-
             const updatedTranscription = {
                 ...transcription,
-                words: transcription.words.map((w: any, i: number) => ({
-                    ...w,
-                    text: newWords[i]
+                words: newWords.map((text, i) => ({
+                    ...(transcription.words[i] || transcription.words[transcription.words.length - 1]),
+                    text
                 }))
             };
 
@@ -180,7 +175,7 @@ export const SubtitleConfigurationPanel: React.FC<SubtitleConfigurationPanelProp
                     )}
                 </div>
                 <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">
-                    {isEditingTranscription ? 'Word count must remain unchanged' : 'Karaoke highlighting active during playback'}
+                    {isEditingTranscription ? 'Editing transcription' : 'Karaoke highlighting active during playback'}
                 </p>
             </div>
         );

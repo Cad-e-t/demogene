@@ -86,8 +86,9 @@ CREATE TABLE demo_projects (
     video_url TEXT,
     subtitles JSONB,
     hook_style JSONB,
-    aspect_ratio TEXT CHECK (aspect_ratio IN ('9:16', '16:9')),
-    status TEXT DEFAULT 'draft'
+    status TEXT DEFAULT 'draft',
+    video_transform JSONB,
+    background_type TEXT DEFAULT 'white'
 );
 
 

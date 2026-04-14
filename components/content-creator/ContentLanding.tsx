@@ -109,7 +109,7 @@ const FAQS = [
 export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, onNavigate?: (path: string) => void }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-    const [galleryStyles, setGalleryStyles] = useState(['Anime','Realistic', 'Stickman']);
+    const [galleryStyles, setGalleryStyles] = useState(['Anime', 'Exaggerated2D', 'Realistic']);
 
     const handleVideoClick = (index: number) => {
         if (index === 1) return; // Already center
@@ -283,27 +283,41 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
 
             {/* --- TEXT TO VIDEO INSTANTLY --- */}
             <div className="relative z-10 w-full py-24 px-6 md:px-12 bg-black">
-                <div className="max-w-7xl mx-auto flex flex-col items-center">
+                <div className="max-w-[1800px] mx-auto flex flex-col items-center">
                     <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-16 text-white text-center">
-                        Full Videos From Simple Text
+                        Create Any Type Of Video
                     </h2>
                     
-                    <div className="flex flex-wrap justify-center gap-6 md:gap-8 w-full">
-                        {Object.entries(LANDING_PREVIEWS).map(([name, src]) => (
-                            <div key={name} className="relative w-full max-w-[160px] md:max-w-[260px] aspect-[9/16] shrink-0">
-                                <div className="w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-zinc-900 relative">
-                                    <video 
-                                        src={src} 
-                                        muted loop playsInline 
-                                        className="w-full h-full object-cover block"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
-                                    <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
-                                        <span className="text-sm md:text-base font-bold text-white uppercase tracking-widest">{name}</span>
+                    <div className="flex flex-wrap justify-center items-center gap-6 md:gap-8 w-full">
+                        {Object.entries(LANDING_PREVIEWS).map(([name, data]) => {
+                            const is16x9 = data.aspectRatio === '16:9' || data.aspectRatio === '16/9';
+                            return (
+                                <div 
+                                    key={name} 
+                                    className={`relative w-full shrink-0 ${is16x9 ? 'max-w-[506px] md:max-w-[822px] aspect-video' : 'max-w-[160px] md:max-w-[260px] aspect-[9/16]'}`}
+                                    onMouseEnter={(e) => {
+                                        const video = e.currentTarget.querySelector('video');
+                                        if (video) video.play().catch(() => {});
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        const video = e.currentTarget.querySelector('video');
+                                        if (video) video.pause();
+                                    }}
+                                >
+                                    <div className="w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-zinc-900 relative">
+                                        <video 
+                                            src={data.src} 
+                                            muted loop playsInline 
+                                            className="w-full h-full object-cover block"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
+                                        <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
+                                            <span className="text-sm md:text-base font-bold text-white uppercase tracking-widest">{name}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -442,7 +456,7 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                         CHOOSE ANY STYLE YOU LIKE
                     </h2>
                     
-                    <div className="flex flex-nowrap overflow-x-auto justify-start md:justify-center gap-4 md:gap-6 w-full px-4 pb-8 snap-x [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.1)_transparent]">
+                    <div className="flex flex-nowrap overflow-x-auto justify-start gap-4 md:gap-6 w-full px-4 pb-8 snap-x [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.1)_transparent]">
                         {Object.entries(STYLE_PREVIEWS).map(([name, src]) => (
                             <div key={name} className="relative w-[120px] md:w-[200px] aspect-[9/16] shrink-0 snap-center">
                                 <div className="w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-zinc-900 relative">

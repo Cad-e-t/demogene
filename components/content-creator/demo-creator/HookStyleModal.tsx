@@ -65,23 +65,6 @@ export const HookStyleModal: React.FC<HookStyleModalProps> = ({ isOpen, onClose,
         }
     };
 
-    const handleSelectBackground = async (style: string) => {
-        // Delete old asset if it exists
-        if (currentStyle?.style === 'media' && currentStyle?.media) {
-            try {
-                await fetch(`${API_URL}/demo/delete-hook-asset`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: currentStyle.media })
-                });
-            } catch (e) {
-                console.error("Failed to delete old asset", e);
-            }
-        }
-        await onUpdateStyle({ style });
-        setShowAnimationScreen(false);
-    };
-
     const handleSelectAnimation = async (animationId: string) => {
         await onUpdateStyle({ ...currentStyle, animation: animationId });
     };
@@ -226,26 +209,6 @@ export const HookStyleModal: React.FC<HookStyleModalProps> = ({ isOpen, onClose,
                                                 Configure Image Animation
                                             </button>
                                         )}
-                                    </div>
-
-                                    {/* Select Background */}
-                                    <div className="space-y-3">
-                                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Solid Backgrounds</h3>
-                                        <div className="grid grid-cols-3 gap-3">
-                                            {['white', 'black', 'blur'].map((style) => {
-                                                const isSelected = currentStyle?.style === style || (style === 'blur' && currentStyle?.style === 'blurred');
-                                                return (
-                                                    <button
-                                                        key={style}
-                                                        onClick={() => handleSelectBackground(style)}
-                                                        disabled={isUploading}
-                                                        className={`py-3 rounded-xl border font-bold capitalize transition-all ${isSelected ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-zinc-800 border-white/5 text-zinc-400 hover:text-white'} disabled:opacity-50 disabled:cursor-not-allowed`}
-                                                    >
-                                                        {style}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
                                     </div>
                                 </motion.div>
                             )}

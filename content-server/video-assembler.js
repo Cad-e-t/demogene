@@ -34,6 +34,8 @@ function getFilterForEffect(effectType, width, height, frames, startFrame = 0) {
     const stepOut = (0.5 / frames).toFixed(6); // Range 1.8 -> 1.0
     const stepCinematic = (0.4 / frames).toFixed(6); // Range 1.0 -> 1.4
     const stepHandheld = (0.2 / frames).toFixed(6); // Range 1.1 -> 1.3
+    const stepDocPush = (0.1 / frames).toFixed(6); // Range 1.0 -> 1.1
+    const stepDollyReveal = (0.15 / frames).toFixed(6); // Range 1.15 -> 1.0
 
     switch (effectType) {
         case 'zoom_in':
@@ -47,6 +49,19 @@ function getFilterForEffect(effectType, width, height, frames, startFrame = 0) {
         case 'slow_zoom_in':
              // Cinematic: Continuous push-in. Increased to 1.4 for better visibility.
              return `zoompan=z='min(zoom+${stepCinematic},1.4)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
+
+        case 'cinematic_drift':
+            return `zoompan=z='1.1':x='(on/${frames})*(iw-iw/zoom)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
+
+        case 'doc_push':
+            return `zoompan=z='min(zoom+${stepDocPush},1.1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
+
+        case 'organic_float':
+            // Matches React: scale = 1.05 + 0.03*sin(prog*2PI), floatX = (iw/zoom/60)*sin(prog*PI)
+            return `zoompan=z='1.05+(0.03*sin(on/${frames}*2*PI))':x='iw/2-(iw/zoom/2)+(iw/zoom/60)*sin(on/${frames}*PI)':y='ih/2-(ih/zoom/2)+(ih/zoom/80)*cos(on/${frames}*PI)':d=${frames}:s=${width}x${height}`;
+
+        case 'dolly_reveal':
+            return `zoompan=z='if(eq(on,0),1.15,max(1.0,zoom-${stepDollyReveal}))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
 
         case 'slide_left':
             return `zoompan=z='1.15':x='(1-on/${frames})*(iw-iw/zoom)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${width}x${height}`;
@@ -84,6 +99,19 @@ function getFilterForEffect(effectType, width, height, frames, startFrame = 0) {
     }
 }
 
+const EFFECT_SEQUENCES = {
+    'none': ['none'],
+    'zoom_pulse': ['zoom_in', 'zoom_out'],
+    'slide_flow': ['slide_down', 'slide_right', 'slide_up', 'slide_left', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
+    'cinematic': ['slow_zoom_in'],
+    'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'slide_up'],
+    'handheld_walk': ['handheld_walk', 'slide_down', 'handheld_walk', 'zoom_out', 'handheld_walk' ],
+    'documentary': ['doc_push', 'cinematic_drift', 'none', 'doc_push'],
+    'immersive': ['organic_float', 'dolly_reveal', 'organic_float'],
+    'storyteller': ['dolly_reveal', 'doc_push', 'cinematic_drift'],
+    'minimalist': ['none', 'doc_push', 'none']
+};
+
 export async function assembleVideo(segments, audioPath, audioDurations, workDir, aspectRatio, effectPreset) {
     // 1. Create video clips from images with zoom effect
     const clipPaths = [];
@@ -94,10 +122,15 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
     // If it's a string, attempt to parse it first.
     let parsedEffect = effectPreset;
     if (typeof effectPreset === 'string') {
-        try {
-            parsedEffect = JSON.parse(effectPreset);
-        } catch (e) {
-            // Ignore parse errors
+        // Check if it's a preset ID
+        if (EFFECT_SEQUENCES[effectPreset]) {
+            parsedEffect = EFFECT_SEQUENCES[effectPreset];
+        } else {
+            try {
+                parsedEffect = JSON.parse(effectPreset);
+            } catch (e) {
+                // Ignore parse errors
+            }
         }
     }
     

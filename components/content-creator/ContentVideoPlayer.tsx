@@ -29,7 +29,11 @@ export const EFFECT_TYPES = [
     { id: 'slide_up_right', name: 'Pan Up Right', description: 'Slide camera up and right' },
     { id: 'slide_down_left', name: 'Pan Down Left', description: 'Slide camera down and left' },
     { id: 'slide_down_right', name: 'Pan Down Right', description: 'Slide camera down and right' },
-    { id: 'handheld_walk', name: 'Handheld Walk', description: 'Natural walking motion' }
+    { id: 'handheld_walk', name: 'Handheld Walk', description: 'Natural walking motion' },
+    { id: 'cinematic_drift', name: 'Cinematic Drift', description: 'Slow horizontal slider motion' },
+    { id: 'doc_push', name: 'Documentary Push', description: 'Subtle cinematic push in' },
+    { id: 'organic_float', name: 'Organic Float', description: 'Subtle breathing camera motion' },
+    { id: 'dolly_reveal', name: 'Slow Dolly Reveal', description: 'Slow pull out reveal' }
 ];
 
 export const EFFECT_SEQUENCES = {
@@ -38,7 +42,11 @@ export const EFFECT_SEQUENCES = {
     'slide_flow': ['slide_down', 'slide_right', 'slide_up', 'slide_left', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
     'cinematic': ['slow_zoom_in'],
     'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'slide_up'],
-    'handheld_walk': ['handheld_walk', 'slide_down', 'handheld_walk', 'zoom_out', 'handheld_walk' ]
+    'handheld_walk': ['handheld_walk', 'slide_down', 'handheld_walk', 'zoom_out', 'handheld_walk' ],
+    'documentary': ['doc_push', 'cinematic_drift', 'none', 'doc_push'],
+    'immersive': ['organic_float', 'dolly_reveal', 'organic_float'],
+    'storyteller': ['dolly_reveal', 'doc_push', 'cinematic_drift'],
+    'minimalist': ['none', 'doc_push', 'none']
 };
 
 export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
@@ -377,6 +385,28 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                     
                     offsetX = (iw - iw_visible / scale) / 2 + driftX;
                     offsetY = (ih - ih_visible / scale) / 2 + driftY;
+                    break;
+                case 'cinematic_drift':
+                    scale = 1.1;
+                    offsetX = progress * (iw - iw_visible / scale);
+                    offsetY = (ih - ih_visible / scale) / 2;
+                    break;
+                case 'doc_push':
+                    scale = 1.0 + (progress * 0.1);
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
+                    break;
+                case 'organic_float':
+                    scale = 1.05 + (0.03 * Math.sin(progress * Math.PI * 2));
+                    const floatX = (iw_visible / scale / 60) * Math.sin(progress * Math.PI);
+                    const floatY = (ih_visible / scale / 80) * Math.cos(progress * Math.PI);
+                    offsetX = (iw - iw_visible / scale) / 2 + floatX;
+                    offsetY = (ih - ih_visible / scale) / 2 + floatY;
+                    break;
+                case 'dolly_reveal':
+                    scale = 1.15 - (progress * 0.15);
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
                     break;
                 case 'none':
                     scale = 1;

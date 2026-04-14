@@ -4,7 +4,7 @@ import { ContentVideoPlayer, EFFECT_TYPES, EFFECT_SEQUENCES } from './ContentVid
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
-import { EFFECT_PRESETS, NARRATION_STYLES, SUBTITLE_PRESETS, SubtitleConfiguration, DEFAULT_SUBTITLE_CONFIG } from './types';
+import { EFFECT_PRESETS, LONG_FORM_PRESETS, NARRATION_STYLES, SUBTITLE_PRESETS, SubtitleConfiguration, DEFAULT_SUBTITLE_CONFIG } from './types';
 import { STYLE_PREVIEWS } from './creator-assets';
 import { SubtitlePreview } from './SubtitlePreviews';
 import { SubtitleConfigurationPanel } from './SubtitleConfigurationPanel';
@@ -113,6 +113,28 @@ export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectTyp
                     const driftY = (ih_visible / scale / 40) * Math.cos(globalFrame * driftFreq);
                     offsetX = (iw - iw_visible / scale) / 2 + driftX;
                     offsetY = (ih - ih_visible / scale) / 2 + driftY;
+                    break;
+                case 'cinematic_drift':
+                    scale = 1.1;
+                    offsetX = progress * (iw - iw_visible / scale);
+                    offsetY = (ih - ih_visible / scale) / 2;
+                    break;
+                case 'doc_push':
+                    scale = 1.0 + (progress * 0.1);
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
+                    break;
+                case 'organic_float':
+                    scale = 1.05 + (0.03 * Math.sin(progress * Math.PI * 2));
+                    const floatX = (iw_visible / scale / 60) * Math.sin(progress * Math.PI);
+                    const floatY = (ih_visible / scale / 80) * Math.cos(progress * Math.PI);
+                    offsetX = (iw - iw_visible / scale) / 2 + floatX;
+                    offsetY = (ih - ih_visible / scale) / 2 + floatY;
+                    break;
+                case 'dolly_reveal':
+                    scale = 1.15 - (progress * 0.15);
+                    offsetX = (iw - iw_visible / scale) / 2;
+                    offsetY = (ih - ih_visible / scale) / 2;
                     break;
             }
 
@@ -362,10 +384,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const confirmRegenerateVoice = async () => {
-        const success = await handleGenerateAssets();
-        if (success) {
-            setShowAudioConfirmation(false);
-        }
+        setShowAudioConfirmation(false);
+        await handleGenerateAssets();
     };
 
     const togglePlay = () => setIsPlaying(!isPlaying);
@@ -566,10 +586,11 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         await supabase.from('content_projects').update({ voice_id: newVoice.id }).eq('id', project.id);
     };
 
-    const handleRegenerate = async () => {
-        if (!regeneratingId) return;
+    const handleRegenerate = async (targetId?: string) => {
+        const id = targetId || regeneratingId;
+        if (!id) return;
         
-        const seg = segments.find((s: any) => s.id === regeneratingId);
+        const seg = segments.find((s: any) => s.id === id);
         if (!seg) return;
 
         setLoadingImage(true);
@@ -581,7 +602,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             if (regeneratePrompt !== seg.image_prompt) {
                 await supabase.from('content_segments').update({ image_prompt: regeneratePrompt }).eq('id', seg.id);
                 finalPrompt = regeneratePrompt;
-                setSegments((prev: any[]) => prev.map(s => s.id === regeneratingId ? { ...s, image_prompt: regeneratePrompt } : s));
+                setSegments((prev: any[]) => prev.map(s => s.id === id ? { ...s, image_prompt: regeneratePrompt } : s));
             }
 
             const res = await regenerateImageSegment(
@@ -592,7 +613,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 seg.image_url
             );
             
-            setSegments((prev: any[]) => prev.map(s => s.id === regeneratingId ? { ...s, image_url: res.imageUrl } : s));
+            setSegments((prev: any[]) => prev.map(s => s.id === id ? { ...s, image_url: res.imageUrl } : s));
             setRegeneratingId(null);
         } catch (e: any) {
             console.error(e);
@@ -613,15 +634,16 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         }
     };
 
-    const handleImageEdit = async () => {
-        if (!editingImageId || !editPrompt) return;
+    const handleImageEdit = async (targetId?: string) => {
+        const id = targetId || editingImageId;
+        if (!id || !editPrompt) return;
         setLoadingImage(true);
         setEditStatus('idle');
         setErrorMessage(null);
-        const seg = segments.find((s: any) => s.id === editingImageId);
+        const seg = segments.find((s: any) => s.id === id);
         try {
             const res = await editImageSegment(seg.id, seg.image_url, editPrompt);
-            setSegments((prev: any[]) => prev.map(s => s.id === editingImageId ? { ...s, image_url: res.imageUrl } : s));
+            setSegments((prev: any[]) => prev.map(s => s.id === id ? { ...s, image_url: res.imageUrl } : s));
             setEditingImageId(null);
             setEditPrompt('');
         } catch (e: any) {
@@ -931,9 +953,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                     </div>
                 );
             case 'effect':
+                const currentPresets = project.aspect_ratio === '16:9' ? LONG_FORM_PRESETS : EFFECT_PRESETS;
                 return (
                     <div className="space-y-2">
-                        {EFFECT_PRESETS.map(e => {
+                        {currentPresets.map(e => {
                             const isSelected = !Array.isArray(effect) ? effect === e.id : false; // This is tricky after migration
                             // For now, let's just check if it matches the preset ID if we had one
                             return (
@@ -1242,8 +1265,11 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                             </div>
                                             <button 
                                                 onClick={() => {
-                                                    setRegeneratingId(imageEditModalId);
-                                                    handleRegenerate().then(() => setImageEditModalId(null));
+                                                    const id = imageEditModalId;
+                                                    if (id) {
+                                                        setRegeneratingId(id);
+                                                        handleRegenerate(id).then(() => setImageEditModalId(null));
+                                                    }
                                                 }}
                                                 disabled={loadingImage}
                                                 className="w-full py-4 bg-yellow-500 text-black font-bold rounded-2xl hover:bg-yellow-400 disabled:opacity-50 transition shadow-lg flex items-center justify-center gap-2"
@@ -1267,8 +1293,11 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                             </div>
                                             <button 
                                                 onClick={() => {
-                                                    setEditingImageId(imageEditModalId);
-                                                    handleImageEdit().then(() => setImageEditModalId(null));
+                                                    const id = imageEditModalId;
+                                                    if (id) {
+                                                        setEditingImageId(id);
+                                                        handleImageEdit(id).then(() => setImageEditModalId(null));
+                                                    }
                                                 }}
                                                 disabled={loadingImage || !editPrompt}
                                                 className="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-500 disabled:opacity-50 transition shadow-lg flex items-center justify-center gap-2"
