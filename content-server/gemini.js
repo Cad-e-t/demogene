@@ -9,6 +9,8 @@ const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 
 const STYLE_OPENINGS = {
     'Realistic': 'Photorealistic depiction',
+    'CartoonHorror': 'Creepy 2D cartoon horror depiction',
+    '3DCartoon': 'Stylized 3D cartoon render',
     'Anime': '2D anime illustration',
     'Sketch': 'Pencil sketch illustration',
     'Stickman':'Minimalist stickman illustration',
@@ -27,6 +29,8 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
     const opening = STYLE_OPENINGS[style] || `A ${style} style image of`;
 
     const predefinedVisualIdentityBlocks = {
+        '3DCartoon': `Every image is a stylized 3D cartoon render with smooth geometry, slightly exaggerated characters, vibrant colors with soft gradients, clean cinematic lighting, and simple dimensional environments that emphasize clarity and a polished, playful tone.`,
+        'CartoonHorror': `Every image is a dark 2D cartoon horror scene with bold lines, exaggerated characters with large unsettling eyes (wide whites and dot pupils), muted night-time colors, simple distorted environments, and dim high-contrast lighting that creates an eerie, haunted tone.`,
         'Realistic': `Every image is a highly photorealistic depiction of the scene. Natural lighting only with soft shadows. Real-world textures, colors, and materials.`,
         'Stickman': `Every image is a line-based stickman-style illustration. Characters are drawn as simple stick figures with thin uniform lines. All objects and environments are represented using simplified line drawings and flat solid colors. Use clear, varied colors to distinguish elements in the scene. No shading, no gradients, no textures. A stickman character is present in every scene and uses posture and positioning to reflect the narration.`,
         'Anime': `Every image is a 2D anime-style depiction with clean, consistent line art. Colors are applied as flat or softly shaded fills with a consistent palette. Characters, objects, and environments are rendered in a cohesive anime style across all scenes. No photorealism.`,

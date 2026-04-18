@@ -765,7 +765,7 @@ app.delete('/projects/:id', async (req, res) => {
         console.log(`[ContentServer] Deleting project ${id} for user ${userId}`);
 
         // Verify ownership and get file paths
-        const { data: project } = await supabase.from('content_projects').select('user_id, voice_file_path, subtitle_file_path').eq('id', id).single();
+        const { data: project } = await supabase.from('content_projects').select('user_id, voice_file_path').eq('id', id).single();
         if (!project || project.user_id !== userId) return res.status(403).json({ error: "Unauthorized" });
 
         // Get segments to find images to delete
@@ -782,14 +782,10 @@ app.delete('/projects/:id', async (req, res) => {
             });
         }
 
-        // Add audio and subtitle keys
+        // Add audio key
         if (project.voice_file_path) {
             const audioKey = getKeyFromUrl(project.voice_file_path);
             if (audioKey) keysToDelete.push(audioKey);
-        }
-        if (project.subtitle_file_path) {
-            const subtitleKey = getKeyFromUrl(project.subtitle_file_path);
-            if (subtitleKey) keysToDelete.push(subtitleKey);
         }
         
         // Delete all files from S3
