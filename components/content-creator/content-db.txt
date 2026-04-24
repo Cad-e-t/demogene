@@ -27,6 +27,7 @@ create table public.content_segments (
   project_id uuid references public.content_projects on delete cascade not null,
   narration text,
   image_prompt text,
+  animation_prompt text,
   image_url text,
   order_index integer not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null

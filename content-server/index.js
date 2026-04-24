@@ -9,7 +9,8 @@ import { createClient } from '@supabase/supabase-js';
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-import { generateStorySegments, generateImage, editImage, generateFullVoiceover } from './gemini.js';
+import { generateStorySegments, generateImage, editImage, generateFullVoiceover, generateGeminiVideo } from './gemini.js';
+import { generateVideo } from './replicate.js';
 import { assembleVideo } from './video-assembler.js';
 import { generateSubtitles, burnSubtitles } from './subtitle-generator.js';
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
@@ -53,11 +54,13 @@ const client = new AssemblyAI({ apiKey: ASSEMBLYAI_API_KEY });
 const TEMP_DIR = os.tmpdir();
 
 // --- Constants & Pricing ---
+const COST_VIDEO_GEMINI = 20;
 const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
 const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
-const TOKENS_PER_CREDIT = 1000;
+const COST_PER_THOUSAND_TOKENS = 1.2;
+const COST_PER_THOUSAND_INPUT_TOKENS = 0.2;
 const MAX_ANALYSIS_COST = 7;
 const MIN_BALANCE = 4; // Minimum credits required to start
 const MAX_CONCURRENT_IMAGES = 2; // Max parallel image generations to avoid rate limits
@@ -243,6 +246,65 @@ function getKeyFromUrl(url) {
 }
 
 // --- Background Processors ---
+
+async function processAnimationsBackground(projectId, segments, aspectRatio, costPerVideo, userId) {
+    let failedCount = 0;
+    
+    for (let i = 0; i < segments.length; i += 2) {
+        const batch = segments.slice(i, i + 2);
+        console.log(`[ContentServer] Processing video batch ${Math.floor(i / 2) + 1} for project ${projectId}`);
+        
+        await Promise.all(batch.map(async (seg) => {
+            try {
+                // Generate video via Gemini
+                const videoBuffer = await generateGeminiVideo(seg.image_url, seg.animation_prompt || '', aspectRatio || "16:9");
+
+                // Upload to R2
+                const key = `content/videos/${seg.id}_${uuidv4()}.mp4`;
+                await s3.send(new PutObjectCommand({
+                    Bucket: R2_BUCKET,
+                    Key: key,
+                    Body: Buffer.from(videoBuffer),
+                    ContentType: 'video/mp4'
+                }));
+                const videoUrl = `${R2_PUBLIC_URL}/${key}`;
+
+                // Delete old image
+                const oldKey = getKeyFromUrl(seg.image_url);
+                if (oldKey) {
+                    await s3.send(new DeleteObjectCommand({
+                        Bucket: R2_BUCKET,
+                        Key: oldKey
+                    })).catch(err => console.error("Failed to delete old image during video generation", err));
+                }
+
+                // Update row
+                await supabase.from('content_segments')
+                    .update({ image_url: videoUrl })
+                    .eq('id', seg.id);
+            } catch (e) {
+                console.error(`[ContentServer] Video gen failed for segment ${seg.id}`, e);
+                failedCount++;
+            }
+        }));
+
+        // Delay 2-3s between batches if there are more
+        if (i + 2 < segments.length) {
+            const delay = Math.floor(Math.random() * 1000) + 2000; // 2000-3000ms
+            await new Promise(r => setTimeout(r, delay));
+        }
+    }
+
+    // Refund for failed videos
+    if (failedCount > 0) {
+        const totalRefund = failedCount * costPerVideo;
+        console.log(`[ContentServer] Partial failure in video generation (${failedCount} failed). Refunding ${totalRefund}`);
+        await refundUser(userId, totalRefund, `Refund: Failed Batch Video Generation (${failedCount} videos)`);
+    }
+
+    // Update project status to ready
+    await supabase.from('content_projects').update({ render_status: 'ready' }).eq('id', projectId);
+}
 
 async function processAssetsBackground(projectId, segments, voiceId, userId) {
     console.log(`[ContentServer] Starting background asset generation for project ${projectId}`);
@@ -477,7 +539,12 @@ app.post('/generate-segments', async (req, res) => {
 
         // 3. Determine Cost & Charge
         const outputTokens = usageMetadata?.candidatesTokenCount || 0;
-        let analysisCost = outputTokens / TOKENS_PER_CREDIT;
+        const inputTokens = usageMetadata?.promptTokenCount || 0;
+        
+        const outputAnalysisCost = (outputTokens / 1000) * COST_PER_THOUSAND_TOKENS;
+        const inputAnalysisCost = (inputTokens / 1000) * COST_PER_THOUSAND_INPUT_TOKENS;
+        let analysisCost = outputAnalysisCost + inputAnalysisCost;
+
         let isCapped = false;
         if (analysisCost > MAX_ANALYSIS_COST) {
             analysisCost = MAX_ANALYSIS_COST;
@@ -487,7 +554,7 @@ app.post('/generate-segments', async (req, res) => {
         const costPerImage = COST_IMAGE_ULTRA;
         const totalCost = (segmentsData.length * costPerImage) + analysisCost;
 
-        console.log(`[Billing] Analysis Tokens: ${outputTokens}`);
+        console.log(`[Billing] Analysis Tokens - Input: ${inputTokens}, Output: ${outputTokens}`);
         console.log(`[Billing] Calculated Analysis Cost: ${analysisCost.toFixed(4)} credits (Capped: ${isCapped})`);
         console.log(`[Billing] Total Potential Cost: ${totalCost.toFixed(2)} credits`);
 
@@ -517,6 +584,7 @@ app.post('/generate-segments', async (req, res) => {
             project_id: project.id,
             narration: s.narration,
             image_prompt: s.image_prompt,
+            animation_prompt: s.animation_prompt,
             image_url: null, // Placeholder, images come later
             order_index: idx
         }));
@@ -833,6 +901,71 @@ app.delete('/stories/:id', async (req, res) => {
 });
 
 // 5. Generate Assets (Audio, Subtitles, Metadata) - No Video Assembly
+app.post('/video-generation', async (req, res) => {
+    const { segmentId, imageUrl, animationPrompt } = req.body;
+    let userId = null;
+    let charged = false;
+    
+    try {
+        // Fetch segment to get project -> userId
+        const { data: segment } = await supabase.from('content_segments').select('project_id').eq('id', segmentId).single();
+        if (!segment) throw new Error("Segment not found");
+        
+        const { data: project } = await supabase.from('content_projects').select('user_id, aspect_ratio').eq('id', segment.project_id).single();
+        if (!project) throw new Error("Project not found");
+        userId = project.user_id;
+
+        // 1. Check balance
+        const balance = await getCredits(userId);
+        if (balance < COST_VIDEO_GEMINI) {
+            return res.status(402).json({ error: `Insufficient credits. Need ${COST_VIDEO_GEMINI} credits for video generation.` });
+        }
+
+        // 2. Charge credits
+        await chargeUser(userId, COST_VIDEO_GEMINI, "Gemini Video Generation");
+        charged = true;
+
+        // 3. Generate video using Gemini
+        const videoBuffer = await generateGeminiVideo(imageUrl, animationPrompt, project.aspect_ratio || "16:9");
+
+        // After the video is generated:
+        // 1. Upload the generated video to the R2 bucket
+        const key = `content/videos/${segmentId}_${uuidv4()}.mp4`;
+        await s3.send(new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: key,
+            Body: Buffer.from(videoBuffer),
+            ContentType: 'video/mp4'
+        }));
+        const videoUrl = `${R2_PUBLIC_URL}/${key}`;
+
+        // 2. Delete the segment's previous image from the R2 bucket
+        const oldKey = getKeyFromUrl(imageUrl);
+        if (oldKey) {
+            await s3.send(new DeleteObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: oldKey
+            })).catch(err => console.error("Failed to delete old image during video generation", err));
+        }
+
+        // 3. Upsert the image_url column in content_segments with the new video URL
+        const { error } = await supabase.from('content_segments')
+            .update({ image_url: videoUrl })
+            .eq('id', segmentId);
+
+        if (error) throw error;
+
+        res.json({ success: true, videoUrl });
+    } catch (e) {
+        console.error("Video Generation Route Error", e);
+        // 4. Refund if charged
+        if (charged && userId) {
+            await refundUser(userId, COST_VIDEO_GEMINI, "Refund: Failed Video Generation");
+        }
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/generate-assets', async (req, res) => {
     const { projectId, voiceId, userId } = req.body;
     console.log(`[ContentServer] Manual asset generation request for project ${projectId}`);
@@ -855,6 +988,48 @@ app.post('/generate-assets', async (req, res) => {
 
     } catch (e) {
         console.error("Manual Generate Assets Failed", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/animate-all', async (req, res) => {
+    const { projectId, userId } = req.body;
+    
+    try {
+        // 1. Fetch Project and Segments
+        const { data: project } = await supabase.from('content_projects').select('user_id, aspect_ratio').eq('id', projectId).single();
+        if (!project) throw new Error("Project not found");
+        
+        const { data: segments } = await supabase.from('content_segments').select('*').eq('project_id', projectId).order('order_index');
+        if (!segments || segments.length === 0) throw new Error("No segments found for project");
+
+        // 2. Identify qualifying segments (not ending in .mp4)
+        const qualifyingSegments = segments.filter(seg => seg.image_url && !seg.image_url.toLowerCase().endsWith('.mp4'));
+        if (qualifyingSegments.length === 0) {
+            return res.status(400).json({ error: "No image segments left to animate." });
+        }
+
+        // 3. Calculate Cost & Check Credits
+        const totalCost = qualifyingSegments.length * COST_VIDEO_GEMINI;
+        const balance = await getCredits(userId);
+        if (balance < totalCost) {
+            return res.status(402).json({ error: `Insufficient credits. Need ${totalCost} credits to animate ${qualifyingSegments.length} segments.` });
+        }
+
+        // 4. Charge user
+        await chargeUser(userId, totalCost, `Batch Video Generation (${qualifyingSegments.length} segments)`);
+
+        // 5. Set render_status to 'Animating'
+        await supabase.from('content_projects').update({ render_status: 'Animating' }).eq('id', projectId);
+
+        // 6. Start processing in background
+        processAnimationsBackground(projectId, qualifyingSegments, project.aspect_ratio, COST_VIDEO_GEMINI, userId).catch(e => {
+            console.error(`[ContentServer] Batch animation failed for project ${projectId}`, e);
+        });
+
+        res.json({ success: true, count: qualifyingSegments.length, totalCost });
+    } catch (e) {
+        console.error("Animate All Route Error", e);
         res.status(500).json({ error: e.message });
     }
 });

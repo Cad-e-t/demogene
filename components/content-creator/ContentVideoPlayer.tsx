@@ -42,7 +42,7 @@ export const EFFECT_SEQUENCES = {
     'slide_flow': ['slide_down', 'slide_right', 'slide_up', 'slide_left', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
     'cinematic': ['slow_zoom_in'],
     'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'slide_up'],
-    'handheld_walk': ['handheld_walk', 'slide_down', 'handheld_walk', 'zoom_out', 'handheld_walk' ],
+    'handheld_walk': ['handheld_walk'],
     'documentary': ['doc_push', 'cinematic_drift', 'none', 'doc_push'],
     'immersive': ['organic_float', 'dolly_reveal', 'organic_float'],
     'storyteller': ['dolly_reveal', 'doc_push', 'cinematic_drift'],
@@ -67,7 +67,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const requestRef = useRef<number | null>(null);
-    const [images, setImages] = useState<HTMLImageElement[]>([]);
+    const [media, setMedia] = useState<(HTMLImageElement | HTMLVideoElement)[]>([]);
     const [subtitles, setSubtitles] = useState<any[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
     const [showControls, setShowControls] = useState(false);
@@ -77,6 +77,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     const currentTimeRef = useRef(currentTime);
     const visualTimeRef = useRef(currentTime);
     const lastTimestampRef = useRef(0);
+    const mediaCacheRef = useRef<Record<string, HTMLImageElement | HTMLVideoElement>>({});
 
     useEffect(() => {
         currentTimeRef.current = currentTime;
@@ -144,23 +145,73 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         }
     }, [currentTime]);
 
-    // 4. Load Images
+    // 4. Load Media (Images or Videos)
     useEffect(() => {
         let isMounted = true;
-        const loadImages = async () => {
-            const loadedImages = await Promise.all(segments.map(seg => {
-                return new Promise<HTMLImageElement>((resolve) => {
-                    const img = new Image();
-                    img.src = seg.image_url || ''; // Handle missing URL
-                    img.onload = () => resolve(img);
-                    img.onerror = () => resolve(img); // Resolve anyway to avoid blocking
+        const loadMedia = async () => {
+            const loadedMedia = await Promise.all(segments.map(seg => {
+                const url = seg.image_url || '';
+                
+                if (mediaCacheRef.current[url]) {
+                    return Promise.resolve(mediaCacheRef.current[url]);
+                }
+                
+                const isVideo = url.toLowerCase().includes('.mp4');
+
+                return new Promise<HTMLImageElement | HTMLVideoElement>((resolve) => {
+                    if (isVideo) {
+                        const video = document.createElement('video');
+                        video.preload = "auto";
+                        video.muted = true;
+                        video.playsInline = true;
+                        
+                        video.onloadeddata = () => {
+                            mediaCacheRef.current[url] = video;
+                            resolve(video);
+                        };
+                        video.onerror = (e) => {
+                            console.error("Video load failed", url, e);
+                            resolve(video);
+                        };
+                        
+                        video.src = url;
+                        video.load();
+                    } else {
+                        const img = new Image();
+                        let resolved = false;
+                        
+                        const handleResolve = () => {
+                            if (!resolved) {
+                                resolved = true;
+                                mediaCacheRef.current[url] = img;
+                                resolve(img);
+                            }
+                        };
+                        
+                        img.onload = handleResolve;
+                        img.onerror = handleResolve;
+                        
+                        img.src = url;
+                        // Avoid blocking if image is already cached and complete
+                        if (img.complete) {
+                            handleResolve();
+                        }
+                    }
                 });
             }));
             if (isMounted) {
-                setImages(loadedImages);
+                setMedia(loadedMedia);
+                
+                // Cleanup old cached media to prevent memory leaks
+                const currentUrls = new Set(segments.map(seg => seg.image_url || ''));
+                Object.keys(mediaCacheRef.current).forEach(cachedUrl => {
+                    if (!currentUrls.has(cachedUrl)) {
+                        delete mediaCacheRef.current[cachedUrl];
+                    }
+                });
             }
         };
-        loadImages();
+        loadMedia();
         return () => { isMounted = false; };
     }, [segments]);
 
@@ -281,14 +332,51 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             accumulatedTime += segmentDurations[i];
         }
 
-        // Draw Image
-        const img = images[currentSegmentIndex];
-        if (img && img.complete) {
+        // Draw Media
+        const med = media[currentSegmentIndex];
+        const isVideo = med instanceof HTMLVideoElement;
+        const isReady = med && (isVideo ? med.readyState >= 2 : (med as HTMLImageElement).complete);
+
+        if (isReady) {
             const segmentTime = drawTime - accumulatedTime;
             const duration = segmentDurations[currentSegmentIndex];
             const progress = Math.min(segmentTime / duration, 1);
             const totalFrames = Math.ceil(duration * 30); // Use 30fps as base
             const currentFrame = Math.floor(segmentTime * 30);
+
+            if (isVideo && med.duration) {
+                // Calculate the required playback rate to perfectly match the segment duration.
+                // If a 5s video needs to fit a 3s segment, play at 5/3 = 1.66x speed.
+                const requiredPlaybackRate = med.duration / duration;
+                
+                if (isPlaying) {
+                    if (med.paused) {
+                        try {
+                            med.play();
+                        } catch (e) {
+                            console.error("Video play error in render loop:", e);
+                        }
+                    }
+                    if (Math.abs(med.playbackRate - requiredPlaybackRate) > 0.05) {
+                        med.playbackRate = requiredPlaybackRate;
+                    }
+                    
+                    // Only forcefully seek if the video has drifted significantly off the target time mapped to duration.
+                    const expectedVideoTime = (segmentTime / duration) * med.duration;
+                    if (Math.abs(med.currentTime - expectedVideoTime) > 0.3) {
+                         med.currentTime = expectedVideoTime;
+                    }
+                } else {
+                    if (!med.paused) {
+                        med.pause();
+                    }
+                    // When scrubbed/paused, forcibly jump accurately
+                    const targetVideoTime = progress * med.duration;
+                    if (Math.abs(med.currentTime - targetVideoTime) > 0.05) {
+                        med.currentTime = targetVideoTime;
+                    }
+                }
+            }
 
             // Effect Logic matching video-assembler.js
             const effectPreset = (effect?.id || 'zoom_pulse') as keyof typeof EFFECT_SEQUENCES;
@@ -306,8 +394,8 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
 
             const w = canvas.width;
             const h = canvas.height;
-            const iw = img.width;
-            const ih = img.height;
+            const iw = isVideo ? (med as HTMLVideoElement).videoWidth : (med as HTMLImageElement).width;
+            const ih = isVideo ? (med as HTMLVideoElement).videoHeight : (med as HTMLImageElement).height;
 
             // Base scale to cover canvas
             const baseScale = Math.max(w / iw, h / ih);
@@ -426,7 +514,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             const dx = -offsetX * baseScale * scale;
             const dy = -offsetY * baseScale * scale;
 
-            ctx.drawImage(img, dx, dy, dw, dh);
+            ctx.drawImage(med, dx, dy, dw, dh);
 
             // Static Cinematic Vignette (Faint Shade)
             const intensity = 0.1; // Faint darkening at edges
@@ -599,7 +687,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         return () => {
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         };
-    }, [isPlaying, images, subtitles, effect, subtitleStyle, subtitleState, segmentDurations]);
+    }, [isPlaying, media, subtitles, effect, subtitleStyle, subtitleState, segmentDurations]);
 
     // Resize Canvas
     useEffect(() => {

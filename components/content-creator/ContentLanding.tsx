@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from "motion/react";
+import { Volume2, VolumeX } from 'lucide-react';
 import { CreatorPricingCards } from './CreatorPricingCards';
 import { channels,LANDING_PREVIEWS, STYLE_PREVIEWS, DEMO_CLIPS } from './creator-assets';
 
@@ -109,7 +110,8 @@ const FAQS = [
 export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, onNavigate?: (path: string) => void }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-    const [galleryStyles, setGalleryStyles] = useState(['Anime', 'Exaggerated2D', 'Realistic']);
+    const [galleryStyles, setGalleryStyles] = useState([ 'Exaggerated2D', 'Skeleton', 'Anime']);
+    const [mutedStates, setMutedStates] = useState<Record<string, boolean>>({});
 
     const handleVideoClick = (index: number) => {
         if (index === 1) return; // Already center
@@ -196,7 +198,10 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                     <div className="text-left flex flex-col items-start max-w-2xl">
                         {/* Headline */}
                         <h1 className="text-4xl md:text-5xl lg:text-7xl font-black tracking-tighter mb-8 leading-[1.1]">
-                            Create <span className="text-yellow-500">High-Quality</span> Faceless Videos With AI
+                            Create <br />
+                            <span className="text-yellow-500">High-Quality</span> <br />
+                            Faceless Videos <br />
+                            Automatically
                         </h1>
 
                         {/* Subtitle */}
@@ -241,12 +246,22 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                                         transition={{ type: "spring", stiffness: 260, damping: 20 }}
                                         className="absolute inset-0 cursor-pointer origin-bottom"
                                     >
-                                        <div className={`w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 transition-colors duration-300 ${isActive ? 'border-white/30 shadow-[0_0_50px_rgba(0,0,0,0.5)]' : 'border-white/10 shadow-2xl'} bg-zinc-900`}>
+                                        <div className={`w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 transition-colors duration-300 ${isActive ? 'border-white/30 shadow-[0_0_50px_rgba(0,0,0,0.5)]' : 'border-white/10 shadow-2xl'} bg-zinc-900 relative`}>
                                             <video 
                                                 src={STYLE_PREVIEWS[style]} 
-                                                autoPlay muted loop playsInline 
+                                                autoPlay muted={mutedStates[style] !== false} loop playsInline 
                                                 className="w-full h-full object-cover"
                                             />
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setMutedStates(prev => ({ ...prev, [style]: prev[style] === false }));
+                                                }}
+                                                className="absolute bottom-2 right-2 p-1.5 bg-black/50 rounded-full text-white hover:bg-black/80 transition-colors z-20"
+                                                aria-label="Toggle sound"
+                                            >
+                                                {mutedStates[style] === false ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                                            </button>
                                         </div>
                                     </motion.div>
                                 );
@@ -285,7 +300,7 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
             <div className="relative z-10 w-full py-24 px-6 md:px-12 bg-black">
                 <div className="max-w-[1800px] mx-auto flex flex-col items-center">
                     <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-16 text-white text-center">
-                        Create Any Type Of Video
+                        Create Quality Videos For Every Niche
                     </h2>
                     
                     <div className="flex flex-wrap justify-center items-center gap-6 md:gap-8 w-full">
@@ -294,7 +309,7 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                             return (
                                 <div 
                                     key={name} 
-                                    className={`relative w-full shrink-0 ${is16x9 ? 'max-w-[506px] md:max-w-[822px] aspect-video' : 'max-w-[160px] md:max-w-[260px] aspect-[9/16]'}`}
+                                    className={`group relative w-full shrink-0 ${is16x9 ? 'max-w-[506px] md:max-w-[822px] aspect-video' : 'max-w-[160px] md:max-w-[260px] aspect-[9/16]'}`}
                                     onMouseEnter={(e) => {
                                         const video = e.currentTarget.querySelector('video');
                                         if (video) video.play().catch(() => {});
@@ -307,13 +322,23 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                                     <div className="w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-zinc-900 relative">
                                         <video 
                                             src={data.src} 
-                                            muted loop playsInline 
+                                            muted={mutedStates[name] !== false} loop playsInline 
                                             className="w-full h-full object-cover block"
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
-                                        <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
+                                        <div className="absolute bottom-4 left-4 right-12 pointer-events-none">
                                             <span className="text-sm md:text-base font-bold text-white uppercase tracking-widest">{name}</span>
                                         </div>
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setMutedStates(prev => ({ ...prev, [name]: prev[name] === false }));
+                                            }}
+                                            className="absolute bottom-4 right-4 p-2 bg-black/50 rounded-full text-white hover:bg-black/80 transition-all opacity-0 group-hover:opacity-100 z-20"
+                                            aria-label="Toggle sound"
+                                        >
+                                            {mutedStates[name] === false ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                                        </button>
                                     </div>
                                 </div>
                             );
@@ -458,7 +483,7 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                     
                     <div className="flex flex-nowrap overflow-x-auto justify-start gap-4 md:gap-6 w-full px-4 pb-8 snap-x [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.1)_transparent]">
                         {Object.entries(STYLE_PREVIEWS).map(([name, src]) => (
-                            <div key={name} className="relative w-[120px] md:w-[200px] aspect-[9/16] shrink-0 snap-center">
+                            <div key={name} className="relative w-[120px] md:w-[200px] aspect-[9/16] shrink-0 snap-start">
                                 <div className="w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-zinc-900 relative">
                                     <video 
                                         src={src} 
@@ -550,7 +575,7 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                             Say Goodbye to Boring videos 👋 
                         </h2>
                          <p className="text-xl font-medium text-gray-400 max-w-2xl mb-10">
-                        Start making engaging contents that gets you followed
+                        Start making high-quality content that gets you followed
                         </p>
                         
                         <button 

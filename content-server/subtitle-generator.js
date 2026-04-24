@@ -72,7 +72,9 @@ function getAssHeader(config, aspectRatio) {
     const p = {};
 
     p.font = config.fontFamily;
-    p.fontSize = config.fontSize; 
+    // libass maps ASS sizes identically to point units instead of pixel units (like HTML Canvas does). 
+    // We multiply by 1.33 (96/72) to precisely map the export back to the WYSIWYG player's 1080p canvas proportions.
+    p.fontSize = Math.round(config.fontSize * 1.333); 
     
     // Map original IDs to technical types for the generator
     const animationType = config.animationType === 'pulse_bold' ? 'karaoke_block' : 
@@ -101,7 +103,7 @@ function getAssHeader(config, aspectRatio) {
     p.backColor = "&H80000000"; 
     p.bold = -1; 
     p.spacing = config.letterSpacing; // Match 1080p preview resolution
-    p.outline = config.strokeWidth / 2; // Match centered stroke weight of Canvas 2D
+    p.outline = (config.strokeWidth / 2) * 1.333; // Match centered stroke weight of Canvas 2D and scale proportionally with font
     p.shadow = 0; 
     p.borderStyle = 1; 
     
@@ -299,6 +301,7 @@ export async function burnSubtitles(videoPath, assPath, outputPath) {
             '-i', videoPath,
             '-vf', `ass='${filterPath}'`,
             '-c:v', 'libx264',
+            '-crf', '18',
             '-preset', 'fast',
             '-c:a', 'copy',
             '-y', outputPath

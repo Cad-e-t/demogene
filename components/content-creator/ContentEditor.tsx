@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage } from './api';
+import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, generateVideoSegment, animateAllSegments } from './api';
 import { ContentVideoPlayer, EFFECT_TYPES, EFFECT_SEQUENCES } from './ContentVideoPlayer';
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
@@ -12,16 +12,27 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectType: string, imageUrl: string, aspectRatio: '9:16' | '16:9' }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [image, setImage] = useState<HTMLImageElement | null>(null);
+    const [media, setMedia] = useState<HTMLImageElement | HTMLVideoElement | null>(null);
 
     useEffect(() => {
-        const img = new Image();
-        img.src = imageUrl;
-        img.onload = () => setImage(img);
+        const isVideo = imageUrl.toLowerCase().endsWith('.mp4');
+        if (isVideo) {
+            const video = document.createElement('video');
+            video.preload = "auto";
+            video.muted = true;
+            video.playsInline = true;
+            video.src = imageUrl;
+            video.onloadeddata = () => setMedia(video);
+            video.load();
+        } else {
+            const img = new Image();
+            img.src = imageUrl;
+            img.onload = () => setMedia(img);
+        }
     }, [imageUrl]);
 
     useEffect(() => {
-        if (!image || !canvasRef.current) return;
+        if (!media || !canvasRef.current) return;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -38,8 +49,15 @@ export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectTyp
             
             const w = canvas.width;
             const h = canvas.height;
-            const iw = image.width;
-            const ih = image.height;
+            const iw = media instanceof HTMLVideoElement ? media.videoWidth : media.width;
+            const ih = media instanceof HTMLVideoElement ? media.videoHeight : media.height;
+            
+            // Avoid division by zero if media properties haven't fully populated
+            if (iw === 0 || ih === 0) {
+                frameId = requestAnimationFrame(render);
+                return;
+            }
+
             const baseScale = Math.max(w / iw, h / ih);
 
             let scale = 1;
@@ -143,13 +161,13 @@ export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectTyp
             const dx = -offsetX * baseScale * scale;
             const dy = -offsetY * baseScale * scale;
 
-            ctx.drawImage(image, dx, dy, dw, dh);
+            ctx.drawImage(media, dx, dy, dw, dh);
             frameId = requestAnimationFrame(render);
         };
 
         frameId = requestAnimationFrame(render);
         return () => cancelAnimationFrame(frameId);
-    }, [image, effectType]);
+    }, [media, effectType]);
 
     return (
         <canvas 
@@ -167,6 +185,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [editingImageId, setEditingImageId] = useState<string | null>(null);
     const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
     const [animatingSegmentId, setAnimatingSegmentId] = useState<string | null>(null);
+    const [animationPrompt, setAnimationPrompt] = useState('');
+    const [isAnimating, setIsAnimating] = useState(false);
+    const [isAnimatingAll, setIsAnimatingAll] = useState(false);
+    const [confirmAnimateAll, setConfirmAnimateAll] = useState({ show: false, cost: 0, count: 0 });
     const [imageEditModalId, setImageEditModalId] = useState<string | null>(null);
     const [imageEditTab, setImageEditTab] = useState<'regenerate' | 'edit' | 'upload'>('regenerate');
     
@@ -391,6 +413,72 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const togglePlay = () => setIsPlaying(!isPlaying);
     const handleTimeUpdate = (t: number) => setCurrentTime(t);
     
+    const handleAnimate = async (segmentId: string) => {
+        const seg = segments.find((s: any) => s.id === segmentId);
+        if (!seg || !seg.image_url) return;
+        
+        setIsAnimating(true);
+        setErrorMessage(null);
+        try {
+            const { videoUrl } = await generateVideoSegment(segmentId, seg.image_url, animationPrompt);
+            
+            // Update segments state
+            setSegments((prev: any[]) => prev.map(s => s.id === segmentId ? { ...s, image_url: videoUrl } : s));
+            
+            // Persist segment update (animation_prompt might have changed)
+            await supabase.from('content_segments').update({ animation_prompt: animationPrompt }).eq('id', segmentId);
+
+            setNotification({
+                message: "Magic! Video generated successfully.",
+                type: 'success'
+            });
+            setTimeout(() => setNotification(null), 4000);
+            
+        } catch (e: any) {
+            console.error("Animation failed", e);
+            const friendlyError = sanitizeError(e, "Video generation failed. Please try again.");
+            setErrorMessage(friendlyError);
+            setNotification({
+                message: friendlyError,
+                type: 'error'
+            });
+            setTimeout(() => setNotification(null), 6000);
+        } finally {
+            setIsAnimating(false);
+        }
+    };
+    
+    const handleAnimateAllClick = () => {
+        const unAnimatedSegments = segments.filter((seg: any) => seg.image_url && !seg.image_url.toLowerCase().endsWith('.mp4'));
+        if (unAnimatedSegments.length > 0) {
+            setConfirmAnimateAll({
+                show: true,
+                cost: unAnimatedSegments.length * 20,
+                count: unAnimatedSegments.length
+            });
+        }
+    };
+
+    const confirmAnimateAllAction = async () => {
+        setConfirmAnimateAll({ show: false, cost: 0, count: 0 });
+        setIsAnimatingAll(true);
+        setLocalProject((prev: any) => ({ ...prev, render_status: 'Animating' }));
+        try {
+            await animateAllSegments(project.id, session.user.id);
+            setNotification({ message: 'Batch animation completely processed.', type: 'success' });
+            setTimeout(() => setNotification(null), 4000);
+        } catch (e: any) {
+            console.error("Animate All failed", e);
+            const friendlyError = sanitizeError(e, "Batch animation failed. Please try again.");
+            setErrorMessage(friendlyError);
+            setNotification({ message: friendlyError, type: 'error' });
+            setTimeout(() => setNotification(null), 6000);
+            setLocalProject((prev: any) => ({ ...prev, render_status: 'ready' }));
+        } finally {
+            setIsAnimatingAll(false);
+        }
+    };
+
     // Config Panel State
     const [activeModule, setActiveModule] = useState<'narration' | 'images' | 'effect' | 'captions' | null>('images');
     const [isMobileConfigOpen, setIsMobileConfigOpen] = useState(true);
@@ -427,6 +515,13 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     });
 
     // Migration logic
+    useEffect(() => {
+        if (animatingSegmentId) {
+            const seg = segments.find((s: any) => s.id === animatingSegmentId);
+            setAnimationPrompt(seg?.animation_prompt || '');
+        }
+    }, [animatingSegmentId, segments]);
+
     useEffect(() => {
         let parsedEffect = project.effect;
         if (typeof project.effect === 'string') {
@@ -905,12 +1000,36 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 );
             case 'images':
                 return (
-                    <div className="md:space-y-4 space-y-2">
-                        {segments.map((seg: any, idx: number) => (
-                            <div key={seg.id} className="flex gap-3 items-start p-2 md:p-3 bg-zinc-900 rounded-xl border border-white/5">
-                                <div className="w-12 h-12 md:w-16 md:aspect-square bg-zinc-900 rounded-lg overflow-hidden shrink-0 border border-white/10 relative cursor-pointer flex items-center justify-center" onClick={() => seg.image_url && setExpandedImage(seg.image_url)}>
+                    <div className="flex flex-col flex-1 h-full overflow-hidden">
+                        <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-2 pb-4 space-y-2 md:space-y-4">
+                            {segments.map((seg: any, idx: number) => {
+                            let currentAudioTime = 0;
+                            let isActive = false;
+                            for (let j = 0; j <= idx; j++) {
+                                const dur = segmentDurations?.[j] || 0;
+                                if (j === idx) {
+                                    isActive = currentTime >= currentAudioTime && currentTime <= currentAudioTime + dur;
+                                }
+                                currentAudioTime += dur;
+                            }
+
+                            return (
+                            <div 
+                                key={seg.id} 
+                                className={`flex gap-3 items-start p-2 md:p-3 rounded-xl border transition-all cursor-pointer ${isActive ? 'bg-yellow-500/10 border-yellow-500/50 scale-[1.02]' : 'bg-zinc-900 border-white/5 hover:border-white/20'}`}
+                                onClick={() => {
+                                    let startTime = 0;
+                                    for (let j = 0; j < idx; j++) startTime += segmentDurations?.[j] || 0;
+                                    setCurrentTime(startTime);
+                                }}
+                            >
+                                <div className="w-12 h-12 md:w-16 md:aspect-square bg-zinc-900 rounded-lg overflow-hidden shrink-0 border border-white/10 relative cursor-pointer flex items-center justify-center" onClick={(e) => { e.stopPropagation(); seg.image_url && setExpandedImage(seg.image_url); }}>
                                     {seg.image_url ? (
-                                        <img src={seg.image_url} className="w-full h-full object-cover" />
+                                        seg.image_url.toLowerCase().includes('.mp4') ? (
+                                            <video src={seg.image_url} muted playsInline className="w-full h-full object-cover" />
+                                        ) : (
+                                            <img src={seg.image_url} className="w-full h-full object-cover" />
+                                        )
                                     ) : localProject.status === 'draft' ? (
                                         <div className="flex flex-col items-center justify-center">
                                             <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -928,7 +1047,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1">Segment {idx + 1}</div>
                                     <div className="flex gap-2 mt-2">
                                         <button 
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation();
                                                 setImageEditModalId(seg.id);
                                                 setRegeneratePrompt(seg.image_prompt || '');
                                                 setEditPrompt('');
@@ -940,7 +1060,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                             Edit
                                         </button>
                                         <button 
-                                            onClick={() => setAnimatingSegmentId(seg.id)} 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setAnimatingSegmentId(seg.id);
+                                            }} 
                                             className="flex items-center gap-2 px-3 py-1.5 bg-black border border-white/10 hover:bg-zinc-900 rounded-lg text-[10px] font-bold text-zinc-200 transition"
                                         >
                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -949,7 +1072,28 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                        )})}
+                        </div>
+                        
+                        <div className="shrink-0 pt-4 pb-4 px-4 md:px-6 md:pb-6 border-t border-white/10 bg-black">
+                            <button
+                                onClick={handleAnimateAllClick}
+                                disabled={isAnimatingAll || localProject.render_status === 'Animating' || segments.filter((seg: any) => seg.image_url && !seg.image_url.toLowerCase().endsWith('.mp4')).length === 0}
+                                className="w-full py-3 bg-yellow-500 text-black text-sm font-bold rounded-xl hover:bg-yellow-400 disabled:opacity-50 transition shadow-sm flex items-center justify-center gap-2"
+                            >
+                                {isAnimatingAll || localProject.render_status === 'Animating' ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                                        Animating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2Z"/></svg>
+                                        Animate All
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 );
             case 'effect':
@@ -1047,12 +1191,47 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             )}
 
             {/* Modals */}
+            {confirmAnimateAll.show && (
+                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-zinc-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm shadow-2xl"
+                    >
+                        <h3 className="text-xl font-bold text-white mb-2">Animate {confirmAnimateAll.count} Images?</h3>
+                        <p className="text-zinc-400 text-sm mb-6">
+                            This will animate all your remaining static images into videos. 
+                            This action will cost <strong className="text-yellow-500">{confirmAnimateAll.cost} credits</strong> 
+                            ({confirmAnimateAll.count} &times; 20 credits).
+                        </p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setConfirmAnimateAll({ show: false, cost: 0, count: 0 })}
+                                className="flex-1 py-2.5 bg-zinc-800 text-white font-bold rounded-xl hover:bg-zinc-700 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={confirmAnimateAllAction}
+                                className="flex-1 py-2.5 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition shadow-sm"
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
             {expandedImage && (
                 <div 
                     className="fixed inset-0 z-[100] bg-zinc-900/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
                     onClick={() => setExpandedImage(null)}
                 >
-                    <img src={expandedImage} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                    {expandedImage.toLowerCase().includes('.mp4') ? (
+                        <video src={expandedImage} autoPlay loop controls muted playsInline className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                    ) : (
+                        <img src={expandedImage} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                    )}
                     <button className="absolute top-4 right-4 text-white/70 hover:text-white p-2" onClick={() => setExpandedImage(null)}>
                         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -1090,10 +1269,12 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 {/* Video Preview Area */}
                 <div className={`flex-1 bg-zinc-900 flex flex-col relative overflow-hidden h-full transition-all duration-300 ${isMobileConfigOpen ? 'md:h-full h-[35%]' : 'h-full'}`}>
                     <div className={`flex-1 flex items-center justify-center p-4 md:p-8 min-h-0 w-full relative transition-all duration-300 ${isMobileConfigOpen ? 'scale-90 md:scale-100' : 'scale-100'}`}>
-                        {(!audioUrl || segmentDurations.length === 0) ? (
+                        {(!audioUrl || segmentDurations.length === 0 || localProject.render_status === 'Animating') ? (
                             <div className="flex flex-col items-center gap-4">
                                 <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                <div className="text-sm font-bold text-zinc-400 uppercase tracking-widest animate-pulse">Preparing Preview...</div>
+                                <div className="text-sm font-bold text-zinc-400 uppercase tracking-widest animate-pulse">
+                                    {localProject.render_status === 'Animating' ? 'Animating Videos...' : 'Preparing Preview...'}
+                                </div>
                             </div>
                         ) : (
                             <ContentVideoPlayer
@@ -1119,8 +1300,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 {/* Desktop: Config Panel (Strip + Wing) */}
                 <div className="hidden md:flex h-full shrink-0 z-20 shadow-xl relative border-l border-white/10">
                     {/* Wing (Content) */}
-                    <div className={`bg-black border-r border-white/10 overflow-y-auto transition-all duration-300 ease-in-out ${activeModule ? 'w-80 opacity-100' : 'w-0 opacity-0 overflow-hidden border-none'}`}>
-                        <div className="p-6 min-w-[20rem]">
+                    <div className={`bg-black border-r border-white/10 flex flex-col transition-all duration-300 ease-in-out ${activeModule === 'images' ? 'overflow-hidden' : 'overflow-y-auto'} ${activeModule ? 'w-80 opacity-100' : 'w-0 opacity-0 overflow-hidden border-none'}`}>
+                        <div className={`min-w-[20rem] flex-1 flex flex-col ${activeModule === 'images' ? 'p-0 overflow-hidden pt-6' : 'p-6'}`}>
                             {activeModule && renderModuleContent(activeModule)}
                         </div>
                     </div>
@@ -1168,10 +1349,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             </button>
 
             {/* Mobile: Settings Drawer */}
-            <div className={`md:hidden fixed inset-x-0 bottom-0 bg-black rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 transition-transform duration-300 ease-out transform ${isMobileConfigOpen ? 'translate-y-0' : 'translate-y-full'}`}>
-                <div className={`p-6 ${activeModule ? 'p-4 max-h-[55vh]' : 'max-h-[70vh]'} overflow-y-auto transition-all duration-300`}>
+            <div className={`md:hidden fixed inset-x-0 bottom-0 bg-black rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 transition-transform duration-300 ease-out transform ${isMobileConfigOpen ? 'translate-y-0' : 'translate-y-full'} ${isMobileConfigOpen && activeModule === 'images' ? 'flex flex-col h-[65vh]' : ''}`}>
+                <div className={`${activeModule === 'images' ? 'flex flex-col flex-1 overflow-hidden w-full' : `p-6 ${activeModule ? 'p-4 max-h-[55vh]' : 'max-h-[70vh]'} overflow-y-auto`} transition-all duration-300`}>
                     {/* Drawer Handle */}
-                    <div className="w-12 h-1.5 bg-zinc-900 rounded-full mx-auto mb-4 md:mb-6" onClick={() => setIsMobileConfigOpen(false)}></div>
+                    <div className={`w-12 h-1.5 bg-zinc-900 rounded-full mx-auto shrink-0 mb-4 md:mb-6 ${activeModule === 'images' ? 'mt-4' : ''}`} onClick={() => setIsMobileConfigOpen(false)}></div>
 
                     {!activeModule ? (
                         // Menu View
@@ -1195,8 +1376,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
                     ) : (
                         // Detail View
-                        <div className="animate-fadeIn">
-                            <div className="flex items-center gap-4 mb-6">
+                        <div className={`animate-fadeIn ${activeModule === 'images' ? 'flex flex-col flex-1 overflow-hidden' : ''}`}>
+                            <div className={`flex items-center gap-4 shrink-0 ${activeModule === 'images' ? 'px-4 mb-3' : 'mb-6'}`}>
                                 <button onClick={() => setActiveModule(null)} className="p-2 -ml-2 text-zinc-500 hover:text-white">
                                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                 </button>
@@ -1222,7 +1403,11 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 {(() => {
                                     const seg = segments.find((s: any) => s.id === imageEditModalId);
                                     return seg?.image_url ? (
-                                        <img src={seg.image_url} className="max-w-full max-h-[40vh] md:max-h-[60vh] object-contain rounded-xl shadow-lg" />
+                                        seg.image_url.toLowerCase().includes('.mp4') ? (
+                                            <video src={seg.image_url} autoPlay loop muted playsInline className="max-w-full max-h-[40vh] md:max-h-[60vh] object-contain rounded-xl shadow-lg" />
+                                        ) : (
+                                            <img src={seg.image_url} className="max-w-full max-h-[40vh] md:max-h-[60vh] object-contain rounded-xl shadow-lg" />
+                                        )
                                     ) : (
                                         <div className="text-zinc-500 font-bold uppercase tracking-widest">No Image</div>
                                     );
@@ -1351,41 +1536,90 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-6">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {EFFECT_TYPES.map((eff) => {
-                                        const seg = segments.find((s: any) => s.id === animatingSegmentId);
-                                        const idx = segments.findIndex((s: any) => s.id === animatingSegmentId);
-                                        const currentEffectArray = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos']);
-                                        const isCurrent = currentEffectArray[idx % currentEffectArray.length] === eff.id;
+                                {(() => {
+                                    const seg = segments.find((s: any) => s.id === animatingSegmentId);
+                                    if (!seg) return null;
+                                    const isVideo = seg.image_url?.toLowerCase().endsWith('.mp4');
 
-                                        return (
-                                            <button
-                                                key={eff.id}
-                                                onClick={() => handleSegmentEffectChange(idx, eff.id)}
-                                                className={`group relative flex flex-col text-left bg-black border rounded-2xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] ${isCurrent ? 'border-yellow-500 ring-1 ring-yellow-500/50' : 'border-white/10 hover:border-white/20'}`}
-                                            >
-                                                <div className="aspect-video w-full bg-zinc-900 relative">
-                                                    {seg?.image_url && (
-                                                        <EffectPreview 
-                                                            effectType={eff.id} 
-                                                            imageUrl={seg.image_url} 
-                                                            aspectRatio={project.aspect_ratio} 
+                                    return (
+                                        <div className="space-y-6">
+                                            {/* Top: Animation Input */}
+                                            {!isVideo && (
+                                                <div className="bg-black border border-white/5 rounded-2xl p-4 md:p-6 space-y-4">
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-bold text-zinc-500 uppercase flex items-center justify-between">
+                                                            Animation Sequence
+                                                            <span className="text-yellow-500 lowercase font-normal italic">Powered by Replicate AI</span>
+                                                        </label>
+                                                        <textarea 
+                                                            value={animationPrompt}
+                                                            onChange={(e) => setAnimationPrompt(e.target.value)}
+                                                            className="w-full bg-zinc-900/50 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-yellow-500 outline-none resize-none h-20"
+                                                            placeholder="Describe how the scene should move..."
                                                         />
-                                                    )}
-                                                    {isCurrent && (
-                                                        <div className="absolute top-2 right-2 bg-yellow-500 text-black p-1 rounded-full shadow-lg">
-                                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <button 
+                                                            onClick={() => handleAnimate(animatingSegmentId!)}
+                                                            disabled={isAnimating || !animationPrompt}
+                                                            className="flex-1 h-12 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                                                        >
+                                                            {isAnimating ? (
+                                                                <>
+                                                                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                                                    Magic in progress...
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    Animate with AI
+                                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2Z"/></svg>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                    {errorMessage && (
+                                                        <div className="text-[10px] text-center font-bold text-red-500 animate-pulse">{errorMessage}</div>
                                                     )}
                                                 </div>
-                                                <div className="p-3">
-                                                    <div className="text-xs font-bold text-white group-hover:text-yellow-500 transition-colors">{eff.name}</div>
-                                                    <div className="text-[10px] text-zinc-500 line-clamp-1">{eff.description}</div>
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                            )}
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {EFFECT_TYPES.map((eff) => {
+                                                    const idx = segments.findIndex((s: any) => s.id === animatingSegmentId);
+                                                    const currentEffectArray = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos']);
+                                                    const isCurrent = currentEffectArray[idx % currentEffectArray.length] === eff.id;
+
+                                                    return (
+                                                        <button
+                                                            key={eff.id}
+                                                            onClick={() => handleSegmentEffectChange(idx, eff.id)}
+                                                            className={`group relative flex flex-col text-left bg-black border rounded-2xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] ${isCurrent ? 'border-yellow-500 ring-1 ring-yellow-500/50' : 'border-white/10 hover:border-white/20'}`}
+                                                        >
+                                                            <div className="aspect-video w-full bg-zinc-900 relative">
+                                                                {seg?.image_url && (
+                                                                    <EffectPreview 
+                                                                        effectType={eff.id} 
+                                                                        imageUrl={seg.image_url} 
+                                                                        aspectRatio={project.aspect_ratio} 
+                                                                    />
+                                                                )}
+                                                                {isCurrent && (
+                                                                    <div className="absolute top-2 right-2 bg-yellow-500 text-black p-1 rounded-full shadow-lg">
+                                                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="p-3">
+                                                                <div className="text-xs font-bold text-white group-hover:text-yellow-500 transition-colors">{eff.name}</div>
+                                                                <div className="text-[10px] text-zinc-500 line-clamp-1">{eff.description}</div>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </motion.div>
                     </div>

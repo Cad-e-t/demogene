@@ -2,22 +2,23 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
 
-const MODEL_NAME = "gemini-2.5-pro"; //gemini-3-flash-preview"; // Using Gemini 3 Pro for reasoning
+const MODEL_NAME = "gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
 const IMAGE_MODEL = "gemini-2.5-flash-image"; // Nano Banana for images (Ultra quality per mapping)
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
+const VIDEO_MODEL = "veo-3.1-lite-generate-preview";
 
 
 const STYLE_OPENINGS = {
     'Realistic': 'Photorealistic depiction',
     'CartoonHorror': 'Creepy 2D cartoon horror depiction',
     '3DCartoon': 'Stylized 3D cartoon render',
-    'Anime': '2D anime illustration',
-    'Sketch': 'Pencil sketch illustration',
-    'Stickman':'Minimalist stickman illustration',
-    'Horror': 'Dark horror illustration',
-    'Exaggerated2D': 'Highly exaggerated 2D cartoon illustration',
-    'FlatCartoon': 'Simple flat 2D cartoon illustration',
-    'SemiRealisticCartoon': 'Semi-realistic stylized cartoon illustration',
+    'Anime': '2D anime depiction',
+    'Sketch': 'Pencil sketch depiction',
+    'Stickman':'Minimalist stickman depiction',
+    'Horror': 'Dark horror scene',
+    'Exaggerated2D': 'Highly exaggerated 2D cartoon render',
+    'FlatCartoon': 'Simple flat 2D cartoon render',
+    'SemiRealisticCartoon': 'Semi-realistic stylized cartoon render',
     'Skeleton': 'Cinematic photo-realistic scene'
 
 };
@@ -34,166 +35,117 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
         'Realistic': `Every image is a highly photorealistic depiction of the scene. Natural lighting only with soft shadows. Real-world textures, colors, and materials.`,
         'Stickman': `Every image is a line-based stickman-style illustration. Characters are drawn as simple stick figures with thin uniform lines. All objects and environments are represented using simplified line drawings and flat solid colors. Use clear, varied colors to distinguish elements in the scene. No shading, no gradients, no textures. A stickman character is present in every scene and uses posture and positioning to reflect the narration.`,
         'Anime': `Every image is a 2D anime-style depiction with clean, consistent line art. Colors are applied as flat or softly shaded fills with a consistent palette. Characters, objects, and environments are rendered in a cohesive anime style across all scenes. No photorealism.`,
-        'Horror': `Every image is a dark, realistic illustration with low-key lighting and strong shadows. Scenes are dimly lit with high contrast between light and darkness. Colors are muted and desaturated with a dark overall tone. Subjects and environments are grounded and eerie. No bright colors, no flat lighting, no cartoon or stylized rendering.`,
-        'Sketch': `Every image is a hand-drawn pencil sketch illustration. All characters, objects, and environments are drawn using visible pencil lines and light sketch strokes. Lines vary slightly in thickness with a natural hand-drawn feel. Minimal use of soft grayscale shading. No color, no digital clean lines, no solid fills or rendering.`,
-        'Exaggerated2D': `Every image is a highly exaggerated 2D cartoon depiction with bold outlines and dynamic shapes. Characters use extreme squash and stretch, oversized facial expressions, and dramatic poses to convey emotion and action. Motion is implied through deformation, speed lines, and exaggerated perspective. Colors are vibrant and high-contrast with simple shading. Environments are stylized and slightly distorted to match the character energy. No realism. Every scene emphasizes visual humor, impact, and clarity of action.`,
+        'Horror': `Every image is a dark, realistic scene with low-key lighting and strong shadows. Scenes are dimly lit with high contrast between light and darkness. Colors are muted and desaturated with a dark overall tone. Subjects and environments are grounded and eerie. No bright colors, no flat lighting, no cartoon or stylized rendering.`,
+        'Sketch': `Every image is a hand-drawn pencil sketch depiction. All characters, objects, and environments are drawn using visible pencil lines and light sketch strokes. Lines vary slightly in thickness with a natural hand-drawn feel. Minimal use of soft grayscale shading. No color, no digital clean lines, no solid fills or rendering.`,
+        'Exaggerated2D': `Every image is a highly exaggerated 2D cartoon depiction with bold outlines and dynamic shapes. Characters use extreme squash and stretch, oversized facial expressions, and dramatic poses to convey emotion and action. Colors are vibrant and high-contrast with simple shading. Environments are stylized and slightly distorted to match the character energy. No realism. Every scene emphasizes visual humor, impact, and clarity of action.`,
         'FlatCartoon': `Every image is a simple flat 2D cartoon depiction using clean shapes and minimal detail. Characters are built from basic geometric forms with clear silhouettes and expressive faces. Colors are flat, solid, and consistent across scenes with no gradients or textures. Linework is minimal or uniform. Environments are simplified and uncluttered to keep focus on the subject. A character is present in every scene and uses subtle but clear expressions and poses to reflect the narration. No realism.`,
         'SoftCartoon': `Every image is a semi-realistic cartoon depiction blending stylized characters with believable proportions and detail. Characters maintain realistic anatomy with slightly exaggerated features for expression. Lighting is soft and cinematic with gentle shading and depth. Colors are rich and cohesive with subtle gradients. Materials and environments have mild texture but remain stylized, not photorealistic. Composition and framing are more grounded and cinematic. Expressions are controlled rather than extreme. No full realism.`,
-        'Skeleton': `Every image is a cinematic, photo-realistic depiction of a real-world or story-driven environment with natural lighting, depth, and grounded textures. A single stylized skeleton is the main subject in every scene. It has smooth off-white bones, slightly rounded edges, clean structure, and no cracks or damage. The skull is proportionate with full, natural human eyes. The jaw is complete and articulated. Movement and posture are human-like. The skeleton can wear modern or context-appropriate outfits. It is always clearly visible and framed as the subject. The skeleton experiences or acts out the scene. Other characters are natural and photo-realistic.`
+        'Skeleton': `Every image is a cinematic, photo-realistic environment with natural lighting, always featuring a single stylized skeleton character as the active main subject. The skeleton character is pristine: smooth off-white bones, rounded edges, an articulated jaw, and a proportionate skull with natural human eyes. It moves realistically and retains distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. its wardrobe is adaptable—changing to fit the specific scene or remaining consistent depending on the narrative context.  All other characters and settings are completely photo-realistic.`
     
     };
 
-    const defaultVisualIdentityBlock = `
-
-Before writing any image prompts, analyze the script and visual style to define and lock the following:
-
-- One core visual environment or background world
-- One consistent lighting style (if applicable to the chosen visual style)
-- One cohesive color palette (if applicable to the chosen visual style)
-- One overall visual mood
-
-Once defined, these values are fixed across all scenes. Repeat them naturally in every image prompt without variation unless the script explicitly changes location.
-
-If the selected visual style does not use lighting, color, or texture (e.g. silhouette or flat illustration), DO NOT invent them.
-
-The purpose of this lock is to ensure all images feel like they belong to the same world, regardless of changes in subjects or scenes.
-`;
-
-    const visualIdentityBlock = predefinedVisualIdentityBlocks[style] ? `\n\n${predefinedVisualIdentityBlocks[style]}\n` : defaultVisualIdentityBlock;
+    const visualIdentityBlock = predefinedVisualIdentityBlocks[style] ;
 
     const systemPrompt = `
-You are an expert visual director and prompt engineer.
+You are an expert film director, cinematographer, and prompt engineer.
 
-Your task is to analyze a user's script, construct a coherent visual narrative, split the script into meaningful visual segments, and generate precise, hyper-specific, consistent image prompts that clearly represent the narration.
+Your task is to analyze a user's script, construct a coherent visual narrative, split the script into meaningful visual segments, and generate precise pairs of prompts for an Image-to-Video pipeline: an \`image_prompt\` (the first frame) and an \`animation_prompt\` (the motion).
 
-INPUTS:
-- Script: ${prompt}
-- Visual Style: ${style}
+INPUT SCRIPT: 
+${prompt}
 
-SCRIPT HANDLING:
-1. Use the user's text EXACTLY as provided.
-2. You may ONLY fix obvious spelling or punctuation errors.
-3. Optimize the script for natural narration flow.
+=========================================
+PHASE 1: SCRIPT PROCESSING & SEGMENTATION
+=========================================
 
-SEGMENTATION LOGIC:
+1. SCRIPT HANDLING
+- Use the user's text EXACTLY as provided.
+- You may ONLY fix obvious spelling or punctuation errors.
+- Optimize the script for natural narration flow.
 
-Segment the script based on clear visual changes, not sentence structure.
+2. SEGMENTATION LOGIC
+Segment the script based on clear visual changes:
+- First, create a segment for the hook (usually the first sentence).
+- Then, create a new segment ONLY when the visual should change in a noticeable and meaningful way, including:
+  * A new action or event
+  * A new subject or focal point
+  * A change in environment or setting
+  * A visible cause → effect transformation
 
-First, create a segment for the hook (usually the first sentence).
+3. PACING & EXPLANATORY LINES
+- Concept Shifts: If a line introduces a new idea that requires a different visual → create a new segment.
+- Brief Explanations: If a line briefly explains or clarifies the current idea → keep it in the same segment.
+- Long Explanations (Angle & B-Roll Shifts): If an explanation or extension spans multiple sentences, holding a single shot becomes boring. To maintain viewer engagement without breaking continuity, create a new segment by changing the camera perspective. Cut to a close-up, a different angle, or focus on a specific detail (B-roll) within the EXACT SAME environment and subject. Do not invent irrelevant concepts.  * 
 
-Then, create a new segment only when the visual should change in a noticeable and meaningful way, including:
 
+=========================================
+PHASE 2: WORLD-BUILDING & CONSISTENCY
+=========================================
 
-- a new action or event
-- a new subject or focal point
-- a change in environment or setting
-- a visible cause → effect transformation
-- a shift in concept that requires a different visual representation
-
-EXPLANATORY OR ABSTRACT LINES:
-
-If a line introduces a new idea that requires a different visual:
-→ create a new segment
-
-If a line only explains, extends, or clarifies the current idea:
-→ keep it in the same segment
-→ continue the current visual
-
-CORE RULE, CRITICAL:
-
-→ Only change segments when the visual needs to change
-→ If the visual idea remains the same, do not create a new segment
-
-VISUAL IDENTITY LOCK:
+1. VISUAL IDENTITY LOCK
+Every image generated must adhere to this visual style:
 ${visualIdentityBlock}
 
-ANCHOR SYSTEM:
+2. ENVIRONMENT & SCENE CONTINUITY (Backgrounds & Locations)
+The image model must never be left to hallucinate backgrounds. You must explicitly define the environment (surroundings, location or background) based on the context of the script.
+- Continuity: If consecutive segments take place in the same location, maintain the exact same environment description and lighting so cuts feel natural and sequential.
+- Transitions: Only change the environment description when the narrative dictates a shift to a new location.
+- Atmosphere: The environment's tone, lighting, and general visual style must perfectly reflect the constraints of the VISUAL IDENTITY LOCK.
 
-Before generating image prompts, define 1–3 VISUAL ANCHORS — recurring visual elements that persist across scenes (e.g. a specific character, object, or structure that appears repeatedly and helps maintain visual continuity).
+3. ANCHOR SYSTEM (Subject Consistency)
+Before generating prompts, define 1–3 VISUAL ANCHORS — recurring visual elements that persist across scenes (e.g., a specific character, object, or structure). 
+- Base Description: Each anchor must have a canonical base description focused on: shape, structural form, and distinctive visual features.
+- Anchor Lifecycle: Anchors should persist across scenes where they remain relevant. If the scene introduces a wholly new subject, concept, or setting → old anchors may be dropped, and new anchors can be defined.
 
-Each anchor must have a canonical description focused on:
-- shape
-- structural form
-- distinctive visual features
+4. THE "ZERO-MEMORY" RULE & ADAPTIVE ANCHOR USAGE
+CRITICAL: The downstream image generation model has ZERO MEMORY. It does not know what was described in previous prompts. Every single image prompt must be 100% self-contained. 
+Never use vague pointers or shorthand (e.g., "The stylized skeleton", "The magic book", or "The aforementioned plane"). Leave zero room for hallucination.
 
-These anchor descriptions must be reused verbatim in every prompt where they appear.
-Do not paraphrase or modify them.
+How to describe anchors based on what the scene naturally requires:
+- Entirely Visible: If the narrative requires the anchor to appear completely in the scene, you MUST reuse its canonical base description VERBATIM in the prompt.
+- Partially Visible / Interiors: If the narrative only involves a specific part or the inside of an anchor, DO NOT force the full description. Instead, take only the relevant descriptive traits and vividly describe EXACTLY what is visible in full detail. (e.g., Instead of just saying "Inside the white plane," explicitly describe the actual visible elements: "Inside a sleek cockpit with glowing digital panels, silver trim, and leather seats.")
 
-
-ANCHOR USAGE RULES:
-
-Anchors should persist across scenes where they remain relevant (e.g. same subject, environment, or ongoing scenario).
-
-If the scene introduces a new subject, concept, or setting:
-→ anchors may change
-→ new anchors can be defined for that segment if needed
-
-Anchors are tools for consistency, not constraints.
-
-SCENE CONTINUITY:
-
-Each image should feel like part of the same video.
-
-Maintain consistency defined in Visual Identity Lock
-
-Anchors should persist where appropriate:
-- continuous scenarios → keep anchors
-- multi-concept segments → allow changes
-- narrative scenes → maintain character anchors where relevant
+*Note: Do not artificially force wide shots or close-ups just to obey this rule. Let the script's narrative naturally dictate how much of the anchor is shown.*
 
 
-DIRECTOR MODE:
+=========================================
+PHASE 3: DIRECTOR MODE (PROMPT GENERATION)
+=========================================
 
-Think like a visual communicator, not just a stylist.
+Think like a Cinematographer. You are creating two halves of a whole for each segment. 
+- Synergy Guideline: Do NOT pack the entire action of the narration into the static image. Let the animation prompt handle the movement, transformation, and culmination of the action.
 
-Each image must clearly represent the meaning of its narration.
+1. THE IMAGE PROMPT (The First Frame)
 
-Before writing the prompt, determine:
-- What is the core idea being expressed?
-- What is the most direct way to show it visually?
+The image should show a state of anticipation, resting, or the beginning of an action.
+- Rule 1: Start every prompt with exactly this opening: "${opening}"
+- Rule 2: ZERO-MEMORY ENFORCEMENT: Treat every prompt as an independent image. Describe the subject, anchor, and environment fully and explicitly every single time.
+- Rule 3: Describe ONE clear focal subject and its starting position/pose.
+- Rule 4: (Ref: Phase 2.4): Treat every prompt as an independent, self-contained universe. No shorthand. Use VERBATIM anchor descriptions when fully visible. Vividly describe specific visible details for partial/interior views.
+- Rule 5: (Ref: Phase 2.2): Explicitly include the full environment description in every single prompt to maintain scene continuity and prevent hallucination.
+- Rule 6: Ensure all descriptive elements reflect the Visual Identity Lock rules.
+- Rule 7: NO baked-in motion. Do not describe motion blur, speed lines, or mid-air frozen actions. Keep subjects physically grounded and ready to move.
+- Rule 8: No text, words, or labels inside the image.
 
-Guidelines:
-- Prefer clear, physically understandable visuals over symbolic ones
-- If the idea is abstract, translate it into something visible using:
-  - scale
-  - contrast
-  - cause and effect
-  - transformation
+2. THE ANIMATION PROMPT (The Motion)
+- Rule 1: Describe exactly how the elements in the image should move.
+- Rule 2: Keep it brief and focused on two things: Subject Motion and Camera Motion.
+- Rule 3: Example formats: "Subject walks slowly towards the camera. Camera slowly pushes in." OR "The wind blows the trees. Camera pans right."
+- Rule 4: Maximum 2 to 3 short sentences.
 
-Do not rely on mood alone to carry meaning.
-The viewer should understand the idea even without narration.
 
-IMAGE PROMPT RULES:
+=========================================
+PHASE 4: OUTPUT FORMAT
+=========================================
 
-1. Start every prompt with exactly this opening: "${opening}"
-
-2. Describe ONE clear focal subject and what it is doing.
-
-3. The subject must directly represent the narration’s core idea.
-
-4. Describe the environment clearly:
-- where the scene takes place
-- what surrounds the subject
-- what is visible in the background
-
-5. Every prompt must reflect the Visual Identity Lock (environment, lighting, palette, mood).
-
-6. Maximum 150 words per prompt.
-Every word must add visual clarity.
-No filler. No vague or purely stylistic descriptions.
-
-7. Repeat full subject and anchor descriptions verbatim in every prompt. Do not shorten, summarize, or replace them with terms like “the”, “this”, or pronouns—any deviation is incorrect.
-
-8. Do not include any text, words, letters, captions, or labels inside the image. Only visual elements are allowed.
-
-9. Add these keywords to the end of every prompt: "full bleed, no borders"
-
-OUTPUT FORMAT:
 Return ONLY a raw JSON array. No markdown, no preamble, no explanation.
 
 [
-  { "narration": "...", "image_prompt": "..." },
-  ...
+  { 
+    "narration": "...", 
+    "image_prompt": "...",
+    "animation_prompt": "..."
+  }
 ]
 `;
 
@@ -309,3 +261,48 @@ export async function generateFullVoiceover(text, voiceName, stylePrompt) {
     
     return Buffer.from(base64Audio, 'base64');
 }
+
+export async function generateGeminiVideo(imageUrl, animationPrompt, aspectRatio) {
+    if (!process.env.API_KEY) throw new Error("API Key missing");
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    // Fetch the original image buffer
+    const imgResponse = await fetch(imageUrl);
+    const imgBuffer = await imgResponse.arrayBuffer();
+    const base64EncodeString = Buffer.from(imgBuffer).toString('base64');
+
+    const ar = aspectRatio === '9:16' ? '9:16' : '16:9';
+
+    let operation = await ai.models.generateVideos({
+        model: VIDEO_MODEL,
+        prompt: animationPrompt,
+        image: {
+            imageBytes: base64EncodeString,
+            mimeType: 'image/png'
+        },
+        config: {
+            numberOfVideos: 1,
+            resolution: '720p',
+            durationSeconds: 4,
+            aspectRatio: ar
+        }
+    });
+
+    while (!operation.done) {
+        await new Promise(resolve => setTimeout(resolve, 7000));
+        operation = await ai.operations.getVideosOperation({ operation: operation });
+    }
+
+    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (!downloadLink) {
+        throw new Error("Video generation failed: No URI from Gemini");
+    }
+
+    const videoResponse = await fetch(downloadLink, {
+        method: 'GET',
+        headers: { 'x-goog-api-key': process.env.API_KEY },
+    });
+    
+    return await videoResponse.arrayBuffer();
+}
+

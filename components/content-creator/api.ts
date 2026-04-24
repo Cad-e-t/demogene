@@ -147,3 +147,29 @@ export async function deleteStory(storyId: string, userId: string) {
     });
     if (!res.ok) throw new Error("Delete failed. Please try again.");
 }
+
+export async function generateVideoSegment(segmentId: string, imageUrl: string, animationPrompt: string) {
+    const res = await fetch(`${API_URL}/video-generation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ segmentId, imageUrl, animationPrompt })
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(sanitizeError(err.error, "Video generation failed. Please try again."));
+    }
+    return await res.json();
+}
+
+export async function animateAllSegments(projectId: string, userId: string) {
+    const res = await fetch(`${API_URL}/animate-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, userId })
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(sanitizeError(err.error, "Batch animation failed. Please try again."));
+    }
+    return await res.json();
+}

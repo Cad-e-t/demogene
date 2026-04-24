@@ -168,7 +168,11 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                         {/* Preview Area */}
                         <div className="w-full aspect-video bg-zinc-900 relative overflow-hidden">
                             {p.previewUrl ? (
-                                <img src={p.previewUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="Project Preview" />
+                                p.previewUrl.toLowerCase().includes('.mp4') ? (
+                                    <video src={p.previewUrl} muted className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                ) : (
+                                    <img src={p.previewUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="Project Preview" />
+                                )
                             ) : p.status === 'draft' ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black">
                                     <span className="text-zinc-500 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-white/20 px-4 py-2 rounded-xl">Draft</span>
