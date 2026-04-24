@@ -7,6 +7,7 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
     const [error, setError] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+    const [openingId, setOpeningId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetch = async () => {
@@ -55,17 +56,12 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
 
     const handleProjectClick = async (project: any) => {
         console.log(`[ContentProjects] Loading project: ${project.id}`);
+        setOpeningId(project.id);
         
         if (project.type === 'demo') {
-            // Use onViewChange to navigate to demo-editor, but we need to pass the ID.
-            // Wait, ContentApp handles routing. We can just use window.location or a callback.
-            // Let's use a custom event or update ContentApp to handle it.
-            // Actually, ContentApp passes onViewChange which calls onNavigate.
-            // We can append the ID to the URL or use local storage.
-            // Better: update ContentApp to accept a project ID for demo-editor.
-            // For now, let's just trigger a custom event that ContentApp can listen to.
             const event = new CustomEvent('open-demo-project', { detail: { projectId: project.id } });
             window.dispatchEvent(event);
+            setOpeningId(null);
             return;
         }
 
@@ -76,6 +72,7 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
             console.error("[ContentProjects] Failed to load segments", error);
             setError("Failed to load project. Please try again.");
             setTimeout(() => setError(null), 5000);
+            setOpeningId(null);
             return;
         }
 
@@ -84,6 +81,7 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
         } else {
             console.warn("[ContentProjects] onOpenProject not provided");
         }
+        setOpeningId(null);
     };
 
     const handleDelete = async (projectId: string) => {

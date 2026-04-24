@@ -70,6 +70,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     const [media, setMedia] = useState<(HTMLImageElement | HTMLVideoElement)[]>([]);
     const [subtitles, setSubtitles] = useState<any[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isLoadingMedia, setIsLoadingMedia] = useState(true);
     const [showControls, setShowControls] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
     const [isSeeking, setIsSeeking] = useState(false);
@@ -148,6 +149,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     // 4. Load Media (Images or Videos)
     useEffect(() => {
         let isMounted = true;
+        setIsLoadingMedia(true);
         const loadMedia = async () => {
             const loadedMedia = await Promise.all(segments.map(seg => {
                 const url = seg.image_url || '';
@@ -159,17 +161,34 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                 const isVideo = url.toLowerCase().includes('.mp4');
 
                 return new Promise<HTMLImageElement | HTMLVideoElement>((resolve) => {
+                    let videoElement: any;
+                    let imgElement: any;
+
+                    const fallbackTimeoutId = setTimeout(() => {
+                        console.warn("Media load timeout fallback for:", url);
+                        if (isVideo) {
+                            mediaCacheRef.current[url] = videoElement;
+                            resolve(videoElement);
+                        } else {
+                            mediaCacheRef.current[url] = imgElement;
+                            resolve(imgElement);
+                        }
+                    }, 5000); // 5s timeout to prevent Editor hanging indefinitely
+
                     if (isVideo) {
                         const video = document.createElement('video');
+                        videoElement = video;
                         video.preload = "auto";
                         video.muted = true;
                         video.playsInline = true;
                         
                         video.onloadeddata = () => {
+                            clearTimeout(fallbackTimeoutId);
                             mediaCacheRef.current[url] = video;
                             resolve(video);
                         };
                         video.onerror = (e) => {
+                            clearTimeout(fallbackTimeoutId);
                             console.error("Video load failed", url, e);
                             resolve(video);
                         };
@@ -178,11 +197,13 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                         video.load();
                     } else {
                         const img = new Image();
+                        imgElement = img;
                         let resolved = false;
                         
                         const handleResolve = () => {
                             if (!resolved) {
                                 resolved = true;
+                                clearTimeout(fallbackTimeoutId);
                                 mediaCacheRef.current[url] = img;
                                 resolve(img);
                             }
@@ -201,6 +222,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             }));
             if (isMounted) {
                 setMedia(loadedMedia);
+                setIsLoadingMedia(false);
                 
                 // Cleanup old cached media to prevent memory leaks
                 const currentUrls = new Set(segments.map(seg => seg.image_url || ''));
@@ -722,8 +744,15 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             >
                 <canvas 
                     ref={canvasRef} 
-                    className="w-full h-full object-contain"
+                    className={`w-full h-full object-contain transition-opacity duration-300 ${isLoadingMedia ? 'opacity-0' : 'opacity-100'}`}
                 />
+                
+                {isLoadingMedia && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/80 backdrop-blur-sm z-10">
+                        <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+                        <div className="text-xs font-bold text-zinc-400 uppercase tracking-widest animate-pulse">Loading Visuals...</div>
+                    </div>
+                )}
                 
                 {/* Centered Play Button (Visible when showControls is true AND (paused OR hovering) AND NOT seeking) */}
                 <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none ${showControls && (!isPlaying || isHovering) && !isSeeking ? 'opacity-100' : 'opacity-0'}`}>
