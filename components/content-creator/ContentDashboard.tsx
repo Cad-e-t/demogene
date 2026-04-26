@@ -380,6 +380,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 <div className={`relative rounded-2xl overflow-hidden border-4 transition-colors duration-300 ${style === s ? 'border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'border-white/5'}`}>
                                     <video 
                                         src={STYLE_PREVIEWS[s]} 
+                                        preload="metadata"
                                         className="h-[30vh] md:h-[40vh] w-auto aspect-auto object-cover"
                                         autoPlay={style === s || hoveredStyle === s} 
                                         muted 

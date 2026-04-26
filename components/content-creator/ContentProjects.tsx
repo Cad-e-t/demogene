@@ -167,7 +167,7 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                         <div className="w-full aspect-video bg-zinc-900 relative overflow-hidden">
                             {p.previewUrl ? (
                                 p.previewUrl.toLowerCase().includes('.mp4') ? (
-                                    <video src={p.previewUrl} muted className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                    <video src={p.previewUrl} preload="metadata" muted className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                                 ) : (
                                     <img src={p.previewUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="Project Preview" />
                                 )

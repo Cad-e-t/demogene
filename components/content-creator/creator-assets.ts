@@ -6,6 +6,7 @@ export const STYLE_PREVIEWS: Record<string, string> = {
     'CartoonHorror': "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
     "Skeleton": "https://assets.productcam.site/image-styles/skeleton.mp4",
     '3DCartoon': "https://assets.productcam.site/image-styles/3dcartoon.mp4",
+    'GameCinematic': "https://assets.productcam.site/image-styles/GameCinematic.mp4",
     "Sketch": "https://assets.productcam.site/image-styles/sketch.mp4",
     "Stickman": "https://assets.productcam.site/image-styles/stickman.mp4",
     'Exaggerated2D': "https://assets.productcam.site/image-styles/exaggerated2d.mp4", 

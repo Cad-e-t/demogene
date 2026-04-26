@@ -217,6 +217,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [saveDefaultStatus, setSaveDefaultStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [timer, setTimer] = useState(0);
+    const [showExportMenu, setShowExportMenu] = useState(false);
     const [notification, setNotification] = useState<{ message: string, type: 'error' | 'success' } | null>(null);
     const [lastStatus, setLastStatus] = useState<string | null>(project.status);
     const [lastRenderStatus, setLastRenderStatus] = useState<string | null>(project.render_status);
@@ -375,13 +376,14 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         }
     };
 
-    const handleExport = async () => {
+    const handleExport = async (quality: string) => {
         setSubmitting(true);
         setExportStatus('idle');
         setErrorMessage(null);
+        setShowExportMenu(false);
         try {
             await supabase.from('content_projects').update({ subtitles: subtitles }).eq('id', project.id);
-            await exportVideo(project.id, session.user.id);
+            await exportVideo(project.id, session.user.id, quality);
             onComplete();
         } catch (e: any) {
             setExportStatus('error');
@@ -1250,13 +1252,24 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             GENERATING ASSETS... {timer}s
                         </div>
                     )}
-                    <button 
-                        onClick={handleExport}
-                        disabled={submitting || isGeneratingAssets}
-                        className={`px-4 py-1.5 text-xs font-bold rounded-lg disabled:opacity-50 transition shadow-sm flex items-center gap-2 ${exportStatus === 'error' ? 'bg-red-500 text-white hover:bg-red-400' : 'bg-yellow-500 text-black hover:bg-yellow-400'}`}
-                    >
-                        {submitting ? `Exporting... ${timer}s` : exportStatus === 'error' ? (errorMessage || 'Export Failed') : 'Export Video'}
-                    </button>
+                    <div className="relative">
+                        <button 
+                            onClick={showExportMenu ? () => setShowExportMenu(false) : () => setShowExportMenu(true)}
+                            disabled={submitting || isGeneratingAssets}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-lg disabled:opacity-50 transition shadow-sm flex items-center gap-2 ${exportStatus === 'error' ? 'bg-red-500 text-white hover:bg-red-400' : 'bg-yellow-500 text-black hover:bg-yellow-400'}`}
+                        >
+                            {submitting ? `Exporting... ${timer}s` : exportStatus === 'error' ? (errorMessage || 'Export Failed') : 'Export Video'}
+                            {(!submitting && exportStatus !== 'error') && (
+                                <svg className={`w-4 h-4 transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            )}
+                        </button>
+                        {showExportMenu && !submitting && !isGeneratingAssets && (
+                            <div className="absolute right-0 top-full mt-2 w-36 bg-zinc-900 border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
+                                <button className="w-full px-4 py-3 text-left text-sm font-bold text-white hover:bg-zinc-800 transition border-b border-white/5" onClick={() => handleExport('720p')}>720p (Fast)</button>
+                                <button className="w-full px-4 py-3 text-left text-sm font-bold text-white hover:bg-zinc-800 transition" onClick={() => handleExport('1080p')}>1080p (HQ)</button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

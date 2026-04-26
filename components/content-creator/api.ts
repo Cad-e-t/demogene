@@ -117,11 +117,11 @@ export async function generateAssets(projectId: string, voiceId: string, userId:
     return await res.json();
 }
 
-export async function exportVideo(projectId: string, userId: string) {
+export async function exportVideo(projectId: string, userId: string, quality: string = '1080p') {
     const res = await fetch(`${API_URL}/export-video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, userId })
+        body: JSON.stringify({ projectId, userId, quality })
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));

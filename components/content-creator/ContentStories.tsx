@@ -149,6 +149,7 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                                 <video 
                                     src={s.video_url} 
                                     controls 
+                                    preload="metadata"
                                     poster={s.thumbnail_url}
                                     className="w-full h-auto object-cover"
                                 />

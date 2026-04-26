@@ -1036,8 +1036,8 @@ app.post('/animate-all', async (req, res) => {
 
 // 6. Export Video (Stitch Assets)
 app.post('/export-video', async (req, res) => {
-    const { projectId, userId } = req.body;
-    console.log(`[ContentServer] Exporting video for project ${projectId}`);
+    const { projectId, userId, quality } = req.body;
+    console.log(`[ContentServer] Exporting video for project ${projectId} at ${quality || '1080p'}`);
 
     try {
         // Fetch Project Data
@@ -1077,7 +1077,7 @@ app.post('/export-video', async (req, res) => {
                 }
 
                 // Assemble
-                const assembledPath = await assembleVideo(segments, audioPath, project.segment_durations, workDir, project.aspect_ratio, project.effect);
+                const assembledPath = await assembleVideo(segments, audioPath, project.segment_durations, workDir, project.aspect_ratio, project.effect, quality || '1080p');
                 let finalPath = assembledPath;
 
         // 4. Generate/Burn Subtitles

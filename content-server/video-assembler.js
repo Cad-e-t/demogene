@@ -115,11 +115,19 @@ const EFFECT_SEQUENCES = {
     'minimalist': ['none', 'doc_push', 'none']
 };
 
-export async function assembleVideo(segments, audioPath, audioDurations, workDir, aspectRatio, effectPreset) {
+export async function assembleVideo(segments, audioPath, audioDurations, workDir, aspectRatio, effectPreset, quality = '1080p') {
     // 1. Create video clips from images with zoom effect
     const clipPaths = [];
-    const width = aspectRatio === '9:16' ? 1080 : 1920;
-    const height = aspectRatio === '9:16' ? 1920 : 1080;
+    
+    // Set resolution based on quality
+    let width, height;
+    if (quality === '720p') {
+        width = aspectRatio === '9:16' ? 720 : 1280;
+        height = aspectRatio === '9:16' ? 1280 : 720;
+    } else {
+        width = aspectRatio === '9:16' ? 1080 : 1920;
+        height = aspectRatio === '9:16' ? 1920 : 1080;
+    }
     
     // Use the effect array directly from the database. 
     // If it's a string, attempt to parse it first.
