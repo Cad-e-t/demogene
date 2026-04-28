@@ -1,7 +1,7 @@
 
 
 
-import { ContentProject, ContentSegment, SubtitleConfiguration } from "./types";
+import { ContentProject, ContentSegment, SubtitleConfiguration, VoiceStyleConfig } from "./types";
 import { supabase } from "../../supabaseClient";
 
 export const API_URL = "https://content-creator-417540185411.us-central1.run.app"; // Or env var
@@ -54,7 +54,7 @@ export async function updateSegmentImage(segmentId: string, newImageUrl: string,
     return await res.json();
 }
 
-export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: string, subtitles: SubtitleConfiguration, voiceId: string, signal?: AbortSignal) {
+export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: VoiceStyleConfig, subtitles: SubtitleConfiguration, voiceId: string, signal?: AbortSignal) {
     const res = await fetch(`${API_URL}/generate-segments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

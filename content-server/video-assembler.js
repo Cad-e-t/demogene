@@ -33,6 +33,18 @@ function getVideoDuration(filePath) {
     });
 }
 
+function hasAudio(filePath) {
+    return new Promise((resolve) => {
+        const proc = spawn('ffprobe', ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'default=noprint_wrappers=1:nokey=1', filePath]);
+        let out = '';
+        proc.stdout.on('data', d => out += d.toString());
+        proc.on('close', code => {
+            if (code === 0 && out.trim() !== '') resolve(true);
+            else resolve(false);
+        });
+    });
+}
+
 
 function getFilterForEffect(effectType, width, height, frames, startFrame = 0, isVideo = false) {
     // Zoom/Pan expressions for ffmpeg zoompan filter
@@ -177,33 +189,50 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         
         let setptsFilter = '';
         let inputArgs = [];
+        let mapArgs = [];
 
         if (isVideo) {
             // Speed manipulation mapping to the segment duration 
             // Using (PTS-STARTPTS) is CRITICAL to prevent massive sync gaps/drifts during concat
             const sourceDuration = await getVideoDuration(imagePath);
+            const hasAudioStream = await hasAudio(imagePath);
+            
             setptsFilter = `setpts=(${duration}/${Math.max(0.1, sourceDuration)})*(PTS-STARTPTS),`;
             
-            // For video we just provide the file (no -loop)
-            inputArgs = ['-i', imagePath];
+            let audioInputArgs = hasAudioStream ? [] : ['-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000'];
+            inputArgs = ['-i', imagePath, ...audioInputArgs];
+            
+            let afFilter = 'aresample=48000';
+            if (hasAudioStream) {
+                const tempo = sourceDuration / duration;
+                if (tempo >= 0.5 && tempo <= 2.0) {
+                    afFilter += `,atempo=${tempo}`;
+                }
+            }
+
             filter = `${setptsFilter}${fpsFilter},${inputScale},${effectFilter},setsar=1,${vignetteFilter}`;
+            mapArgs = hasAudioStream ? ['-map', '0:v', '-map', '0:a', '-af', afFilter] : ['-map', '0:v', '-map', '1:a', '-af', afFilter];
         } else {
-            inputArgs = ['-loop', '1', '-i', imagePath];
+            inputArgs = ['-loop', '1', '-i', imagePath, '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000'];
             filter = `${inputScale},${effectFilter},${fpsFilter},setsar=1,${vignetteFilter}`;
+            mapArgs = ['-map', '0:v', '-map', '1:a', '-af', 'aresample=48000'];
         }
 
         await runFFmpeg([
             ...inputArgs,
             '-vf', filter,
+            ...mapArgs,
             '-c:v', 'libx264', 
             '-crf', '18', // Optimal High Quality balance (prevents file bloat)
             '-preset', 'fast',
             '-tune', 'film', // Better texture retention
+            '-c:a', 'aac',
+            '-ac', '2',
+            '-ar', '48000',
             '-t', duration.toString(), 
             '-r', '30', // Explicitly force 30fps container frame rate
             '-video_track_timescale', '90000', // Unify timebases for clean concat
             '-pix_fmt', 'yuv420p',
-            '-an', // Ensure no audio tracks from original videos are carried over
             '-y', clipPath
         ]);
         
@@ -225,18 +254,17 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
     // 3. Merge with Audio and Normalize Loudness
     const finalPath = path.join(workDir, `final_${uuidv4()}.mp4`);
     
-    // Using loudnorm to target -16 LUFS (Integrated) which is a safe, loud standard for mobile/social
-    // TP (True Peak) -1.5dB to prevent clipping during transcoding by platforms
-    // LRA (Loudness Range) 11 for natural speech dynamics
+    // Mix native audio (visualPath) with voiceover (audioPath)
+    // Reduce volume of native audio to act as background noise
     await runFFmpeg([
         '-i', visualPath,
         '-i', audioPath,
-        '-map', '0:v:0', // Explicitly take video from visual path
-        '-map', '1:a:0', // Explicitly take audio from the voiceover
-        '-c:v', 'copy', // Stream copy prevents redundant re-encoding, preserving quality and saving file size
-        '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11', 
+        '-filter_complex', '[0:a]volume=0.3[v_vol]; [v_vol][1:a]amix=inputs=2:duration=first:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11[a]',
+        '-map', '0:v:0',
+        '-map', '[a]',
+        '-c:v', 'copy',
         '-c:a', 'aac', 
-        '-b:a', '192k', // Higher audio bitrate
+        '-b:a', '192k',
         '-shortest',
         '-y', finalPath
     ]);

@@ -133,7 +133,7 @@ async function prepareBackgroundVideo(inputVideo, outputVideo, analysis, workDir
 
     console.log("--- Step: Preparing Video (With Background) ---");
     const padding = 60;
-    const targetMaxDim = 1080;
+    const targetMaxDim = 1920;
     
     const scaleFactor = targetMaxDim / Math.max(origW, origH);
     const vidW = Math.floor((origW * scaleFactor) / 2) * 2;

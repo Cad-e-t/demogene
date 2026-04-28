@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Equal, ChevronRight, ChevronLeft, Mic, Monitor, MonitorPlay, Sparkles, Settings2, Play, Pause } from 'lucide-react';
 import { generateSegments } from './api';
 import { ContentEditor } from './ContentEditor';
-import { IMAGE_STYLES, EFFECT_PRESETS, LONG_FORM_PRESETS, NARRATION_STYLES, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
+import { IMAGE_STYLES, EFFECT_PRESETS, LONG_FORM_PRESETS, VOICE_STYLES, VOICE_PACES, VOICE_ACCENTS, VoiceStyleConfig, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 import { STYLE_PREVIEWS } from './creator-assets';
@@ -21,10 +21,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const placeholderText = "Paste your script to instantly create a voiceover and video..";
 
     // Config Defaults
+    const defaultVoiceStylePrompt = VOICE_STYLES.find(s => s.id === 'storyteller')?.prompt || VOICE_STYLES[0].prompt;
     const [aspect, setAspect] = useState<'9:16' | '16:9'>('9:16');
     const [style, setStyle] = useState(IMAGE_STYLES[0]);
     const [voice, setVoice] = useState(VOICES[0]); // Default to Charon (now first)
-    const [narrationStyle, setNarrationStyle] = useState(NARRATION_STYLES[0].prompt); // Default to Charismatic prompt
+    const [narrationStyle, setNarrationStyle] = useState<VoiceStyleConfig>({ style: defaultVoiceStylePrompt, pace: VOICE_PACES[0].prompt, accent: VOICE_ACCENTS[0].prompt }); // Default voice style config
     const [effect, setEffect] = useState(EFFECT_PRESETS[0]); // Default to Chaos Mode (now first)
 
     useEffect(() => {
@@ -123,9 +124,22 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                         if (v) setVoice(v);
                     }
                     if (data.narration_style) {
-                        const s = NARRATION_STYLES.find(x => x.id.toString() === data.narration_style || x.name === data.narration_style || x.prompt === data.narration_style);
-                        if (s) setNarrationStyle(s.prompt);
-                        else setNarrationStyle(data.narration_style);
+                        let parsedStyle: any = null;
+                        if (typeof data.narration_style === 'object') {
+                            parsedStyle = { ...data.narration_style };
+                        } else if (typeof data.narration_style === 'string') {
+                            try {
+                                parsedStyle = JSON.parse(data.narration_style);
+                            } catch (e) {
+                                // Ignore legacy string formats
+                            }
+                        }
+                        if (parsedStyle) {
+                            if (!VOICE_STYLES.find(s => s.prompt === parsedStyle.style)) {
+                                parsedStyle.style = defaultVoiceStylePrompt;
+                            }
+                            setNarrationStyle(parsedStyle);
+                        }
                     }
                     if (data.effect) {
                         const e = EFFECT_PRESETS.find(x => x.id === data.effect);
@@ -198,7 +212,11 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 if (v) setVoice(v);
             }
             if (initialProjectData.project.narration_style) {
-                setNarrationStyle(initialProjectData.project.narration_style);
+                let parsedStyle = { ...initialProjectData.project.narration_style };
+                if (!VOICE_STYLES.find(s => s.prompt === parsedStyle.style)) {
+                    parsedStyle.style = defaultVoiceStylePrompt;
+                }
+                setNarrationStyle(parsedStyle);
             }
             if (initialProjectData.project.subtitles) {
                 setSubtitles(initialProjectData.project.subtitles as SubtitleConfiguration);
@@ -245,8 +263,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         setConfigView('main');
     };
 
-    const handleNarrationStyleChange = (prompt: string) => {
-        setNarrationStyle(prompt);
+    const handleNarrationStyleChange = (key: keyof VoiceStyleConfig, value: string) => {
+        setNarrationStyle(prev => ({ ...prev, [key]: value }));
     };
 
     // Close modals on click outside
@@ -540,27 +558,46 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                                 <div className="flex flex-col items-start w-full pr-4 overflow-hidden">
                                                                     <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tone</h4>
                                                                     {voiceAccordion !== 'tone' && (
-                                                                        <span className="text-[10px] text-yellow-500 font-bold truncate w-full text-left">{narrationStyle}</span>
+                                                                        <span className="text-[10px] text-yellow-500 font-bold truncate w-full text-left">{VOICE_STYLES.find(s => s.prompt === narrationStyle.style)?.name || VOICE_STYLES.find(s => s.id === 'storyteller')?.name || VOICE_STYLES[0].name}</span>
                                                                     )}
                                                                 </div>
                                                                 <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 shrink-0 ${voiceAccordion === 'tone' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
                                                             </button>
                                                             {voiceAccordion === 'tone' && (
-                                                                <div className="space-y-2 max-h-60 overflow-y-auto thin-scrollbar pr-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                                    <textarea
-                                                                        value={narrationStyle}
-                                                                        onChange={(e) => setNarrationStyle(e.target.value)}
-                                                                        placeholder="Enter custom narration style..."
-                                                                        className="w-full bg-black border border-white/10 rounded-xl p-3 text-xs font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500 resize-none min-h-[60px]"
-                                                                    />
-                                                                    <div className="space-y-1">
-                                                                        {NARRATION_STYLES.map(s => (
+                                                                <div className="flex gap-2 p-1 max-h-[300px] overflow-y-auto thin-scrollbar animate-in fade-in slide-in-from-top-1 duration-200">
+                                                                    <div className="flex-1 space-y-1">
+                                                                        <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1">Style</div>
+                                                                        {VOICE_STYLES.map(s => (
                                                                             <button
                                                                                 key={s.id}
-                                                                                onClick={() => handleNarrationStyleChange(s.prompt)}
-                                                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle === s.prompt ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                                onClick={() => handleNarrationStyleChange('style', s.prompt)}
+                                                                                className={`w-full flex flex-col items-start px-3 py-2 rounded-xl transition-all ${narrationStyle.style === s.prompt ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                                title={s.description}
                                                                             >
-                                                                                <span>{s.name}</span>
+                                                                                <span className="text-xs font-bold">{s.name}</span>
+                                                                                <span className={`text-[10px] ${narrationStyle.style === s.prompt ? 'text-black/70' : 'text-zinc-500'} text-left line-clamp-1`}>{s.description}</span>
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                    <div className="flex-1 border-l border-white/5 pl-2 space-y-1">
+                                                                        <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1">Pace</div>
+                                                                        {VOICE_PACES.map(p => (
+                                                                            <button
+                                                                                key={p.id}
+                                                                                onClick={() => handleNarrationStyleChange('pace', p.prompt)}
+                                                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.pace === p.prompt ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                            >
+                                                                                <span>{p.name}</span>
+                                                                            </button>
+                                                                        ))}
+                                                                        <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1 mt-4">Accent</div>
+                                                                        {VOICE_ACCENTS.map(a => (
+                                                                            <button
+                                                                                key={a.id}
+                                                                                onClick={() => handleNarrationStyleChange('accent', a.prompt)}
+                                                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.accent === a.prompt ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                            >
+                                                                                <span>{a.name}</span>
                                                                             </button>
                                                                         ))}
                                                                     </div>
@@ -685,27 +722,46 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                                     <div className="flex flex-col items-start w-full pr-4 overflow-hidden">
                                                                         <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tone</h4>
                                                                         {voiceAccordion !== 'tone' && (
-                                                                            <span className="text-[10px] text-yellow-500 font-bold truncate w-full text-left">{narrationStyle}</span>
+                                                                            <span className="text-[10px] text-yellow-500 font-bold truncate w-full text-left">{VOICE_STYLES.find(s => s.prompt === narrationStyle.style)?.name || VOICE_STYLES.find(s => s.id === 'storyteller')?.name || VOICE_STYLES[0].name}</span>
                                                                         )}
                                                                     </div>
                                                                     <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 shrink-0 ${voiceAccordion === 'tone' ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
                                                                 </button>
                                                                 {voiceAccordion === 'tone' && (
-                                                                    <div className="space-y-2 max-h-60 overflow-y-auto thin-scrollbar pr-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                                        <textarea
-                                                                            value={narrationStyle}
-                                                                            onChange={(e) => setNarrationStyle(e.target.value)}
-                                                                            placeholder="Enter custom narration style..."
-                                                                            className="w-full bg-black border border-white/10 rounded-xl p-3 text-xs font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500 resize-none min-h-[60px]"
-                                                                        />
-                                                                        <div className="space-y-1">
-                                                                            {NARRATION_STYLES.map(s => (
+                                                                    <div className="flex gap-2 p-1 max-h-[300px] overflow-y-auto thin-scrollbar animate-in fade-in slide-in-from-top-1 duration-200">
+                                                                        <div className="flex-1 space-y-1">
+                                                                            <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1">Style</div>
+                                                                            {VOICE_STYLES.map(s => (
                                                                                 <button
                                                                                     key={s.id}
-                                                                                    onClick={() => handleNarrationStyleChange(s.prompt)}
-                                                                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle === s.prompt ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                                    onClick={() => handleNarrationStyleChange('style', s.prompt)}
+                                                                                    className={`w-full flex flex-col items-start px-3 py-2 rounded-xl transition-all ${narrationStyle.style === s.prompt ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                                    title={s.description}
                                                                                 >
-                                                                                    <span>{s.name}</span>
+                                                                                    <span className="text-xs font-bold">{s.name}</span>
+                                                                                    <span className={`text-[10px] ${narrationStyle.style === s.prompt ? 'text-black/70' : 'text-zinc-500'} text-left line-clamp-1`}>{s.description}</span>
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                        <div className="flex-1 border-l border-white/5 pl-2 space-y-1">
+                                                                            <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1">Pace</div>
+                                                                            {VOICE_PACES.map(p => (
+                                                                                <button
+                                                                                    key={p.id}
+                                                                                    onClick={() => handleNarrationStyleChange('pace', p.prompt)}
+                                                                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.pace === p.prompt ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                                >
+                                                                                    <span>{p.name}</span>
+                                                                                </button>
+                                                                            ))}
+                                                                            <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1 mt-4">Accent</div>
+                                                                            {VOICE_ACCENTS.map(a => (
+                                                                                <button
+                                                                                    key={a.id}
+                                                                                    onClick={() => handleNarrationStyleChange('accent', a.prompt)}
+                                                                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.accent === a.prompt ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                                                >
+                                                                                    <span>{a.name}</span>
                                                                                 </button>
                                                                             ))}
                                                                         </div>

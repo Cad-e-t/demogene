@@ -4,7 +4,7 @@ import { ContentVideoPlayer, EFFECT_TYPES, EFFECT_SEQUENCES } from './ContentVid
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
-import { EFFECT_PRESETS, LONG_FORM_PRESETS, NARRATION_STYLES, SUBTITLE_PRESETS, SubtitleConfiguration, DEFAULT_SUBTITLE_CONFIG } from './types';
+import { EFFECT_PRESETS, LONG_FORM_PRESETS, VOICE_STYLES, VOICE_PACES, VOICE_ACCENTS, VoiceStyleConfig, SUBTITLE_PRESETS, SubtitleConfiguration, DEFAULT_SUBTITLE_CONFIG } from './types';
 import { STYLE_PREVIEWS } from './creator-assets';
 import { SubtitlePreview } from './SubtitlePreviews';
 import { SubtitleConfigurationPanel } from './SubtitleConfigurationPanel';
@@ -547,8 +547,23 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     }, [project.id, project.effect, segments?.length]);
     
     // Default style or match by prompt text
-    const initialStyle = project.narration_style || NARRATION_STYLES[0].prompt;
-    const [narrationStyle, setNarrationStyle] = useState(initialStyle);
+    const defaultVoiceStylePrompt = VOICE_STYLES.find(s => s.id === 'storyteller')?.prompt || VOICE_STYLES[0].prompt;
+    let parsedInitialStyle: VoiceStyleConfig = { style: defaultVoiceStylePrompt, pace: VOICE_PACES[0].prompt, accent: VOICE_ACCENTS[0].prompt };
+    if (project.narration_style) {
+        if (typeof project.narration_style === 'object') {
+            parsedInitialStyle = { ...project.narration_style };
+        } else if (typeof project.narration_style === 'string') {
+            try {
+                parsedInitialStyle = JSON.parse(project.narration_style);
+            } catch (e) {
+                // fallback
+            }
+        }
+    }
+    if (parsedInitialStyle && !VOICE_STYLES.find(s => s.prompt === parsedInitialStyle.style)) {
+        parsedInitialStyle.style = defaultVoiceStylePrompt;
+    }
+    const [narrationStyle, setNarrationStyle] = useState<VoiceStyleConfig>(parsedInitialStyle);
 
     // Initialize subtitles from project or default
     const [subtitles, setSubtitles] = useState<SubtitleConfiguration>(() => {
@@ -787,9 +802,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         setAnimatingSegmentId(null);
     };
 
-    const handleNarrationStyleChange = async (newPrompt: string) => {
-        setNarrationStyle(newPrompt);
-        await supabase.from('content_projects').update({ narration_style: newPrompt }).eq('id', project.id);
+    const handleNarrationStyleChange = async (key: keyof VoiceStyleConfig, value: string) => {
+        const newStyle = { ...narrationStyle, [key]: value };
+        setNarrationStyle(newStyle);
+        await supabase.from('content_projects').update({ narration_style: newStyle as any }).eq('id', project.id);
     };
 
     const handleSubtitleUpdate = (updates: Partial<SubtitleConfiguration>) => {
@@ -956,31 +972,49 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             >
                                 <div className="text-left w-full pr-4 overflow-hidden">
                                     <div className="text-xs font-bold text-zinc-500 uppercase">Narration Style</div>
-                                    <div className="font-bold text-white truncate w-full">{narrationStyle}</div>
+                                    <div className="font-bold text-white truncate w-full">{VOICE_STYLES.find(s => s.prompt === narrationStyle.style)?.name || VOICE_STYLES.find(s => s.id === 'storyteller')?.name || VOICE_STYLES[0].name}</div>
                                 </div>
                                 <svg className={`w-5 h-5 text-zinc-500 transition-transform shrink-0 ${narrationSection === 'style' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                             </button>
                             {narrationSection === 'style' && (
-                                <div className="p-2 bg-zinc-900 border-t border-white/10 space-y-2 max-h-60 overflow-y-auto">
-                                    <textarea
-                                        value={narrationStyle}
-                                        onChange={(e) => handleNarrationStyleChange(e.target.value)}
-                                        placeholder="Enter custom narration style..."
-                                        className="w-full bg-black border border-white/10 rounded-xl p-3 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500 resize-none min-h-[80px]"
-                                    />
-                                    <div className="space-y-1">
-                                        {NARRATION_STYLES.map(s => (
-                                            <button
-                                                key={s.prompt}
-                                                onClick={() => handleNarrationStyleChange(s.prompt)}
-                                                className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-all ${narrationStyle === s.prompt ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
-                                            >
-                                                <div className="text-left">
+                                <div className="p-2 bg-zinc-900 border-t border-white/10 max-h-[300px] overflow-y-auto">
+                                    <div className="flex gap-2 p-1">
+                                        <div className="flex-1 space-y-1">
+                                            <div className="text-xs uppercase text-zinc-500 font-bold px-2 py-1">Style</div>
+                                            {VOICE_STYLES.map(s => (
+                                                <button
+                                                    key={s.id}
+                                                    onClick={() => handleNarrationStyleChange('style', s.prompt)}
+                                                    className={`w-full flex flex-col items-start px-3 py-2 text-sm border rounded-lg transition-all ${narrationStyle.style === s.prompt ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
+                                                    title={s.description}
+                                                >
                                                     <div className="font-bold">{s.name}</div>
-                                                    <div className={`text-[10px] ${narrationStyle === s.prompt ? 'text-zinc-500' : 'text-zinc-500'}`}>{s.description}</div>
-                                                </div>
-                                            </button>
-                                        ))}
+                                                    <div className={`text-[10px] text-left line-clamp-2 ${narrationStyle.style === s.prompt ? 'text-zinc-400' : 'text-zinc-500'}`}>{s.description}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex-1 border-l border-white/5 pl-2 space-y-1">
+                                            <div className="text-xs uppercase text-zinc-500 font-bold px-2 py-1">Pace</div>
+                                            {VOICE_PACES.map(p => (
+                                                <button
+                                                    key={p.id}
+                                                    onClick={() => handleNarrationStyleChange('pace', p.prompt)}
+                                                    className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-all ${narrationStyle.pace === p.prompt ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
+                                                >
+                                                    <div className="font-bold">{p.name}</div>
+                                                </button>
+                                            ))}
+                                            <div className="text-xs uppercase text-zinc-500 font-bold px-2 py-1 mt-4">Accent</div>
+                                            {VOICE_ACCENTS.map(a => (
+                                                <button
+                                                    key={a.id}
+                                                    onClick={() => handleNarrationStyleChange('accent', a.prompt)}
+                                                    className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-all ${narrationStyle.accent === a.prompt ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
+                                                >
+                                                    <div className="font-bold">{a.name}</div>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             )}

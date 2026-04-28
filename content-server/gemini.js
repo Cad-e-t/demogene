@@ -19,7 +19,8 @@ const STYLE_OPENINGS = {
     'Exaggerated2D': 'Highly exaggerated 2D cartoon render',
     'FlatCartoon': 'Simple flat 2D cartoon render',
     'SemiRealisticCartoon': 'Semi-realistic stylized cartoon render',
-    'Skeleton': 'Cinematic photo-realistic scene'
+    'Skeleton': 'Cinematic photo-realistic scene',
+    'GameCinematic': 'Real-time 3D game cinematic render'
 
 };
 
@@ -31,6 +32,7 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
 
     const predefinedVisualIdentityBlocks = {
         '3DCartoon': `Every image is a stylized 3D cartoon render with smooth geometry, slightly exaggerated characters, vibrant colors with soft gradients, clean cinematic lighting, and simple dimensional environments that emphasize clarity and a polished, playful tone.`,
+        'GameCinematic': 'Every image is a clean 3D simulation render with strong central framing and isolated subject focus. Characters are depicted with smooth, slightly plastic textures and subsurface scattering. Scene is rendered with bright studio lighting, crisp depth of field, Blender Cycles shading to achieve a striking, slightly uncanny visual style.',
         'CartoonHorror': `Every image is a dark 2D cartoon horror scene with bold lines, exaggerated characters with large unsettling eyes (wide whites and dot pupils), muted night-time colors, simple distorted environments, and dim high-contrast lighting that creates an eerie, haunted tone.`,
         'Realistic': `Every image is a highly photorealistic depiction of the scene. Natural lighting only with soft shadows. Real-world textures, colors, and materials.`,
         'Stickman': `Every image is a line-based stickman-style illustration. Characters are drawn as simple stick figures with thin uniform lines. All objects and environments are represented using simplified line drawings and flat solid colors. Use clear, varied colors to distinguish elements in the scene. No shading, no gradients, no textures. A stickman character is present in every scene and uses posture and positioning to reflect the narration.`,
@@ -119,11 +121,11 @@ Think like a Cinematographer. You are creating two halves of a whole for each se
 
 The image should show a state of anticipation, resting, or the beginning of an action.
 - Rule 1: Start every prompt with exactly this opening: "${opening}"
-- Rule 2: ZERO-MEMORY ENFORCEMENT: Treat every prompt as an independent image. Describe the subject, anchor, and environment fully and explicitly every single time.
+- Rule 2: ZERO-MEMORY ENFORCEMENT: Treat every prompt as an independent image. Describe subjects, anchors, and environments fully every time. Self-Check: If a human artist without story context couldn't paint the exact scene from this text alone, the prompt is WRONG.
 - Rule 3: Describe ONE clear focal subject and its starting position/pose.
 - Rule 4: (Ref: Phase 2.4): Treat every prompt as an independent, self-contained universe. No shorthand. Use VERBATIM anchor descriptions when fully visible. Vividly describe specific visible details for partial/interior views.
 - Rule 5: (Ref: Phase 2.2): Explicitly include the full environment description in every single prompt to maintain scene continuity and prevent hallucination.
-- Rule 6: Ensure all descriptive elements reflect the Visual Identity Lock rules.
+- Rule 6: Ensure all descriptive elements reflect the Visual Identity Lock.
 - Rule 7: NO baked-in motion. Do not describe motion blur, speed lines, or mid-air frozen actions. Keep subjects physically grounded and ready to move.
 - Rule 8: No text, words, or labels inside the image.
 
@@ -131,7 +133,14 @@ The image should show a state of anticipation, resting, or the beginning of an a
 - Rule 1: Describe exactly how the elements in the image should move.
 - Rule 2: Keep it brief and focused on two things: Subject Motion and Camera Motion.
 - Rule 3: Example formats: "Subject walks slowly towards the camera. Camera slowly pushes in." OR "The wind blows the trees. Camera pans right."
-- Rule 4: Maximum 2 to 3 short sentences.
+- Rule 4: AUDIO CONTROL: Append "No background music." to the end of EVERY prompt. Never prompt for dialogue or speaking. Add appropriate natural sound effects (e.g., "SFX: wind howling, heavy footsteps") ONLY where the scene naturally requires it.
+- Rule 5: Maximum 2 to 3 short sentences.
+
+3. CONTENT SAFETY
+
+If a segment includes explicit sexual activity, graphic nudity, or minors in sexual or sexually exploitative contexts, NEVER depict it literally.
+If present, cut past the moment and continue with a safe follow-up scene without implying details or use cinematic implication (reactions, shadows, environments, aftermath) to represent the sensitive scene safely .
+Always preserve meaning while keeping visuals non-graphic and non-exploitative.
 
 
 =========================================
@@ -230,23 +239,47 @@ export async function editImage(originalImageBase64, editPrompt) {
     throw new Error("Failed to edit image");
 }
 
-export async function generateFullVoiceover(text, voiceName, stylePrompt) {
+export async function generateFullVoiceover(text, voiceName, narrationStyle) {
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    // Google recommends adding style prompt to the text to control the tone
-    // Defaulting to "Charisma Dynamo" style if none provided
-    const instruction = stylePrompt || "Read aloud in a lively, confident, and magnetic tone";
-    const textToSpeak = `${instruction}: ${text}`;
+    let style = "Flat delivery with minimal pitch variation and a dry, understated sarcastic edge.";
+    let pace = "Natural conversation pace";
+    let accent = "American (Gen)";
+
+    if (narrationStyle && typeof narrationStyle === 'object') {
+        style = narrationStyle.style || style;
+        pace = narrationStyle.pace || pace;
+        accent = narrationStyle.accent || accent;
+    } else if (typeof narrationStyle === 'string') {
+        try {
+            const parsed = JSON.parse(narrationStyle);
+            style = parsed.style || style;
+            pace = parsed.pace || pace;
+            accent = parsed.accent || accent;
+        } catch (e) {
+            // fallback
+        }
+    }
+
+    const prompt = `Read the following transcript based on the director's note.
+
+# Director's note
+Style: ${style}
+Pace: ${pace}
+Accent: ${accent}
+
+## Transcript:
+${text}`;
 
     const response = await ai.models.generateContent({
         model: TTS_MODEL,
-        contents: [{ parts: [{ text: textToSpeak }] }],
+        contents: [{ parts: [{ text: prompt }] }],
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: {
                 voiceConfig: {
-                    prebuiltVoiceConfig: { voiceName: voiceName || 'Charon' }
+                    prebuiltVoiceConfig: { voiceName: voiceName || 'Puck' }
                 }
             }
         }
