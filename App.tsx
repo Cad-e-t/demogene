@@ -9,6 +9,7 @@ import { VideoModal } from './components/VideoModal';
 import { ContentApp } from './components/content-creator/ContentApp';
 import { ContentLanding } from './components/content-creator/ContentLanding';
 import { TermsOfService } from './components/TermsOfService';
+import { LoginPage } from './components/LoginPage';
 
 import { CropData, TrimData, VoiceOption, VideoProject, TimeRange, BackgroundOption } from './types';
 import { VOICES, BACKGROUNDS } from './constants';
@@ -52,6 +53,7 @@ const usePathRoute = () => {
   if (path === '/features') return { view: 'features', slug: null };
   if (path === '/about') return { view: 'about', slug: null };
   if (path === '/terms') return { view: 'terms', slug: null };
+  if (path === '/login') return { view: 'login', slug: null };
   if (path === '/pricing-details') return { view: 'pricing-details', slug: null };
   if (path.startsWith('/content-creator')) return { view: 'content-creator', slug: null };
   if (path === '/demo') return { view: 'demo', slug: null };
@@ -66,33 +68,9 @@ interface UserProfile {
 
 const PRODUCT_10_DEMOS = "pdt_2LwDVRweVv9iX22U5RDSW"; 
 
-const AuthSelectionModal = ({ onClose, onSelect }: { onClose: () => void, onSelect: (p: 'google') => void }) => (
-  <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-fade-in" onClick={onClose}>
-    <div className="bg-white rounded-[32px] p-10 md:p-16 w-full max-w-md relative shadow-2xl flex flex-col items-center" onClick={e => e.stopPropagation()}>
-      <button onClick={onClose} className="absolute top-8 right-8 text-gray-400 hover:text-black transition-colors">
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-      </button>
-      
-      <h2 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tighter mb-10 uppercase text-center">Continue To ProductCam</h2>
-      
-      <button onClick={() => onSelect('google')} className="w-full group flex items-center justify-center gap-4 py-4 px-6 bg-white border-2 border-black text-gray-900 rounded-2xl shadow-[0_6px_0_0_#000] active:shadow-none active:translate-y-1 transition-all">
-          <svg className="w-8 h-8 md:w-10 md:h-10" viewBox="0 0 24 24">
-             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          <span className="text-lg md:text-xl font-black tracking-tight">Continue with Google</span>
-      </button>
-    </div>
-  </div>
-);
-
 export default function App() {
   const [session, setSession] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [showAuthSelection, setShowAuthSelection] = useState(false);
-  const [isForcedAuth, setIsForcedAuth] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [showFailureNotification, setShowFailureNotification] = useState(false);
   
@@ -135,8 +113,6 @@ export default function App() {
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange((_event: any, session: any) => {
       setSession(session);
       if (session) {
-          setShowAuthSelection(false);
-          setIsForcedAuth(false);
           fetchProfile(session.user.id);
 
           // Redirect Logic for Content Creator App
@@ -227,24 +203,8 @@ export default function App() {
     link.setAttribute("href", canonicalUrl);
   }, [currentView, route.slug]);
 
-  const handleProviderLogin = async (provider: 'google') => {
-    try { 
-        const isDemo = window.location.pathname === '/demo';
-        await (supabase.auth as any).signInWithOAuth({ 
-            provider,
-            options: {
-                redirectTo: isDemo ? 'https://crappik.site/demo' : 'https://creator.productcam.site'
-            }
-        }); 
-    } 
-    catch (error) { 
-        console.error(`${provider} login failed:`, error); 
-    }
-  };
-
   const handleLogin = () => {
-    // Directly trigger Google login instead of showing modal
-    handleProviderLogin('google');
+    navigateTo('/login');
   };
 
   const handleLogout = async () => {
@@ -321,7 +281,7 @@ export default function App() {
       setVideoType(null);
       setTutorialGoal("");
       
-      if (!session) setIsForcedAuth(true);
+      if (!session) navigateTo('/login');
     }
   };
 
@@ -336,7 +296,6 @@ export default function App() {
     setAppDescription("");
     setVideoType(null);
     setTutorialGoal("");
-    setIsForcedAuth(false);
   };
 
   const handleGenerate = async (videoId: string, segments?: TimeRange[], backgroundId?: string, disableZoom?: boolean) => {
@@ -479,19 +438,14 @@ export default function App() {
     return <ContentApp session={session} onNavigate={navigateTo} />;
   }
 
+  // Login page
+  if (currentView === 'login') {
+    return <LoginPage />;
+  }
+
   // Not logged in -> Show New Content Landing Page
   if (!session && currentView === 'home') {
-      return (
-        <>
-            <ContentLanding onLogin={handleLogin} onNavigate={navigateTo} />
-            {showAuthSelection && (
-                <AuthSelectionModal 
-                    onClose={() => setShowAuthSelection(false)} 
-                    onSelect={handleProviderLogin} 
-                />
-            )}
-        </>
-      );
+      return <ContentLanding onLogin={handleLogin} onNavigate={navigateTo} />;
   }
 
   // Hide sidebar if we are on blog pages, pricing, not logged in, or in the editor (active video is null is technically home)
@@ -529,7 +483,6 @@ export default function App() {
                   onClearFile={handleClearFile}
                   onGenerate={handleGenerate}
                   onPurchase={handlePurchase}
-                  showAuthModal={isForcedAuth}
                   handleLogin={handleLogin}
                   showSuccessNotification={showSuccessNotification}
                   setShowSuccessNotification={setShowSuccessNotification}
@@ -548,13 +501,6 @@ export default function App() {
           <VideoModal 
             video={selectedVideo} 
             onClose={() => setSelectedVideo(null)} 
-          />
-      )}
-
-      {showAuthSelection && (
-          <AuthSelectionModal 
-            onClose={() => setShowAuthSelection(false)} 
-            onSelect={handleProviderLogin} 
           />
       )}
 

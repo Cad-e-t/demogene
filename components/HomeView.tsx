@@ -51,7 +51,6 @@ interface HomeViewProps {
     onGenerate: (videoId: string, segments?: TimeRange[], backgroundId?: string, disableZoom?: boolean) => void;
     onPurchase: () => void;
     
-    showAuthModal: boolean;
     handleLogin: () => void;
     
     showSuccessNotification: boolean;
@@ -79,7 +78,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     addZooms, setAddZooms,
 
     onFileChange, onClearFile, onGenerate, onPurchase,
-    showAuthModal, handleLogin,
+    handleLogin,
     showSuccessNotification, setShowSuccessNotification,
     showFailureNotification, setShowFailureNotification,
     errorMessage,
