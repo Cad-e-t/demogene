@@ -41,7 +41,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [aspect, setAspect] = useState<'9:16' | '16:9'>('9:16');
     const [style, setStyle] = useState(IMAGE_STYLES[0]);
     const [voice, setVoice] = useState(VOICES[0]); // Default to Charon (now first)
-    const [narrationStyle, setNarrationStyle] = useState<VoiceStyleConfig>({ style: defaultVoiceStylePrompt, pace: VOICE_PACES[0].prompt, accent: VOICE_ACCENTS[0].prompt }); // Default voice style config
+    const [narrationStyle, setNarrationStyle] = useState<VoiceStyleConfig>({ style: defaultVoiceStylePrompt, pace: VOICE_PACES.find(p => p.name === 'Fast')?.prompt || VOICE_PACES[1].prompt, accent: VOICE_ACCENTS[0].prompt }); // Default voice style config
     const [effect, setEffect] = useState(EFFECT_PRESETS[0]); // Default to Chaos Mode (now first)
 
     useEffect(() => {
