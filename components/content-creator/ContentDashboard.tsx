@@ -379,7 +379,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 {/* Header */}
                 <div className="w-full mt-12 md:mt-16 flex flex-col items-center">
                     <h1 className="text-sm sm:text-2xl md:text-4xl font-black uppercase tracking-[0.2em] text-zinc-500 mb-8 text-center whitespace-nowrap">
-                        Pick Any Style
+                        Script To Video
                     </h1>
 
                     {/* Prompt Box Section */}
