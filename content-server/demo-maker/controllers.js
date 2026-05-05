@@ -102,7 +102,7 @@ export const deleteVideo = async (req, res) => {
 
 export const exportDemoVideo = async (req, res) => {
     try {
-        const { projectId, userId } = req.body;
+        const { projectId, userId, motionGraphicsEnabled } = req.body;
         if (!userId || !projectId) {
             return res.status(400).json({ error: 'Missing userId or projectId' });
         }
@@ -126,7 +126,7 @@ export const exportDemoVideo = async (req, res) => {
         res.status(202).json({ message: 'Export started' });
 
         // 4. Run background export
-        runDemoExport({ projectId, userId });
+        runDemoExport({ projectId, userId, motionGraphicsEnabled });
 
     } catch (error) {
         console.error("Export Error:", error);
@@ -143,7 +143,7 @@ export const processVideo = async (req, res) => {
         return res.status(401).json({ error: 'Unauthorized: Missing User ID' });
     }
     
-    if (!videoId) {
+    if (!videoId && bodyText) {
         return res.status(400).json({ error: 'Missing videoId' });
     }
 
@@ -155,27 +155,35 @@ export const processVideo = async (req, res) => {
         return res.status(402).json({ error: 'Insufficient credits. Please purchase a pack.' });
     }
 
-    // 2. Fetch Source Video Details
-    const { data: sourceVideo, error: sourceError } = await supabase
-        .from('videos')
-        .select('input_video_url, title')
-        .eq('id', videoId)
-        .single();
+    // 2. Fetch Source Video Details if videoId is provided
+    let sourceVideoUrl = null;
+    let sourceTitle = 'Hook Only Video';
+    
+    if (videoId) {
+        const { data: sourceVideo, error: sourceError } = await supabase
+            .from('videos')
+            .select('input_video_url, title')
+            .eq('id', videoId)
+            .single();
 
-    if (sourceError || !sourceVideo) {
-        // Refund credit if processing cannot proceed
-        await supabase.rpc('grant_credits_from_purchase', {
-             p_user_id: userId,
-             p_credits_to_add: 1,
-             p_description: 'Refund: Source video not found',
-             p_metadata: { videoId }
-        });
-        return res.status(404).json({ error: 'Original video not found' });
+        if (sourceError || !sourceVideo) {
+            // Refund credit if processing cannot proceed
+            await supabase.rpc('grant_credits_from_purchase', {
+                 p_user_id: userId,
+                 p_credits_to_add: 1,
+                 p_description: 'Refund: Source video not found',
+                 p_metadata: { videoId }
+            });
+            return res.status(404).json({ error: 'Original video not found' });
+        }
+        
+        sourceVideoUrl = sourceVideo.input_video_url;
+        sourceTitle = sourceVideo.title;
     }
 
     // 3. Create a NEW Record for the "Output" (Project)
     const newVideoId = uuidv4();
-    const newTitle = sourceVideo.title.includes('(Demo)') ? sourceVideo.title : `${sourceVideo.title} (Demo)`;
+    const newTitle = sourceTitle.includes('(Demo)') ? sourceTitle : `${sourceTitle} (Demo)`;
 
     const { error: insertError } = await supabase
         .from('demo_projects')
@@ -183,7 +191,7 @@ export const processVideo = async (req, res) => {
             id: newVideoId,
             user_id: userId,
             title: newTitle,
-            video_url: sourceVideo.input_video_url, // Copy the source URL
+            video_url: sourceVideoUrl, // Copy the source URL
             status: 'processing',
             voice_id: voiceId,
             hook_style: { style: hookStyle },
@@ -211,7 +219,7 @@ export const processVideo = async (req, res) => {
     // 5. Trigger Asynchronous Processing with the NEW ID
     runDemoProcessing({
         projectId: newVideoId,
-        sourceVideoUrl: sourceVideo.input_video_url,
+        sourceVideoUrl: sourceVideoUrl,
         hookText,
         bodyText,
         voiceId,
@@ -301,3 +309,33 @@ export const deleteHookAsset = async (req, res) => {
     res.status(500).json({ error: "Failed to delete asset" });
   }
 };
+
+export async function demoGenerateMotionGraphics(req, res) {
+    const { projectId } = req.body;
+    if (!projectId) return res.status(400).json({ error: 'Missing projectId' });
+
+    try {
+        const { data: project, error: pError } = await supabase.from('demo_projects').select('*').eq('id', projectId).single();
+        if (pError || !project) return res.status(404).json({ error: 'Project not found' });
+        
+        if (!project.transcription) {
+            return res.status(400).json({ error: 'No transcription found for this project. Wait for processing to complete.' });
+        }
+
+        const transcriptText = project.transcription.words.map(w => w.text).join(' ');
+
+        const { generateScriptBreakdown } = await import('./gemini.js');
+        const scriptBreakdown = await generateScriptBreakdown(transcriptText);
+
+        const { error: updateError } = await supabase.from('demo_projects').update({
+            script_breakdown: scriptBreakdown
+        }).eq('id', projectId);
+
+        if (updateError) throw updateError;
+
+        res.json({ success: true, scriptBreakdown });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+}

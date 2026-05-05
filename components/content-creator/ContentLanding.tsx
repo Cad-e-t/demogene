@@ -110,7 +110,7 @@ const FAQS = [
 export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, onNavigate?: (path: string) => void }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-    const [galleryStyles, setGalleryStyles] = useState([ 'Exaggerated2D', 'Skeleton', 'Anime']);
+    const [galleryStyles, setGalleryStyles] = useState([ 'Motivational', 'Skeleton Videos', 'Animated Story']);
     const [mutedStates, setMutedStates] = useState<Record<string, boolean>>({});
 
     const handleVideoClick = (index: number) => {
@@ -248,8 +248,11 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                                     >
                                         <div className={`w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 transition-colors duration-300 ${isActive ? 'border-white/30 shadow-[0_0_50px_rgba(0,0,0,0.5)]' : 'border-white/10 shadow-2xl'} bg-zinc-900 relative`}>
                                             <video 
-                                                src={STYLE_PREVIEWS[style]} 
-                                                autoPlay muted={mutedStates[style] !== false} loop playsInline 
+                                                src={LANDING_PREVIEWS[style]?.src} 
+                                                autoPlay 
+                                                muted={mutedStates[style] !== false} 
+                                                loop 
+                                                playsInline 
                                                 className="w-full h-full object-cover"
                                             />
                                             <button 
@@ -485,9 +488,9 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                         {Object.entries(STYLE_PREVIEWS).map(([name, src]) => (
                             <div key={name} className="relative w-[120px] md:w-[200px] aspect-[9/16] shrink-0 snap-start">
                                 <div className="w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-zinc-900 relative">
-                                    <video 
+                                    <img 
                                         src={src} 
-                                        muted playsInline 
+                                        alt={name}
                                         className="w-full h-full object-cover block pointer-events-none"
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>

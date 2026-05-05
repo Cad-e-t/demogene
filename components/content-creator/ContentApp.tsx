@@ -178,15 +178,17 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
 
     return (
         <div className="flex h-screen bg-black text-white font-sans overflow-hidden relative">
-            <ContentSidebar 
-                currentView={view} 
-                setView={() => {}} 
-                onNavigate={onNavigate} 
-                isOpen={isSidebarOpen}
-                onClose={() => setIsSidebarOpen(false)}
-                session={session}
-                credits={credits}
-            />
+            {view !== 'demo-editor' && (
+                <ContentSidebar 
+                    currentView={view} 
+                    setView={() => {}} 
+                    onNavigate={onNavigate} 
+                    isOpen={isSidebarOpen}
+                    onClose={() => setIsSidebarOpen(false)}
+                    session={session}
+                    credits={credits}
+                />
+            )}
             <main className="flex-1 flex flex-col relative h-full overflow-hidden md:pt-0">
                 {view === 'dashboard' && (
                     <ContentDashboard 

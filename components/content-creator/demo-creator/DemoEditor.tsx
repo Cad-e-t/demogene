@@ -26,6 +26,8 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const [showHookStyleModal, setShowHookStyleModal] = useState(false);
     const [subtitleView, setSubtitleView] = useState<'summary' | 'edit' | 'transcription'>('summary');
     const [subtitleState, setSubtitleState] = useState<'enabled' | 'disabled'>('enabled');
+    const [motionGraphicsEnabled, setMotionGraphicsEnabled] = useState(false);
+    const [isGeneratingMotionGraphics, setIsGeneratingMotionGraphics] = useState(false);
 
     const [history, setHistory] = useState<any[]>([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
@@ -197,7 +199,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             const res = await fetch(`${API_URL}/demo/export`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectId: project.id, userId: session.user.id })
+                body: JSON.stringify({ projectId: project.id, userId: session.user.id, motionGraphicsEnabled })
             });
             if (!res.ok) {
                 const data = await res.json();
@@ -321,6 +323,8 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                 updateProject({ video_transform: transform });
                             }}
                             backgroundType={project.background_type || 'white'}
+                            scriptBreakdown={project.script_breakdown}
+                            motionGraphicsEnabled={motionGraphicsEnabled}
                         />
                     )}
                 </div>
@@ -394,18 +398,81 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
 
                                     {activeModule === 'subtitles' && (
                                         <div className="space-y-8">
-                                            <h2 className="text-lg font-bold">Subtitle Style</h2>
-                                            <SubtitleConfigurationPanel
-                                                subtitles={project.subtitles || DEFAULT_SUBTITLE_CONFIG}
-                                                subtitleState={subtitleState}
-                                                subtitleView={subtitleView}
-                                                setSubtitleView={setSubtitleView}
-                                                handleSubtitleStateToggle={handleSubtitleStateToggle}
-                                                handleSubtitleUpdate={handleSubtitleUpdate}
-                                                transcription={project.transcription}
-                                                currentTime={currentTime}
-                                                handleTranscriptionUpdate={handleTranscriptionUpdate}
-                                            />
+                                            <div className="bg-zinc-900 border border-white/10 rounded-xl p-4 space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h2 className="text-lg font-bold">Motion Graphics</h2>
+                                                        <p className="text-xs text-zinc-400">AI-driven animations for text emphasis.</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!motionGraphicsEnabled) {
+                                                                if (!project.script_breakdown) {
+                                                                    setIsGeneratingMotionGraphics(true);
+                                                                    try {
+                                                                        const res = await fetch(`${API_URL}/demo/generate-motion-graphics`, {
+                                                                            method: 'POST',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            body: JSON.stringify({ projectId: project.id })
+                                                                        });
+                                                                        if (!res.ok) throw new Error('Failed to generate script breakdown.');
+                                                                        const data = await res.json();
+                                                                        updateProject({ script_breakdown: data.scriptBreakdown });
+                                                                        setMotionGraphicsEnabled(true);
+                                                                    } catch (e: any) {
+                                                                        console.error(e);
+                                                                        alert(e.message);
+                                                                    } finally {
+                                                                        setIsGeneratingMotionGraphics(false);
+                                                                    }
+                                                                } else {
+                                                                    setMotionGraphicsEnabled(true);
+                                                                }
+                                                            } else {
+                                                                setMotionGraphicsEnabled(false);
+                                                            }
+                                                        }}
+                                                        disabled={isGeneratingMotionGraphics}
+                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                                            motionGraphicsEnabled ? 'bg-yellow-500' : 'bg-zinc-700'
+                                                        } ${isGeneratingMotionGraphics ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        <span
+                                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                                motionGraphicsEnabled ? 'translate-x-6' : 'translate-x-1'
+                                                            }`}
+                                                        />
+                                                    </button>
+                                                </div>
+                                                {isGeneratingMotionGraphics && (
+                                                    <div className="text-xs text-yellow-500 animate-pulse flex items-center gap-2">
+                                                        <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                                                        Generating animations using LLM...
+                                                    </div>
+                                                )}
+                                                {motionGraphicsEnabled && (
+                                                    <div className="text-xs text-zinc-400 bg-black/50 p-3 rounded-lg border border-white/5">
+                                                        Traditional subtitles are disabled while Motion Graphics are active.
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {!motionGraphicsEnabled && (
+                                                <>
+                                                    <h2 className="text-lg font-bold mt-8">Standard Subtitles</h2>
+                                                    <SubtitleConfigurationPanel
+                                                        subtitles={project.subtitles || DEFAULT_SUBTITLE_CONFIG}
+                                                        subtitleState={subtitleState}
+                                                        subtitleView={subtitleView}
+                                                        setSubtitleView={setSubtitleView}
+                                                        handleSubtitleStateToggle={handleSubtitleStateToggle}
+                                                        handleSubtitleUpdate={handleSubtitleUpdate}
+                                                        transcription={project.transcription}
+                                                        currentTime={currentTime}
+                                                        handleTranscriptionUpdate={handleTranscriptionUpdate}
+                                                    />
+                                                </>
+                                            )}
                                         </div>
                                     )}
 
@@ -431,8 +498,8 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                         <div 
                                                             className="w-full aspect-video rounded-lg border border-white/10 overflow-hidden relative"
                                                             style={{ 
-                                                                backgroundImage: bg.isGrid ? `linear-gradient(to right, ${bg.id === 'grid' ? '#e5e7eb' : 'rgba(255,255,255,0.2)'} 1px, transparent 1px), linear-gradient(to bottom, ${bg.id === 'grid' ? '#e5e7eb' : 'rgba(255,255,255,0.2)'} 1px, transparent 1px)` : undefined,
-                                                                backgroundSize: bg.isGrid ? '10px 10px' : undefined,
+                                                                backgroundImage: bg.isGrid ? `linear-gradient(to right, ${bg.id === 'grid' ? '#d1d5db' : 'rgba(255,255,255,0.3)'} 2px, transparent 2px), linear-gradient(to bottom, ${bg.id === 'grid' ? '#d1d5db' : 'rgba(255,255,255,0.3)'} 2px, transparent 2px)` : undefined,
+                                                                backgroundSize: bg.isGrid ? '14.28% 33.33%' : undefined,
                                                                 backgroundColor: bg.id === 'grid' ? '#ffffff' : bg.color
                                                             }}
                                                         >

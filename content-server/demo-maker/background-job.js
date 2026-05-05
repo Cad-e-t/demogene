@@ -23,56 +23,61 @@ export async function runDemoProcessing(jobData) {
     console.log(`[Demo Processing] Starting for Project: ${projectId}`);
 
     try {
-        // 1. Download the raw file
-        const inputExt = '.mp4';
-        const localInputPath = path.join(TEMP_DIR, `raw_${uuidv4()}${inputExt}`);
-        filesToDelete.push(localInputPath);
-
-        console.log(`Downloading video from ${sourceVideoUrl}...`);
-        await downloadFile(sourceVideoUrl, localInputPath);
-
-        const effectiveDuration = getDurationValue(localInputPath);
-
-        // 2. AI Input File (Low Quality/Size for Cost Efficiency)
-        const aiInputPath = path.join(TEMP_DIR, `ai_input_${uuidv4()}.mp4`);
-        filesToDelete.push(aiInputPath);
-        await preprocessVideo(localInputPath, null, null, null, aiInputPath, PREPROCESS_FLAGS);
-
-        // Use AI File for Analysis
-        const cleanFileBuffer = fs.readFileSync(aiInputPath);
-        const cleanFileBase64 = cleanFileBuffer.toString('base64');
-        
-        console.log('--- Analyzing Video with Gemini ---');
-        const prompt = getVideoAnalysisPrompt(bodyText, effectiveDuration);
-        const analysis = await analyzeVideo(cleanFileBase64, 'video/mp4', prompt); 
-        console.log('Analysis complete.');
-
         let segments = [];
         let transcription = null;
         let segmentDurations = [];
         let audioUrl = null;
+        let analysis = null;
 
-        const hasScript = analysis.script && analysis.script.script_lines && analysis.script.script_lines.length > 0;
+        if (sourceVideoUrl) {
+            // 1. Download the raw file
+            const inputExt = '.mp4';
+            const localInputPath = path.join(TEMP_DIR, `raw_${uuidv4()}${inputExt}`);
+            filesToDelete.push(localInputPath);
 
-        if (hasScript) {
+            console.log(`Downloading video from ${sourceVideoUrl}...`);
+            await downloadFile(sourceVideoUrl, localInputPath);
+
+            const effectiveDuration = getDurationValue(localInputPath);
+
+            // 2. AI Input File (Low Quality/Size for Cost Efficiency)
+            const aiInputPath = path.join(TEMP_DIR, `ai_input_${uuidv4()}.mp4`);
+            filesToDelete.push(aiInputPath);
+            await preprocessVideo(localInputPath, null, null, null, aiInputPath, PREPROCESS_FLAGS);
+
+            // Use AI File for Analysis
+            const cleanFileBuffer = fs.readFileSync(aiInputPath);
+            const cleanFileBase64 = cleanFileBuffer.toString('base64');
+            
+            console.log('--- Analyzing Video with Gemini ---');
+            const prompt = getVideoAnalysisPrompt(bodyText, effectiveDuration);
+            analysis = await analyzeVideo(cleanFileBase64, 'video/mp4', prompt); 
+            console.log('Analysis complete.');
+        }
+
+        const hasScript = analysis && analysis.script && analysis.script.script_lines && analysis.script.script_lines.length > 0;
+
+        if (hasScript || (hookText && hookText.trim())) {
             console.log('--- Generating Voiceover ---');
             
             // Prepare segments list
             if (hookText && hookText.trim()) {
                 segments.push({ narration: hookText.trim(), isHook: true, video_start: "00:00.000", video_end: "00:00.000" });
             }
-            analysis.script.script_lines.forEach(line => {
-                if (line.narration && line.narration.trim()) {
-                    const videoSegment = analysis.segments[line.segment_index] || {};
-                    segments.push({ 
-                        narration: line.narration.trim(), 
-                        isHook: false, 
-                        video_start: videoSegment.start_time || "00:00.000",
-                        video_end: videoSegment.end_time || "00:00.000",
-                        ...line 
-                    });
-                }
-            });
+            if (hasScript) {
+                analysis.script.script_lines.forEach(line => {
+                    if (line.narration && line.narration.trim()) {
+                        const videoSegment = analysis.segments[line.segment_index] || {};
+                        segments.push({ 
+                            narration: line.narration.trim(), 
+                            isHook: false, 
+                            video_start: videoSegment.start_time || "00:00.000",
+                            video_end: videoSegment.end_time || "00:00.000",
+                            ...line 
+                        });
+                    }
+                });
+            }
 
             const fullScript = segments.map(s => s.narration).join(" ");
             
@@ -109,11 +114,9 @@ export async function runDemoProcessing(jobData) {
             const aaiClient = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
             transcription = await aaiClient.transcripts.transcribe({
                 audio: audioPath,
-                speech_models: ["universal-2"],
+                speech_models: ["universal-3-pro", "universal-2"],
                 language_detection: true,
             });
-
-            
 
             console.log('--- Aligning Segments ---');
             segmentDurations = alignSegmentsWithTranscription(segments, transcription, totalAudioDuration);
@@ -151,7 +154,7 @@ export async function runDemoProcessing(jobData) {
     }
 }
 
-export async function runDemoExport({ projectId, userId }) {
+export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }) {
     console.log(`[Demo Export] Starting for Project: ${projectId}`);
     const filesToDelete = [];
     const workDir = path.join(TEMP_DIR, `demo_export_${uuidv4()}`);
@@ -160,7 +163,7 @@ export async function runDemoExport({ projectId, userId }) {
     try {
         const { data: project } = await supabase.from('demo_projects').select('*').eq('id', projectId).single();
         
-        if (!project || !project.voice_path || !project.video_url) {
+        if (!project || !project.voice_path) {
             throw new Error("Missing assets for export");
         }
 
@@ -169,21 +172,27 @@ export async function runDemoExport({ projectId, userId }) {
         await downloadFile(project.voice_path, audioPath);
 
         const videoPath = path.join(workDir, 'source.mp4');
-        await downloadFile(project.video_url, videoPath);
+        let hasSourceVideo = false;
+        if (project.video_url) {
+            await downloadFile(project.video_url, videoPath);
+            hasSourceVideo = true;
+        }
 
         const { execSync } = await import('child_process');
 
         let vw = 1920;
         let vh = 1080;
-        try {
-            const probe = execSync(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${videoPath}"`).toString().trim();
-            const parts = probe.split('x');
-            if (parts.length >= 2) {
-                vw = parseInt(parts[0]);
-                vh = parseInt(parts[1]);
+        if (hasSourceVideo) {
+            try {
+                const probe = execSync(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${videoPath}"`).toString().trim();
+                const parts = probe.split('x');
+                if (parts.length >= 2) {
+                    vw = parseInt(parts[0]);
+                    vh = parseInt(parts[1]);
+                }
+            } catch (e) {
+                console.error("Failed to probe video dimensions:", e);
             }
-        } catch (e) {
-            console.error("Failed to probe video dimensions:", e);
         }
 
         // 2. Process Segments
@@ -201,15 +210,22 @@ export async function runDemoExport({ projectId, userId }) {
 
         // Background generation helper
         const getBackgroundFilter = (bgType, dur) => {
+            if (bgType === 'blur' && !hasSourceVideo) bgType = 'black';
             if (bgType === 'white') return `color=c=white:s=${width}x${height}:d=${dur}`;
             if (bgType === 'black') return `color=c=black:s=${width}x${height}:d=${dur}`;
-            if (bgType === 'blue') return `color=c=#3B82F6:s=${width}x${height}:d=${dur},drawgrid=w=40:h=40:t=1:c=white@0.2`;
-            if (bgType === 'purple') return `color=c=#8B5CF6:s=${width}x${height}:d=${dur},drawgrid=w=40:h=40:t=1:c=white@0.2`;
-            if (bgType === 'green') return `color=c=#10B981:s=${width}x${height}:d=${dur},drawgrid=w=40:h=40:t=1:c=white@0.2`;
-            if (bgType === 'red') return `color=c=#EF4444:s=${width}x${height}:d=${dur},drawgrid=w=40:h=40:t=1:c=white@0.2`;
+            
+            const cols = aspectRatio === '16:9' ? 7 : 4;
+            const rows = aspectRatio === '16:9' ? 4 : 7;
+            const drawGridWhite = `drawgrid=w=iw/${cols}:h=ih/${rows}:t=3:c=white@0.2`;
+            const drawGridGray = `drawgrid=w=iw/${cols}:h=ih/${rows}:t=3:c=#E5E7EB`;
+
+            if (bgType === 'blue') return `color=c=#3B82F6:s=${width}x${height}:d=${dur},${drawGridWhite}`;
+            if (bgType === 'purple') return `color=c=#8B5CF6:s=${width}x${height}:d=${dur},${drawGridWhite}`;
+            if (bgType === 'green') return `color=c=#10B981:s=${width}x${height}:d=${dur},${drawGridWhite}`;
+            if (bgType === 'red') return `color=c=#EF4444:s=${width}x${height}:d=${dur},${drawGridWhite}`;
             if (bgType === 'grid') {
-                // Create white background with dots
-                return `color=c=white:s=${width}x${height}:d=${dur},drawgrid=w=40:h=40:t=1:c=gray@0.2`;
+                // Create white background with grid
+                return `color=c=white:s=${width}x${height}:d=${dur},${drawGridGray}`;
             }
             if (bgType === 'blur') {
                 return `[0:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},boxblur=40:5`;
@@ -325,10 +341,15 @@ export async function runDemoExport({ projectId, userId }) {
                     }
                 } else {
                     // No hook media, use general background
-                    const hp = getTransformParams(hookT, vw, vh, width, height);
                     const bgFilter = getBackgroundFilter(backgroundType, audioDur);
-                    const filterComplex = `${bgFilter}[bg];[0:v]trim=start=${start}:duration=0.1,crop=${hp.sW}:${hp.sH}:${hp.sX}:${hp.sY},scale=${hp.dW}:${hp.dH}[fg];[bg][fg]overlay=x=${hp.dX}:y=${hp.dY}[v]`;
-                    execSync(`ffmpeg -i "${videoPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterComplex}" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 23 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
+                    if (hasSourceVideo) {
+                        const hp = getTransformParams(hookT, vw, vh, width, height);
+                        const filterComplex = `${bgFilter}[bg];[0:v]trim=start=${start}:duration=0.1,crop=${hp.sW}:${hp.sH}:${hp.sX}:${hp.sY},scale=${hp.dW}:${hp.dH}[fg];[bg][fg]overlay=x=${hp.dX}:y=${hp.dY}[v]`;
+                        execSync(`ffmpeg -i "${videoPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterComplex}" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 23 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
+                    } else {
+                        const filterComplex = `${bgFilter}[v]`;
+                        execSync(`ffmpeg -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterComplex}" -map "[v]" -map 0:a -t ${audioDur} -c:v libx264 -preset fast -crf 23 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
+                    }
                 }
             } else {
                 // Normal segment
@@ -369,11 +390,28 @@ export async function runDemoExport({ projectId, userId }) {
         // Mix the visual sequence audio (hook audio + silence) with the TTS audio
         execSync(`ffmpeg -i "${visualPath}" -i "${audioPath}" -filter_complex "[0:a][1:a]amix=inputs=2:duration=longest[a];[a]volume=2[aout]" -map 0:v -map "[aout]" -c:v copy -c:a aac -y "${mergedPath}"`, { stdio: 'ignore' });
 
-        let finalPath = mergedPath;
+        // 5. Build Final Video with Overlays
+        let currentPath = mergedPath;
 
-        // 5. Burn Subtitles
+        if (motionGraphicsEnabled && project.script_breakdown && project.transcription) {
+            const { generateMotionGraphicsWaitlet } = await import('./remotion.js');
+            const mgOverlayPath = await generateMotionGraphicsWaitlet(
+                project.script_breakdown, 
+                project.transcription, 
+                width, Math.max(height, 2), // ensure even numbers
+                workDir,
+                audioDur
+            );
+            
+            const mgBurnedPath = path.join(workDir, `mg_burned.mp4`);
+            // Overlay using green screen chromakey
+            execSync(`ffmpeg -i "${currentPath}" -i "${mgOverlayPath}" -filter_complex "[1:v]colorkey=0x00FF00:0.05:0.1[ckout];[0:v][ckout]overlay=shortest=1[v]" -map "[v]" -map 0:a -c:v libx264 -preset fast -crf 18 -c:a copy -y "${mgBurnedPath}"`, { stdio: 'ignore' });
+            currentPath = mgBurnedPath;
+        }
+
+        // 6. Burn Traditional Subtitles (if enabled, shouldn't mix well, but allowed)
         const subtitleState = project.subtitle_state || 'enabled';
-        if (subtitleState === 'enabled' && project.subtitles && project.subtitles !== 'none' && project.transcription) {
+        if (!motionGraphicsEnabled && subtitleState === 'enabled' && project.subtitles && project.subtitles !== 'none' && project.transcription) {
             let subConfig = project.subtitles;
             if (typeof subConfig === 'string') {
                 try {
@@ -390,10 +428,12 @@ export async function runDemoExport({ projectId, userId }) {
                 fs.writeFileSync(assPath, assContent);
                 
                 const burnedPath = path.join(workDir, `burned.mp4`);
-                await burnSubtitles(mergedPath, assPath, burnedPath);
-                finalPath = burnedPath;
+                await burnSubtitles(currentPath, assPath, burnedPath);
+                currentPath = burnedPath;
             }
         }
+        
+        let finalPath = currentPath;
 
         // 6. Upload Final Video
         const finalBuffer = fs.readFileSync(finalPath);

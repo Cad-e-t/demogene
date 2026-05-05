@@ -10,17 +10,17 @@ const VIDEO_MODEL = "veo-3.1-lite-generate-preview";
 
 const STYLE_OPENINGS = {
     'Realistic': 'Photorealistic depiction',
-    'CartoonHorror': 'Creepy 2D cartoon horror depiction',
-    '3DCartoon': 'Stylized 3D cartoon render',
+    'Creepy': 'Creepy 2D cartoon horror depiction',
     'Anime': '2D anime depiction',
     'Sketch': 'Pencil sketch depiction',
     'Stickman':'Minimalist stickman depiction',
-    'Horror': 'Dark horror scene',
     'Exaggerated2D': 'Highly exaggerated 2D cartoon render',
-    'FlatCartoon': 'Simple flat 2D cartoon render',
-    'SemiRealisticCartoon': 'Semi-realistic stylized cartoon render',
+    'Documentary': 'Black and white photojournalistic shot',
+    'Ukiyo-e': 'Japanese woodblock print',
+    'Claymation': 'Stop-motion clay scene',
+    'Cartoon': 'Semi-realistic stylized cartoon render',
     'Skeleton': 'Cinematic photo-realistic scene',
-    'GameCinematic': 'Real-time 3D game cinematic render'
+    'Game3D': 'Real-time 3D game cinematic render'
 
 };
 
@@ -31,19 +31,18 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
     const opening = STYLE_OPENINGS[style] || `A ${style} style image of`;
 
     const predefinedVisualIdentityBlocks = {
-        '3DCartoon': `Every image is a stylized 3D cartoon render with smooth geometry, slightly exaggerated characters, vibrant colors with soft gradients, clean cinematic lighting, and simple dimensional environments that emphasize clarity and a polished, playful tone.`,
-        'GameCinematic': 'Every image is a clean 3D simulation render with strong central framing and isolated subject focus. Characters are depicted with smooth, slightly plastic textures and subsurface scattering. Scene is rendered with bright studio lighting, crisp depth of field, Blender Cycles shading to achieve a striking, slightly uncanny visual style.',
-        'CartoonHorror': `Every image is a dark 2D cartoon horror scene with bold lines, exaggerated characters with large unsettling eyes (wide whites and dot pupils), muted night-time colors, simple distorted environments, and dim high-contrast lighting that creates an eerie, haunted tone.`,
+        'Game3D': 'Every image is a clean 3D simulation render with strong central framing and isolated subject focus. Characters are depicted with smooth, slightly plastic textures and subsurface scattering. Scene is rendered with bright studio lighting, crisp depth of field, Blender Cycles shading to achieve a striking, slightly uncanny visual style.',
+        'Creepy': `Every image is a dark 2D cartoon horror scene with bold lines, exaggerated characters with large unsettling eyes (wide whites and dot pupils), muted night-time colors, simple distorted environments, and dim high-contrast lighting that creates an eerie, haunted tone.`,
         'Realistic': `Every image is a highly photorealistic depiction of the scene. Natural lighting only with soft shadows. Real-world textures, colors, and materials.`,
-        'Stickman': `Every image is a line-based stickman-style illustration. Characters are drawn as simple stick figures with thin uniform lines. All objects and environments are represented using simplified line drawings and flat solid colors. Use clear, varied colors to distinguish elements in the scene. No shading, no gradients, no textures. A stickman character is present in every scene and uses posture and positioning to reflect the narration.`,
+        'Stickman': `Every image is flat 2D cartoon depiction using clean shapes and minimal detail. Characters are classic stick figures with simple lines for limbs and body, a circle for the head, no fill or color. They retain distinct permanent features (e.g., hair-style and eyes). Everything in the environment are colored, except the characters.`,
         'Anime': `Every image is a 2D anime-style depiction with clean, consistent line art. Colors are applied as flat or softly shaded fills with a consistent palette. Characters, objects, and environments are rendered in a cohesive anime style across all scenes. No photorealism.`,
-        'Horror': `Every image is a dark, realistic scene with low-key lighting and strong shadows. Scenes are dimly lit with high contrast between light and darkness. Colors are muted and desaturated with a dark overall tone. Subjects and environments are grounded and eerie. No bright colors, no flat lighting, no cartoon or stylized rendering.`,
         'Sketch': `Every image is a hand-drawn pencil sketch depiction. All characters, objects, and environments are drawn using visible pencil lines and light sketch strokes. Lines vary slightly in thickness with a natural hand-drawn feel. Minimal use of soft grayscale shading. No color, no digital clean lines, no solid fills or rendering.`,
-        'Exaggerated2D': `Every image is a highly exaggerated 2D cartoon depiction with bold outlines and dynamic shapes. Characters use extreme squash and stretch, oversized facial expressions, and dramatic poses to convey emotion and action. Colors are vibrant and high-contrast with simple shading. Environments are stylized and slightly distorted to match the character energy. No realism. Every scene emphasizes visual humor, impact, and clarity of action.`,
-        'FlatCartoon': `Every image is a simple flat 2D cartoon depiction using clean shapes and minimal detail. Characters are built from basic geometric forms with clear silhouettes and expressive faces. Colors are flat, solid, and consistent across scenes with no gradients or textures. Linework is minimal or uniform. Environments are simplified and uncluttered to keep focus on the subject. A character is present in every scene and uses subtle but clear expressions and poses to reflect the narration. No realism.`,
-        'SoftCartoon': `Every image is a semi-realistic cartoon depiction blending stylized characters with believable proportions and detail. Characters maintain realistic anatomy with slightly exaggerated features for expression. Lighting is soft and cinematic with gentle shading and depth. Colors are rich and cohesive with subtle gradients. Materials and environments have mild texture but remain stylized, not photorealistic. Composition and framing are more grounded and cinematic. Expressions are controlled rather than extreme. No full realism.`,
-        'Skeleton': `Every image is a cinematic, photo-realistic environment with natural lighting, always featuring a single stylized skeleton character as the active main subject. The skeleton character is pristine: smooth off-white bones, rounded edges, an articulated jaw, and a proportionate skull with natural human eyes. It moves realistically and retains distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. its wardrobe is adaptable—changing to fit the specific scene or remaining consistent depending on the narrative context.  All other characters and settings are completely photo-realistic.`
-    
+        'Documentary': `Every image is a black and white or heavily desaturated photojournalistic shot. No color — only stark greys, deep blacks, and blown highlights. Compositions are candid and unposed with visible grain, harsh natural lighting, and slight motion blur. Gritty and immediate, never polished or staged.`,
+        'Exaggerated2D': `Every image is a highly exaggerated 2D cartoon depiction with bold outlines and dynamic shapes. Characters use extreme squash and stretch, oversized facial features and amplified expressions,. Colors are vibrant and high-contrast with simple shading. Environments are slightly distorted to match the character energy. No realism`,
+        'Ukiyo-e': `Every image is a traditional Japanese woodblock print. Bold outlines, flat color fills, and zero shading define the look. Compositions feature stylized natural motifs — waves, clouds, foliage — with a decorative, hand-carved flatness. No depth, no photorealism.`,
+        'Claymation': `Every image is a stop-motion clay scene. All subjects appear hand-sculpted — rounded, chunky, and visibly textured with soft imperfections. Surfaces are matte, lighting warm and studio-cast. Nothing is digitally smooth or sharp-edged.`,
+        'Cartoon': `Every image is a semi-realistic cartoon depiction blending stylized characters with believable proportions and detail. Characters maintain realistic anatomy with slightly exaggerated features for expression. Lighting is soft and cinematic with gentle shading and depth. Colors are rich and cohesive with subtle gradients. Materials and environments have mild texture but remain stylized, not photorealistic. Composition and framing are more grounded and cinematic. Expressions are controlled rather than extreme. No full realism.`,
+        'Skeleton': `Every image is a cinematic, photo-realistic environment with natural lighting. The main subject(s) are stylized skeleton characters — typically one, but when a scene compares or contrasts two distinct individuals, both are rendered as skeletons. Each skeleton is pristine: smooth off-white bones, rounded edges, an articulated jaw, and a proportionate skull with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. All other characters and settings are completely photo-realistic.`
     };
 
     const visualIdentityBlock = predefinedVisualIdentityBlocks[style] ;
@@ -338,4 +337,3 @@ export async function generateGeminiVideo(imageUrl, animationPrompt, aspectRatio
     
     return await videoResponse.arrayBuffer();
 }
-

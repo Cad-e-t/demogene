@@ -156,20 +156,24 @@ export const DemoVideoPage: React.FC<Props> = ({ session, onToggleSidebar, onPro
     };
 
     const handleProcess = async () => {
-        if (!videoId || !bodyText) return;
+        // Body script is optional. If provided, video is required.
+        if (bodyText && !videoId) {
+            alert("A video is required when a Body Script is provided.");
+            return;
+        }
+
+        // If neither is provided, don't submit.
+        if (!hookText && !bodyText) return;
         
         setIsProcessing(true);
         setProcessingStatus('Starting process...');
         
         try {
-            // Combine Hook and Body for the script
-            const fullScript = hookText ? `${hookText}\n\n${bodyText}` : bodyText;
-            
             const res = await fetch(`${API_URL}/demo/process-video`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    videoId,
+                    videoId: videoId || null,
                     userId: session.user.id,
                     hookText,
                     bodyText,
@@ -215,68 +219,72 @@ export const DemoVideoPage: React.FC<Props> = ({ session, onToggleSidebar, onPro
                 </div>
             </header>
 
-            <div className="p-6 max-w-5xl mx-auto w-full flex flex-col gap-8">
-                {!uploadedVideoUrl ? (
-                    <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-white/20 rounded-3xl bg-zinc-900/50">
-                        <div className="text-6xl mb-4">🎥</div>
-                        <h3 className="text-xl font-bold text-white mb-2">Select or Upload Video</h3>
-                        <p className="text-zinc-400 text-center max-w-md mb-8">
-                            Choose an existing screen recording or upload a new one to generate your demo video.
-                        </p>
+            <div className="p-6 max-w-7xl mx-auto w-full flex flex-col gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Left Column: Video Preview / Upload */}
+                    <div className="flex flex-col gap-4">
+                        <h3 className="text-lg font-bold text-white">Your Recording <span className="text-sm font-normal text-zinc-500">(Required for Body Script)</span></h3>
                         
-                        <button 
-                            onClick={openUploadModal}
-                            disabled={isUploading}
-                            className="px-8 py-4 bg-yellow-600 hover:bg-yellow-500 text-black font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50"
-                        >
-                            {isUploading ? `Uploading... ${uploadProgress}%` : 'Select Video'}
-                        </button>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Video Preview */}
-                        <div className="flex flex-col gap-4">
-                            <h3 className="text-lg font-bold text-white">Your Recording</h3>
-                            <div className="rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 aspect-video">
-                                <video 
-                                    src={uploadedVideoUrl} 
-                                    controls 
-                                    className="w-full h-full object-contain"
-                                />
+                        {!uploadedVideoUrl ? (
+                            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-white/20 rounded-2xl bg-zinc-900/50 hover:bg-zinc-900 transition-colors cursor-pointer" onClick={(e) => { e.preventDefault(); openUploadModal(); }}>
+                                <div className="text-4xl mb-4">🎥</div>
+                                <h3 className="text-base font-bold text-white mb-2">Select or Upload Video</h3>
+                                <p className="text-zinc-400 text-sm text-center max-w-xs mb-4">
+                                    Choose an existing recording or upload a new one.
+                                </p>
+                                <button 
+                                    className="px-6 py-2 bg-yellow-600 hover:bg-yellow-500 text-black font-black uppercase tracking-widest text-sm rounded-xl transition-all disabled:opacity-50"
+                                    onClick={(e) => { e.stopPropagation(); openUploadModal(); }}
+                                    disabled={isUploading}
+                                >
+                                    {isUploading ? `Uploading... ${uploadProgress}%` : 'Select Video'}
+                                </button>
                             </div>
-                            <button 
-                                onClick={() => {
-                                    setUploadedVideoUrl(null);
-                                    setVideoId(null);
-                                    setFile(null);
-                                }}
-                                className="text-sm text-red-500 hover:text-red-400 font-bold self-start"
-                            >
-                                Remove Video
-                            </button>
+                        ) : (
+                            <div className="flex flex-col gap-2">
+                                <div className="rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 aspect-video relative group">
+                                    <video 
+                                        src={uploadedVideoUrl} 
+                                        controls 
+                                        className="w-full h-full object-contain bg-black"
+                                    />
+                                    <button 
+                                        onClick={() => {
+                                            setUploadedVideoUrl(null);
+                                            setVideoId(null);
+                                            setFile(null);
+                                        }}
+                                        className="absolute top-2 right-2 bg-black/60 hover:bg-red-500/80 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                                        title="Remove Video"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Right Column: Script Input */}
+                    <div className="flex flex-col gap-6">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Hook (Required if no Body Script)</label>
+                            <textarea 
+                                value={hookText}
+                                onChange={(e) => setHookText(e.target.value)}
+                                placeholder="e.g., Are you tired of manual data entry? See how our app automates it in seconds."
+                                className="w-full h-24 bg-zinc-900 border border-white/10 rounded-xl p-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500/50 resize-none"
+                            />
                         </div>
 
-                        {/* Script Input */}
-                        <div className="flex flex-col gap-6">
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Hook (Optional)</label>
-                                <textarea 
-                                    value={hookText}
-                                    onChange={(e) => setHookText(e.target.value)}
-                                    placeholder="e.g., Are you tired of manual data entry? See how our app automates it in seconds."
-                                    className="w-full h-24 bg-zinc-900 border border-white/10 rounded-xl p-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500/50 resize-none"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Body Script</label>
-                                <textarea 
-                                    value={bodyText}
-                                    onChange={(e) => setBodyText(e.target.value)}
-                                    placeholder="Describe the steps in your video. The AI will segment the video to match these steps..."
-                                    className="w-full h-48 bg-zinc-900 border border-white/10 rounded-xl p-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500/50 resize-none"
-                                />
-                            </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Body Script (Optional)</label>
+                            <textarea 
+                                value={bodyText}
+                                onChange={(e) => setBodyText(e.target.value)}
+                                placeholder="Describe the steps in your video. The AI will segment the video to match these steps..."
+                                className="w-full h-48 bg-zinc-900 border border-white/10 rounded-xl p-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500/50 resize-none"
+                            />
+                        </div>
 
                             <div className="flex flex-col gap-2" ref={voiceDropdownRef}>
                                 <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Voice</label>
@@ -338,7 +346,7 @@ export const DemoVideoPage: React.FC<Props> = ({ session, onToggleSidebar, onPro
 
                             <button 
                                 onClick={handleProcess}
-                                disabled={isProcessing || !bodyText.trim()}
+                                disabled={isProcessing || (!hookText.trim() && !bodyText.trim()) || (!!bodyText.trim() && !videoId)}
                                 className="w-full py-4 bg-yellow-600 hover:bg-yellow-500 text-black font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isProcessing ? (
@@ -356,8 +364,7 @@ export const DemoVideoPage: React.FC<Props> = ({ session, onToggleSidebar, onPro
                             )}
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
 
             {/* Upload Modal */}
             {isUploadModalOpen && (

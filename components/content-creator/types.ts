@@ -70,7 +70,7 @@ export interface ContentStory {
 }
 
 export const IMAGE_STYLES = [
-    "Realistic", "Anime", "Horror", "Skeleton", "GameCinematic", 'CartoonHorror', 'SoftCartoon', 'Exaggerated2D', '3DCartoon', "Sketch", "Stickman", 'FlatCartoon'
+    "Realistic", "Anime",  'Creepy', 'Cartoon', "Sketch", "Game3D", "Stickman", "Skeleton", "Claymation", "Documentary", "Exaggerated2D", "Ukiyo-e"
 ];
 
 export const EFFECT_PRESETS = [

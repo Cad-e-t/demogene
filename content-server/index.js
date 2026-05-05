@@ -17,7 +17,7 @@ import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
 import { AssemblyAI } from 'assemblyai';
 import numberToWords from 'number-to-words';
 
-import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset } from './demo-maker/controllers.js';
+import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics } from './demo-maker/controllers.js';
 
 // --- Setup ---
 const app = express();
@@ -1140,6 +1140,7 @@ app.post('/demo/generate-upload-url', demoGenerateUploadUrl);
 app.delete('/demo/videos/:id', demoDeleteVideo);
 app.post('/demo/process-video', demoProcessVideo);
 app.post('/demo/export', exportDemoVideo);
+app.post('/demo/generate-motion-graphics', demoGenerateMotionGraphics);
 app.post('/demo/generate-hook-upload-url', generateHookUploadUrl);
 app.post('/demo/generate-hook-image', generateHookImage);
 app.post('/demo/delete-hook-asset', deleteHookAsset);

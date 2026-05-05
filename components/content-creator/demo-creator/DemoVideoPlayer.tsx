@@ -18,6 +18,8 @@ interface DemoVideoPlayerProps {
     videoTransform?: any;
     onVideoTransformChange?: (transform: any) => void;
     backgroundType: string;
+    scriptBreakdown?: any[];
+    motionGraphicsEnabled?: boolean;
 }
 
 const parseTime = (t: string | number) => {
@@ -44,7 +46,9 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     onTimeUpdate,
     videoTransform,
     onVideoTransformChange,
-    backgroundType
+    backgroundType,
+    scriptBreakdown,
+    motionGraphicsEnabled
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -57,6 +61,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     const isSeekingRef = useRef(false);
     const [isLoaded, setIsLoaded] = useState(false);
     const [subtitles, setSubtitles] = useState<any[]>([]);
+    const [mgChunks, setMgChunks] = useState<any[]>([]);
     const hookMediaRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
     const [containerRect, setContainerRect] = useState({ width: 0, height: 0 });
     const [isSelected, setIsSelected] = useState(false);
@@ -235,6 +240,41 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         setIsLoaded(true);
     }, [transcription, subtitleStyle, aspectRatio]);
 
+    // Parse Motion Graphics Script Breakdown
+    useEffect(() => {
+        if (!transcription || !transcription.words || !scriptBreakdown || scriptBreakdown.length === 0) return;
+        
+        const tWords = transcription.words.filter((w: any) => w.text.trim().length > 0);
+        let tIdx = 0;
+        const chunks = [];
+        
+        for (const chunk of scriptBreakdown) {
+            if (!chunk.text.trim()) continue;
+            const chunkWords = chunk.text.trim().split(/\s+/);
+            let startMs = null;
+            let endMs = null;
+            for (let i = 0; i < chunkWords.length; i++) {
+                if (tIdx < tWords.length) {
+                    const w = tWords[tIdx];
+                    if (startMs === null) startMs = w.start;
+                    endMs = w.end;
+                    tIdx++;
+                }
+            }
+            if (startMs !== null && endMs !== null) {
+                // Convert to seconds for DemoVideoPlayer consistency
+                chunks.push({
+                    text: chunk.text,
+                    type: chunk.type,
+                    start: startMs / 1000,
+                    end: endMs / 1000,
+                    duration: (endMs - startMs) / 1000
+                });
+            }
+        }
+        setMgChunks(chunks);
+    }, [transcription, scriptBreakdown]);
+
     // Track container size
     useEffect(() => {
         if (!containerRef.current) return;
@@ -368,7 +408,8 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
             visualTimeRef.current = drawTime;
         }
 
-        if (video.readyState < 1) return;
+        const hasVideo = videoUrl && videoUrl.trim() !== '';
+        if (hasVideo && video.readyState < 1) return;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -390,14 +431,21 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             ctx.strokeStyle = bgType === 'grid' ? '#E5E7EB' : 'rgba(255, 255, 255, 0.2)';
-            ctx.lineWidth = 1;
-            const gridSize = 40;
+            ctx.lineWidth = 3;
+            
+            const cols = aspectRatio === '16:9' ? 7 : 4;
+            const rows = aspectRatio === '16:9' ? 4 : 7;
+            const cellWidth = canvas.width / cols;
+            const cellHeight = canvas.height / rows;
+            
             ctx.beginPath();
-            for (let x = 0; x < canvas.width; x += gridSize) {
+            for (let i = 1; i < cols; i++) {
+                const x = i * cellWidth;
                 ctx.moveTo(x, 0);
                 ctx.lineTo(x, canvas.height);
             }
-            for (let y = 0; y < canvas.height; y += gridSize) {
+            for (let j = 1; j < rows; j++) {
+                const y = j * cellHeight;
                 ctx.moveTo(0, y);
                 ctx.lineTo(canvas.width, y);
             }
@@ -428,9 +476,11 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         // Video Sync Logic
         if (currentSegment) {
             if (isHook) {
-                if (!video.paused) video.pause();
-                if (Math.abs(video.currentTime - currentSegment.videoStart) > 0.1) {
-                    video.currentTime = currentSegment.videoStart;
+                if (hasVideo) {
+                    if (!video.paused) video.pause();
+                    if (Math.abs(video.currentTime - currentSegment.videoStart) > 0.1) {
+                        video.currentTime = currentSegment.videoStart;
+                    }
                 }
 
                 // Sync hook video if it's a media style
@@ -465,7 +515,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                         }
                     }
                 }
-            } else {
+            } else if (hasVideo) {
                 const audioDuration = currentSegment.audioDuration;
                 const videoDuration = currentSegment.videoDuration;
                 let targetVideoTime;
@@ -521,9 +571,255 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
             }
         }
 
-        // Draw Subtitles
-        const currentSubtitle = subtitles.find(s => drawTime >= s.start && drawTime <= s.end);
-        if (currentSubtitle) {
+        // Draw Subtitles or Motion Graphics
+        if (motionGraphicsEnabled && mgChunks.length > 0) {
+            const currentChunks = mgChunks.filter(c => drawTime >= c.start && drawTime <= c.end);
+            
+            for (const chunk of currentChunks) {
+                const tOffset = drawTime - chunk.start;
+                const progress = Math.min(1, Math.max(0, tOffset / chunk.duration));
+                const text = chunk.text.trim();
+                if (!text) continue;
+
+                ctx.save();
+                
+                if (chunk.type === 'base') {
+                    // One word at a time on center screen
+                    const words = text.split(/\s+/).filter(Boolean);
+                    const wordDuration = chunk.duration / words.length;
+                    
+                    const activeWIdx = Math.floor(tOffset / wordDuration);
+                    if (activeWIdx >= 0 && activeWIdx < words.length) {
+                        const word = words[activeWIdx];
+                        const wordStartTime = activeWIdx * wordDuration;
+                        const wAnim = Math.min(1, (tOffset - wordStartTime) / 0.15); // 0.15s pop-in
+                        const scale = wAnim === 1 ? 1 : 1 + Math.sin(wAnim * Math.PI) * 0.3;
+                        
+                        ctx.font = '800 130px "Helvetica", "Inter", sans-serif';
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        
+                        ctx.save();
+                        ctx.translate(canvas.width / 2, canvas.height / 2);
+                        ctx.scale(scale, scale);
+                        
+                        // Very thick outline
+                        ctx.lineWidth = 20;
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineJoin = 'round';
+                        ctx.strokeText(word, 0, 0, canvas.width * 0.9);
+                        
+                        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                        ctx.shadowBlur = 20;
+                        ctx.shadowOffsetY = 10;
+                        
+                        ctx.fillText(word, 0, 0, canvas.width * 0.9);
+                        ctx.restore();
+                    }
+                } 
+                else if (chunk.type === 'emphasis') {
+                    ctx.font = '900 150px "Helvetica", "Inter", sans-serif';
+                    ctx.fillStyle = '#EF4444'; // bright red
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    const wAnim = Math.min(1, tOffset / 0.15);
+                    const scale = wAnim === 1 ? 1 : 1 + Math.sin(wAnim * Math.PI) * 0.3;
+                    
+                    ctx.translate(canvas.width / 2, canvas.height / 2);
+                    ctx.scale(scale, scale);
+                    
+                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                    ctx.shadowBlur = 20;
+                    ctx.shadowOffsetX = 8;
+                    ctx.shadowOffsetY = 8;
+                    
+                    const maxWidth = canvas.width * 0.9;
+                    const wordsWrap = text.split(/\s+/).filter(Boolean);
+                    const lines = [];
+                    let currentLine = wordsWrap[0] || '';
+                    for (let i = 1; i < wordsWrap.length; i++) {
+                        const word = wordsWrap[i];
+                        const width = ctx.measureText(currentLine + " " + word).width;
+                        if (width < maxWidth) {
+                            currentLine += " " + word;
+                        } else {
+                            lines.push(currentLine);
+                            currentLine = word;
+                        }
+                    }
+                    if (currentLine) lines.push(currentLine);
+
+                    const lineHeight = 160;
+                    const totalHeight = lines.length * lineHeight;
+                    const startY = -(totalHeight / 2) + (lineHeight / 2);
+                    
+                    lines.forEach((line, i) => {
+                        ctx.fillText(line, 0, startY + (i * lineHeight));
+                    });
+                }
+                else if (chunk.type === 'list-marker') {
+                    // Slide up square container, word by word slide up reveal
+                    const slideTime = 0.4;
+                    const slideProgress = Math.min(1, Math.max(0, tOffset / slideTime));
+                    const easeOut = slideProgress === 1 ? 1 : 1 - Math.pow(2, -10 * slideProgress);
+                    
+                    const containerY = canvas.height * (1 - easeOut);
+                    
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.translate(0, containerY);
+                    
+                    ctx.fillStyle = '#18181b';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    ctx.lineWidth = 40;
+                    ctx.strokeStyle = '#a855f7';
+                    ctx.beginPath();
+                    ctx.moveTo(0, 20);
+                    ctx.lineTo(canvas.width, 20);
+                    ctx.stroke();
+                    
+                    ctx.shadowColor = 'rgba(168, 85, 247, 0.5)';
+                    ctx.shadowBlur = 80;
+                    ctx.shadowOffsetY = -20;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    ctx.shadowOffsetY = 0;
+                    
+                    ctx.font = '800 160px "Helvetica", "Inter", sans-serif';
+                    ctx.textBaseline = 'top';
+                    
+                    const words = text.split(/\s+/).filter(Boolean);
+                    
+                    const maxWidth = canvas.width - 200;
+                    type WordItem = { word: string; wIdx: number };
+                    interface LineParams { text: string; width: number; wordsList: WordItem[] }
+                    
+                    const lines: LineParams[] = [];
+                    let currentLineParams: LineParams = { text: '', width: 0, wordsList: [] };
+                    
+                    for (let wIdx = 0; wIdx < words.length; wIdx++) {
+                        const word = words[wIdx];
+                        const wordWidth = ctx.measureText(word).width;
+                        const spaceWidth = ctx.measureText(' ').width;
+                        
+                        const testWidth = currentLineParams.width + (currentLineParams.wordsList.length > 0 ? spaceWidth : 0) + wordWidth;
+                        
+                        if (testWidth > maxWidth && currentLineParams.wordsList.length > 0) {
+                            lines.push(currentLineParams);
+                            currentLineParams = { text: word, width: wordWidth, wordsList: [{ word, wIdx }] };
+                        } else {
+                            currentLineParams.text += (currentLineParams.wordsList.length > 0 ? ' ' : '') + word;
+                            currentLineParams.width = testWidth;
+                            currentLineParams.wordsList.push({ word, wIdx });
+                        }
+                    }
+                    if (currentLineParams.wordsList.length > 0) {
+                        lines.push(currentLineParams);
+                    }
+                    
+                    const lineHeight = 190;
+                    const totalHeight = lines.length * lineHeight;
+                    const startY = (canvas.height - totalHeight) / 2;
+                    
+                    lines.forEach((line: any, lineIdx: number) => {
+                        const lineStartX = (canvas.width - line.width) / 2;
+                        let currX = lineStartX;
+                        
+                        line.wordsList.forEach((wItem: any) => {
+                            const wordStartOffset = wItem.wIdx * 0.2;
+                            const wordOffset = Math.max(0, tOffset - wordStartOffset);
+                            const wWidth = ctx.measureText(wItem.word).width;
+                            const spaceWidth = ctx.measureText(' ').width;
+                            
+                            if (wordOffset > 0) {
+                                const wProg = Math.min(1, wordOffset / 0.3);
+                                const wEase = wProg === 1 ? 1 : 1 - Math.pow(2, -10 * wProg);
+                                const wY = startY + (lineIdx * lineHeight) + 50 * (1 - wEase);
+                                
+                                ctx.globalAlpha = wEase;
+                                ctx.fillStyle = '#FFFFFF';
+                                ctx.textAlign = 'left';
+                                ctx.fillText(wItem.word, currX, wY);
+                            }
+                            currX += wWidth + spaceWidth;
+                        });
+                    });
+                    
+                    ctx.restore();
+                }
+                else if (chunk.type === 'intro-number') {
+                    ctx.font = '900 300px "Impact", "Montserrat Black", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    // 300% scale + alpha 0 -> 100% scale + alpha 1 (first 0.15s)
+                    // Then fly past camera 100% -> 1000% scale on out (at chunk.duration)
+                    let scale = 1;
+                    let alpha = 1;
+                    
+                    if (tOffset <= 0.15) {
+                        const inProgress = tOffset / 0.15;
+                        scale = 3 - (2 * inProgress); // 3 to 1
+                        alpha = inProgress;
+                    } else if (tOffset >= chunk.duration) {
+                        const outProgress = Math.min(1, (tOffset - chunk.duration) / 0.2);
+                        scale = 1 + (9 * outProgress); // 1 to 10
+                        alpha = 1; // stays 1
+                    }
+                    
+                    ctx.globalAlpha = alpha;
+                    
+                    // Add stroke & shadow
+                    ctx.lineWidth = 10;
+                    ctx.strokeStyle = '#000000';
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                    ctx.shadowBlur = 20;
+                    ctx.shadowOffsetY = 10;
+                    
+                    const cx = canvas.width / 2;
+                    const cy = canvas.height / 2;
+                    
+                    ctx.translate(cx, cy);
+                    ctx.scale(scale, scale);
+                    
+                    const maxWidth = canvas.width * 0.9;
+                    const wordsWrap = text.split(/\s+/).filter(Boolean);
+                    const lines = [];
+                    let currentLine = wordsWrap[0] || '';
+                    for (let i = 1; i < wordsWrap.length; i++) {
+                        const word = wordsWrap[i];
+                        const width = ctx.measureText(currentLine + " " + word).width;
+                        if (width < maxWidth) {
+                            currentLine += " " + word;
+                        } else {
+                            lines.push(currentLine);
+                            currentLine = word;
+                        }
+                    }
+                    if (currentLine) lines.push(currentLine);
+
+                    const lineHeight = 320;
+                    const totalHeight = lines.length * lineHeight;
+                    const startY = -(totalHeight / 2) + (lineHeight / 2);
+                    
+                    lines.forEach((line, i) => {
+                        ctx.strokeText(line, 0, startY + (i * lineHeight));
+                        ctx.fillText(line, 0, startY + (i * lineHeight));
+                    });
+                    
+                    ctx.scale(1/scale, 1/scale);
+                    ctx.translate(-cx, -cy);
+                }
+                
+                ctx.restore();
+            }
+        } else if (subtitles && subtitles.length > 0) {
+            const currentSubtitle = subtitles.find(s => drawTime >= s.start && drawTime <= s.end);
+            if (currentSubtitle) {
             const { 
                 fontFamily = 'Inter', 
                 fontSize = 60, 
@@ -576,6 +872,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                 currentX += wordWidth;
             });
         }
+        } // Close else if (subtitles && subtitles.length > 0)
 
         requestRef.current = requestAnimationFrame(render);
     };

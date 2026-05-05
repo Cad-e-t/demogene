@@ -13,6 +13,10 @@
     "@aws-sdk/client-s3": "^3.975.0",
     "@aws-sdk/s3-request-presigner": "^3.975.0",
     "@google/genai": "^1.31.0",
+    "@remotion/bundler": "^4.0.456",
+    "@remotion/cli": "^4.0.456",
+    "@remotion/player": "^4.0.456",
+    "@remotion/renderer": "^4.0.456",
     "@supabase/supabase-js": "^2.86.2",
     "assemblyai": "^4.23.0",
     "child_process": "^1.0.2",
@@ -29,6 +33,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.11.0",
+    "remotion": "^4.0.456",
     "replicate": "^1.4.0",
     "url": "^0.11.4",
     "uuid": "^10.0.0"

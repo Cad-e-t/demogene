@@ -6,7 +6,7 @@ import { ContentEditor } from './ContentEditor';
 import { IMAGE_STYLES, EFFECT_PRESETS, LONG_FORM_PRESETS, VOICE_STYLES, VOICE_PACES, VOICE_ACCENTS, VoiceStyleConfig, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
-import { STYLE_PREVIEWS } from './creator-assets';
+import { STYLE_PREVIEWS, LANDING_PREVIEWS } from './creator-assets';
 import { SubtitlePreview } from './SubtitlePreviews';
 import { supabase } from '../../supabaseClient';
 
@@ -376,108 +376,79 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     </button>
                 </div>
 
-                {/* Style Gallery Section */}
-                <div className="flex-1 flex flex-col items-center justify-center p-4 pb-32 overflow-hidden">
-                    <h1 className="text-sm sm:text-2xl md:text-4xl font-black uppercase tracking-[0.2em] text-zinc-500 mb-8 md:mb-12 text-center whitespace-nowrap">
+                {/* Header */}
+                <div className="w-full mt-12 md:mt-16 flex flex-col items-center">
+                    <h1 className="text-sm sm:text-2xl md:text-4xl font-black uppercase tracking-[0.2em] text-zinc-500 mb-8 text-center whitespace-nowrap">
                         Pick Any Style
                     </h1>
-                    
-                    <div 
-                        ref={galleryRef}
-                        className="w-full flex gap-4 overflow-x-auto pb-4 thin-scrollbar snap-x snap-mandatory px-4 md:px-12"
-                    >
-                        {IMAGE_STYLES.map((s) => (
-                            <div 
-                                key={s}
-                                data-style={s}
-                                onClick={() => setStyle(s)}
-                                onMouseEnter={() => setHoveredStyle(s)}
-                                onMouseLeave={() => setHoveredStyle(null)}
-                                className={`flex-none snap-start cursor-pointer transition-all duration-300 ${style === s ? 'scale-105' : 'opacity-70 hover:opacity-100'}`}
-                            >
-                                <div className={`relative rounded-2xl overflow-hidden border-4 transition-colors duration-300 ${style === s ? 'border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'border-white/5'}`}>
-                                    <video 
-                                        src={STYLE_PREVIEWS[s]} 
-                                        preload="metadata"
-                                        className="h-[30vh] md:h-[40vh] w-auto aspect-auto object-cover"
-                                        autoPlay={style === s || hoveredStyle === s} 
-                                        muted 
-                                        loop 
-                                        playsInline
-                                        ref={(el) => {
-                                            if (el) {
-                                                if (style === s || hoveredStyle === s) {
-                                                    el.play().catch(() => {});
-                                                } else {
-                                                    el.pause();
-                                                }
-                                            }
-                                        }}
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
-                                </div>
-                                <p className={`mt-3 text-center font-black uppercase tracking-widest text-xs transition-colors ${style === s ? 'text-yellow-500' : 'text-zinc-500'}`}>
-                                    {s}
-                                </p>
+
+                    {/* Prompt Box Section */}
+                    <div className="w-full max-w-3xl px-4 md:px-8 mb-12 flex justify-center z-20">
+                        <div ref={promptBoxRef} className={`w-full bg-zinc-900 rounded-3xl shadow-2xl border ${prompt.length > MAX_CHARS ? 'border-red-500 ring-1 ring-red-500' : 'border-white/10'} flex flex-col transition-colors duration-200`}>
+                            {/* Text Area Section */}
+                            <div className="p-4 md:p-6 pb-2">
+                                <textarea 
+                                    ref={textareaRef}
+                                    className="w-full bg-transparent text-zinc-100 text-lg font-medium outline-none resize-none placeholder-zinc-500 leading-relaxed max-h-[30vh] overflow-y-auto thin-scrollbar"
+                                    placeholder="Paste your script.."
+                                    value={prompt}
+                                    onChange={(e) => setPrompt(e.target.value)}
+                                    rows={1}
+                                />
+                                {prompt.length > MAX_CHARS && (
+                                    <div className="mt-2 text-right animate-in fade-in slide-in-from-top-1 duration-200">
+                                        <span className="text-red-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                                            Limit Exceeded: {prompt.length} / {MAX_CHARS}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
-                        ))}
-                    </div>
-                </div>
 
-                {/* Prompt Box Section */}
-                <div className="fixed bottom-0 left-0 right-0 p-4 md:p-8 flex justify-center z-20 pointer-events-none">
-                    <div ref={promptBoxRef} className={`w-full max-w-3xl bg-zinc-900 rounded-3xl shadow-2xl border ${prompt.length > MAX_CHARS ? 'border-red-500 ring-1 ring-red-500' : 'border-white/10'} pointer-events-auto flex flex-col transition-colors duration-200`}>
-                        {/* Text Area Section */}
-                        <div className="p-4 md:p-6 pb-2">
-                            <textarea 
-                                ref={textareaRef}
-                                className="w-full bg-transparent text-zinc-100 text-lg font-medium outline-none resize-none placeholder-zinc-500 leading-relaxed max-h-[30vh] overflow-y-auto thin-scrollbar"
-                                placeholder="Paste your script.."
-                                value={prompt}
-                                onChange={(e) => setPrompt(e.target.value)}
-                                rows={1}
-                            />
-                            {prompt.length > MAX_CHARS && (
-                                <div className="mt-2 text-right animate-in fade-in slide-in-from-top-1 duration-200">
-                                    <span className="text-red-500 text-[10px] font-black uppercase tracking-[0.2em]">
-                                        Limit Exceeded: {prompt.length} / {MAX_CHARS}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Configuration Bar Section */}
-                        <div className="p-3 md:p-4 bg-zinc-900 border-t border-white/5 flex items-center justify-between gap-2 rounded-b-3xl">
-                            {/* Left Side: Config Buttons */}
-                            <div className="flex items-center gap-1.5 flex-wrap pb-1">
-                                        {/* Style Button */}
-                                        <div className="relative">
-                                            <button 
-                                                onClick={() => setConfigView(configView === 'style' ? 'main' : 'style')}
-                                                className={`config-control-button px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${configView === 'style' ? 'bg-yellow-500 text-black' : 'bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60'}`}
-                                            >
-                                                {style}
-                                            </button>
-                                            {configView === 'style' && (
-                                                <div className="config-modal absolute bottom-full left-0 mb-4 w-48 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                            {/* Configuration Bar Section */}
+                            <div className="p-3 md:p-4 bg-zinc-900 border-t border-white/5 flex items-center justify-between gap-2 rounded-b-3xl">
+                                {/* Left Side: Config Buttons */}
+                                <div className="flex items-center gap-1.5 flex-wrap pb-1">
+                                    {/* Style Button */}
+                                    <div className="relative">
+                                        <button 
+                                            onClick={() => setConfigView(configView === 'style' ? 'main' : 'style')}
+                                            className={`config-control-button px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${configView === 'style' ? 'bg-yellow-500 text-black' : 'bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60'}`}
+                                        >
+                                            {style}
+                                        </button>
+                                        {configView === 'style' && (
+                                            <div className="config-modal absolute top-full left-0 mt-4 w-[280px] sm:w-[400px] bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-4 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto thin-scrollbar pr-2">
                                                     {IMAGE_STYLES.map(s => (
-                                                        <button
+                                                        <div
                                                             key={s}
                                                             onClick={() => { setStyle(s); setConfigView('main'); }}
-                                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${style === s ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                                                            className={`cursor-pointer rounded-xl overflow-hidden relative border-2 transition-all group ${style === s ? 'border-yellow-500' : 'border-transparent hover:border-white/20'}`}
                                                         >
-                                                            {s}
-                                                        </button>
+                                                            <div className="aspect-square w-full">
+                                                                <img 
+                                                                    src={STYLE_PREVIEWS[s]} 
+                                                                    alt={s}
+                                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                                                />
+                                                            </div>
+                                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-2">
+                                                                <span className={`text-[10px] sm:text-xs font-bold w-full text-center tracking-wider uppercase ${style === s ? 'text-yellow-500' : 'text-white'}`}>
+                                                                    {s}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     ))}
                                                 </div>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
+                                    </div>
 
-                                        {/* Desktop Only Buttons */}
-                                        <div className="hidden md:flex items-center gap-1.5">
-                                            {/* Ratio Button */}
-                                            <div className="relative">
-                                                <button 
+                                    {/* Desktop Only Buttons */}
+                                    <div className="hidden md:flex items-center gap-1.5">
+                                        {/* Ratio Button */}
+                                        <div className="relative">
+                                            <button 
                                                     onClick={() => setConfigView(configView === 'aspect' ? 'main' : 'aspect')}
                                                     className={`config-control-button px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${configView === 'aspect' ? 'bg-yellow-500 text-black' : 'bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60'}`}
                                                 >
@@ -489,7 +460,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                     {aspect}
                                                 </button>
                                                 {configView === 'aspect' && (
-                                                    <div className="config-modal absolute bottom-full left-0 mb-4 w-48 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                    <div className="config-modal absolute top-full left-0 mt-4 w-48 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
                                                         {[
                                                             { id: '9:16', label: '9:16 Vertical' },
                                                             { id: '16:9', label: '16:9 Landscape' }
@@ -516,7 +487,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                                     {voice.name}
                                                 </button>
                                                 {configView === 'voice' && (
-                                                    <div className="config-modal absolute bottom-full left-0 mb-4 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-3 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                    <div className="config-modal absolute top-full left-0 mt-4 w-[360px] bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-3 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
                                                         {/* Voice Selection Accordion */}
                                                         <div className="mb-2">
                                                             <button 
@@ -620,7 +591,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
                                             {/* Mobile Settings Modal */}
                                             {configView === 'mobile_settings' && (
-                                                <div className="config-modal absolute bottom-full left-0 mb-4 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                <div className="config-modal absolute top-full left-0 mt-4 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
                                                     <button
                                                         onClick={() => setConfigView('aspect')}
                                                         className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all"
@@ -656,7 +627,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
                                             {/* Sub-modals for mobile */}
                                             {(configView === 'aspect' || configView === 'voice') && (
-                                                <div className="config-modal md:hidden absolute bottom-full left-0 mb-4 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[70] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                <div className={`config-modal md:hidden absolute top-full left-0 mt-4 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-[70] animate-in fade-in slide-in-from-top-2 duration-200 ${configView === 'voice' ? 'w-[360px]' : 'w-64'}`}>
                                                     <button 
                                                         onClick={() => setConfigView('mobile_settings')}
                                                         className="flex items-center gap-2 px-2 py-1 mb-2 text-zinc-500 hover:text-white transition-colors"
@@ -788,6 +759,52 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                 )}
                             </button>
                         </div>
+                    </div>
+                </div>
+                </div>
+
+                {/* Style Gallery Section */}
+                <div className="w-full flex flex-col items-center justify-center p-4 pb-32">
+                    <div 
+                        ref={galleryRef}
+                        className="w-full max-w-7xl flex gap-4 overflow-x-auto pb-4 thin-scrollbar snap-x snap-mandatory px-4 md:px-12"
+                    >
+                        {Object.keys(LANDING_PREVIEWS).map((s) => (
+                            <div 
+                                key={s}
+                                onMouseEnter={() => setHoveredStyle(s)}
+                                onMouseLeave={() => setHoveredStyle(null)}
+                                className={`flex-none snap-start transition-all duration-300 opacity-70 hover:opacity-100 cursor-pointer`}
+                            >
+                                <div className={`relative rounded-2xl overflow-hidden border-4 transition-colors duration-300 border-white/5`}>
+                                    <video 
+                                        src={LANDING_PREVIEWS[s].src} 
+                                        preload="metadata"
+                                        className="h-[30vh] md:h-[40vh] w-auto object-cover"
+                                        style={{ aspectRatio: LANDING_PREVIEWS[s].aspectRatio === '9:16' ? '9/16' : '16/9' }}
+                                        autoPlay={hoveredStyle === s} 
+                                        muted 
+                                        loop 
+                                        playsInline
+                                        ref={(el) => {
+                                            if (el) {
+                                                if (hoveredStyle === s) {
+                                                    el.play().catch(() => {});
+                                                } else {
+                                                    el.pause();
+                                                }
+                                            }
+                                        }}
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                                    <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
+                                        <p className="font-black uppercase tracking-widest text-xs text-white">
+                                            {s}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
