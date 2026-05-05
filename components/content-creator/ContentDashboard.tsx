@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Equal, ChevronRight, ChevronLeft, Mic, Monitor, MonitorPlay, Sparkles, Settings2, Play, Pause } from 'lucide-react';
+import { Equal, ChevronRight, ChevronLeft, Mic, Monitor, MonitorPlay, Sparkles, Settings2, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { generateSegments } from './api';
 import { ContentEditor } from './ContentEditor';
 import { IMAGE_STYLES, EFFECT_PRESETS, LONG_FORM_PRESETS, VOICE_STYLES, VOICE_PACES, VOICE_ACCENTS, VoiceStyleConfig, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
@@ -9,6 +9,22 @@ import { VOICE_SAMPLES } from '../../voiceSamples';
 import { STYLE_PREVIEWS, LANDING_PREVIEWS } from './creator-assets';
 import { SubtitlePreview } from './SubtitlePreviews';
 import { supabase } from '../../supabaseClient';
+
+const CHOSEN_GALLERY_VIDEOS = [
+    "Hoorror Story",
+    "Animated Story",
+    "Skeleton Videos",
+    "Immersive Long Forms "
+];
+
+const GALLERY_VIDEO_MAPPINGS: Record<string, { style: string, aspect: '9:16' | '16:9' }> = {
+    "Immersive Long Forms ": { style: "Realistic", aspect: "16:9" },
+    "Hoorror Story": { style: "Creepy", aspect: "9:16" },
+    "Animated Story": { style: "Game3D", aspect: "9:16" },
+    "Skeleton Videos": { style: "Skeleton", aspect: "9:16" },
+    "Science Shorts": { style: "Realistic", aspect: "9:16" },
+    "Motivational": { style: "Cartoon", aspect: "16:9" }
+};
 
 export const ContentDashboard = ({ session, onViewChange, initialProjectData, onClearProject, onToggleSidebar }: any) => {
     const [prompt, setPrompt] = useState('');
@@ -42,6 +58,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [configView, setConfigView] = useState<'main' | 'voice' | 'narration_style' | 'aspect' | 'style' | 'effect' | 'mobile_settings'>('main');
     const [voiceAccordion, setVoiceAccordion] = useState<'narrator' | 'tone' | null>(null);
     const [hoveredStyle, setHoveredStyle] = useState<string | null>(null);
+    const [mutedStates, setMutedStates] = useState<Record<string, boolean>>({});
     const promptBoxRef = useRef<HTMLDivElement>(null);
 
     // Audio Preview State
@@ -769,26 +786,28 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                         ref={galleryRef}
                         className="w-full max-w-7xl flex gap-4 overflow-x-auto pb-4 thin-scrollbar snap-x snap-mandatory px-4 md:px-12"
                     >
-                        {Object.keys(LANDING_PREVIEWS).map((s) => (
+                        {CHOSEN_GALLERY_VIDEOS.map((videoId) => {
+                            const config = GALLERY_VIDEO_MAPPINGS[videoId] || { style: "Cartoon", aspect: "9:16" };
+                            return (
                             <div 
-                                key={s}
-                                onMouseEnter={() => setHoveredStyle(s)}
+                                key={videoId}
+                                onMouseEnter={() => setHoveredStyle(videoId)}
                                 onMouseLeave={() => setHoveredStyle(null)}
                                 className={`flex-none snap-start transition-all duration-300 opacity-70 hover:opacity-100 cursor-pointer`}
                             >
                                 <div className={`relative rounded-2xl overflow-hidden border-4 transition-colors duration-300 border-white/5`}>
                                     <video 
-                                        src={LANDING_PREVIEWS[s].src} 
+                                        src={LANDING_PREVIEWS[videoId]?.src} 
                                         preload="metadata"
                                         className="h-[30vh] md:h-[40vh] w-auto object-cover"
-                                        style={{ aspectRatio: LANDING_PREVIEWS[s].aspectRatio === '9:16' ? '9/16' : '16/9' }}
-                                        autoPlay={hoveredStyle === s} 
-                                        muted 
+                                        style={{ aspectRatio: config.aspect === '9:16' ? '9/16' : '16/9' }}
+                                        autoPlay={hoveredStyle === videoId} 
+                                        muted={mutedStates[videoId] !== false} 
                                         loop 
                                         playsInline
                                         ref={(el) => {
                                             if (el) {
-                                                if (hoveredStyle === s) {
+                                                if (hoveredStyle === videoId) {
                                                     el.play().catch(() => {});
                                                 } else {
                                                     el.pause();
@@ -797,14 +816,32 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                                         }}
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                                    <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
-                                        <p className="font-black uppercase tracking-widest text-xs text-white">
-                                            {s}
-                                        </p>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setMutedStates(prev => ({ ...prev, [videoId]: prev[videoId] === false }));
+                                        }}
+                                        className={`absolute top-2 right-2 p-1.5 bg-black/50 rounded-full text-white hover:bg-black/80 transition-opacity duration-300 z-20 ${hoveredStyle === videoId ? 'opacity-100' : 'opacity-0'}`}
+                                        aria-label="Toggle sound"
+                                    >
+                                        {mutedStates[videoId] === false ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                                    </button>
+                                    <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 transition-opacity duration-300 ${hoveredStyle === videoId ? 'opacity-100' : 'opacity-0'}`}>
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setStyle(config.style);
+                                                setAspect(config.aspect);
+                                            }}
+                                            className="px-6 py-2.5 bg-white text-black text-xs font-black uppercase tracking-widest rounded-full hover:bg-zinc-200 transition-colors shadow-[0_4px_20px_rgba(0,0,0,0.5)] whitespace-nowrap"
+                                        >
+                                            Use Style
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </div>
