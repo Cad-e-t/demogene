@@ -24,6 +24,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const [exporting, setExporting] = useState(false);
     const [activeModule, setActiveModule] = useState<string | null>(null);
     const [showHookStyleModal, setShowHookStyleModal] = useState(false);
+    const [activeHookIndex, setActiveHookIndex] = useState<number | null>(null);
     const [subtitleView, setSubtitleView] = useState<'summary' | 'edit' | 'transcription'>('summary');
     const [subtitleState, setSubtitleState] = useState<'enabled' | 'disabled'>('enabled');
     const [motionGraphicsEnabled, setMotionGraphicsEnabled] = useState(false);
@@ -375,7 +376,11 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                                 <div className="flex items-center gap-2">
                                                                     {seg.isHook && (
                                                                         <button 
-                                                                            onClick={(e) => { e.stopPropagation(); setShowHookStyleModal(true); }}
+                                                                            onClick={(e) => { 
+                                                                                e.stopPropagation(); 
+                                                                                setActiveHookIndex(i);
+                                                                                setShowHookStyleModal(true); 
+                                                                            }}
                                                                             className="flex items-center gap-1 px-2 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-bold text-white transition-colors"
                                                                         >
                                                                             <Settings2 className="w-3 h-3" /> Styles
@@ -572,9 +577,15 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             <HookStyleModal 
                 isOpen={showHookStyleModal}
                 onClose={() => setShowHookStyleModal(false)}
-                currentStyle={project.hook_style}
+                currentStyle={activeHookIndex !== null ? (project.segments?.[activeHookIndex]?.hook_style || project.hook_style) : project.hook_style}
                 onUpdateStyle={async (newStyle) => {
-                    await updateProject({ hook_style: newStyle });
+                    if (activeHookIndex !== null) {
+                        const newSegments = [...(project.segments || [])];
+                        newSegments[activeHookIndex] = { ...newSegments[activeHookIndex], hook_style: newStyle };
+                        await updateProject({ segments: newSegments });
+                    } else {
+                        await updateProject({ hook_style: newStyle });
+                    }
                 }}
                 userId={session.user.id}
             />

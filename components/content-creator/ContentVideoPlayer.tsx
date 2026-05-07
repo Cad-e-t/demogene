@@ -585,15 +585,19 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                                  rawAnimationType === 'impact_pop' ? 'karaoke_bounce' : 
                                  rawAnimationType;
 
-            ctx.font = `bold ${fontSize}px "${fontFamily}"`;
+            const scaleMultiplier = canvas.width / (aspectRatio === '9:16' ? 1080 : 1920);
+            const scaledFontSize = fontSize * scaleMultiplier;
+            const scaledStrokeWidth = strokeWidth * scaleMultiplier;
+
+            ctx.font = `bold ${scaledFontSize}px "${fontFamily}"`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.lineWidth = strokeWidth;
+            ctx.lineWidth = scaledStrokeWidth;
             ctx.lineJoin = 'round';
             
             // Letter Spacing (if supported)
             if ('letterSpacing' in ctx) {
-                (ctx as any).letterSpacing = `${letterSpacing}px`;
+                (ctx as any).letterSpacing = `${letterSpacing * scaleMultiplier}px`;
             }
 
             let x = canvas.width / 2;
@@ -635,7 +639,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             });
             if (currentLine.length > 0) lines.push(currentLine);
 
-            const lineHeight = fontSize * 1.2;
+            const lineHeight = scaledFontSize * 1.2;
             const totalHeight = lines.length * lineHeight;
             
             // Anchor the bottom of the text block to 'y'
@@ -715,13 +719,18 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
+        
+        // Detect mobile screen for lower resolution canvas to prevent shaking/glitching
+        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+        const scale = isMobile ? 0.35 : 1; 
+
         // Set resolution based on aspect ratio to match export (1080p)
         if (aspectRatio === '9:16') {
-            canvas.width = 1080;
-            canvas.height = 1920;
+            canvas.width = 1080 * scale;
+            canvas.height = 1920 * scale;
         } else {
-            canvas.width = 1920;
-            canvas.height = 1080;
+            canvas.width = 1920 * scale;
+            canvas.height = 1080 * scale;
         }
     }, [aspectRatio]);
 

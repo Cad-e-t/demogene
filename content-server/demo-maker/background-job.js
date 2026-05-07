@@ -17,7 +17,7 @@ import { downloadFile, getDurationValue, parseTime, cleanup, alignSegmentsWithTr
 const TEMP_DIR = os.tmpdir();
 
 export async function runDemoProcessing(jobData) {
-    const { projectId, sourceVideoUrl, hookText, bodyText, voiceId, hookStyle, userId } = jobData;
+    const { projectId, sourceVideoUrl, sections, voiceId, userId } = jobData;
     const filesToDelete = [];
 
     console.log(`[Demo Processing] Starting for Project: ${projectId}`);
@@ -29,7 +29,10 @@ export async function runDemoProcessing(jobData) {
         let audioUrl = null;
         let analysis = null;
 
-        if (sourceVideoUrl) {
+        const bodyText = sections?.find(s => s.type === 'body')?.text || '';
+        const hookCount = sections?.filter(s => s.type === 'hook' && s.text.trim()).length || 0;
+
+        if (sourceVideoUrl && bodyText) {
             // 1. Download the raw file
             const inputExt = '.mp4';
             const localInputPath = path.join(TEMP_DIR, `raw_${uuidv4()}${inputExt}`);
@@ -57,23 +60,33 @@ export async function runDemoProcessing(jobData) {
 
         const hasScript = analysis && analysis.script && analysis.script.script_lines && analysis.script.script_lines.length > 0;
 
-        if (hasScript || (hookText && hookText.trim())) {
+        if (hasScript || hookCount > 0) {
             console.log('--- Generating Voiceover ---');
             
-            // Prepare segments list
-            if (hookText && hookText.trim()) {
-                segments.push({ narration: hookText.trim(), isHook: true, video_start: "00:00.000", video_end: "00:00.000" });
-            }
-            if (hasScript) {
-                analysis.script.script_lines.forEach(line => {
-                    if (line.narration && line.narration.trim()) {
-                        const videoSegment = analysis.segments[line.segment_index] || {};
-                        segments.push({ 
-                            narration: line.narration.trim(), 
-                            isHook: false, 
-                            video_start: videoSegment.start_time || "00:00.000",
-                            video_end: videoSegment.end_time || "00:00.000",
-                            ...line 
+            // Prepare segments list sequentially based on sections array
+            if (sections) {
+                sections.forEach((sec, idx) => {
+                    if (sec.type === 'hook' && sec.text.trim()) {
+                        segments.push({
+                            id: sec.id || `hook-${idx}`,
+                            narration: sec.text.trim(),
+                            isHook: true,
+                            video_start: "00:00.000",
+                            video_end: "00:00.000",
+                            hook_style: { style: 'media' }
+                        });
+                    } else if (sec.type === 'body' && hasScript) {
+                        analysis.script.script_lines.forEach(line => {
+                            if (line.narration && line.narration.trim()) {
+                                const videoSegment = analysis.segments[line.segment_index] || {};
+                                segments.push({ 
+                                    narration: line.narration.trim(), 
+                                    isHook: false, 
+                                    video_start: videoSegment.start_time || "00:00.000",
+                                    video_end: videoSegment.end_time || "00:00.000",
+                                    ...line 
+                                });
+                            }
                         });
                     }
                 });
@@ -200,9 +213,9 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
         const segmentDurations = project.segment_durations || [];
         const aspectRatio = project.aspect_ratio || '16:9';
         const backgroundType = project.background_type || 'white';
-        let hookStyleObj = project.hook_style || { style: 'media' }; // Default to media if exists
-        if (typeof hookStyleObj === 'string') {
-            hookStyleObj = { style: hookStyleObj };
+        let projectHookStyleObj = project.hook_style || { style: 'media' }; // Default to media if exists
+        if (typeof projectHookStyleObj === 'string') {
+            projectHookStyleObj = { style: projectHookStyleObj };
         }
         
         const width = aspectRatio === '9:16' ? 1080 : 1920;
@@ -283,6 +296,11 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
             const finalSegPath = path.join(workDir, `proc_${i}.mp4`);
             
             if (seg.isHook) {
+                let hookStyleObj = seg.hook_style || projectHookStyleObj;
+                if (typeof hookStyleObj === 'string') {
+                    hookStyleObj = { style: hookStyleObj };
+                }
+
                 if (hookStyleObj.style === 'media' && hookStyleObj.media) {
                     const ext = hookStyleObj.media.split('.').pop().split('?')[0] || 'mp4';
                     const mediaPath = path.join(workDir, `hook_media_${i}.${ext}`);

@@ -116,32 +116,50 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         onTimeUpdateRef.current = onTimeUpdate;
     }, [onPlayPause, isPlaying, isSeeking, onTimeUpdate]);
 
+    const hookMediaRefs = useRef<Record<string, HTMLImageElement | HTMLVideoElement | null>>({});
     const [hookMediaLoaded, setHookMediaLoaded] = useState(false);
 
     // Load Hook Media
     useEffect(() => {
-        setHookMediaLoaded(false);
-        if (hookStyle?.style === 'media' && hookStyle?.media) {
-            const url = hookStyle.media;
-            const cleanUrl = url.split('?')[0];
-            if (cleanUrl.match(/\.(mp4|webm|mov)$/i)) {
-                const v = document.createElement('video');
-                v.src = url;
-                v.muted = false;
-                v.playsInline = true;
-                v.onloadedmetadata = () => setHookMediaLoaded(true);
-                v.load();
-                hookMediaRef.current = v;
-            } else {
-                const img = new Image();
-                img.onload = () => setHookMediaLoaded(true);
-                img.src = url;
-                hookMediaRef.current = img;
+        let loadedCount = 0;
+        let totalHooks = 0;
+        const newRefs: Record<string, HTMLImageElement | HTMLVideoElement | null> = {};
+
+        segments.forEach((seg, idx) => {
+            if (seg.isHook) {
+                const segHookStyle = seg.hook_style || hookStyle;
+                if (segHookStyle?.style === 'media' && segHookStyle?.media) {
+                    totalHooks++;
+                    const url = segHookStyle.media;
+                    const cleanUrl = url.split('?')[0];
+                    if (cleanUrl.match(/\.(mp4|webm|mov)$/i)) {
+                        const v = document.createElement('video');
+                        v.src = url;
+                        v.muted = false;
+                        v.playsInline = true;
+                        v.onloadedmetadata = () => {
+                            loadedCount++;
+                            if (loadedCount >= totalHooks) setHookMediaLoaded(true);
+                        };
+                        v.load();
+                        newRefs[idx] = v;
+                    } else {
+                        const img = new Image();
+                        img.onload = () => {
+                            loadedCount++;
+                            if (loadedCount >= totalHooks) setHookMediaLoaded(true);
+                        };
+                        img.src = url;
+                        newRefs[idx] = img;
+                    }
+                }
             }
-        } else {
-            hookMediaRef.current = null;
-        }
-    }, [hookStyle]);
+        });
+
+        hookMediaRefs.current = newRefs;
+        if (totalHooks === 0) setHookMediaLoaded(true);
+
+    }, [segments, hookStyle]);
 
     // Load Audio
     useEffect(() => {
@@ -467,11 +485,15 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
             ctx.restore();
         }
 
-        const currentSegment = segmentTimings.find(s => drawTime >= s.audioStart && drawTime <= s.audioEnd) || 
-                             segmentTimings.find(s => drawTime <= s.audioEnd) || 
-                             segmentTimings[0];
+        const currentIndex = segmentTimings.findIndex(s => drawTime >= s.audioStart && drawTime <= s.audioEnd);
+        const currentSegment = currentIndex !== -1 ? segmentTimings[currentIndex] : 
+                             (segmentTimings.find(s => drawTime <= s.audioEnd) || segmentTimings[0]);
+        const actualHIndex = currentIndex !== -1 ? currentIndex : (segmentTimings.findIndex(s => drawTime <= s.audioEnd) || 0);
+
         const isHook = currentSegment?.isHook;
-        const hStyle = typeof hookStyle === 'string' ? hookStyle : (hookStyle?.style || 'blurred');
+        const currentHookStyleObj = currentSegment?.hook_style || hookStyle || {};
+        const hStyle = typeof currentHookStyleObj === 'string' ? currentHookStyleObj : (currentHookStyleObj?.style || 'blurred');
+        const currentHookMedia = hookMediaRefs.current[actualHIndex];
 
         // Video Sync Logic
         if (currentSegment) {
@@ -484,8 +506,8 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                 }
 
                 // Sync hook video if it's a media style
-                if (hStyle === 'media' && hookMediaRef.current instanceof HTMLVideoElement) {
-                    const media = hookMediaRef.current;
+                if (hStyle === 'media' && currentHookMedia instanceof HTMLVideoElement) {
+                    const media = currentHookMedia;
                     const audioDuration = currentSegment.audioDuration;
                     const videoDuration = media.duration || 0;
                     const requiredRate = videoDuration / Math.max(0.001, audioDuration);
@@ -560,8 +582,8 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         // Draw Video Frame
         const transform = getTransformForSegment(currentSegment);
         
-        if (isHook && hStyle === 'media' && hookMediaRef.current) {
-            const media = hookMediaRef.current;
+        if (isHook && hStyle === 'media' && currentHookMedia) {
+            const media = currentHookMedia;
             drawVideoWithTransform(ctx, media, canvas.width, canvas.height, transform);
         } else {
             // Normal segment or non-media hook
@@ -572,6 +594,8 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         }
 
         // Draw Subtitles or Motion Graphics
+        const scaleMultiplier = canvas.width / (aspectRatio === '9:16' ? 1080 : 1920);
+
         if (motionGraphicsEnabled && mgChunks.length > 0) {
             const currentChunks = mgChunks.filter(c => drawTime >= c.start && drawTime <= c.end);
             
@@ -595,7 +619,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                         const wAnim = Math.min(1, (tOffset - wordStartTime) / 0.15); // 0.15s pop-in
                         const scale = wAnim === 1 ? 1 : 1 + Math.sin(wAnim * Math.PI) * 0.3;
                         
-                        ctx.font = '800 130px "Helvetica", "Inter", sans-serif';
+                        ctx.font = `800 ${130 * scaleMultiplier}px "Helvetica", "Inter", sans-serif`;
                         ctx.fillStyle = '#FFFFFF';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
@@ -605,21 +629,21 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                         ctx.scale(scale, scale);
                         
                         // Very thick outline
-                        ctx.lineWidth = 20;
+                        ctx.lineWidth = 20 * scaleMultiplier;
                         ctx.strokeStyle = '#000000';
                         ctx.lineJoin = 'round';
                         ctx.strokeText(word, 0, 0, canvas.width * 0.9);
                         
                         ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                        ctx.shadowBlur = 20;
-                        ctx.shadowOffsetY = 10;
+                        ctx.shadowBlur = 20 * scaleMultiplier;
+                        ctx.shadowOffsetY = 10 * scaleMultiplier;
                         
                         ctx.fillText(word, 0, 0, canvas.width * 0.9);
                         ctx.restore();
                     }
                 } 
                 else if (chunk.type === 'emphasis') {
-                    ctx.font = '900 150px "Helvetica", "Inter", sans-serif';
+                    ctx.font = `900 ${150 * scaleMultiplier}px "Helvetica", "Inter", sans-serif`;
                     ctx.fillStyle = '#EF4444'; // bright red
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
@@ -631,9 +655,9 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                     ctx.scale(scale, scale);
                     
                     ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                    ctx.shadowBlur = 20;
-                    ctx.shadowOffsetX = 8;
-                    ctx.shadowOffsetY = 8;
+                    ctx.shadowBlur = 20 * scaleMultiplier;
+                    ctx.shadowOffsetX = 8 * scaleMultiplier;
+                    ctx.shadowOffsetY = 8 * scaleMultiplier;
                     
                     const maxWidth = canvas.width * 0.9;
                     const wordsWrap = text.split(/\s+/).filter(Boolean);
@@ -651,7 +675,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                     }
                     if (currentLine) lines.push(currentLine);
 
-                    const lineHeight = 160;
+                    const lineHeight = 160 * scaleMultiplier;
                     const totalHeight = lines.length * lineHeight;
                     const startY = -(totalHeight / 2) + (lineHeight / 2);
                     
@@ -674,26 +698,26 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                     ctx.fillStyle = '#18181b';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     
-                    ctx.lineWidth = 40;
+                    ctx.lineWidth = 40 * scaleMultiplier;
                     ctx.strokeStyle = '#a855f7';
                     ctx.beginPath();
-                    ctx.moveTo(0, 20);
-                    ctx.lineTo(canvas.width, 20);
+                    ctx.moveTo(0, 20 * scaleMultiplier);
+                    ctx.lineTo(canvas.width, 20 * scaleMultiplier);
                     ctx.stroke();
                     
                     ctx.shadowColor = 'rgba(168, 85, 247, 0.5)';
-                    ctx.shadowBlur = 80;
-                    ctx.shadowOffsetY = -20;
+                    ctx.shadowBlur = 80 * scaleMultiplier;
+                    ctx.shadowOffsetY = -20 * scaleMultiplier;
                     ctx.stroke();
                     ctx.shadowBlur = 0;
                     ctx.shadowOffsetY = 0;
                     
-                    ctx.font = '800 160px "Helvetica", "Inter", sans-serif';
+                    ctx.font = `800 ${160 * scaleMultiplier}px "Helvetica", "Inter", sans-serif`;
                     ctx.textBaseline = 'top';
                     
                     const words = text.split(/\s+/).filter(Boolean);
                     
-                    const maxWidth = canvas.width - 200;
+                    const maxWidth = canvas.width - (200 * scaleMultiplier);
                     type WordItem = { word: string; wIdx: number };
                     interface LineParams { text: string; width: number; wordsList: WordItem[] }
                     
@@ -720,7 +744,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                         lines.push(currentLineParams);
                     }
                     
-                    const lineHeight = 190;
+                    const lineHeight = 190 * scaleMultiplier;
                     const totalHeight = lines.length * lineHeight;
                     const startY = (canvas.height - totalHeight) / 2;
                     
@@ -737,7 +761,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                             if (wordOffset > 0) {
                                 const wProg = Math.min(1, wordOffset / 0.3);
                                 const wEase = wProg === 1 ? 1 : 1 - Math.pow(2, -10 * wProg);
-                                const wY = startY + (lineIdx * lineHeight) + 50 * (1 - wEase);
+                                const wY = startY + (lineIdx * lineHeight) + (50 * scaleMultiplier) * (1 - wEase);
                                 
                                 ctx.globalAlpha = wEase;
                                 ctx.fillStyle = '#FFFFFF';
@@ -751,7 +775,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                     ctx.restore();
                 }
                 else if (chunk.type === 'intro-number') {
-                    ctx.font = '900 300px "Impact", "Montserrat Black", sans-serif';
+                    ctx.font = `900 ${300 * scaleMultiplier}px "Impact", "Montserrat Black", sans-serif`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     
@@ -773,12 +797,12 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                     ctx.globalAlpha = alpha;
                     
                     // Add stroke & shadow
-                    ctx.lineWidth = 10;
+                    ctx.lineWidth = 10 * scaleMultiplier;
                     ctx.strokeStyle = '#000000';
                     ctx.fillStyle = '#FFFFFF';
                     ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                    ctx.shadowBlur = 20;
-                    ctx.shadowOffsetY = 10;
+                    ctx.shadowBlur = 20 * scaleMultiplier;
+                    ctx.shadowOffsetY = 10 * scaleMultiplier;
                     
                     const cx = canvas.width / 2;
                     const cy = canvas.height / 2;
@@ -802,7 +826,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                     }
                     if (currentLine) lines.push(currentLine);
 
-                    const lineHeight = 320;
+                    const lineHeight = 320 * scaleMultiplier;
                     const totalHeight = lines.length * lineHeight;
                     const startY = -(totalHeight / 2) + (lineHeight / 2);
                     
@@ -830,10 +854,13 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                 placement = 'middle'
             } = subtitleStyle || {};
 
-            ctx.font = `900 ${fontSize}px "${fontFamily}"`;
+            const scaledFontSize = fontSize * scaleMultiplier;
+            const scaledStrokeWidth = strokeWidth * scaleMultiplier;
+
+            ctx.font = `900 ${scaledFontSize}px "${fontFamily}"`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.lineWidth = strokeWidth;
+            ctx.lineWidth = scaledStrokeWidth;
             ctx.lineJoin = 'round';
             
             let x = canvas.width / 2;
@@ -889,12 +916,17 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
+        
+        // Detect mobile screen for lower resolution canvas to prevent shaking/glitching
+        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+        const scale = isMobile ? 0.35 : 1; 
+
         if (aspectRatio === '9:16') {
-            canvas.width = 1080;
-            canvas.height = 1920;
+            canvas.width = 1080 * scale;
+            canvas.height = 1920 * scale;
         } else {
-            canvas.width = 1920;
-            canvas.height = 1080;
+            canvas.width = 1920 * scale;
+            canvas.height = 1080 * scale;
         }
     }, [aspectRatio]);
 

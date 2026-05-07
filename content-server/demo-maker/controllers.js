@@ -137,12 +137,13 @@ export const exportDemoVideo = async (req, res) => {
 export const processVideo = async (req, res) => {
   try {
     // Note: videoId here refers to the SOURCE video uploaded by the user
-    let { videoId, hookText, bodyText, voiceId, hookStyle, userId, aspectRatio } = req.body;
+    let { videoId, sections, voiceId, userId, aspectRatio } = req.body;
     
     if (!userId) {
         return res.status(401).json({ error: 'Unauthorized: Missing User ID' });
     }
     
+    const bodyText = sections?.find(s => s.type === 'body')?.text || '';
     if (!videoId && bodyText) {
         return res.status(400).json({ error: 'Missing videoId' });
     }
@@ -194,7 +195,6 @@ export const processVideo = async (req, res) => {
             video_url: sourceVideoUrl, // Copy the source URL
             status: 'processing',
             voice_id: voiceId,
-            hook_style: { style: hookStyle },
             aspect_ratio: aspectRatio || '16:9'
         });
     
@@ -220,10 +220,8 @@ export const processVideo = async (req, res) => {
     runDemoProcessing({
         projectId: newVideoId,
         sourceVideoUrl: sourceVideoUrl,
-        hookText,
-        bodyText,
+        sections,
         voiceId,
-        hookStyle,
         userId
     });
 
