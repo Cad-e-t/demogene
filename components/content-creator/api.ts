@@ -148,11 +148,11 @@ export async function deleteStory(storyId: string, userId: string) {
     if (!res.ok) throw new Error("Delete failed. Please try again.");
 }
 
-export async function generateVideoSegment(segmentId: string, imageUrl: string, animationPrompt: string) {
+export async function generateVideoSegment(segmentId: string, imageUrl: string, animationPrompt: string, model: 'fast' | 'ultra' = 'fast') {
     const res = await fetch(`${API_URL}/video-generation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ segmentId, imageUrl, animationPrompt })
+        body: JSON.stringify({ segmentId, imageUrl, animationPrompt, model })
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -161,11 +161,11 @@ export async function generateVideoSegment(segmentId: string, imageUrl: string, 
     return await res.json();
 }
 
-export async function animateAllSegments(projectId: string, userId: string) {
+export async function animateAllSegments(projectId: string, userId: string, model: 'fast' | 'ultra' = 'fast') {
     const res = await fetch(`${API_URL}/animate-all`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, userId })
+        body: JSON.stringify({ projectId, userId, model })
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));

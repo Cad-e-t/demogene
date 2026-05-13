@@ -79,6 +79,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     const visualTimeRef = useRef(currentTime);
     const lastTimestampRef = useRef(0);
     const mediaCacheRef = useRef<Record<string, HTMLImageElement | HTMLVideoElement>>({});
+    const grainCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
     useEffect(() => {
         currentTimeRef.current = currentTime;
@@ -247,15 +248,12 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                              rawAnimationType === 'impact_pop' ? 'karaoke_bounce' : 
                              rawAnimationType;
 
+        const maxWords = subtitleStyle?.maxWords !== undefined ? subtitleStyle.maxWords : 99;
         const isFade = animationType === 'fade_group';
         const threshold = isFade ? 800 : 300; // Slower pacing for fade
         const maxCharsPerLine = isFade 
             ? (aspectRatio === '16:9' ? 60 : 35) 
             : (aspectRatio === '16:9' ? 45 : 22);
-        
-        // Word count limits per style
-        const defaultMaxWords = animationType === 'karaoke_block' ? 3 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
-        const maxWords = subtitleStyle?.maxWords !== undefined ? subtitleStyle.maxWords : defaultMaxWords;
 
         const lines: any[] = [];
         let group: any[] = [];
@@ -558,6 +556,38 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.restore();
+
+            // Film Grain Overlay
+            if (!grainCanvasRef.current) {
+                const mg = document.createElement('canvas');
+                mg.width = 256; 
+                mg.height = 256;
+                const mCtx = mg.getContext('2d');
+                if(mCtx) {
+                    const imgData = mCtx.createImageData(256, 256);
+                    const data = imgData.data;
+                    for(let i=0; i<data.length; i+=4) {
+                        const noise = Math.random() * 255;
+                        data[i] = noise;
+                        data[i+1] = noise;
+                        data[i+2] = noise;
+                        data[i+3] = 12; // subtle opacity for film grain
+                    }
+                    mCtx.putImageData(imgData, 0, 0);
+                }
+                grainCanvasRef.current = mg;
+            }
+
+            if (grainCanvasRef.current) {
+                ctx.save();
+                // Random offset to create animated noise effect
+                const offsetX = Math.random() * 256;
+                const offsetY = Math.random() * 256;
+                ctx.fillStyle = ctx.createPattern(grainCanvasRef.current, 'repeat') || 'transparent';
+                ctx.translate(-offsetX, -offsetY);
+                ctx.fillRect(0, 0, canvas.width + 256, canvas.height + 256);
+                ctx.restore();
+            }
         } else {
             // Placeholder
             ctx.fillStyle = '#000';
@@ -568,8 +598,8 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         const currentSubtitle = subtitles.find(s => drawTime >= s.start && drawTime <= s.end);
         if (currentSubtitle && subtitleState === 'enabled') {
             const { 
-                fontFamily = 'Arial', 
-                fontSize = 40, 
+                fontFamily = 'Inter', 
+                fontSize = 60, 
                 primaryColor = '#FFFFFF', 
                 secondaryColor = '#000000', 
                 highlightColor = '#FF0000',
@@ -580,6 +610,9 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                 animationType: rawAnimationType = 'pulse_bold'
             } = subtitleStyle || {};
 
+            const fontStyleStr = subtitleStyle?.fontStyle && subtitleStyle.fontStyle !== 'normal' ? subtitleStyle.fontStyle + ' ' : '';
+            const fontWeightStr = subtitleStyle?.fontWeight || '900';
+            
             const animationType = rawAnimationType === 'pulse_bold' ? 'karaoke_block' : 
                                  rawAnimationType === 'glow_focus' ? 'fade_group' : 
                                  rawAnimationType === 'impact_pop' ? 'karaoke_bounce' : 
@@ -589,7 +622,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             const scaledFontSize = fontSize * scaleMultiplier;
             const scaledStrokeWidth = strokeWidth * scaleMultiplier;
 
-            ctx.font = `bold ${scaledFontSize}px "${fontFamily}"`;
+            ctx.font = `${fontStyleStr}${fontWeightStr} ${scaledFontSize}px "${fontFamily}"`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.lineWidth = scaledStrokeWidth;
@@ -597,7 +630,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             
             // Letter Spacing (if supported)
             if ('letterSpacing' in ctx) {
-                (ctx as any).letterSpacing = `${letterSpacing * scaleMultiplier}px`;
+                (ctx as any).letterSpacing = `${(subtitleStyle?.letterSpacing || 0) * scaleMultiplier}px`;
             }
 
             let x = canvas.width / 2;
@@ -617,7 +650,8 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             words.forEach((w: any, index: number) => {
                 let t = w.text;
                 if (textTransform === 'uppercase') t = t.toUpperCase();
-                if (textTransform === 'capitalize') t = t.replace(/\b\w/g, (l: string) => l.toUpperCase());
+                else if (textTransform === 'lowercase') t = t.toLowerCase();
+                else if (textTransform === 'capitalize') t = t.replace(/\b\w/g, (l: string) => l.toUpperCase());
                 const display = index < words.length - 1 ? t + ' ' : t;
                 const m = ctx.measureText(display);
                 
@@ -645,61 +679,125 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             // Anchor the bottom of the text block to 'y'
             let startY = y - (totalHeight - lineHeight);
 
-            lines.forEach((lineWords) => {
-                const lineWidth = lineWords.reduce((acc, lw) => acc + lw.width, 0);
+            // Draw shadow
+            if (subtitleStyle?.advancedStyle?.shadow) {
+                const s = subtitleStyle.advancedStyle.shadow;
+                if (Array.isArray(s)) {
+                    // Combine or take first. Taking first for canvas 2d limitation.
+                    ctx.shadowColor = s[0].color;
+                    ctx.shadowBlur = parseInt(s[0].blur) * scaleMultiplier;
+                    const offset = s[0].offset.split(' ');
+                    ctx.shadowOffsetX = parseInt(offset[0]) * scaleMultiplier;
+                    ctx.shadowOffsetY = parseInt(offset[1]) * scaleMultiplier;
+                } else {
+                    ctx.shadowColor = s.color;
+                    ctx.shadowBlur = parseInt(s.blur) * scaleMultiplier;
+                    const offset = s.offset.split(' ');
+                    ctx.shadowOffsetX = parseInt(offset[0]) * scaleMultiplier;
+                    ctx.shadowOffsetY = parseInt(offset[1]) * scaleMultiplier;
+                }
+            } else {
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+            }
+
+            // Step 1: Draw all strokes and shadows first (to prevent overlapping sibling word fills)
+            lines.forEach((lineWords, lineIdx) => {
+                const lineWidth = lineWords.reduce((acc: any, lw: any) => acc + lw.width, 0);
                 let currentX = x - (lineWidth / 2);
+                const currentY = startY + (lineIdx * lineHeight);
 
                 lineWords.forEach((w: any) => {
-                    // Determine color based on animation type and timing
-                    let fillColor = primaryColor;
                     let scale = 1;
+                    const maxWordsConfig1 = subtitleStyle?.maxWords !== undefined ? subtitleStyle.maxWords : 99;
+                    const isKaraokeBounce = animationType === 'karaoke_bounce' || animationType === 'impact_pop';
+                    const isHighlightable = maxWordsConfig1 > 1 && (['karaoke_block', 'karaoke_bounce', 'fade_group'].includes(animationType) || 
+                                          animationType.includes('word') || 
+                                          animationType.includes('highlight') || 
+                                          animationType.includes('continuous'));
 
-                    if (animationType === 'karaoke_block' || animationType === 'karaoke_bounce' || animationType === 'fade_group') {
-                        // Pulse Bold (karaoke_block) and Typewriter Glow (fade_group) should only highlight the ACTIVE word
-                        if (drawTime >= w.start && drawTime < w.end) {
-                            fillColor = animationType === 'karaoke_bounce' ? primaryColor : (highlightColor || primaryColor);
-                            if (animationType === 'karaoke_bounce') {
-                                // Simulate Pop Bounce: Scale up to 120% then back
-                                const progress = (drawTime - w.start) / (w.end - w.start);
-                                if (progress < 0.5) {
-                                    scale = 1 + (progress * 0.4); // 1.0 -> 1.2
-                                } else {
-                                    scale = 1.2 - ((progress - 0.5) * 0.4); // 1.2 -> 1.0
-                                }
+                    if (isHighlightable && drawTime >= w.start && drawTime < w.end) {
+                        if (isKaraokeBounce) {
+                            const progress = (drawTime - w.start) / (w.end - w.start);
+                            if (progress < 0.5) {
+                                scale = 1 + (progress * 0.4);
+                            } else {
+                                scale = 1.2 - ((progress - 0.5) * 0.4);
                             }
-                        } else {
-                            fillColor = primaryColor;
                         }
                     }
 
                     ctx.save();
+                    if (animationType === 'fade_group' && drawTime < w.start) ctx.globalAlpha = 0;
                     
-                    if (animationType === 'fade_group') {
-                        // Typewriter style: only show if word has started
-                        if (drawTime < w.start) {
-                            ctx.globalAlpha = 0;
-                        } else {
-                            ctx.globalAlpha = 1;
-                        }
+                    const wordX = currentX + (w.width / 2);
+                    ctx.translate(wordX, currentY);
+                    if (scale !== 1) ctx.scale(scale, scale);
+                    
+                    if (scaledStrokeWidth > 0) {
+                        ctx.strokeStyle = secondaryColor;
+                        ctx.strokeText(w.display, 0, 0);
+                    } else if (ctx.shadowColor && ctx.shadowColor !== 'transparent' && ctx.shadowColor !== 'rgba(0, 0, 0, 0)') {
+                        // If no stroke but there is a shadow, we need to draw invisible stroke or fill to render shadow
+                        // Actually, just set fillStyle transparent to cast shadow
+                        ctx.fillStyle = 'transparent';
+                        ctx.fillText(w.display, 0, 0);
                     }
                     
-                    // Position for this word
-                    const wordX = currentX + (w.width / 2);
+                    ctx.restore();
+                    currentX += w.width;
+                });
+            });
+
+            // Step 2: Draw all text fills
+            lines.forEach((lineWords, lineIdx) => {
+                const lineWidth = lineWords.reduce((acc: any, lw: any) => acc + lw.width, 0);
+                let currentX = x - (lineWidth / 2);
+                const currentY = startY + (lineIdx * lineHeight);
+
+                lineWords.forEach((w: any) => {
+                    let fillColor = primaryColor;
+                    let scale = 1;
+
+                    // Unconditionally apply highlight color if active and we're not explicitly avoiding it
+                    const maxWordsConfig2 = subtitleStyle?.maxWords !== undefined ? subtitleStyle.maxWords : 99;
+                    const isKaraokeBounce = animationType === 'karaoke_bounce' || animationType === 'impact_pop';
+                    const isHighlightable = maxWordsConfig2 > 1 && (['karaoke_block', 'karaoke_bounce', 'fade_group'].includes(animationType) || 
+                                          animationType.includes('word') || 
+                                          animationType.includes('highlight') || 
+                                          animationType.includes('continuous'));
+
+                    if (isHighlightable && drawTime >= w.start && drawTime < w.end) {
+                        fillColor = isKaraokeBounce ? primaryColor : (highlightColor || primaryColor);
+                        if (isKaraokeBounce) {
+                            const progress = (drawTime - w.start) / (w.end - w.start);
+                            if (progress < 0.5) {
+                                scale = 1 + (progress * 0.4);
+                            } else {
+                                scale = 1.2 - ((progress - 0.5) * 0.4);
+                            }
+                        }
+                    }
+
+                    ctx.save();
+                    if (animationType === 'fade_group' && drawTime < w.start) ctx.globalAlpha = 0;
                     
-                    ctx.translate(wordX, startY);
+                    // Clear shadow for main text to prevent double shadow intensity
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+                    
+                    const wordX = currentX + (w.width / 2);
+                    ctx.translate(wordX, currentY);
                     if (scale !== 1) ctx.scale(scale, scale);
                     
                     ctx.fillStyle = fillColor;
-                    ctx.strokeStyle = secondaryColor;
-
-                    if (strokeWidth > 0) ctx.strokeText(w.display, 0, 0);
                     ctx.fillText(w.display, 0, 0);
                     
                     ctx.restore();
-
                     currentX += w.width;
                 });
-                startY += lineHeight;
             });
             ctx.globalAlpha = 1; // Reset alpha
         }
@@ -718,20 +816,56 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     // Resize Canvas
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        const container = containerRef.current;
+        if (!canvas || !container) return;
         
-        // Detect mobile screen for lower resolution canvas to prevent shaking/glitching
-        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
-        const scale = isMobile ? 0.35 : 1; 
+        const updateResolution = () => {
+            // Detect mobile screen for lower resolution canvas to prevent shaking/glitching
+            const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+            let scale = 1;
+            
+            if (isMobile) {
+                scale = 0.35;
+            } else {
+                // Dynamically sync resolution scale with actual container layout size to prevent 
+                // heavy rendering loads on the CPU while maintaining sharpness.
+                const rect = container.getBoundingClientRect();
+                if (rect.height > 0) {
+                    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                    const targetHeight = aspectRatio === '9:16' ? 1920 : 1080;
+                    const physicalHeight = rect.height * dpr;
+                    
+                    scale = Math.min(1, physicalHeight / targetHeight);
+                    scale = Math.max(0.35, scale);
+                } else {
+                    scale = 0.5; // fallback
+                }
+            }
 
-        // Set resolution based on aspect ratio to match export (1080p)
-        if (aspectRatio === '9:16') {
-            canvas.width = 1080 * scale;
-            canvas.height = 1920 * scale;
-        } else {
-            canvas.width = 1920 * scale;
-            canvas.height = 1080 * scale;
-        }
+            // Set resolution based on aspect ratio to match export (1080p)
+            if (aspectRatio === '9:16') {
+                canvas.width = 1080 * scale;
+                canvas.height = 1920 * scale;
+            } else {
+                canvas.width = 1920 * scale;
+                canvas.height = 1080 * scale;
+            }
+        };
+
+        updateResolution();
+        
+        const observer = new ResizeObserver(() => {
+            if (requestAnimationFrame) {
+                requestAnimationFrame(updateResolution);
+            } else {
+                updateResolution();
+            }
+        });
+        observer.observe(container);
+
+        return () => {
+            observer.disconnect();
+        };
     }, [aspectRatio]);
 
     const totalDuration = segmentDurations.reduce((a, b) => a + b, 0) || 0;

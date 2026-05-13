@@ -1,17 +1,17 @@
 
 export const STYLE_PREVIEWS: Record<string, string> = {
-    "Realistic": "https://assets.productcam.site/image-styles/realistic.png",
-    "Anime": "https://assets.productcam.site/image-styles/anime.png",
-    'Creepy': "https://assets.productcam.site/image-styles/cartoonhorror.png",
-    'Game3D': "https://assets.productcam.site/image-styles/gamecinematic.png",
-    "Sketch": "https://assets.productcam.site/image-styles/sketch.png",
-    "Stickman": "https://assets.productcam.site/image-styles/stickman.png",
-    'Skeleton': "https://assets.productcam.site/image-styles/skeleton.png",
-    'Cartoon': "https://assets.productcam.site/image-styles/softcartoon.png",
-     "Documentary": "https://assets.productcam.site/image-styles/documentary.png",
-    "Claymation": "https://assets.productcam.site/image-styles/claymation.png",
-    'Exaggerated2D': "https://assets.productcam.site/image-styles/exaggerated2d.png",
-    'Ukiyo-e': "https://assets.productcam.site/image-styles/ukiyo-e.png"
+    "Realistic": "https://assets.productcam.site/image-styles/relistic.png",
+    "Anime": "https://assets.productcam.site/image-styles/anme.png",
+    'Creepy': "https://assets.productcam.site/image-styles/cartoohorror.png",
+    'Game3D': "https://assets.productcam.site/image-styles/gameciematic.png",
+    "Sketch": "https://assets.productcam.site/image-styles/sktch.png",
+    "Stickman": "https://assets.productcam.site/image-styles/sticman.png",
+    'Skeleton': "https://assets.productcam.site/image-styles/skeeton.png",
+    'Cartoon': "https://assets.productcam.site/image-styles/softcrtoon.png",
+     "Documentary": "https://assets.productcam.site/image-styles/docuentary.png",
+    "Claymation": "https://assets.productcam.site/image-styles/claymaion.png",
+    'Exaggerated2D': "https://assets.productcam.site/image-styles/exaggrated2d.png",
+    'Ukiyo-e': "https://assets.productcam.site/image-styles/ukio-e.png"
 };
 
 export const DEMO_CLIPS: Record<string, string> = {
@@ -22,12 +22,12 @@ export const DEMO_CLIPS: Record<string, string> = {
 }
 
 export const LANDING_PREVIEWS: Record<string, { src: string, aspectRatio: string }> = {
-    "Immersive Long Forms ": { src: "https://assets.productcam.site/image-styles/example1.mp4", aspectRatio: "16:9" },
-    "Hoorror Story": { src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4", aspectRatio: "9:16" },
-    "Animated Story": { src: "https://assets.productcam.site/image-styles/GameCinematic.mp4", aspectRatio: "9:16" },
-    "Skeleton Videos":  { src: "https://assets.productcam.site/image-styles/skeleton.mp4" , aspectRatio: "9:16" },
-    "Science Shorts": { src: "https://assets.productcam.site/image-styles/earth-orbits-saturn.mp4", aspectRatio: "9:16" },
-     "Motivational": { src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4", aspectRatio: "16:9" },
+    "Immersive Long Forms ": { src: "https://assets.productcam.site/image-styles/exaple1.mp4", aspectRatio: "16:9" },
+    "Hoorror Story": { src: "https://assets.productcam.site/image-styles/cartoonhorrr.mp4", aspectRatio: "9:16" },
+    "Animated Story": { src: "https://assets.productcam.site/image-styles/GameCinemtic.mp4", aspectRatio: "9:16" },
+    "Skeleton Videos":  { src: "https://assets.productcam.site/image-styles/skelton.mp4" , aspectRatio: "9:16" },
+    "Science Shorts": { src: "https://assets.productcam.site/image-styles/earth-rbits-saturn.mp4", aspectRatio: "9:16" },
+     "Motivational": { src: "https://assets.productcam.site/image-styles/semireaisticcartoon.mp4", aspectRatio: "16:9" },
    
 };
 

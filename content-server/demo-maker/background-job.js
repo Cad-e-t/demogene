@@ -247,8 +247,8 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
         };
 
         const vt = project.video_transform || {};
-        const hookT = vt.hook || vt; // Fallback to flat if nested not found
-        const segmentsT = vt.segments || vt; // Fallback to flat if nested not found
+        const hookTFallback = vt.hook || vt; // Fallback to flat if nested not found
+        const segmentsTFallback = vt.segments || vt; // Fallback to flat if nested not found
 
         const getTransformParams = (t, vw, vh, targetW, targetH) => {
             const scX = t.scaleX !== undefined ? t.scaleX : (t.scale || 1);
@@ -287,6 +287,21 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
 
         for (let i = 0; i < segments.length; i++) {
             const seg = segments[i];
+            
+            let hookT = {};
+            if (vt.hooks) {
+                hookT = vt.hooks[i] || {};
+            } else {
+                hookT = hookTFallback;
+            }
+
+            let segmentsT = {};
+            if (vt.segmentList) {
+                segmentsT = vt.segmentList[i] || {};
+            } else {
+                segmentsT = (vt.segments && !vt.segments.segmentList) ? vt.segments : segmentsTFallback;
+            }
+            
             const audioDur = segmentDurations[i] || 3;
             const start = parseTime(seg.video_start || "00:00.000");
             const end = parseTime(seg.video_end || "00:00.000");
@@ -405,8 +420,8 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
 
         // 4. Merge Audio
         const mergedPath = path.join(workDir, 'merged.mp4');
-        // Mix the visual sequence audio (hook audio + silence) with the TTS audio
-        execSync(`ffmpeg -i "${visualPath}" -i "${audioPath}" -filter_complex "[0:a][1:a]amix=inputs=2:duration=longest[a];[a]volume=2[aout]" -map 0:v -map "[aout]" -c:v copy -c:a aac -y "${mergedPath}"`, { stdio: 'ignore' });
+        // Use only the TTS audio (voiceover)
+        execSync(`ffmpeg -i "${visualPath}" -i "${audioPath}" -map 0:v -map 1:a -c:v copy -c:a aac -y "${mergedPath}"`, { stdio: 'ignore' });
 
         // 5. Build Final Video with Overlays
         let currentPath = mergedPath;

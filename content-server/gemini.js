@@ -130,9 +130,9 @@ The image should show a state of anticipation, resting, or the beginning of an a
 
 2. THE ANIMATION PROMPT (The Motion)
 - Rule 1: Describe exactly how the elements in the image should move.
-- Rule 2: Keep it brief and focused on two things: Subject Motion and Camera Motion.
-- Rule 3: Example formats: "Subject walks slowly towards the camera. Camera slowly pushes in." OR "The wind blows the trees. Camera pans right."
-- Rule 4: AUDIO CONTROL: Append "No background music." to the end of EVERY prompt. Never prompt for dialogue or speaking. Add appropriate natural sound effects (e.g., "SFX: wind howling, heavy footsteps") ONLY where the scene naturally requires it.
+- Rule 2: Keep it brief and focused on three things: Subject Motion, Camera Motion, and Sound.
+- Rule 3: Example formats: "Subject walks slowly towards the camera. Camera slowly pushes in. Audio: Deep atmospheric silence." OR "The wind blows the trees. Camera pans right. Audio: wind rustling through trees"
+- Rule 4: AUDIO CONTROL: Never prompt for dialogue or speaking. Add appropriate natural sound effects (e.g., "Audio: wind howling, heavy footsteps") where the scene naturally requires it. For scenes requiring no audio, explicitly describe the silence using ambient terms like muted atmosphere, dead silence, rather than negative prompts (e.g., "Audio: Frozen atmospheric silence").
 - Rule 5: Maximum 2 to 3 short sentences.
 
 3. CONTENT SAFETY

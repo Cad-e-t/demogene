@@ -5,7 +5,7 @@ import { API_URL } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
 import { SubtitleConfigurationPanel } from '../SubtitleConfigurationPanel';
 import { DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from '../types';
-import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2 } from 'lucide-react';
+import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2, Edit2, CheckCheck } from 'lucide-react';
 import { HookStyleModal } from './HookStyleModal';
 
 interface DemoEditorProps {
@@ -29,6 +29,10 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const [subtitleState, setSubtitleState] = useState<'enabled' | 'disabled'>('enabled');
     const [motionGraphicsEnabled, setMotionGraphicsEnabled] = useState(false);
     const [isGeneratingMotionGraphics, setIsGeneratingMotionGraphics] = useState(false);
+    
+    // Editor States for Frame Segments
+    const [isEditingFrames, setIsEditingFrames] = useState(false);
+    const [editingSegments, setEditingSegments] = useState<any[]>([]);
 
     const [history, setHistory] = useState<any[]>([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
@@ -346,24 +350,144 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                 <div className="p-6 h-full overflow-y-auto custom-scrollbar">
                                     {activeModule === 'frames' && (
                                         <div className="space-y-6">
-                                            <h2 className="text-lg font-bold">Script Segments</h2>
+                                            <div className="flex justify-between items-center">
+                                                <h2 className="text-lg font-bold">Script Segments</h2>
+                                                <button
+                                                    onClick={() => {
+                                                        if (isEditingFrames) {
+                                                            // Save logic
+                                                            const newSegments = editingSegments.map((seg: any) => {
+                                                                const { _duration, ...rest } = seg;
+                                                                return rest;
+                                                            });
+                                                            const newDurations = editingSegments.map((seg: any) => seg._duration);
+                                                            updateProject({ segments: newSegments, segment_durations: newDurations });
+                                                            setIsEditingFrames(false);
+                                                        } else {
+                                                            // Enter edit mode
+                                                            setEditingSegments((project.segments || []).map((seg: any, i: number) => ({
+                                                                ...seg,
+                                                                _duration: project.segment_durations?.[i] || 0
+                                                            })));
+                                                            setIsEditingFrames(true);
+                                                        }
+                                                    }}
+                                                    className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors"
+                                                    title={isEditingFrames ? "Save Segments" : "Edit Hook Segments"}
+                                                >
+                                                    {isEditingFrames ? <CheckCheck className="w-4 h-4 text-green-400" /> : <Edit2 className="w-4 h-4 text-zinc-400" />}
+                                                </button>
+                                            </div>
+
+                                            {isEditingFrames && (
+                                                <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                                                    <p className="text-[11px] text-blue-300 leading-relaxed">
+                                                        <strong className="text-blue-200">Editor Mode:</strong> Place cursor and press <kbd className="bg-blue-500/20 px-1 py-0.5 rounded border border-blue-500/30">Ctrl+Enter</kbd> to split a hook segment. Delete the line between hooks to merge them. Non-hook segments cannot be edited.
+                                                    </p>
+                                                </div>
+                                            )}
+
                                             <div className="space-y-4">
-                                                {(project.segments || []).map((seg: any, i: number) => {
+                                                {(isEditingFrames ? editingSegments : project.segments || []).map((seg: any, i: number) => {
                                                     let currentAudioTime = 0;
                                                     let isActive = false;
-                                                    for (let j = 0; j <= i; j++) {
-                                                        const dur = project.segment_durations?.[j] || 0;
-                                                        if (j === i) {
-                                                            isActive = currentTime >= currentAudioTime && currentTime <= currentAudioTime + dur;
+                                                    
+                                                    if (!isEditingFrames) {
+                                                        for (let j = 0; j <= i; j++) {
+                                                            const dur = project.segment_durations?.[j] || 0;
+                                                            if (j === i) {
+                                                                isActive = currentTime >= currentAudioTime && currentTime <= currentAudioTime + dur;
+                                                            }
+                                                            currentAudioTime += dur;
                                                         }
-                                                        currentAudioTime += dur;
                                                     }
 
+                                                    if (isEditingFrames && seg.isHook) {
+                                                        const isNextHook = i < editingSegments.length - 1 && editingSegments[i+1].isHook;
+                                                        return (
+                                                            <div key={i} className="mb-2">
+                                                                <div className="p-4 rounded-xl border bg-zinc-900 border-yellow-500/30 focus-within:border-yellow-500/70 transition-colors shadow-inner">
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400">
+                                                                            Hook {i + 1}
+                                                                        </span>
+                                                                    </div>
+                                                                    <textarea
+                                                                        className="w-full bg-transparent text-sm leading-relaxed text-white outline-none resize-none overflow-hidden"
+                                                                        value={seg.narration}
+                                                                        style={{ height: 'auto', minHeight: '60px' }}
+                                                                        onInput={(e: any) => {
+                                                                            e.target.style.height = 'auto';
+                                                                            e.target.style.height = e.target.scrollHeight + 'px';
+                                                                        }}
+                                                                        onChange={() => {}} // Controlled strictly via keyboard events
+                                                                        onKeyDown={(e) => {
+                                                                            const allowedKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', 'Shift', 'Control', 'Alt', 'Meta', 'c', 'a'];
+                                                                            if (e.ctrlKey || e.metaKey) {
+                                                                                if (e.key === 'Enter') {
+                                                                                    e.preventDefault();
+                                                                                    const target = e.currentTarget;
+                                                                                    const cursorPosition = target.selectionStart;
+                                                                                    const text1 = seg.narration.substring(0, cursorPosition).trim();
+                                                                                    const text2 = seg.narration.substring(cursorPosition).trim();
+                                                                                    if (!text1 || !text2) return;
+                                                                                    const ratio = text1.length / (text1.length + text2.length);
+                                                                                    const dur1 = seg._duration * ratio;
+                                                                                    const dur2 = seg._duration * (1 - ratio);
+                                                                                    const newSeg1 = { ...seg, narration: text1, _duration: dur1 };
+                                                                                    const newSeg2 = { ...seg, narration: text2, _duration: dur2 };
+                                                                                    const newSegments = [...editingSegments];
+                                                                                    newSegments.splice(i, 1, newSeg1, newSeg2);
+                                                                                    setEditingSegments(newSegments);
+                                                                                }
+                                                                                return;
+                                                                            }
+                                                                            if (e.key === 'Backspace') {
+                                                                                if (e.currentTarget.selectionStart === 0 && e.currentTarget.selectionEnd === 0) {
+                                                                                    e.preventDefault();
+                                                                                    if (i > 0 && editingSegments[i - 1].isHook) {
+                                                                                        const prev = editingSegments[i - 1];
+                                                                                        const newSeg = { ...prev, narration: prev.narration + ' ' + seg.narration, _duration: prev._duration + seg._duration };
+                                                                                        const newSegments = [...editingSegments];
+                                                                                        newSegments.splice(i - 1, 2, newSeg);
+                                                                                        setEditingSegments(newSegments);
+                                                                                    }
+                                                                                } else { e.preventDefault(); }
+                                                                                return;
+                                                                            }
+                                                                            if (e.key === 'Delete') {
+                                                                                if (e.currentTarget.selectionStart === e.currentTarget.value.length && e.currentTarget.selectionEnd === e.currentTarget.value.length) {
+                                                                                    e.preventDefault();
+                                                                                    if (isNextHook) {
+                                                                                        const next = editingSegments[i + 1];
+                                                                                        const newSeg = { ...seg, narration: seg.narration + ' ' + next.narration, _duration: seg._duration + next._duration };
+                                                                                        const newSegments = [...editingSegments];
+                                                                                        newSegments.splice(i, 2, newSeg);
+                                                                                        setEditingSegments(newSegments);
+                                                                                    }
+                                                                                } else { e.preventDefault(); }
+                                                                                return;
+                                                                            }
+                                                                            if (!allowedKeys.includes(e.key) && e.key.length === 1) e.preventDefault();
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                {isNextHook && (
+                                                                    <div className="flex justify-center -my-1 relative z-10">
+                                                                        <div className="w-1/2 border-t-2 border-dashed border-zinc-600"></div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    // Normal immutable view
                                                     return (
                                                         <div 
                                                             key={i} 
-                                                            className={`p-4 rounded-xl border transition-all cursor-pointer ${isActive ? 'bg-yellow-500/10 border-yellow-500/50 scale-[1.02]' : 'bg-zinc-800/50 border-white/5 hover:border-white/20'}`}
+                                                            className={`p-4 rounded-xl border transition-all ${isEditingFrames ? 'opacity-50 cursor-not-allowed bg-zinc-900 border-white/5' : (isActive ? 'cursor-pointer bg-yellow-500/10 border-yellow-500/50 scale-[1.02]' : 'cursor-pointer bg-zinc-800/50 border-white/5 hover:border-white/20')}`}
                                                             onClick={() => {
+                                                                if (isEditingFrames) return;
                                                                 let startTime = 0;
                                                                 for (let j = 0; j < i; j++) startTime += project.segment_durations?.[j] || 0;
                                                                 setCurrentTime(startTime);
@@ -374,7 +498,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                                     {seg.isHook ? 'Hook' : `Segment ${i}`}
                                                                 </span>
                                                                 <div className="flex items-center gap-2">
-                                                                    {seg.isHook && (
+                                                                    {seg.isHook && !isEditingFrames && (
                                                                         <button 
                                                                             onClick={(e) => { 
                                                                                 e.stopPropagation(); 
@@ -391,7 +515,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                                     </span>
                                                                 </div>
                                                             </div>
-                                                            <p className={`text-sm leading-relaxed ${isActive ? 'text-white' : 'text-zinc-400'}`}>
+                                                            <p className={`text-sm leading-relaxed ${isActive && !isEditingFrames ? 'text-white' : 'text-zinc-400'}`}>
                                                                 {seg.narration}
                                                             </p>
                                                         </div>

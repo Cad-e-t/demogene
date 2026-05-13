@@ -33,9 +33,10 @@ function getVideoDuration(filePath) {
     });
 }
 
+
 function hasAudio(filePath) {
     return new Promise((resolve) => {
-        const proc = spawn('ffprobe', ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'default=noprint_wrappers=1:nokey=1', filePath]);
+        const proc = spawn('ffprobe', ['-v', '-8', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'default=noprint_wrappers=1:nokey=1', filePath]);
         let out = '';
         proc.stdout.on('data', d => out += d.toString());
         proc.on('close', code => {
@@ -199,14 +200,22 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
             
             setptsFilter = `setpts=(${duration}/${Math.max(0.1, sourceDuration)})*(PTS-STARTPTS),`;
             
+            // If video has no audio, we add silent audio source to maintain stream consistency for concat
             let audioInputArgs = hasAudioStream ? [] : ['-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000'];
             inputArgs = ['-i', imagePath, ...audioInputArgs];
             
             let afFilter = 'aresample=48000';
             if (hasAudioStream) {
                 const tempo = sourceDuration / duration;
+                // atempo range is 0.5 to 2.0. We'll try to stay within it.
                 if (tempo >= 0.5 && tempo <= 2.0) {
                     afFilter += `,atempo=${tempo}`;
+                } else if (tempo < 0.5) {
+                    // Extremely slow: multiple atempo filters
+                    afFilter += `,atempo=0.5,atempo=${tempo/0.5}`;
+                } else {
+                    // Extremely fast: multiple atempo filters
+                    afFilter += `,atempo=2.0,atempo=${tempo/2.0}`;
                 }
             }
 
@@ -256,10 +265,11 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
     
     // Mix native audio (visualPath) with voiceover (audioPath)
     // Reduce volume of native audio to act as background noise
+    // Using duration=longest and -shortest ensures the voiceover never cuts out early
     await runFFmpeg([
         '-i', visualPath,
         '-i', audioPath,
-        '-filter_complex', '[0:a]volume=0.3[v_vol]; [v_vol][1:a]amix=inputs=2:duration=first:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11[a]',
+        '-filter_complex', '[0:a]volume=0.3[v_vol]; [v_vol][1:a]amix=inputs=2:duration=longest:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11[a]',
         '-map', '0:v:0',
         '-map', '[a]',
         '-c:v', 'copy',

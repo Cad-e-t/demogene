@@ -54,7 +54,8 @@ const client = new AssemblyAI({ apiKey: ASSEMBLYAI_API_KEY });
 const TEMP_DIR = os.tmpdir();
 
 // --- Constants & Pricing ---
-const COST_VIDEO_GEMINI = 20;
+const COST_VIDEO_PRUNAI = 8;
+const COST_VIDEO_GROK = 20;
 const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
 const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
@@ -64,6 +65,7 @@ const COST_PER_THOUSAND_INPUT_TOKENS = 0.2;
 const MAX_ANALYSIS_COST = 7;
 const MIN_BALANCE = 4; // Minimum credits required to start
 const MAX_CONCURRENT_IMAGES = 2; // Max parallel image generations to avoid rate limits
+const MAX_CONCURRENT_VIDEOS = 3; // Max parallel video generations (batch size)
 
 // --- Helper: Credits ---
 async function getCredits(userId) {
@@ -230,9 +232,32 @@ function alignSegmentsWithTranscription(segments, transcription, totalAudioDurat
 
 // --- Helper: Download URL to File ---
 async function downloadUrlToFile(url, dest) {
-    const response = await fetch(url);
-    const buffer = await response.arrayBuffer();
-    fs.writeFileSync(dest, Buffer.from(buffer));
+    const cleanUrl = url ? url.trim() : url;
+    await withRetry(async () => {
+        const response = await fetch(cleanUrl);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const buffer = await response.arrayBuffer();
+        fs.writeFileSync(dest, Buffer.from(buffer));
+    });
+}
+
+// --- Helper: Retry Wrap ---
+async function withRetry(operation, maxAttempts = 3, initialDelay = 1500) {
+    let attempt = 1;
+    let delay = initialDelay;
+    
+    while (attempt <= maxAttempts) {
+        try {
+            return await operation();
+        } catch (error) {
+            console.error(`[Retry] Attempt ${attempt} failed:`, error.message || error);
+            if (attempt === maxAttempts) throw error;
+            console.log(`[Retry] Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            attempt++;
+            delay *= 2;
+        }
+    }
 }
 
 // --- Helper: Extract Key from URL ---
@@ -247,26 +272,28 @@ function getKeyFromUrl(url) {
 
 // --- Background Processors ---
 
-async function processAnimationsBackground(projectId, segments, aspectRatio, costPerVideo, userId) {
+async function processAnimationsBackground(projectId, segments, aspectRatio, costPerVideo, userId, modelType = 'fast') {
     let failedCount = 0;
     
-    for (let i = 0; i < segments.length; i += 2) {
-        const batch = segments.slice(i, i + 2);
-        console.log(`[ContentServer] Processing video batch ${Math.floor(i / 2) + 1} for project ${projectId}`);
+    for (let i = 0; i < segments.length; i += MAX_CONCURRENT_VIDEOS) {
+        const batch = segments.slice(i, i + MAX_CONCURRENT_VIDEOS);
+        console.log(`[ContentServer] Processing video batch ${Math.floor(i / MAX_CONCURRENT_VIDEOS) + 1} for project ${projectId} (Model: ${modelType})`);
         
         await Promise.all(batch.map(async (seg) => {
             try {
-                // Generate video via Gemini
-                const videoBuffer = await generateGeminiVideo(seg.image_url, seg.animation_prompt || '', aspectRatio || "16:9");
+                // Generate video via Replicate
+                const videoBuffer = await generateVideo(seg.image_url, seg.animation_prompt, modelType, aspectRatio);
 
                 // Upload to R2
                 const key = `content/videos/${seg.id}_${uuidv4()}.mp4`;
-                await s3.send(new PutObjectCommand({
-                    Bucket: R2_BUCKET,
-                    Key: key,
-                    Body: Buffer.from(videoBuffer),
-                    ContentType: 'video/mp4'
-                }));
+                await withRetry(async () => {
+                    await s3.send(new PutObjectCommand({
+                        Bucket: R2_BUCKET,
+                        Key: key,
+                        Body: Buffer.from(videoBuffer),
+                        ContentType: 'video/mp4'
+                    }));
+                });
                 const videoUrl = `${R2_PUBLIC_URL}/${key}`;
 
                 // Delete old image
@@ -289,7 +316,7 @@ async function processAnimationsBackground(projectId, segments, aspectRatio, cos
         }));
 
         // Delay 2-3s between batches if there are more
-        if (i + 2 < segments.length) {
+        if (i + MAX_CONCURRENT_VIDEOS < segments.length) {
             const delay = Math.floor(Math.random() * 1000) + 2000; // 2000-3000ms
             await new Promise(r => setTimeout(r, delay));
         }
@@ -353,12 +380,14 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
         // 3. Upload Audio
         const audioKey = `content/${projectId}/${audioFilename}`;
         const audioBufferFile = fs.readFileSync(audioPath);
-        await s3.send(new PutObjectCommand({
-            Bucket: R2_BUCKET,
-            Key: audioKey,
-            Body: audioBufferFile,
-            ContentType: 'audio/wav'
-        }));
+        await withRetry(async () => {
+            await s3.send(new PutObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: audioKey,
+                Body: audioBufferFile,
+                ContentType: 'audio/wav'
+            }));
+        });
         const audioUrl = `${R2_PUBLIC_URL}/${audioKey}`;
 
         // 4. Generate/Save Transcription
@@ -458,12 +487,14 @@ async function processImagesBackground(projectId, segments, aspectRatio, costPer
                 const buffer = Buffer.from(base64Img, 'base64');
                 const key = `content/${projectId}/${seg.order_index}_${uuidv4()}.png`;
                 
-                await s3.send(new PutObjectCommand({
-                    Bucket: R2_BUCKET,
-                    Key: key,
-                    Body: buffer,
-                    ContentType: 'image/png'
-                }));
+                await withRetry(async () => {
+                    await s3.send(new PutObjectCommand({
+                        Bucket: R2_BUCKET,
+                        Key: key,
+                        Body: buffer,
+                        ContentType: 'image/png'
+                    }));
+                });
                 
                 const imageUrl = `${R2_PUBLIC_URL}/${key}`;
                 
@@ -683,12 +714,14 @@ app.post('/regenerate-image', async (req, res) => {
         }
 
         // 4. Upload
-        await s3.send(new PutObjectCommand({
-            Bucket: R2_BUCKET,
-            Key: newKey,
-            Body: buffer,
-            ContentType: 'image/png'
-        }));
+        await withRetry(async () => {
+            await s3.send(new PutObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: newKey,
+                Body: buffer,
+                ContentType: 'image/png'
+            }));
+        });
 
         const newImageUrl = `${R2_PUBLIC_URL}/${newKey}`;
 
@@ -752,12 +785,14 @@ app.post('/edit-image', async (req, res) => {
         // 3. Upload
         const buffer = Buffer.from(base64New, 'base64');
         const key = `content/edits/${uuidv4()}.png`;
-        await s3.send(new PutObjectCommand({
-            Bucket: R2_BUCKET,
-            Key: key,
-            Body: buffer,
-            ContentType: 'image/png'
-        }));
+        await withRetry(async () => {
+            await s3.send(new PutObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: key,
+                Body: buffer,
+                ContentType: 'image/png'
+            }));
+        });
         
         const newUrl = `${R2_PUBLIC_URL}/${key}`;
 
@@ -902,9 +937,10 @@ app.delete('/stories/:id', async (req, res) => {
 
 // 5. Generate Assets (Audio, Subtitles, Metadata) - No Video Assembly
 app.post('/video-generation', async (req, res) => {
-    const { segmentId, imageUrl, animationPrompt } = req.body;
+    const { segmentId, imageUrl, animationPrompt, model = 'fast' } = req.body;
     let userId = null;
     let charged = false;
+    let costPerVideo = model === 'ultra' ? COST_VIDEO_GROK : COST_VIDEO_PRUNAI;
     
     try {
         // Fetch segment to get project -> userId
@@ -917,26 +953,28 @@ app.post('/video-generation', async (req, res) => {
 
         // 1. Check balance
         const balance = await getCredits(userId);
-        if (balance < COST_VIDEO_GEMINI) {
-            return res.status(402).json({ error: `Insufficient credits. Need ${COST_VIDEO_GEMINI} credits for video generation.` });
+        if (balance < costPerVideo) {
+            return res.status(402).json({ error: `Insufficient credits. Need ${costPerVideo} credits for video generation.` });
         }
 
         // 2. Charge credits
-        await chargeUser(userId, COST_VIDEO_GEMINI, "Gemini Video Generation");
+        await chargeUser(userId, costPerVideo, `${model === 'ultra' ? 'Grok' : 'Prunai'} Video Generation`);
         charged = true;
 
-        // 3. Generate video using Gemini
-        const videoBuffer = await generateGeminiVideo(imageUrl, animationPrompt, project.aspect_ratio || "16:9");
+        // 3. Generate video using Replicate
+        const videoBuffer = await generateVideo(imageUrl, animationPrompt, model, project.aspect_ratio || "16:9");
 
         // After the video is generated:
         // 1. Upload the generated video to the R2 bucket
         const key = `content/videos/${segmentId}_${uuidv4()}.mp4`;
-        await s3.send(new PutObjectCommand({
-            Bucket: R2_BUCKET,
-            Key: key,
-            Body: Buffer.from(videoBuffer),
-            ContentType: 'video/mp4'
-        }));
+        await withRetry(async () => {
+            await s3.send(new PutObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: key,
+                Body: Buffer.from(videoBuffer),
+                ContentType: 'video/mp4'
+            }));
+        });
         const videoUrl = `${R2_PUBLIC_URL}/${key}`;
 
         // 2. Delete the segment's previous image from the R2 bucket
@@ -960,7 +998,7 @@ app.post('/video-generation', async (req, res) => {
         console.error("Video Generation Route Error", e);
         // 4. Refund if charged
         if (charged && userId) {
-            await refundUser(userId, COST_VIDEO_GEMINI, "Refund: Failed Video Generation");
+            await refundUser(userId, costPerVideo, `Refund: Failed ${model === 'ultra' ? 'Grok' : 'Prunai'} Video Generation`);
         }
         res.status(500).json({ error: e.message });
     }
@@ -993,7 +1031,8 @@ app.post('/generate-assets', async (req, res) => {
 });
 
 app.post('/animate-all', async (req, res) => {
-    const { projectId, userId } = req.body;
+    const { projectId, userId, model = 'fast' } = req.body;
+    let costPerVideo = model === 'ultra' ? COST_VIDEO_GROK : COST_VIDEO_PRUNAI;
     
     try {
         // 1. Fetch Project and Segments
@@ -1010,20 +1049,20 @@ app.post('/animate-all', async (req, res) => {
         }
 
         // 3. Calculate Cost & Check Credits
-        const totalCost = qualifyingSegments.length * COST_VIDEO_GEMINI;
+        const totalCost = qualifyingSegments.length * costPerVideo;
         const balance = await getCredits(userId);
         if (balance < totalCost) {
             return res.status(402).json({ error: `Insufficient credits. Need ${totalCost} credits to animate ${qualifyingSegments.length} segments.` });
         }
 
         // 4. Charge user
-        await chargeUser(userId, totalCost, `Batch Video Generation (${qualifyingSegments.length} segments)`);
+        await chargeUser(userId, totalCost, `Batch Video Generation (${qualifyingSegments.length} segments, ${model === 'ultra' ? 'Grok' : 'Prunai'})`);
 
         // 5. Set render_status to 'Animating'
         await supabase.from('content_projects').update({ render_status: 'Animating' }).eq('id', projectId);
 
         // 6. Start processing in background
-        processAnimationsBackground(projectId, qualifyingSegments, project.aspect_ratio, COST_VIDEO_GEMINI, userId).catch(e => {
+        processAnimationsBackground(projectId, qualifyingSegments, project.aspect_ratio, costPerVideo, userId, model).catch(e => {
             console.error(`[ContentServer] Batch animation failed for project ${projectId}`, e);
         });
 
@@ -1107,12 +1146,14 @@ app.post('/export-video', async (req, res) => {
                 // Upload
                 const finalBuffer = fs.readFileSync(finalPath);
                 const finalKey = `content/stories/${uuidv4()}.mp4`;
-                await s3.send(new PutObjectCommand({
-                    Bucket: R2_BUCKET,
-                    Key: finalKey,
-                    Body: finalBuffer,
-                    ContentType: 'video/mp4'
-                }));
+                await withRetry(async () => {
+                    await s3.send(new PutObjectCommand({
+                        Bucket: R2_BUCKET,
+                        Key: finalKey,
+                        Body: finalBuffer,
+                        ContentType: 'video/mp4'
+                    }));
+                });
                 const videoUrl = `${R2_PUBLIC_URL}/${finalKey}`;
 
                 // Update Story

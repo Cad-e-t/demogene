@@ -7,7 +7,6 @@ import { IMAGE_STYLES, EFFECT_PRESETS, LONG_FORM_PRESETS, VOICE_STYLES, VOICE_PA
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 import { STYLE_PREVIEWS, LANDING_PREVIEWS } from './creator-assets';
-import { SubtitlePreview } from './SubtitlePreviews';
 import { supabase } from '../../supabaseClient';
 
 const CHOSEN_GALLERY_VIDEOS = [

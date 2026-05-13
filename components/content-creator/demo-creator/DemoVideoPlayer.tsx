@@ -62,7 +62,6 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     const [isLoaded, setIsLoaded] = useState(false);
     const [subtitles, setSubtitles] = useState<any[]>([]);
     const [mgChunks, setMgChunks] = useState<any[]>([]);
-    const hookMediaRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
     const [containerRect, setContainerRect] = useState({ width: 0, height: 0 });
     const [isSelected, setIsSelected] = useState(false);
 
@@ -92,6 +91,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
             
             return {
                 ...seg,
+                originalIndex: i,
                 audioStart,
                 audioEnd,
                 audioDuration,
@@ -135,7 +135,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                     if (cleanUrl.match(/\.(mp4|webm|mov)$/i)) {
                         const v = document.createElement('video');
                         v.src = url;
-                        v.muted = false;
+                        v.muted = true;
                         v.playsInline = true;
                         v.onloadedmetadata = () => {
                             loadedCount++;
@@ -206,12 +206,10 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         if (!transcription || !transcription.words) return;
         
         const animationType = subtitleStyle?.animationType || 'pulse_bold';
+        const maxWords = subtitleStyle?.maxWords !== undefined ? subtitleStyle.maxWords : 99;
         const isFade = animationType === 'glow_focus';
         const threshold = isFade ? 0.8 : 0.3;
         const maxCharsPerLine = aspectRatio === '16:9' ? 45 : 22;
-        
-        const defaultMaxWords = animationType === 'karaoke_block' ? 3 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
-        const maxWords = subtitleStyle?.maxWords !== undefined ? subtitleStyle.maxWords : defaultMaxWords;
         
         const lines: any[] = [];
         let group: any[] = [];
@@ -315,6 +313,8 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
 
         const t = transform || { x: 0, y: 0, scaleX: 1, scaleY: 1, cropTop: 0, cropBottom: 0, cropLeft: 0, cropRight: 0 };
         
+        const scaleMultiplier = cw / (cw > ch ? 1920 : 1080);
+        
         // Fallback for old scale property
         const scX = t.scaleX !== undefined ? t.scaleX : (t.scale || 1);
         const scY = t.scaleY !== undefined ? t.scaleY : (t.scale || 1);
@@ -326,8 +326,8 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         const scaledW = vw * actualScaleX;
         const scaledH = vh * actualScaleY;
 
-        const centerX = cw / 2 + (t.x || 0);
-        const centerY = ch / 2 + (t.y || 0);
+        const centerX = cw / 2 + (t.x || 0) * scaleMultiplier;
+        const centerY = ch / 2 + (t.y || 0) * scaleMultiplier;
 
         const drawX = centerX - scaledW / 2;
         const drawY = centerY - scaledH / 2;
@@ -354,10 +354,18 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     // Get the correct transform for a segment
     const getTransformForSegment = (seg: any) => {
         const t = localTransform || {};
+        const defaultTransform = { x: 0, y: 0, scaleX: 1, scaleY: 1, cropTop: 0, cropBottom: 0, cropLeft: 0, cropRight: 0 };
+        
         if (seg?.isHook) {
-            return t.hook || { x: 0, y: 0, scaleX: 1, scaleY: 1, cropTop: 0, cropBottom: 0, cropLeft: 0, cropRight: 0 };
+            if (t.hooks && t.hooks[seg.originalIndex]) return t.hooks[seg.originalIndex];
+            if (t.hooks) return defaultTransform;
+            return t.hook || defaultTransform;
         }
-        if (t.segments) return t.segments;
+        
+        if (t.segmentList && t.segmentList[seg.originalIndex]) return t.segmentList[seg.originalIndex];
+        if (t.segmentList) return defaultTransform;
+        
+        if (t.segments && !t.segments.segmentList) return t.segments; // Legacy fallback
         if (t.x !== undefined || t.scaleX !== undefined || t.scale !== undefined) {
             return {
                 x: t.x || 0,
@@ -370,7 +378,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                 cropRight: t.cropRight || 0
             };
         }
-        return { x: 0, y: 0, scaleX: 1, scaleY: 1, cropTop: 0, cropBottom: 0, cropLeft: 0, cropRight: 0 };
+        return defaultTransform;
     };
 
     // Get the correct transform for the current view
@@ -381,9 +389,13 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     const handleTransformChange = (newT: any) => {
         const updatedTransform = { ...(localTransform || {}) };
         if (isHook) {
-            updatedTransform.hook = newT;
+            if (!updatedTransform.hooks) updatedTransform.hooks = {};
+            updatedTransform.hooks[currentSegment.originalIndex] = newT;
+            updatedTransform.hook = newT; // Fallback
         } else {
-            updatedTransform.segments = newT;
+            if (!updatedTransform.segmentList) updatedTransform.segmentList = {};
+            updatedTransform.segmentList[currentSegment.originalIndex] = newT;
+            updatedTransform.segments = newT; // Fallback
         }
         setLocalTransform(updatedTransform);
     };
@@ -391,9 +403,13 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     const handleTransformChangeEnd = (newT: any) => {
         const updatedTransform = { ...(localTransform || {}) };
         if (isHook) {
-            updatedTransform.hook = newT;
+            if (!updatedTransform.hooks) updatedTransform.hooks = {};
+            updatedTransform.hooks[currentSegment.originalIndex] = newT;
+            updatedTransform.hook = newT; // Fallback
         } else {
-            updatedTransform.segments = newT;
+            if (!updatedTransform.segmentList) updatedTransform.segmentList = {};
+            updatedTransform.segmentList[currentSegment.originalIndex] = newT;
+            updatedTransform.segments = newT; // Fallback
         }
         if (onVideoTransformChange) {
             onVideoTransformChange(updatedTransform);
@@ -857,7 +873,6 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
             const scaledFontSize = fontSize * scaleMultiplier;
             const scaledStrokeWidth = strokeWidth * scaleMultiplier;
 
-            ctx.font = `900 ${scaledFontSize}px "${fontFamily}"`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.lineWidth = scaledStrokeWidth;
@@ -876,10 +891,48 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                 else if (textTransform === 'capitalize') t = t.replace(/\b\w/g, (l: string) => l.toUpperCase());
                 return t;
             }).join(' ');
+
+            const fontStyleStr = subtitleStyle?.fontStyle && subtitleStyle.fontStyle !== 'normal' ? subtitleStyle.fontStyle + ' ' : '';
+            const fontWeightStr = subtitleStyle?.fontWeight || '900';
+            ctx.font = `${fontStyleStr}${fontWeightStr} ${scaledFontSize}px "${fontFamily}"`;
             
+            // Set extended styles
+            if ('letterSpacing' in ctx) {
+               (ctx as any).letterSpacing = `${subtitleStyle?.letterSpacing || 0}px`;
+            }
+
+            // Draw shadow
+            if (subtitleStyle?.advancedStyle?.shadow) {
+                const s = subtitleStyle.advancedStyle.shadow;
+                if (Array.isArray(s)) {
+                    // Combine or take first. Taking first for canvas 2d limitation.
+                    ctx.shadowColor = s[0].color;
+                    ctx.shadowBlur = parseInt(s[0].blur) * scaleMultiplier;
+                    const offset = s[0].offset.split(' ');
+                    ctx.shadowOffsetX = parseInt(offset[0]) * scaleMultiplier;
+                    ctx.shadowOffsetY = parseInt(offset[1]) * scaleMultiplier;
+                } else {
+                    ctx.shadowColor = s.color;
+                    ctx.shadowBlur = parseInt(s.blur) * scaleMultiplier;
+                    const offset = s.offset.split(' ');
+                    ctx.shadowOffsetX = parseInt(offset[0]) * scaleMultiplier;
+                    ctx.shadowOffsetY = parseInt(offset[1]) * scaleMultiplier;
+                }
+            } else {
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+            }
+
             // Draw shadow/stroke
-            ctx.strokeStyle = secondaryColor;
-            ctx.strokeText(text, x, y);
+            if (scaledStrokeWidth > 0) {
+                ctx.strokeStyle = secondaryColor;
+                ctx.strokeText(text, x, y);
+            }
+            
+            // Clear shadow for main text to prevent double shadow intensity
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+
             
             // Draw main text with highlight
             let currentX = x - ctx.measureText(text).width / 2;
@@ -893,7 +946,8 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                 const wordWidth = ctx.measureText(wordText).width;
                 
                 const isActive = drawTime >= w.start && drawTime < w.end;
-                ctx.fillStyle = isActive ? highlightColor : primaryColor;
+                const maxWordsConfig = subtitleStyle?.maxWords !== undefined ? subtitleStyle.maxWords : 99;
+                ctx.fillStyle = isActive && maxWordsConfig > 1 ? highlightColor : primaryColor;
                 
                 ctx.fillText(wordText, currentX + wordWidth / 2, y);
                 currentX += wordWidth;
@@ -915,19 +969,52 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     // Resize Canvas
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        const container = containerRef.current;
+        if (!canvas || !container) return;
         
-        // Detect mobile screen for lower resolution canvas to prevent shaking/glitching
-        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
-        const scale = isMobile ? 0.35 : 1; 
+        const updateResolution = () => {
+            const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+            let scale = 1;
+            
+            if (isMobile) {
+                scale = 0.35;
+            } else {
+                const rect = container.getBoundingClientRect();
+                if (rect.height > 0) {
+                    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                    const targetHeight = aspectRatio === '9:16' ? 1920 : 1080;
+                    const physicalHeight = rect.height * dpr;
+                    
+                    scale = Math.min(1, physicalHeight / targetHeight);
+                    scale = Math.max(0.35, scale);
+                } else {
+                    scale = 0.5;
+                }
+            }
 
-        if (aspectRatio === '9:16') {
-            canvas.width = 1080 * scale;
-            canvas.height = 1920 * scale;
-        } else {
-            canvas.width = 1920 * scale;
-            canvas.height = 1080 * scale;
-        }
+            if (aspectRatio === '9:16') {
+                canvas.width = 1080 * scale;
+                canvas.height = 1920 * scale;
+            } else {
+                canvas.width = 1920 * scale;
+                canvas.height = 1080 * scale;
+            }
+        };
+
+        updateResolution();
+        
+        const observer = new ResizeObserver(() => {
+            if (requestAnimationFrame) {
+                requestAnimationFrame(updateResolution);
+            } else {
+                updateResolution();
+            }
+        });
+        observer.observe(container);
+
+        return () => {
+            observer.disconnect();
+        };
     }, [aspectRatio]);
 
     let videoScreenStyle: React.CSSProperties = { left: 0, top: 0, width: '100%', height: '100%' };
@@ -970,11 +1057,18 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         };
     }
 
-    const currentMediaWidth = isHook 
-        ? (hookMediaRef.current instanceof HTMLVideoElement ? hookMediaRef.current.videoWidth : (hookMediaRef.current instanceof HTMLImageElement ? hookMediaRef.current.naturalWidth : 1920))
+    const currentHookStyleObj = currentSegment?.hook_style || hookStyle || {};
+    const hStyle = typeof currentHookStyleObj === 'string' ? currentHookStyleObj : (currentHookStyleObj?.style || 'blurred');
+
+    const currentMediaRef = isHook ? hookMediaRefs.current[currentSegment?.originalIndex] : null;
+    const isMediaHook = isHook && hStyle === 'media' && !!currentMediaRef;
+
+    const currentMediaWidth = isMediaHook 
+        ? (currentMediaRef instanceof HTMLVideoElement ? currentMediaRef.videoWidth : (currentMediaRef instanceof HTMLImageElement ? currentMediaRef.naturalWidth : (videoRef.current?.videoWidth || 1920)))
         : (videoRef.current?.videoWidth || 1920);
-    const currentMediaHeight = isHook 
-        ? (hookMediaRef.current instanceof HTMLVideoElement ? hookMediaRef.current.videoHeight : (hookMediaRef.current instanceof HTMLImageElement ? hookMediaRef.current.naturalHeight : 1080))
+        
+    const currentMediaHeight = isMediaHook 
+        ? (currentMediaRef instanceof HTMLVideoElement ? currentMediaRef.videoHeight : (currentMediaRef instanceof HTMLImageElement ? currentMediaRef.naturalHeight : (videoRef.current?.videoHeight || 1080)))
         : (videoRef.current?.videoHeight || 1080);
 
     return (
@@ -1016,8 +1110,8 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                                 transform={getCurrentTransform()}
                                 onChange={handleTransformChange}
                                 onChangeEnd={handleTransformChangeEnd}
-                                canvasWidth={canvasRef.current.width}
-                                canvasHeight={canvasRef.current.height}
+                                canvasWidth={aspectRatio === '9:16' ? 1080 : 1920}
+                                canvasHeight={aspectRatio === '9:16' ? 1920 : 1080}
                                 videoWidth={currentMediaWidth}
                                 videoHeight={currentMediaHeight}
                                 containerWidth={containerRect.width}

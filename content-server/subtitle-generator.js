@@ -82,11 +82,17 @@ function getAssHeader(config, aspectRatio) {
                          config.animationType === 'impact_pop' ? 'karaoke_bounce' : 
                          config.animationType;
 
-    // Primary = Active (Target), Secondary = Inactive (Start)
-    let activeColor = (config.animationType === 'impact_pop' || config.animationType === 'pulse_bold' || config.animationType === 'glow_focus') ? config.primaryColor : (config.highlightColor || config.primaryColor);
+    const maxWords = config.maxWords !== undefined ? config.maxWords : 99;
+    const isWordByWord = maxWords <= 1;
+
+    // activeColor is for highlighted word, inactiveColor is for non-highlighted word
+    // Unless explicitly karaoke bounce (which is a scale effect, not color) we use highlight color
+    const isKaraokeBounce = animationType === 'impact_pop' || animationType === 'karaoke_bounce';
+    
+    let activeColor = isKaraokeBounce ? config.primaryColor : (config.highlightColor || config.primaryColor);
     let inactiveColor = config.primaryColor;
     
-    if (animationType === 'fade_group') {
+    if (animationType === 'fade_group' || isWordByWord) {
         activeColor = config.primaryColor; 
         inactiveColor = config.primaryColor; 
     }
@@ -99,13 +105,45 @@ function getAssHeader(config, aspectRatio) {
     if (animationType === 'fade_group') {
         p.secondaryColor = "&HFF" + p.primaryColor.substring(4);
     }
+    
+    // Check if we have advanced shadow/glow
+    let shadowColorStr = "&H80000000"; // Default semi-transparent black
+    if (config.advancedStyle?.shadow) {
+        const shadowDef = Array.isArray(config.advancedStyle.shadow) ? config.advancedStyle.shadow[0] : config.advancedStyle.shadow;
+        if (shadowDef && shadowDef.color && shadowDef.color !== 'transparent' && shadowDef.color !== 'none') {
+            shadowColorStr = hexToAssColor(shadowDef.color);
+            // Wait, hexToAssColor returns standard &HBBGGRR&. If we want opacity, we could try parsing it.
+            // But hexToAssColor handles hex correctly. Let's just use it.
+        }
+    }
+    
     p.outlineColor = hexToAssColor(outline);
-    p.backColor = "&H80000000"; 
-    p.bold = -1; 
-    p.spacing = config.letterSpacing; // Match 1080p preview resolution
-    p.outline = (config.strokeWidth / 2) * 1.333; // Match centered stroke weight of Canvas 2D and scale proportionally with font
-    p.shadow = 0; 
+    p.backColor = shadowColorStr; 
+    p.bold = isNaN(parseInt(config.fontWeight)) ? (config.fontWeight === 'normal' ? 0 : -1) : parseInt(config.fontWeight);
+    p.italic = config.fontStyle === 'italic' ? -1 : 0;
+    p.spacing = config.letterSpacing || 0; // Removing multiplier to fix wild spacing issue
+    p.outline = config.strokeWidth / 2; // Match centered stroke weight of Canvas 2D, NO 1.33 multiplier as outline shouldn't be inflated
+    
+    // Correctly map shadow offset, not blur, to ASS shadow depth
+    p.shadow = 0;
+    if (config.advancedStyle?.shadow) {
+        const shadowDef = Array.isArray(config.advancedStyle.shadow) ? config.advancedStyle.shadow[0] : config.advancedStyle.shadow;
+        if (shadowDef?.offset) {
+            const offsets = shadowDef.offset.split(' ').map(s => parseInt(s));
+            // Take the larger of the two offsets for the overall shadow depth
+            p.shadow = Math.max(Math.abs(offsets[0] || 0), Math.abs(offsets[1] || 0));
+        }
+        
+        // If there's no offset but there is a blur, give a tiny shadow depth so libass renders the shadow
+        if (p.shadow === 0 && shadowDef?.blur && parseFloat(shadowDef.blur) > 0) {
+            p.shadow = 0.01;
+        }
+    }
+    
     p.borderStyle = 1; 
+
+    // Make border scaling true so Outline scales correctly without random assumptions
+    const borderScalingStr = "ScaledBorderAndShadow: yes";
     
     // Map placement to alignment/margin (Match Player logic)
     p.alignment = 2; // Bottom center
@@ -116,12 +154,12 @@ function getAssHeader(config, aspectRatio) {
 ScriptType: v4.00+
 PlayResX: ${resX}
 PlayResY: ${resY}
+ScaledBorderAndShadow: yes
 WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${p.font},${p.fontSize},${p.primaryColor},${p.secondaryColor},${p.outlineColor},${p.backColor},${p.bold},0,0,0,100,100,${p.spacing},0,${p.borderStyle},${p.outline},${p.shadow},${p.alignment},20,20,${p.marginV},1
-`;
+Style: Default,${p.font},${p.fontSize},${p.primaryColor},${p.secondaryColor},${p.outlineColor},${p.backColor},${p.bold},${p.italic},0,0,100,100,${p.spacing},0,${p.borderStyle},${p.outline},${p.shadow},${p.alignment},20,20,${p.marginV},1\n`;
 }
 
 // Core Logic: Generate Word Events
@@ -137,18 +175,30 @@ function generateEvents(words, config, aspectRatio) {
                          config.animationType === 'impact_pop' ? 'karaoke_bounce' : 
                          config.animationType;
 
+    const maxWords = config.maxWords !== undefined ? config.maxWords : 99;
+    const isWordByWord = maxWords <= 1;
+    const resolvedHighlightColor = isWordByWord ? config.primaryColor : (config.highlightColor || config.primaryColor);
+
     const isFade = animationType === 'fade_group';
     const threshold = isFade ? 800 : 300; // Slower pacing for fade
-    
-    // Word count limits per style
-    const defaultMaxWords = animationType === 'karaoke_block' ? 3 : (animationType === 'fade_group' ? 5 : (animationType === 'karaoke_bounce' ? 1 : 99));
-    const maxWords = config.maxWords !== undefined ? config.maxWords : defaultMaxWords;
-
     const maxCharsPerLine = isFade 
         ? (aspectRatio === '16:9' ? 60 : 35) 
-        : (aspectRatio === '16:9' ? 45 : 22); 
+        : (aspectRatio === '16:9' ? 45 : 22);
 
     let group = [];
+    
+    // Add advanced styling tags (like blur for neon glow)
+    let globalStyleTags = "";
+    if (config.advancedStyle?.shadow) {
+        const shadowDef = Array.isArray(config.advancedStyle.shadow) ? config.advancedStyle.shadow[0] : config.advancedStyle.shadow;
+        if (shadowDef?.blur) {
+            // Apply a local blur tag to match glowing effect
+            const blurVal = parseInt(shadowDef.blur) * 0.15; 
+            if (blurVal > 0) {
+                globalStyleTags += `\\blur${blurVal.toFixed(1)}\\xshad0.01\\yshad0.01`;
+            }
+        }
+    }
     
     const flushGroup = (nextWordStart) => {
         if (group.length === 0) return "";
@@ -167,10 +217,10 @@ function generateEvents(words, config, aspectRatio) {
         const endTime = formatTime(endMs);
 
         let content = "";
-        const baseColorTag = `{\\1c${hexToAssTagColor(config.primaryColor)}}`;
+        const baseColorTag = `{\\1c${hexToAssTagColor(config.primaryColor)}${globalStyleTags}}`;
 
         // --- Content Construction ---
-        if (animationType === 'static' || animationType === 'none') {
+        if (animationType === 'static' || animationType === 'none' || isWordByWord) {
             const text = group.map(w => w.text).join(' ');
             content = `${baseColorTag}${text}`; 
         }
@@ -178,7 +228,7 @@ function generateEvents(words, config, aspectRatio) {
             // Karaoke & Typewriter Styles
             // For these, we rely on the Style's Primary/Secondary colors and \k tags.
             // We only add \fad for a smooth entry/exit of the block.
-            content = animationType === 'fade_group' ? "" : "{\\fad(100,100)}"; 
+            content = animationType === 'fade_group' ? `{${globalStyleTags}}` : `{\\fad(100,100)${globalStyleTags}}`; 
 
             group.forEach((word, idx) => {
                 const duration = word.end - word.start;
@@ -196,36 +246,42 @@ function generateEvents(words, config, aspectRatio) {
                     const midOffset = startOffset + Math.round(kDur / 2);
                     const endOffset = startOffset + kDur;
                     
-                    content += `{\\k${kDur}\\t(${startOffset},${midOffset},\\fscx115\\fscy115)\\t(${midOffset},${endOffset},\\fscx100\\fscy100)}${word.text} `;
+                    content += `{\\k${kDur}\\t(${startOffset},${midOffset},\\fscx115\\fscy115)\\t(${midOffset},${endOffset},\\fscx100\\fscy100)}${word.text}`;
                 } else if (animationType === 'fade_group') {
                     // Typewriter: Reveal outline and fill as word appears, with transient highlight
                     const startOffsetMs = Math.round(word.start - firstWord.start);
                     const endOffsetMs = Math.round(word.end - firstWord.start);
-                    const highlightTag = hexToAssTagColor(config.highlightColor || config.primaryColor);
+                    const highlightTag = hexToAssTagColor(resolvedHighlightColor);
                     const primaryTag = hexToAssTagColor(config.primaryColor);
                     
                     if (startOffsetMs === 0) {
                         // First word: already visible, just handle color transition
-                        content += `{\\1c${highlightTag}\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})}${word.text} `;
+                        content += `{\\1c${highlightTag}\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})}${word.text}`;
                     } else {
                         // Subsequent words: hidden initially, reveal and highlight at startOffsetMs
-                        content += `{\\1a&HFF&\\3a&HFF&\\t(${startOffsetMs},${startOffsetMs},\\1a&H00&\\3a&H00&)\\1c${highlightTag}\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})}${word.text} `;
+                        content += `{\\1a&HFF&\\3a&HFF&\\t(${startOffsetMs},${startOffsetMs},\\1a&H00&\\3a&H00&)\\1c${highlightTag}\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})}${word.text}`;
                     }
                 } else {
                     // Block highlight: Pulse Bold (karaoke_block) should only highlight the ACTIVE word
                     const startOffsetMs = Math.round(word.start - firstWord.start);
                     const endOffsetMs = Math.round(word.end - firstWord.start);
-                    const highlightTag = hexToAssTagColor(config.highlightColor || config.primaryColor);
+                    const highlightTag = hexToAssTagColor(resolvedHighlightColor);
                     const primaryTag = hexToAssTagColor(config.primaryColor);
                     
                     if (startOffsetMs === 0) {
-                        content += `{\\1c${highlightTag}\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})\\k${kDur}}${word.text} `;
+                        content += `{\\1c${highlightTag}\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})\\k${kDur}}${word.text}`;
                     } else {
-                        content += `{\\1c${primaryTag}\\t(${startOffsetMs},${startOffsetMs},\\1c${highlightTag})\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})\\k${kDur}}${word.text} `;
+                        content += `{\\1c${primaryTag}\\t(${startOffsetMs},${startOffsetMs},\\1c${highlightTag})\\t(${endOffsetMs},${endOffsetMs},\\1c${primaryTag})\\k${kDur}}${word.text}`;
                     }
                 }
 
-                if (kGap > 0) content += `{\\k${kGap}} `;
+                if (idx < group.length - 1) {
+                    if (kGap > 0 && animationType !== 'fade_group') {
+                        content += `{\\k${kGap}} `;
+                    } else {
+                        content += ` `;
+                    }
+                }
             });
         }
 

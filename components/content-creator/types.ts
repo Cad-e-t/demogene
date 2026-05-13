@@ -9,9 +9,17 @@ export interface SubtitleConfiguration {
     highlightColor: string;
     strokeWidth: number;
     letterSpacing: number;
-    textTransform: 'uppercase' | 'none' | 'capitalize';
-    animationType: 'pulse_bold' | 'glow_focus' | 'impact_pop';
+    textTransform: 'uppercase' | 'none' | 'capitalize' | 'lowercase';
+    animationType: string;
     maxWords?: number;
+    // Extended properties for advanced presets:
+    presetId?: string;
+    fontStyle?: string;
+    fontWeight?: string;
+    advancedStyle?: any;
+    advancedLayout?: any;
+    advancedAnimation?: any;
+    advancedColors?: any;
 }
 
 export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfiguration = {

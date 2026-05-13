@@ -1,5 +1,204 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { SubtitleConfiguration } from './types';
+
+import { subtitlePresets } from './SubtitlePreviews';
+
+const PresetPreview = ({ preset }: { preset: any }) => {
+    const isWordByWord = preset.animation.type === 'word-by-word';
+    const isWordAccumulate = preset.animation.type === 'word-by-word-accumulate';
+    const isLineByLineWordHighlight = preset.animation.type === 'line-by-line-with-word-highlight' || preset.animation.type === 'continuous-fill';
+    const isLineByLine = preset.animation.type === 'line-by-line';
+    const isLetterByLetter = preset.animation.type === 'letter-by-letter';
+
+    const words = preset.name.split(' ');
+    const chars = preset.name.split('');
+    
+    let highlightColor = preset.colors.highlight === 'none' || preset.colors.highlight === 'transparent' ? '#FFFFFF' : preset.colors.highlight;
+    const textColor = preset.colors.text.startsWith('Random') ? '#FFFFFF' : preset.colors.text;
+    
+    // If text is black, default highlight to something white if it's missing, mostly to make sure they differ if they're both white
+    if (highlightColor === '#FFFFFF' && textColor === '#FFFFFF' && isWordByWord === false) {
+        highlightColor = '#FFD700'; // fallback just for preview highlighting
+    }
+
+    const strokeWidthVal = preset.style?.stroke?.width ? parseFloat(preset.style.stroke.width) : 0;
+    // Scale down the stroke width significantly for the 12px preview font, or cap it, so it doesn't obscure the text.
+    const strokeW = strokeWidthVal > 0 ? Math.min(1, strokeWidthVal / 10) + 'px' : '0px';
+
+    const baseStyle: React.CSSProperties = {
+        fontFamily: preset.font.family,
+        fontWeight: preset.font.weight,
+        fontStyle: preset.font.italic ? 'italic' : 'normal',
+        textTransform: preset.font.transform as any,
+        WebkitTextStroke: preset.style?.stroke && strokeWidthVal > 0 ? `${strokeW} ${preset.style.stroke.color}` : undefined,
+        paintOrder: 'stroke fill',
+        textShadow: !Array.isArray(preset.style?.shadow) && preset.style?.shadow ? `0px 2px ${parseFloat(preset.style.shadow.blur)/2}px ${preset.style.shadow.color}` : 'none',
+        color: textColor,
+    };
+
+    if (preset.style?.backgroundClip === 'text') {
+        baseStyle.backgroundClip = 'text';
+        baseStyle.WebkitBackgroundClip = 'text';
+        baseStyle.backgroundImage = preset.style.backgroundImage;
+        baseStyle.color = 'transparent';
+    }
+    
+    const containerBg = preset.style?.background?.type ? preset.style.background.color.replace('Randomized', 'rgba(0,0,0,0.5)') : 'transparent';
+    const hasBg = preset.style?.background?.type && preset.style?.background?.type !== 'none';
+    
+    const containerStyle: React.CSSProperties = {
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '0.2em',
+        width: '100%',
+        background: containerBg,
+        padding: hasBg ? '4px 8px' : '0',
+        borderRadius: preset.style?.background?.type === 'pill' ? '999px' : '4px',
+    };
+
+    const durationPerWord = 0.4;
+    const totalDuration = words.length * durationPerWord + 1.5; 
+
+    if (isWordByWord) {
+        return (
+            <div className="flex items-center justify-center w-full h-[30px] relative">
+                {words.map((word: string, i: number) => {
+                    const startT = i * durationPerWord / totalDuration;
+                    const popT = (i * durationPerWord + 0.05) / totalDuration;
+                    const endT = ((i + 1) * durationPerWord) / totalDuration;
+                    return (
+                        <motion.span
+                            key={i}
+                            className="text-[13px] absolute w-full text-center"
+                            style={baseStyle}
+                            animate={{
+                                opacity: [0, 0, 1, 1, 0, 0],
+                                scale: [0.5, 0.5, 1.2, 1, 0.8, 0.8],
+                                rotate: preset.style?.rotation?.includes('Randomized') ? [0, 0, (i % 2 === 0 ? 5 : -5), 0, 0, 0] : [0, 0, 0, 0, 0, 0]
+                            }}
+                            transition={{
+                                duration: totalDuration,
+                                times: [0, startT, popT, endT - 0.02, endT, 1],
+                                repeat: Infinity,
+                                ease: "linear"
+                            }}
+                        >
+                            {word}
+                        </motion.span>
+                    );
+                })}
+            </div>
+        );
+    } 
+
+    if (isWordAccumulate) {
+        return (
+            <div className="flex flex-wrap items-center justify-center gap-[0.2em] w-full text-center">
+                {words.map((word: string, i: number) => {
+                    const startT = i * durationPerWord / totalDuration;
+                    const popT = (i * durationPerWord + 0.05) / totalDuration;
+                    return (
+                        <motion.span
+                            key={i}
+                            className="text-[12px]"
+                            style={baseStyle}
+                            animate={{ 
+                                opacity: [0, 0, 1, 1, 0], 
+                                scale: [0.5, 0.5, 1, 1, 0.5] 
+                            }}
+                            transition={{
+                                duration: totalDuration,
+                                times: [0, startT, popT, 0.9, 1],
+                                repeat: Infinity,
+                                ease: "easeOut"
+                            }}
+                        >
+                            {word}
+                        </motion.span>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    if (isLineByLineWordHighlight) {
+        return (
+            <div className="flex flex-wrap items-center justify-center gap-[0.2em] w-full text-center" style={containerStyle}>
+                {words.map((word: string, i: number) => {
+                    const startT = i * durationPerWord / totalDuration;
+                    const popT = (i * durationPerWord + 0.05) / totalDuration;
+                    const endT = ((i + 1) * durationPerWord) / totalDuration;
+                    return (
+                        <motion.span
+                            key={i}
+                            className="text-[12px]"
+                            style={{
+                                ...baseStyle,
+                                color: undefined // Let animation handle color
+                            }}
+                            animate={{
+                                color: [textColor, textColor, highlightColor, highlightColor, textColor, textColor],
+                                scale: [1, 1, 1.1, 1.1, 1, 1]
+                            }}
+                            transition={{
+                                duration: totalDuration,
+                                times: [0, startT, popT, endT - 0.02, endT, 1],
+                                repeat: Infinity,
+                                ease: "linear"
+                            }}
+                        >
+                            {word}
+                        </motion.span>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    if (isLetterByLetter) {
+        const letterDur = 0.1;
+        const totLetterDur = chars.length * letterDur + 1.5;
+        return (
+            <div className="flex items-center justify-center w-full text-center whitespace-pre" style={containerStyle}>
+                {chars.map((char: string, i: number) => {
+                    const startT = i * letterDur / totLetterDur;
+                    const popT = (i * letterDur + 0.05) / totLetterDur;
+                    return (
+                        <motion.span
+                            key={i}
+                            className="text-[12px]"
+                            style={baseStyle}
+                            animate={{ opacity: [0, 0, 1, 1, 0] }}
+                            transition={{
+                                duration: totLetterDur,
+                                times: [0, startT, popT, 0.9, 1],
+                                repeat: Infinity,
+                            }}
+                        >
+                            {char}
+                        </motion.span>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    // Default: line-by-line
+    return (
+        <div style={containerStyle} className="h-full w-full flex items-center justify-center overflow-hidden relative">
+            <motion.div 
+                className="flex items-center justify-center w-full text-center z-10"
+                animate={{ opacity: [0, 1, 1, 0], scale: [0.8, 1, 1, 0.8] }}
+                transition={{ duration: 2.5, times: [0, 0.1, 0.9, 1], repeat: Infinity, ease: "easeOut" }}
+            >
+                <span className="text-[12px] whitespace-nowrap" style={baseStyle}>{preset.name}</span>
+            </motion.div>
+        </div>
+    );
+};
 
 interface SubtitleConfigurationPanelProps {
     subtitles: SubtitleConfiguration;
@@ -225,22 +424,41 @@ export const SubtitleConfigurationPanel: React.FC<SubtitleConfigurationPanelProp
             </button>
 
             {/* Caption Styles */}
-            <div className="space-y-2">
+            <div className="space-y-4">
                 <label className="text-xs font-bold text-zinc-500 uppercase">Caption Styles</label>
-                <div className="grid grid-cols-3 gap-2">
-                    {[
-                        { id: 'pulse_bold', label: 'Pulse', className: 'style-tile-pulse' },
-                        { id: 'glow_focus', label: 'Typewriter', className: 'style-tile-typewriter' },
-                        { id: 'impact_pop', label: 'Pop', className: 'style-tile-pop' }
-                    ].map((style) => (
-                        <button
-                            key={style.id}
-                            onClick={() => handleSubtitleUpdate({ animationType: style.id as any })}
-                            className={`relative h-16 rounded-xl border-2 overflow-hidden transition-all flex items-center justify-center bg-transparent ${subtitles.animationType === style.id ? 'border-yellow-500' : 'border-white/10 hover:border-white/20'}`}
-                        >
-                            <span className={`font-bold text-white text-sm ${style.className}`}>{style.label}</span>
-                        </button>
-                    ))}
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3">
+                    {subtitlePresets.map((preset) => {
+                        const isSelected = subtitles.presetId === preset.id || subtitles.animationType === preset.id;
+                        return (
+                            <button
+                                key={preset.id}
+                                onClick={() => {
+                                    handleSubtitleUpdate({ 
+                                        presetId: preset.id,
+                                        animationType: preset.animation.type,
+                                        fontFamily: preset.font.family,
+                                        textTransform: preset.font.transform as any,
+                                        primaryColor: preset.colors.text.startsWith('Random') ? '#FFFFFF' : preset.colors.text,
+                                        highlightColor: preset.colors.highlight === 'none' || preset.colors.highlight === 'transparent' ? '#FFFFFF' : preset.colors.highlight,
+                                        secondaryColor: preset.style?.stroke?.color || '#000000',
+                                        strokeWidth: preset.style?.stroke?.width ? parseInt(preset.style.stroke.width) : 0,
+                                        fontStyle: preset.font.italic ? 'italic' : 'normal',
+                                        fontWeight: preset.font.weight,
+                                        placement: preset.layout.placement || 35,
+                                        maxWords: preset.layout.maxLines,
+                                        advancedStyle: preset.style,
+                                        advancedLayout: preset.layout,
+                                        advancedAnimation: preset.animation,
+                                        advancedColors: preset.colors
+                                    });
+                                }}
+                                className={`relative h-20 rounded-xl border-2 overflow-hidden transition-all flex flex-col items-center justify-center p-2
+                                    ${isSelected ? 'border-yellow-500 bg-yellow-500/10' : 'border-white/10 hover:border-white/20 bg-zinc-900/50 hover:bg-zinc-800'}`}
+                            >
+                                <PresetPreview preset={preset} />
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -255,13 +473,28 @@ export const SubtitleConfigurationPanel: React.FC<SubtitleConfigurationPanelProp
                     <option value="Architects Daughter">Architects Daughter</option>
                     <option value="Arial">Arial</option>
                     <option value="Arimo">Arimo</option>
+                    <option value="Bangers">Bangers</option>
+                    <option value="Bebas Neue">Bebas Neue</option>
+                    <option value="Caveat">Caveat</option>
                     <option value="Chewy">Chewy</option>
+                    <option value="Cinzel">Cinzel</option>
                     <option value="Combo">Combo</option>
+                    <option value="Cormorant Garamond">Cormorant Garamond</option>
+                    <option value="Courier New">Courier New</option>
                     <option value="Edu SA Beginner">Edu SA Beginner</option>
-                    <option value="Fredoka Condensed Medium Conden">Fredoka</option>
+                    <option value="Fredoka">Fredoka</option>
                     <option value="Griffy">Griffy</option>
-                    <option value="Komika Hand">Komika Hand</option>
+                    <option value="Helvetica Neue">Helvetica Neue</option>
+                    <option value="Impact">Impact</option>
+                    <option value="Inter">Inter</option>
+                    <option value="Komika Axis">Komika Axis</option>
+                    <option value="Lora">Lora</option>
+                    <option value="Montserrat">Montserrat</option>
+                    <option value="Poppins">Poppins</option>
+                    <option value="Proxima Nova">Proxima Nova</option>
+                    <option value="SF Pro Display">SF Pro Display</option>
                     <option value="Tinos">Tinos</option>
+                    <option value="VCR OSD Mono">VCR OSD Mono</option>
                 </select>
             </div>
 
@@ -308,9 +541,13 @@ export const SubtitleConfigurationPanel: React.FC<SubtitleConfigurationPanelProp
             </div>
 
             {/* Highlight Color */}
-            {(subtitles.animationType === 'pulse_bold' || subtitles.animationType === 'glow_focus') && (
+            {(['pulse_bold', 'glow_focus', 'karaoke_block', 'karaoke_bounce', 'fade_group'].includes(subtitles.animationType) || 
+              subtitles.animationType.includes('highlight') || 
+              subtitles.animationType.includes('word') ||
+              subtitles.animationType.includes('continuous')) && 
+              subtitles.maxWords !== 1 && (
                 <div className="space-y-2">
-                    <label className="text-xs font-bold text-zinc-500 uppercase">Highlight Color (Karaoke)</label>
+                    <label className="text-xs font-bold text-zinc-500 uppercase">Highlight Color</label>
                     <div className="flex items-center gap-2">
                         <input
                             type="color"
@@ -392,18 +629,14 @@ export const SubtitleConfigurationPanel: React.FC<SubtitleConfigurationPanelProp
                 <div className="flex justify-between">
                     <label className="text-xs font-bold text-zinc-500 uppercase">Max Words</label>
                     <span className="text-xs font-bold text-white">
-                        {subtitles.maxWords !== undefined 
-                            ? subtitles.maxWords 
-                            : (subtitles.animationType === 'pulse_bold' ? 3 : (subtitles.animationType === 'glow_focus' ? 5 : (subtitles.animationType === 'impact_pop' ? 1 : 99)))}
+                        {subtitles.maxWords !== undefined ? subtitles.maxWords : 99}
                     </span>
                 </div>
                 <input
                     type="range"
                     min="1"
                     max="10"
-                    value={subtitles.maxWords !== undefined 
-                        ? subtitles.maxWords 
-                        : (subtitles.animationType === 'pulse_bold' ? 3 : (subtitles.animationType === 'glow_focus' ? 5 : (subtitles.animationType === 'impact_pop' ? 1 : 10)))}
+                    value={subtitles.maxWords !== undefined ? subtitles.maxWords : 10}
                     onChange={(e) => handleSubtitleUpdate({ maxWords: parseInt(e.target.value) })}
                     className="w-full h-2 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-yellow-500"
                 />
