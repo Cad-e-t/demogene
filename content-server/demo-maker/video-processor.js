@@ -12,7 +12,7 @@ const FF_FLAGS = ["-c:v", "libx264", "-preset", "ultrafast", "-r", "30", "-pix_f
 export const PREPROCESS_FLAGS = [
     "-c:v", "libx264",
     "-preset", "slow", 
-    "-crf", "24",
+    "-crf", "18",
     "-r", "30",
     "-pix_fmt", "yuv420p",
     "-movflags", "+faststart",
@@ -114,7 +114,7 @@ async function prepareBackgroundVideo(inputVideo, outputVideo, analysis, workDir
         // This ensures visual stability without adding black bars or scaling artifacts.
         await runFFmpeg([
             '-i', inputVideo,
-            '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', 
+            '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', 
             '-an', 
             '-ss', '0.5',
             '-y', outputVideo
@@ -181,7 +181,7 @@ async function prepareBackgroundVideo(inputVideo, outputVideo, analysis, workDir
         '-loop', '1', '-t', videoDuration.toString(), '-i', maskPath,
         '-loop', '1', '-t', videoDuration.toString(), '-i', localBgPath,
         '-filter_complex', filterComplex,
-        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', 
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', 
         '-an', 
         '-ss', '0.5',
         '-y', outputVideo
@@ -341,7 +341,7 @@ export async function processVideoPipeline(
              
              args.push('-vf', filters);
              // Must re-encode video when using filters
-             args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '23');
+             args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '18');
              
              if(fullAudioPath) {
                  args.push('-c:a', 'aac');

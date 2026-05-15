@@ -342,28 +342,75 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
         const { data: project } = await supabase.from('content_projects').select('*').eq('id', projectId).single();
         if (!project) throw new Error("Project not found");
 
-        // 1. Generate Full Audio
-        const fullScript = segments.map(s => s.narration).join(" ");
+        // 1. Generate Full Audio in Chunks
         const finalVoice = voiceId || project.voice_id;
         const stylePrompt = project.narration_style || "Read aloud in a lively, confident, and magnetic tone";
-        
-        const audioBuffer = await generateFullVoiceover(fullScript, finalVoice, stylePrompt);
         
         workDir = path.join(TEMP_DIR, `assets_${uuidv4()}`);
         if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
 
-        const rawAudioPath = path.join(workDir, 'raw_audio.pcm');
-        fs.writeFileSync(rawAudioPath, audioBuffer);
-        
-        const audioFilename = `audio_${uuidv4()}.wav`;
+        const { execSync } = await import('child_process');
+
+        // GREEDY BUCKET CHUNKING logic
+        const batches = [];
+        let currentBatch = [];
+        let currentChars = 0;
+        for (const seg of segments) {
+            const segLen = seg.narration.length;
+            const addedLen = currentChars === 0 ? segLen : segLen + 1; // +1 for space between sentences
+            if (currentChars + addedLen > 3000) {
+                if (currentBatch.length > 0) batches.push(currentBatch.join(" "));
+                currentBatch = [seg.narration];
+                currentChars = segLen;
+            } else {
+                currentBatch.push(seg.narration);
+                currentChars += addedLen;
+            }
+        }
+        if (currentBatch.length > 0) batches.push(currentBatch.join(" "));
+
+        const chunkAudioPaths = [];
+        const pMap = async (array, asyncFn, concurrency) => {
+            const results = new Array(array.length);
+            const queue = [...array.map((item, index) => ({ item, index }))];
+            const workers = new Array(concurrency).fill(null).map(async () => {
+                while (queue.length > 0) {
+                    const { item, index } = queue.shift();
+                    results[index] = await asyncFn(item, index);
+                }
+            });
+            await Promise.all(workers);
+            return results;
+        };
+
+        console.log(`[ContentServer] Processing audio in ${batches.length} chunks...`);
+        await pMap(batches, async (batchText, index) => {
+            let chunkBuffer;
+            try {
+                chunkBuffer = await withRetry(async () => generateFullVoiceover(batchText, finalVoice, stylePrompt), 3, 2000);
+            } catch (err) {
+                console.error(`[ContentServer] Chunk ${index} generation failed.`, err);
+                throw new Error("Failed to generate TTS audio chunk");
+            }
+            const pcmPath = path.join(workDir, `chunk_${index}.pcm`);
+            const mp3Path = path.join(workDir, `chunk_${index}.mp3`);
+            fs.writeFileSync(pcmPath, chunkBuffer);
+            execSync(`ffmpeg -f s16le -ar 24000 -ac 1 -i "${pcmPath}" -y "${mp3Path}"`, { stdio: 'ignore' });
+            chunkAudioPaths[index] = mp3Path;
+        }, 2); // 2 parallel requests
+
+        const concatListPath = path.join(workDir, 'concat.txt');
+        const concatListContent = chunkAudioPaths.map(p => `file '${p}'`).join('\n');
+        fs.writeFileSync(concatListPath, concatListContent);
+
+        const audioFilename = `voiceover_${uuidv4()}.mp3`;
         const audioPath = path.join(workDir, audioFilename);
         
-        const { execSync } = await import('child_process');
         try {
-            execSync(`ffmpeg -f s16le -ar 24000 -ac 1 -i "${rawAudioPath}" -y "${audioPath}"`, { stdio: 'ignore' });
+            execSync(`ffmpeg -f concat -safe 0 -i "${concatListPath}" -c copy "${audioPath}"`, { stdio: 'ignore' });
         } catch (e) {
-            console.error("FFmpeg PCM Conversion Failed:", e);
-            throw new Error("Failed to convert TTS audio");
+            console.error("FFmpeg Concat Failed:", e);
+            throw new Error("Failed to concat TTS audio chunks");
         }
 
         // 2. Calculate Duration & Charge
@@ -385,7 +432,7 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
                 Bucket: R2_BUCKET,
                 Key: audioKey,
                 Body: audioBufferFile,
-                ContentType: 'audio/wav'
+                ContentType: 'audio/mpeg'
             }));
         });
         const audioUrl = `${R2_PUBLIC_URL}/${audioKey}`;

@@ -339,7 +339,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         }
     };
 
-    const MAX_CHARS = 6000;
+    const MAX_CHARS = 40000;
 
     // If project is loaded, show Editor
     const renderContent = () => {

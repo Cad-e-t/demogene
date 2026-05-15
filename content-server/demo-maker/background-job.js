@@ -342,7 +342,7 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
                             // ... animation logic ...
                         }
                         
-                        execSync(`ffmpeg -loop 1 -i "${mediaPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterStr}" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 23 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
+                        execSync(`ffmpeg -loop 1 -i "${mediaPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterStr}" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
                     } else {
                         // Video media
                         const mediaDur = getDurationValue(mediaPath);
@@ -367,9 +367,9 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
                         const filterComplex = `${bgFilter}[bg];[0:v]crop=${hp.sW}:${hp.sH}:${hp.sX}:${hp.sY},scale=${hp.dW}:${hp.dH},setpts=PTS*${1/speedFactor}[fg];[bg][fg]overlay=x=${hp.dX}:y=${hp.dY}[v]${hasAudio ? `;[0:a]${atempoFilter}[a]` : ''}`;
                         
                         if (hasAudio) {
-                            execSync(`ffmpeg -i "${mediaPath}" -filter_complex "${filterComplex}" -map "[v]" -map "[a]" -t ${audioDur} -c:v libx264 -preset fast -crf 23 -c:a aac -y "${finalSegPath}"`, { stdio: 'ignore' });
+                            execSync(`ffmpeg -i "${mediaPath}" -filter_complex "${filterComplex}" -map "[v]" -map "[a]" -t ${audioDur} -c:v libx264 -preset fast -crf 18 -c:a aac -y "${finalSegPath}"`, { stdio: 'ignore' });
                         } else {
-                            execSync(`ffmpeg -i "${mediaPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterComplex}" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 23 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
+                            execSync(`ffmpeg -i "${mediaPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterComplex}" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
                         }
                     }
                 } else {
@@ -378,10 +378,10 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
                     if (hasSourceVideo) {
                         const hp = getTransformParams(hookT, vw, vh, width, height);
                         const filterComplex = `${bgFilter}[bg];[0:v]trim=start=${start}:duration=0.1,crop=${hp.sW}:${hp.sH}:${hp.sX}:${hp.sY},scale=${hp.dW}:${hp.dH}[fg];[bg][fg]overlay=x=${hp.dX}:y=${hp.dY}[v]`;
-                        execSync(`ffmpeg -i "${videoPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterComplex}" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 23 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
+                        execSync(`ffmpeg -i "${videoPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterComplex}" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
                     } else {
                         const filterComplex = `${bgFilter}[v]`;
-                        execSync(`ffmpeg -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterComplex}" -map "[v]" -map 0:a -t ${audioDur} -c:v libx264 -preset fast -crf 23 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
+                        execSync(`ffmpeg -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterComplex}" -map "[v]" -map 0:a -t ${audioDur} -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
                     }
                 }
             } else {
@@ -390,19 +390,19 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
                 const rawSegPath = path.join(workDir, `raw_${i}.mp4`);
                 const bgFilter = getBackgroundFilter(backgroundType, duration);
                 const filterComplex = `${bgFilter}[bg];[0:v]crop=${sp.sW}:${sp.sH}:${sp.sX}:${sp.sY},scale=${sp.dW}:${sp.dH}[fg];[bg][fg]overlay=x=${sp.dX}:y=${sp.dY}[v]`;
-                execSync(`ffmpeg -ss ${start} -t ${duration} -i "${videoPath}" -filter_complex "${filterComplex}" -map "[v]" -c:v libx264 -preset fast -crf 23 -an -y "${rawSegPath}"`, { stdio: 'ignore' });
+                execSync(`ffmpeg -ss ${start} -t ${duration} -i "${videoPath}" -filter_complex "${filterComplex}" -map "[v]" -c:v libx264 -preset fast -crf 18 -an -y "${rawSegPath}"`, { stdio: 'ignore' });
                 
                 const visualDur = getDurationValue(rawSegPath);
                 const timeDiff = audioDur - visualDur;
 
                 if (timeDiff > 0.02) {
                     // Freeze last frame
-                    execSync(`ffmpeg -i "${rawSegPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "[0:v]tpad=stop_mode=clone:stop_duration=${timeDiff.toFixed(3)}[v]" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 23 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
+                    execSync(`ffmpeg -i "${rawSegPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "[0:v]tpad=stop_mode=clone:stop_duration=${timeDiff.toFixed(3)}[v]" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
                 } else {
                     // Speed up
                     const speedFactor = visualDur / audioDur;
                     if (speedFactor > 1.001) {
-                        execSync(`ffmpeg -i "${rawSegPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "[0:v]setpts=PTS*${1/speedFactor}[v]" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 23 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
+                        execSync(`ffmpeg -i "${rawSegPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "[0:v]setpts=PTS*${1/speedFactor}[v]" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
                     } else {
                         execSync(`ffmpeg -i "${rawSegPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -map 0:v -map 1:a -t ${audioDur} -c:v copy -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
                     }
