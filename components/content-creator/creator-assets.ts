@@ -26,7 +26,7 @@ export const LANDING_PREVIEWS: Record<string, { src: string, aspectRatio: string
     "Hoorror Story": { src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4", aspectRatio: "9:16" },
     "Animated Story": { src: "https://assets.productcam.site/image-styles/GameCinematic.mp4", aspectRatio: "9:16" },
     "Skeleton Videos":  { src: "https://assets.productcam.site/image-styles/skeleton.mp4" , aspectRatio: "9:16" },
-    "Science Shorts": { src: "https://assets.productcam.site/image-styles/earth-orbits-saturn.mp4", aspectRatio: "9:16" },
+    "Stickman Videos": { src: "https://assets.productcam.site/image-styles/Stickman.mp4", aspectRatio: "16:9" },
      "Motivational": { src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4", aspectRatio: "16:9" },
    
 };

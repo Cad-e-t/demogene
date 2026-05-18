@@ -13,6 +13,7 @@ const CHOSEN_GALLERY_VIDEOS = [
     "Hoorror Story",
     "Animated Story",
     "Skeleton Videos",
+    "Stickman Videos",
     "Immersive Long Forms "
 ];
 
@@ -20,8 +21,8 @@ const GALLERY_VIDEO_MAPPINGS: Record<string, { style: string, aspect: '9:16' | '
     "Immersive Long Forms ": { style: "Realistic", aspect: "16:9" },
     "Hoorror Story": { style: "Creepy", aspect: "9:16" },
     "Animated Story": { style: "Game3D", aspect: "9:16" },
+    "Stickman Videos": { style: "Stickman", aspect: "16:9" },
     "Skeleton Videos": { style: "Skeleton", aspect: "9:16" },
-    "Science Shorts": { style: "Realistic", aspect: "9:16" },
     "Motivational": { style: "Cartoon", aspect: "16:9" }
 };
 
