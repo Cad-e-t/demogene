@@ -78,7 +78,7 @@ export interface ContentStory {
 }
 
 export const IMAGE_STYLES = [
-    "Realistic", "Anime",  'Creepy', 'Cartoon', "Sketch", "Game3D", "Stickman", "Skeleton", "Claymation", "Documentary", "Exaggerated2D", "Ukiyo-e"
+    "Realistic", "Anime",  'Creepy', 'Cartoon', "Sketch", "Game3D", "Stickman", "Skeleton", "Claymation", "Lego", "Documentary", "Exaggerated2D", "Ukiyo-e"
 ];
 
 export const EFFECT_PRESETS = [
@@ -133,5 +133,11 @@ export const VOICE_PACES = [
 
 export const VOICE_ACCENTS = [
     { id: 'american', name: 'American (Gen)', prompt: 'American (Gen)' },
-    { id: 'british', name: 'British', prompt: 'British' }
+    { id: 'british', name: 'British', prompt: 'British' },
+     { id: 'arabic', name: 'Arabic', prompt: 'Arabic' },
+    { id: 'indian', name: 'Indian', prompt: 'Indian' },
+    { id: 'irish', name: 'Irish', prompt: 'Irish' },
+    { id: 'nordic', name: 'Nordic', prompt: 'Nordic' },
+    { id: 'spanish', name: 'Spanish', prompt: 'Spanish' },
+     { id: 'italian', name: 'Italian', prompt: 'Italian' }
 ];
