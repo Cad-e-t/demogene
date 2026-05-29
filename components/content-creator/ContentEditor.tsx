@@ -123,11 +123,13 @@ export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectTyp
                     offsetY = progress * (ih - ih_visible / scale);
                     break;
                 case 'handheld_walk':
-                    scale = 1.1 + (progress * 0.2);
+                    const zoomProgress = Math.min(elapsed / 800, 1);
+                    const easeOut = 1 - Math.pow(1 - zoomProgress, 2); // quadratic ease out for a slightly more noticeable curve
+                    scale = 1.6 - (easeOut * 0.5); // Zooms out from 1.6 to 1.1
                     const globalFrame = (elapsed / 1000) * 30;
                     const driftFreq = 1 / 20;
-                    const driftX = (iw_visible / scale / 30) * Math.sin(globalFrame * driftFreq);
-                    const driftY = (ih_visible / scale / 40) * Math.cos(globalFrame * driftFreq);
+                    const driftX = (iw_visible / scale / 40) * Math.sin(globalFrame * driftFreq);
+                    const driftY = (ih_visible / scale / 50) * Math.cos(globalFrame * driftFreq);
                     offsetX = (iw - iw_visible / scale) / 2 + driftX;
                     offsetY = (ih - ih_visible / scale) / 2 + driftY;
                     break;
@@ -455,9 +457,17 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const handleAnimateAllClick = (model: 'fast' | 'ultra') => {
         const unAnimatedSegments = segments.filter((seg: any) => seg.image_url && !seg.image_url.toLowerCase().endsWith('.mp4'));
         if (unAnimatedSegments.length > 0) {
+            const costPerSec = model === 'ultra' ? 5 : 2;
+            const cost = unAnimatedSegments.reduce((acc: number, seg: any) => {
+                const idx = segments.findIndex((s: any) => s.id === seg.id);
+                const rawDur = segmentDurations[idx] || 4;
+                const finalDur = Math.max(2, Math.min(4, Math.ceil(rawDur)));
+                return acc + (finalDur * costPerSec);
+            }, 0);
+            
             setConfirmAnimateAll({
                 show: true,
-                cost: unAnimatedSegments.length * (model === 'ultra' ? 20 : 8),
+                cost: cost,
                 count: unAnimatedSegments.length,
                 model
             });
@@ -509,7 +519,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         if (Array.isArray(parsedEffect)) return parsedEffect;
         
         // Migration: If it's a string, convert to sequence
-        const baseSequence = EFFECT_SEQUENCES[parsedEffect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos'];
+        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'documentary' : 'cinematic';
+        const baseSequence = EFFECT_SEQUENCES[parsedEffect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey];
         // Expand to match segments if possible
         if (initialSegments?.length) {
             const expanded = [];
@@ -540,7 +551,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         }
 
         if (typeof parsedEffect === 'string' && Object.keys(EFFECT_SEQUENCES).includes(parsedEffect)) {
-            const baseSequence = EFFECT_SEQUENCES[parsedEffect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos'];
+            const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'documentary' : 'cinematic';
+            const baseSequence = EFFECT_SEQUENCES[parsedEffect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey];
             const expanded = [];
             const targetLength = segments?.length || 5;
             for (let i = 0; i < targetLength; i++) {
@@ -783,7 +795,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const handleEffectChange = async (newEffect: any) => {
-        const baseSequence = EFFECT_SEQUENCES[newEffect.id as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos'];
+        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'documentary' : 'cinematic';
+        const baseSequence = EFFECT_SEQUENCES[newEffect.id as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey];
         const expanded = [];
         for (let i = 0; i < segments.length; i++) {
             expanded.push(baseSequence[i % baseSequence.length]);
@@ -793,7 +806,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const handleSegmentEffectChange = async (segmentIndex: number, effectType: string) => {
-        const currentEffect = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos']);
+        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'documentary' : 'cinematic';
+        const currentEffect = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey]);
         const newSequence = [...currentEffect];
         
         // Ensure sequence is long enough to cover all segments
@@ -1262,7 +1276,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         <p className="text-zinc-400 text-sm mb-6">
                             This will animate all your remaining static images into videos using the {confirmAnimateAll.model === 'ultra' ? 'Ultra (Grok)' : 'Fast (Prunai)'} model. 
                             This action will cost <strong className="text-yellow-500">{confirmAnimateAll.cost} credits</strong> 
-                            ({confirmAnimateAll.count} &times; {confirmAnimateAll.model === 'ultra' ? 20 : 8} credits).
+                            &nbsp;for {confirmAnimateAll.count} segments based on their duration.
                         </p>
                         <div className="flex gap-3">
                             <button 
@@ -1677,7 +1691,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 {EFFECT_TYPES.map((eff) => {
                                                     const idx = segments.findIndex((s: any) => s.id === animatingSegmentId);
-                                                    const currentEffectArray = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES['chaos']);
+                                                    const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'documentary' : 'cinematic';
+                                                    const currentEffectArray = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey]);
                                                     const isCurrent = currentEffectArray[idx % currentEffectArray.length] === eff.id;
 
                                                     return (

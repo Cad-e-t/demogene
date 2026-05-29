@@ -38,10 +38,7 @@ export const EFFECT_TYPES = [
 
 export const EFFECT_SEQUENCES = {
     'none': ['none'],
-    'zoom_pulse': ['zoom_in', 'zoom_out'],
-    'slide_flow': ['slide_down', 'slide_right', 'slide_up', 'slide_left', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
     'cinematic': ['slow_zoom_in'],
-    'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'slide_up'],
     'handheld_walk': ['handheld_walk'],
     'documentary': ['doc_push', 'cinematic_drift', 'none', 'doc_push'],
     'immersive': ['organic_float', 'dolly_reveal', 'organic_float'],
@@ -399,12 +396,12 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             }
 
             // Effect Logic matching video-assembler.js
-            const effectPreset = (effect?.id || 'zoom_pulse') as keyof typeof EFFECT_SEQUENCES;
+            const effectPreset = (effect?.id || 'cinematic') as keyof typeof EFFECT_SEQUENCES;
             let effectType;
             if (Array.isArray(effect)) {
                 effectType = effect[currentSegmentIndex % effect.length];
             } else {
-                const sequence = EFFECT_SEQUENCES[effectPreset] || EFFECT_SEQUENCES['zoom_pulse'];
+                const sequence = EFFECT_SEQUENCES[effectPreset] || EFFECT_SEQUENCES['cinematic'];
                 effectType = sequence[currentSegmentIndex % sequence.length];
             }
 
@@ -483,13 +480,13 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                     offsetY = progress * (ih - ih_visible / scale);
                     break;
                 case 'handheld_walk':
-                    scale = 1.1 + (progress * 0.2);
-                    // Smooth, continuous circular drift (elliptical path)
-                    // We use drawTime (global video time) to ensure the motion is seamless across segments
+                    const zoomProgress = Math.min(segmentTime / 0.8, 1);
+                    const easeOut = 1 - Math.pow(1 - zoomProgress, 2);
+                    scale = 1.6 - (easeOut * 0.5);
                     const globalFrame = drawTime * 30;
                     const driftFreq = 1 / 20; // Approx 4.2s period
-                    const driftX = (iw_visible / scale / 30) * Math.sin(globalFrame * driftFreq);
-                    const driftY = (ih_visible / scale / 40) * Math.cos(globalFrame * driftFreq);
+                    const driftX = (iw_visible / scale / 40) * Math.sin(globalFrame * driftFreq);
+                    const driftY = (ih_visible / scale / 50) * Math.cos(globalFrame * driftFreq);
                     
                     offsetX = (iw - iw_visible / scale) / 2 + driftX;
                     offsetY = (ih - ih_visible / scale) / 2 + driftY;

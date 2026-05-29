@@ -3,7 +3,9 @@ import { GoogleGenAI, Modality } from "@google/genai";
 
 
 const MODEL_NAME = "gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
-const IMAGE_MODEL = "gemini-2.5-flash-image"; // Nano Banana for images (Ultra quality per mapping)
+const SEGMENTATION_MODEL_NAME = "gemini-3.5-flash"; // Using flash for segmentation
+const GENERATE_IMAGE_MODEL = "imagen-4.0-generate-001"
+const EDIT_IMAGE_MODEL = "gemini-2.5-flash-image"; //
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const VIDEO_MODEL = "veo-3.1-lite-generate-preview";
 
@@ -18,6 +20,7 @@ const STYLE_OPENINGS = {
     'Documentary': 'Black and white photojournalistic shot',
     'Ukiyo-e': 'Japanese woodblock print',
     'Claymation': 'Stop-motion clay scene',
+    'Lego':'LEGO style scene',
     'Cartoon': 'Semi-realistic stylized cartoon render',
     'Skeleton': 'Cinematic photo-realistic scene',
     'Game3D': 'Real-time 3D game cinematic render'
@@ -30,132 +33,205 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
 
     const opening = STYLE_OPENINGS[style] || `A ${style} style image of`;
 
+    let segmentationSystemPrompt = "";
+
+    if (aspect === '16:9') {
+        segmentationSystemPrompt = `You are an expert documentary script segmentation model. Your task is to divide a long-form narration script into coherent story-beat segments for scene visualization.
+A segment should represent one continuous idea, moment, action, revelation, emotional shift, or visual beat.
+SEGMENTATION RULES:
+Segment by story beats, not by sentence count.
+Create a new segment when the narration shifts to:
+a new idea
+a new subject or focus
+a major emotional or tonal change
+Favor shorter, punchier segments over long blocks when possible.
+Very short transitional sentences should usually be merged with the most related adjacent sentence.
+Each segment should feel visually representable as a single continuous scene or sequence.
+OUTPUT FORMAT:
+Return ONLY raw JSON.
+[
+{
+"segment_id": "1",
+"narration": "Exact narration text for this segment."
+}
+]
+
+INPUT SCRIPT:
+${prompt}`;
+    } else {
+        segmentationSystemPrompt = `
+   Act as an expert Storyboard Artist for a documentary-style YouTube channel. I need you to segment my script into scenes for a faceless video.
+
+   CRITICAL SEGMENTING RULES:
+   
+   The 'Camera Cut' Rule (When to split): Create a new scene ONLY when the script introduces a new subject, a new location, a new idea, a new moment, or a shift in emotion/action.
+   Output strictly as a JSON array of objects. No markdown explanation.
+
+[
+   {
+"segment_id": "1",
+"narration": "The exact script segment being visualized."
+   }
+]
+
+INPUT SCRIPT:
+${prompt}`;
+    }
+
+
+    console.log("--- GEMINI INPUT (Segmentation Step) ---");
+    console.log(segmentationSystemPrompt);
+    console.log("-------------------------------------------");
+
+    const segmentationResponse = await ai.models.generateContent({
+        model: SEGMENTATION_MODEL_NAME,
+        contents: segmentationSystemPrompt,
+        config: {
+            responseMimeType: "application/json"
+        }
+    });
+
+    console.log("--- GEMINI RESPONSE (Segmentation Step) ---");
+    console.log(segmentationResponse.text);
+    console.log("----------------------------------------------");
+
+    let baseSegments;
+    try {
+        baseSegments = JSON.parse(segmentationResponse.text);
+    } catch (e) {
+        console.error("Failed to parse Gemini segmentation response", segmentationResponse.text);
+        throw new Error("AI Generation failed to produce valid JSON for segmentation");
+    }
+
+    const segmentedScript = JSON.stringify(baseSegments, null, 2);
+
     const predefinedVisualIdentityBlocks = {
         'Game3D': 'Every image is a clean 3D simulation render with strong central framing and isolated subject focus. Characters are depicted with smooth, slightly plastic textures and subsurface scattering. Scene is rendered with bright studio lighting, crisp depth of field, Blender Cycles shading to achieve a striking, slightly uncanny visual style.',
         'Creepy': `Every image is a dark 2D cartoon horror scene with bold lines, exaggerated characters with large unsettling eyes (wide whites and dot pupils), muted night-time colors, simple distorted environments, and dim high-contrast lighting that creates an eerie, haunted tone.`,
         'Realistic': `Every image is a highly photorealistic depiction of the scene. Natural lighting only with soft shadows. Real-world textures, colors, and materials.`,
-        'Stickman': `Every image is flat 2D cartoon depiction using clean shapes and minimal detail. Characters are classic stick figures with simple lines for limbs and body, a circle for the head, no fill or color. They retain distinct permanent features (e.g., hair-style and eyes). Everything in the environment are colored, except the characters.`,
-        'Anime': `Every image is a 2D anime-style depiction with clean, consistent line art. Colors are applied as flat or softly shaded fills with a consistent palette. Characters, objects, and environments are rendered in a cohesive anime style across all scenes. No photorealism.`,
-        'Sketch': `Every image is a hand-drawn pencil sketch depiction. All characters, objects, and environments are drawn using visible pencil lines and light sketch strokes. Lines vary slightly in thickness with a natural hand-drawn feel. Minimal use of soft grayscale shading. No color, no digital clean lines, no solid fills or rendering.`,
+        'Stickman': `Every image is flat 2D cartoon depiction using clean shapes and minimal detail. Characters are 2D stick figures with thin single black lines for limbs and body, and a circular face. They retain distinct permanent features (e.g., hair-style, eyes, facial hair). The environment is 2D with natural coloring.`,
+        'Anime': `Every image is a 2D anime-style depiction with clean, consistent line art. Colors are applied as flat or softly shaded fills with a consistent palette. Characters, objects, and environments are rendered in a cohesive anime style across all scenes.`,
+        'Sketch': `Every image is a hand-drawn pencil sketch depiction. All characters, objects, and environments are drawn using visible pencil lines and light sketch strokes. Lines vary slightly in thickness with a natural hand-drawn feel. Minimal use of soft grayscale shading. No color, no solid fills or rendering.`,
         'Documentary': `Every image is a black and white or heavily desaturated photojournalistic shot. No color — only stark greys, deep blacks, and blown highlights. Compositions are candid and unposed with visible grain, harsh natural lighting, and slight motion blur. Gritty and immediate, never polished or staged.`,
-        'Exaggerated2D': `Every image is a highly exaggerated 2D cartoon depiction with bold outlines and dynamic shapes. Characters use extreme squash and stretch, oversized facial features and amplified expressions,. Colors are vibrant and high-contrast with simple shading. Environments are slightly distorted to match the character energy. No realism`,
-        'Ukiyo-e': `Every image is a traditional Japanese woodblock print. Bold outlines, flat color fills, and zero shading define the look. Compositions feature stylized natural motifs — waves, clouds, foliage — with a decorative, hand-carved flatness. No depth, no photorealism.`,
+        'Exaggerated2D': `Every image is a highly exaggerated 2D cartoon depiction with bold outlines and dynamic shapes. Characters use extreme squash and stretch, oversized facial features and amplified expressions,. Colors are vibrant and high-contrast with simple shading. Environments are slightly distorted to match the character energy.`,
+        'Ukiyo-e': `Every image is a traditional Japanese woodblock print. Bold outlines, flat color fills, and zero shading define the look. Compositions feature stylized natural motifs — waves, clouds, foliage — with a decorative, hand-carved flatness.`,
         'Claymation': `Every image is a stop-motion clay scene. All subjects appear hand-sculpted — rounded, chunky, and visibly textured with soft imperfections. Surfaces are matte, lighting warm and studio-cast. Nothing is digitally smooth or sharp-edged.`,
         'Cartoon': `Every image is a semi-realistic cartoon depiction blending stylized characters with believable proportions and detail. Characters maintain realistic anatomy with slightly exaggerated features for expression. Lighting is soft and cinematic with gentle shading and depth. Colors are rich and cohesive with subtle gradients. Materials and environments have mild texture but remain stylized, not photorealistic. Composition and framing are more grounded and cinematic. Expressions are controlled rather than extreme. No full realism.`,
-        'Skeleton': `Every image is a cinematic, photo-realistic environment with natural lighting. The main subject(s) are stylized skeleton characters — typically one, but when a scene compares or contrasts two distinct individuals, both are rendered as skeletons. Each skeleton is pristine: smooth off-white bones, rounded edges, an articulated jaw, and a proportionate skull with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. All other characters and settings are completely photo-realistic.`
+        'Skeleton': `Every image is a cinematic, photo-realistic environment with natural lighting. The main subject(s) are stylized skeleton characters — typically one, but when a scene compares or contrasts two distinct individuals, both are rendered as skeletons. Each skeleton is pristine: smooth off-white bones, rounded edges, an articulated jaw, and a proportionate skull with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. All other characters and settings are completely photo-realistic.`,
+        'Lego': `Every image is a LEGO scene. All subjects are constructed from interlocking plastic bricks — blocky, rigid, and featuring visible studs and seams. Their wardrobe is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. Surfaces are glossy, lighting bright and studio-cast with miniature depth-of-field.`
     };
 
     const visualIdentityBlock = predefinedVisualIdentityBlocks[style] ;
 
     const systemPrompt = `
-You are an expert film director, cinematographer, and prompt engineer.
+You are an elite Virtual Animation Director. 
 
-Your task is to analyze a user's script, construct a coherent visual narrative, split the script into meaningful visual segments, and generate precise pairs of prompts for an Image-to-Video pipeline: an \`image_prompt\` (the first frame) and an \`animation_prompt\` (the motion).
+Your task is to:
+1. Analyze the user's segmented script.
+2. Treat each segment as an unbroken camera shot to visualize.
+3. Translate into precise Image and Animation Prompts for a generative AI video pipeline.
+4. Output the results strictly in the following JSON format. Return ONLY raw JSON with no markdown formatting, preamble, or explanations.
 
-INPUT SCRIPT: 
-${prompt}
+{
+  "main_subjects": {
+    "CHAR1": {
+      "base": "Immutable physical traits (e.g., facial structure, body shape, distinct features). Do not include clothing here.",
+      "outfits": {
+        "O1": "Detailed physical description of the first/primary outfit.",
+        "O2": "Detailed description of a second outfit. Only generate subsequent outfits if the script requires a change. Leave empty for subjects that do not require clothes."
+      }
+    }
+  },
+  "segments": [
+    {
+      "segment_id": "The exact ID provided in the segmented script (e.g., 1).",
+      "image_prompt": "A highly detailed, comma-separated paragraph describing the initial first frame of the scene. Follow all IMAGE PROMPT RULES strictly.",
+      "animation_prompt": "Animation of the image prompt scene, with complete subject(s) actions, camera movements, and appropriate sound effects.",
+      "subjects": [
+        {
+          "id": "ID of the main subject present in this segment (e.g., 'CHAR1')",
+          "outfit": "ID of the outfit worn by the subject in this segment (e.g., 'O1')"
+        }
+      ]
+    }
+  ]
+}
+
+SEGMENTED SCRIPT:
+${segmentedScript}
+
+VISUAL IDENTITY:
+${visualIdentityBlock}
 
 =========================================
-PHASE 1: SCRIPT PROCESSING & SEGMENTATION
-=========================================
-
-1. SCRIPT HANDLING
-- Use the user's text EXACTLY as provided.
-- You may ONLY fix obvious spelling or punctuation errors.
-- Optimize the script for natural narration flow.
-
-2. SEGMENTATION LOGIC
-Segment the script based on clear visual changes:
-- First, create a segment for the hook (usually the first sentence).
-- Then, create a new segment ONLY when the visual should change in a noticeable and meaningful way, including:
-  * A new action or event
-  * A new subject or focal point
-  * A change in environment or setting
-  * A visible cause → effect transformation
-
-3. PACING & EXPLANATORY LINES
-- Concept Shifts: If a line introduces a new idea that requires a different visual → create a new segment.
-- Brief Explanations: If a line briefly explains or clarifies the current idea → keep it in the same segment.
-- Long Explanations (Angle & B-Roll Shifts): If an explanation or extension spans multiple sentences, holding a single shot becomes boring. To maintain viewer engagement without breaking continuity, create a new segment by changing the camera perspective. Cut to a close-up, a different angle, or focus on a specific detail (B-roll) within the EXACT SAME environment and subject. Do not invent irrelevant concepts.  * 
-
-
-=========================================
-PHASE 2: WORLD-BUILDING & CONSISTENCY
+CORE PRINCIPLES
 =========================================
 
 1. VISUAL IDENTITY LOCK
-Every image generated must adhere to this visual style:
-${visualIdentityBlock}
 
-2. ENVIRONMENT & SCENE CONTINUITY (Backgrounds & Locations)
-The image model must never be left to hallucinate backgrounds. You must explicitly define the environment (surroundings, location or background) based on the context of the script.
-- Continuity: If consecutive segments take place in the same location, maintain the exact same environment description and lighting so cuts feel natural and sequential.
-- Transitions: Only change the environment description when the narrative dictates a shift to a new location.
-- Atmosphere: The environment's tone, lighting, and general visual style must perfectly reflect the constraints of the VISUAL IDENTITY LOCK.
+The VISUAL IDENTITY dictates visual style, character design, and rendering rules. Follow instructions precisely, and apply all relevant characteristics and styles to the description of subjects, characters, and environment within every Image Prompts. 
 
-3. ANCHOR SYSTEM (Subject Consistency)
-Before generating prompts, define 1–3 VISUAL ANCHORS — recurring visual elements that persist across scenes (e.g., a specific character, object, or structure). 
-- Base Description: Each anchor must have a canonical base description focused on: shape, structural form, and distinctive visual features.
-- Anchor Lifecycle: Anchors should persist across scenes where they remain relevant. If the scene introduces a wholly new subject, concept, or setting → old anchors may be dropped, and new anchors can be defined.
+2. IMAGE PROMPT RULES
 
-4. THE "ZERO-MEMORY" RULE & ADAPTIVE ANCHOR USAGE
-CRITICAL: The downstream image generation model has ZERO MEMORY. It does not know what was described in previous prompts. Every single image prompt must be 100% self-contained. 
-Never use vague pointers or shorthand (e.g., "The stylized skeleton", "The magic book", or "The aforementioned plane"). Leave zero room for hallucination.
+- Independence: Treat every prompt as an independent image prompt. Aside from main subjects, you must repeat the full description of other characters, objects and environments every time they appear. (e.g., IMAGE_PROMPT1: CHAR1 resting on a black, heavy metal, throne. IMAGE_PROMPT2: CHAR1 stands beside a black, heavy, metal throne.)
+- Banned Words: Use of the word "The" (and "the") in the image prompt is prohibited. 
+- Format: A detailed, comma-separated paragraph aligning with the VISUAL IDENTITY.
+- Still State: Depict a still state (resting, anticipation, or exact start of action) with ZERO baked-in motion (no motion blur, no speed lines).
+- Subject Handling: Reference main subjects strictly by ID not descriptions (e.g., 'CHAR1 sitting in a..').
+- Environment: Fully describe location, materials, and lighting for every single shot.
+- Composition: Clearly specify camera framing and perspective.
+- Labels: Artificial text, words, or labels inside the image is prohibited.
 
-How to describe anchors based on what the scene naturally requires:
-- Entirely Visible: If the narrative requires the anchor to appear completely in the scene, you MUST reuse its canonical base description VERBATIM in the prompt.
-- Partially Visible / Interiors: If the narrative only involves a specific part or the inside of an anchor, DO NOT force the full description. Instead, take only the relevant descriptive traits and vividly describe EXACTLY what is visible in full detail. (e.g., Instead of just saying "Inside the white plane," explicitly describe the actual visible elements: "Inside a sleek cockpit with glowing digital panels, silver trim, and leather seats.")
+3. ANIMATION PROMPT RULES
 
-*Note: Do not artificially force wide shots or close-ups just to obey this rule. Let the script's narrative naturally dictate how much of the anchor is shown.*
+- Progression: The animation must naturally animate the exact starting state established in the Image Prompt.
+- Motion: Keep it simple. One main subject + one primary action + one camera move.
+- Subject Referencing: Never use IDs in the animation prompt. Identify subjects strictly by their recognizable visual traits so the video model can accurately target and animate them within the frame.
+- Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan left, push in, orbit, tracking shot, static).
+- Audio & SFX: Include appropriate sound effects at the end (e.g., 'Audio: heavy footsteps', 'Audio: distant thunder') or ambient terms for silence.
+- No Dialogue: Never prompt for characters speaking or dialogue.
 
+3. WORLD BUILDING & SUBJECT HANDLING: 
+
+Define the persistent reality and reoccurring anchors before generating prompts:
+
+- Cast (Modular Canonical Anchors): Define main subjects based on the script by establishing their Immutable Base and Outfit Selection in the 'main_subjects' object.
+- Tracking Subjects: In the 'segments' field, list every main subject actively appearing in that segment under the 'subjects' array, paired with their chosen outfit ID for that scene (defaulting to O1 unless a change or no outfit is required).
+- Environment: Define Macro and Micro physical locations with concrete physical descriptions (materials, colors, architecture).
+
+4. SCENE CONCEPTUALIZATION:
+
+- Single Intent Framing - Each scene defines a clear primary visual intention, with additional subjects included when they contribute to the same unified action, event, or environmental transformation.
+- Continuous Action: Connect scenes using camera logic (e.g., pull out from a macro shot to reveal a wide environment).
+- Internal Reveal: When generating prompts for how a process or object works. Show the internal mechanics by framing shot from directly inside the object.
+- When a scene involves multiple agents, represent them as a visible group with distributed individuals or crowd mass showing collective movement and correct scale.
+
+5. HANDLING ABSTRACT EXPLANATION: 
+
+Visualize abstract concepts through characters or subject(s) behavior, environmental changes, or directly visible consequences of actions, ensuring every meaning is conveyed through concrete, camera-capturable behavior within the scene’s established reality.
+
+6. SAFETY
+
+Never depict:
+- explicit sexual activity
+- graphic nudity
+- sexualized minors
+- exploitative content
+
+If needed, use:
+- implication
+- aftermath
+- reaction shots
+- environmental storytelling
+
+Preserve narrative meaning without graphic depiction.
 
 =========================================
-PHASE 3: DIRECTOR MODE (PROMPT GENERATION)
+FINAL OUTPUT RULE
 =========================================
-
-Think like a Cinematographer. You are creating two halves of a whole for each segment. 
-- Synergy Guideline: Do NOT pack the entire action of the narration into the static image. Let the animation prompt handle the movement, transformation, and culmination of the action.
-
-1. THE IMAGE PROMPT (The First Frame)
-
-The image should show a state of anticipation, resting, or the beginning of an action.
-- Rule 1: Start every prompt with exactly this opening: "${opening}"
-- Rule 2: ZERO-MEMORY ENFORCEMENT: Treat every prompt as an independent image. Describe subjects, anchors, and environments fully every time. Self-Check: If a human artist without story context couldn't paint the exact scene from this text alone, the prompt is WRONG.
-- Rule 3: Describe ONE clear focal subject and its starting position/pose.
-- Rule 4: (Ref: Phase 2.4): Treat every prompt as an independent, self-contained universe. No shorthand. Use VERBATIM anchor descriptions when fully visible. Vividly describe specific visible details for partial/interior views.
-- Rule 5: (Ref: Phase 2.2): Explicitly include the full environment description in every single prompt to maintain scene continuity and prevent hallucination.
-- Rule 6: Ensure all descriptive elements reflect the Visual Identity Lock.
-- Rule 7: NO baked-in motion. Do not describe motion blur, speed lines, or mid-air frozen actions. Keep subjects physically grounded and ready to move.
-- Rule 8: No text, words, or labels inside the image.
-
-2. THE ANIMATION PROMPT (The Motion)
-- Rule 1: Describe exactly how the elements in the image should move.
-- Rule 2: Keep it brief and focused on three things: Subject Motion, Camera Motion, and Sound.
-- Rule 3: Example formats: "Subject walks slowly towards the camera. Camera slowly pushes in. Audio: Deep atmospheric silence." OR "The wind blows the trees. Camera pans right. Audio: wind rustling through trees"
-- Rule 4: AUDIO CONTROL: Never prompt for dialogue or speaking. Add appropriate natural sound effects (e.g., "Audio: wind howling, heavy footsteps") where the scene naturally requires it. For scenes requiring no audio, explicitly describe the silence using ambient terms like muted atmosphere, dead silence, rather than negative prompts (e.g., "Audio: Frozen atmospheric silence").
-- Rule 5: Maximum 2 to 3 short sentences.
-
-3. CONTENT SAFETY
-
-If a segment includes explicit sexual activity, graphic nudity, or minors in sexual or sexually exploitative contexts, NEVER depict it literally.
-If present, cut past the moment and continue with a safe follow-up scene without implying details or use cinematic implication (reactions, shadows, environments, aftermath) to represent the sensitive scene safely .
-Always preserve meaning while keeping visuals non-graphic and non-exploitative.
-
-
-=========================================
-PHASE 4: OUTPUT FORMAT
-=========================================
-
-Return ONLY a raw JSON array. No markdown, no preamble, no explanation.
-
-[
-  { 
-    "narration": "...", 
-    "image_prompt": "...",
-    "animation_prompt": "..."
-  }
-]
+Return ONLY a raw, valid JSON object matching the exact structure provided in Task 4. No markdown, no preamble, no explanation.
 `;
+
 
     console.log("--- GEMINI INPUT (generateStorySegments) ---");
     console.log(systemPrompt);
@@ -174,15 +250,63 @@ Return ONLY a raw JSON array. No markdown, no preamble, no explanation.
     console.log(response.text);
     console.log("----------------------------------------------");
 
+    let visualData;
     try {
-        return {
-            segments: JSON.parse(response.text),
-            usageMetadata: response.usageMetadata
-        };
+        visualData = JSON.parse(response.text);
     } catch (e) {
         console.error("Failed to parse Gemini response", response.text);
         throw new Error("AI Generation failed to produce valid JSON");
     }
+
+    const finalSegments = [];
+    const mainSubjects = visualData.main_subjects || {};
+
+    for (const seg of (visualData.segments || [])) {
+        const matchingBaseSeg = baseSegments.find(s => String(s.segment_id) === String(seg.segment_id));
+        const narration = matchingBaseSeg ? matchingBaseSeg.narration : "";
+
+        let fullSubjectsDescription = "";
+        if (seg.subjects && Array.isArray(seg.subjects)) {
+            for (const sub of seg.subjects) {
+                const mainSub = mainSubjects[sub.id];
+                if (mainSub) {
+                    const baseDesc = mainSub.base || "";
+                    const outfitDesc = (mainSub.outfits && sub.outfit) ? (mainSub.outfits[sub.outfit] || "") : "";
+                    fullSubjectsDescription += `${sub.id}: "${baseDesc} wearing ${outfitDesc}".\n`;
+                }
+            }
+        }
+
+        let finalImagePrompt = seg.image_prompt || "";
+        if (fullSubjectsDescription) {
+            finalImagePrompt = `${fullSubjectsDescription}\n${seg.image_prompt}`;
+        }
+
+        finalSegments.push({
+            narration: narration,
+            image_prompt: finalImagePrompt,
+            animation_prompt: seg.animation_prompt || ""
+        });
+    }
+
+    const inputTokens1 = segmentationResponse.usageMetadata?.promptTokenCount || 0;
+    const outputTokens1 = segmentationResponse.usageMetadata?.candidatesTokenCount || 0;
+    const inputTokens2 = response.usageMetadata?.promptTokenCount || 0;
+    const outputTokens2 = response.usageMetadata?.candidatesTokenCount || 0;
+
+    return {
+        segments: finalSegments,
+        usageMetadata: {
+            flashUsage: {
+                promptTokenCount: inputTokens1,
+                candidatesTokenCount: outputTokens1
+            },
+            proUsage: {
+                promptTokenCount: inputTokens2,
+                candidatesTokenCount: outputTokens2
+            }
+        }
+    };
 }
 
 export async function generateImage(prompt, aspect) {
@@ -196,21 +320,19 @@ export async function generateImage(prompt, aspect) {
     
     const ar = aspect === '9:16' ? '9:16' : '16:9';
 
-    // Nano Banana (Gemini Image) Flow
-    const response = await ai.models.generateContent({
-        model: IMAGE_MODEL,
-        contents: { parts: [{ text: prompt }] },
+    // Imagen Flow
+    const response = await ai.models.generateImages({
+        model: GENERATE_IMAGE_MODEL,
+        prompt: prompt,
         config: {
-            imageConfig: {
-                aspectRatio: ar
-            }
+            numberOfImages: 1,
+            outputMimeType: 'image/jpeg',
+            aspectRatio: ar
         }
     });
 
-    for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-            return part.inlineData.data;
-        }
+    if (response.generatedImages && response.generatedImages.length > 0) {
+        return response.generatedImages[0].image.imageBytes;
     }
 
     throw new Error("No image data generated");
@@ -221,7 +343,7 @@ export async function editImage(originalImageBase64, editPrompt) {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const response = await ai.models.generateContent({
-        model: IMAGE_MODEL, // Always use gemini-2.5-flash-image for editing
+        model: EDIT_IMAGE_MODEL, // Always use gemini-2.5-flash-image for editing
         contents: {
             parts: [
                 { inlineData: { mimeType: 'image/png', data: originalImageBase64 } },
@@ -337,3 +459,4 @@ export async function generateGeminiVideo(imageUrl, animationPrompt, aspectRatio
     
     return await videoResponse.arrayBuffer();
 }
+

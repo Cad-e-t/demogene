@@ -102,7 +102,7 @@ export const deleteVideo = async (req, res) => {
 
 export const exportDemoVideo = async (req, res) => {
     try {
-        const { projectId, userId, motionGraphicsEnabled } = req.body;
+        const { projectId, userId, motionGraphicsEnabled, exportQuality } = req.body;
         if (!userId || !projectId) {
             return res.status(400).json({ error: 'Missing userId or projectId' });
         }
@@ -126,7 +126,7 @@ export const exportDemoVideo = async (req, res) => {
         res.status(202).json({ message: 'Export started' });
 
         // 4. Run background export
-        runDemoExport({ projectId, userId, motionGraphicsEnabled });
+        runDemoExport({ projectId, userId, motionGraphicsEnabled, exportQuality });
 
     } catch (error) {
         console.error("Export Error:", error);
@@ -229,6 +229,55 @@ export const processVideo = async (req, res) => {
     console.error("Server Error:", error);
     res.status(500).json({ error: error.message });
   }
+};
+
+export const saveHookAsset = async (req, res) => {
+    try {
+        const { userId, url, type } = req.body;
+        if (!userId || !url) return res.status(400).json({ error: 'Missing userId or url' });
+        
+        const { error } = await supabase.from('hook_assets').insert({
+            user_id: userId,
+            url: url,
+            type: type || 'media',
+            created_at: new Date().toISOString()
+        });
+
+        if (error) {
+            console.error("Failed to insert hook asset to table:", error);
+            // Don't fail the upload just because table doesn't exist yet
+            return res.json({ success: false, note: "Asset uploaded but could not be saved to history" });
+        }
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Save hook asset error:", err);
+        res.status(500).json({ error: "Failed to save hook asset" });
+    }
+};
+
+export const getHookAssets = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        if (!userId) return res.status(400).json({ error: 'Missing userId' });
+        
+        const { data, error } = await supabase.from('hook_assets')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            if (error.code === '42P01') { // relation does not exist
+                return res.json([]);
+            }
+            throw error;
+        }
+        
+        res.json(data || []);
+    } catch (err) {
+        console.error("Get hook assets error:", err);
+        res.status(500).json({ error: "Failed to get hook assets" });
+    }
 };
 
 export const generateHookUploadUrl = async (req, res) => {

@@ -44,7 +44,7 @@ async function stripAudio(buffer) {
 export const VIDEO_MODEL_FAST = "prunaai/p-video";
 export const VIDEO_MODEL_ULTRA = "xai/grok-imagine-video";
 
-export async function generateVideo(imageUrl, animationPrompt, modelType = 'fast', aspectRatio = "16:9") {
+export async function generateVideo(imageUrl, animationPrompt, modelType = 'fast', aspectRatio = "16:9", duration = 4) {
   const model = modelType === 'ultra' ? VIDEO_MODEL_ULTRA : VIDEO_MODEL_FAST;
   console.log(`[Replicate] Generating video with ${model}...`);
   
@@ -54,14 +54,14 @@ export async function generateVideo(imageUrl, animationPrompt, modelType = 'fast
       prompt: animationPrompt || 'Cinematic, high quality, realistic',
       aspect_ratio: aspectRatio,
       image: imageUrl,
-      duration: 4
+      duration: duration
     };
   } else {
     input = {
       image: imageUrl,
       prompt: animationPrompt || 'Cinematic, high quality, realistic',
       prompt_upsampling: false,
-      duration: 4
+      duration: duration
     };
   }
 

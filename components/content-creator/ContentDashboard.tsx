@@ -42,13 +42,10 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     const [style, setStyle] = useState(IMAGE_STYLES[0]);
     const [voice, setVoice] = useState(VOICES[0]); // Default to Charon (now first)
     const [narrationStyle, setNarrationStyle] = useState<VoiceStyleConfig>({ style: defaultVoiceStylePrompt, pace: VOICE_PACES.find(p => p.name === 'Fast')?.prompt || VOICE_PACES[1].prompt, accent: VOICE_ACCENTS[0].prompt }); // Default voice style config
-    const [effect, setEffect] = useState(EFFECT_PRESETS[0]); // Default to Chaos Mode (now first)
+    const [effect, setEffect] = useState(EFFECT_PRESETS[0]); // Default to Cinematic Pan
 
     useEffect(() => {
-        if (aspect === '16:9' && effect.id === 'chaos') {
-            const docPreset = LONG_FORM_PRESETS.find(p => p.id === 'documentary');
-            if (docPreset) setEffect(docPreset);
-        } else if (aspect === '9:16' && (effect.id === 'documentary' || effect.id === 'immersive' || effect.id === 'storyteller' || effect.id === 'minimalist')) {
+        if (aspect === '9:16' && (effect.id === 'documentary' || effect.id === 'immersive' || effect.id === 'storyteller' || effect.id === 'minimalist')) {
             setEffect(EFFECT_PRESETS[0]);
         }
     }, [aspect]);
@@ -311,9 +308,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             
             // Ensure we use the correct default if user hasn't touched it
             let finalEffectId = effect.id;
-            if (aspect === '16:9' && finalEffectId === 'chaos') {
-                finalEffectId = 'documentary';
-            }
 
             const res = await generateSegments(prompt, aspect, style, finalEffectId, session.user.id, narrationStyle, subtitles, voice.id);
             console.log("[ContentDashboard] Text segments received:", res.segments.length);
@@ -335,6 +329,21 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             console.error("[ContentDashboard] Generation failed", e);
             setNotification({ message: e.message || "Generation failed", type: 'error' });
             setTimeout(() => setNotification(null), 5000);
+            
+            if (e.isPartial && e.projectId && e.segments) {
+                setProject({ 
+                    id: e.projectId, 
+                    title: prompt, 
+                    aspect_ratio: aspect, 
+                    voice_id: voice.id,
+                    effect: effect.id,
+                    image_style: style,
+                    narration_style: narrationStyle,
+                    subtitles: subtitles,
+                    status: 'draft'
+                });
+                setSegments(e.segments);
+            }
         } finally {
             setLoading(false);
         }

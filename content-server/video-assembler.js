@@ -102,9 +102,10 @@ function getFilterForEffect(effectType, width, height, frames, startFrame = 0, i
 
         case 'handheld_walk':
             const globalFrame = `(on+${startFrame})`;
-            const driftX = `(iw/zoom/30)*sin(${globalFrame}/20)`;
-            const driftY = `(ih/zoom/40)*cos(${globalFrame}/20)`;
-            return `zoompan=z='min(1.1+(on/${frames})*0.2,1.3)':x='iw/2-(iw/zoom/2)+${driftX}':y='ih/2-(ih/zoom/2)+${driftY}':d=${dParam}:s=${width}x${height}`;
+            const driftX = `(iw/zoom/40)*sin(${globalFrame}/20)`;
+            const driftY = `(ih/zoom/50)*cos(${globalFrame}/20)`;
+            const easeOutZoom = `(1-pow(1-min(on,24)/24,2))`;
+            return `zoompan=z='1.6-0.5*${easeOutZoom}':x='iw/2-(iw/zoom/2)+${driftX}':y='ih/2-(ih/zoom/2)+${driftY}':d=${dParam}:s=${width}x${height}`;
 
         case 'none':
             return `scale=${width}x${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`;
@@ -117,10 +118,7 @@ function getFilterForEffect(effectType, width, height, frames, startFrame = 0, i
 
 const EFFECT_SEQUENCES = {
     'none': ['none'],
-    'zoom_pulse': ['zoom_in', 'zoom_out'],
-    'slide_flow': ['slide_down', 'slide_right', 'slide_up', 'slide_left', 'slide_up_left', 'slide_up_right', 'slide_down_left', 'slide_down_right'],
     'cinematic': ['slow_zoom_in'],
-    'chaos': ['zoom_in', 'slide_left', 'zoom_out', 'slide_right', 'slide_up'],
     'handheld_walk': ['handheld_walk', 'slide_down', 'handheld_walk', 'zoom_out', 'handheld_walk' ],
     'documentary': ['doc_push', 'cinematic_drift', 'none', 'doc_push'],
     'immersive': ['organic_float', 'dolly_reveal', 'organic_float'],
@@ -158,8 +156,9 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         }
     }
     
-    // If it's not an array (legacy or missing), fallback to a simple zoom_in for all segments.
-    const sequence = Array.isArray(parsedEffect) ? parsedEffect : ['zoom_in'];
+    // If it's not an array (legacy or missing), fallback.
+    const defaultSequenceKey = aspectRatio === '16:9' ? 'documentary' : 'cinematic';
+    const sequence = Array.isArray(parsedEffect) ? parsedEffect : EFFECT_SEQUENCES[defaultSequenceKey];
 
     let currentStartFrame = 0;
     for (let i = 0; i < segments.length; i++) {

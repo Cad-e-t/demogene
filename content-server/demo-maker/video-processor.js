@@ -101,7 +101,7 @@ async function createRoundedMask(width, height, radius, outputPath) {
     ]);
 }
 
-async function prepareBackgroundVideo(inputVideo, outputVideo, analysis, workDir, backgroundId) {
+async function prepareBackgroundVideo(inputVideo, outputVideo, analysis, workDir, backgroundId, exportQuality = '1080p') {
     const { width: origW, height: origH } = getResolution(inputVideo);
     const videoDuration = getDuration(inputVideo);
     
@@ -132,8 +132,9 @@ async function prepareBackgroundVideo(inputVideo, outputVideo, analysis, workDir
     }
 
     console.log("--- Step: Preparing Video (With Background) ---");
-    const padding = 60;
-    const targetMaxDim = 1920;
+    const is480p = exportQuality === '480p';
+    const padding = is480p ? 30 : 60;
+    const targetMaxDim = is480p ? 854 : 1920;
     
     const scaleFactor = targetMaxDim / Math.max(origW, origH);
     const vidW = Math.floor((origW * scaleFactor) / 2) * 2;
@@ -264,7 +265,8 @@ export async function processVideoPipeline(
     analysis, 
     finalOutputPath,
     backgroundId,
-    shouldWatermark = false
+    shouldWatermark = false,
+    exportQuality = '1080p'
 ) {
     const workDir = path.join(os.tmpdir(), 'temp_' + uuidv4());
     if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
@@ -273,7 +275,7 @@ export async function processVideoPipeline(
     try {
         console.log("--- Pipeline Step 1: Background & Scaling ---");
         const intermediateStyled = path.join(workDir, 'styled_bg.mp4');
-        const transformParams = await prepareBackgroundVideo(inputVideoPath, intermediateStyled, analysis, workDir, backgroundId);
+        const transformParams = await prepareBackgroundVideo(inputVideoPath, intermediateStyled, analysis, workDir, backgroundId, exportQuality);
         
         console.log("--- Pipeline Step 2: Transforming Segment Data ---");
         const transformedSegments = transformSegmentData(analysis.segments, transformParams);

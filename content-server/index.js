@@ -17,7 +17,7 @@ import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
 import { AssemblyAI } from 'assemblyai';
 import numberToWords from 'number-to-words';
 
-import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics } from './demo-maker/controllers.js';
+import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics, saveHookAsset, getHookAssets } from './demo-maker/controllers.js';
 
 // --- Setup ---
 const app = express();
@@ -62,7 +62,9 @@ const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
 const COST_PER_THOUSAND_TOKENS = 1.2;
 const COST_PER_THOUSAND_INPUT_TOKENS = 0.2;
-const MAX_ANALYSIS_COST = 7;
+const FLASH_COST_THOUSAND_INPUT_TOKENS = 0.15;
+const FLASH_COST_THOUSAND_OUTPUT_TOKENS = 0.9;
+const MAX_ANALYSIS_COST = 20;
 const MIN_BALANCE = 4; // Minimum credits required to start
 const MAX_CONCURRENT_IMAGES = 2; // Max parallel image generations to avoid rate limits
 const MAX_CONCURRENT_VIDEOS = 3; // Max parallel video generations (batch size)
@@ -272,17 +274,19 @@ function getKeyFromUrl(url) {
 
 // --- Background Processors ---
 
-async function processAnimationsBackground(projectId, segments, aspectRatio, costPerVideo, userId, modelType = 'fast') {
-    let failedCount = 0;
+async function processAnimationsBackground(projectId, segments, aspectRatio, userId, modelType = 'fast') {
+    let failedCost = 0;
     
     for (let i = 0; i < segments.length; i += MAX_CONCURRENT_VIDEOS) {
         const batch = segments.slice(i, i + MAX_CONCURRENT_VIDEOS);
         console.log(`[ContentServer] Processing video batch ${Math.floor(i / MAX_CONCURRENT_VIDEOS) + 1} for project ${projectId} (Model: ${modelType})`);
         
         await Promise.all(batch.map(async (seg) => {
+            const finalDur = seg._duration || 4;
+            const cost = seg._cost || (finalDur * (modelType === 'ultra' ? 5 : 2));
             try {
                 // Generate video via Replicate
-                const videoBuffer = await generateVideo(seg.image_url, seg.animation_prompt, modelType, aspectRatio);
+                const videoBuffer = await generateVideo(seg.image_url, seg.animation_prompt, modelType, aspectRatio, finalDur);
 
                 // Upload to R2
                 const key = `content/videos/${seg.id}_${uuidv4()}.mp4`;
@@ -311,7 +315,7 @@ async function processAnimationsBackground(projectId, segments, aspectRatio, cos
                     .eq('id', seg.id);
             } catch (e) {
                 console.error(`[ContentServer] Video gen failed for segment ${seg.id}`, e);
-                failedCount++;
+                failedCost += cost;
             }
         }));
 
@@ -323,10 +327,9 @@ async function processAnimationsBackground(projectId, segments, aspectRatio, cos
     }
 
     // Refund for failed videos
-    if (failedCount > 0) {
-        const totalRefund = failedCount * costPerVideo;
-        console.log(`[ContentServer] Partial failure in video generation (${failedCount} failed). Refunding ${totalRefund}`);
-        await refundUser(userId, totalRefund, `Refund: Failed Batch Video Generation (${failedCount} videos)`);
+    if (failedCost > 0) {
+        console.log(`[ContentServer] Partial failure in video generation. Refunding ${failedCost}`);
+        await refundUser(userId, failedCost, `Refund: Failed Batch Video Generation`);
     }
 
     // Update project status to ready
@@ -583,6 +586,7 @@ async function processImagesBackground(projectId, segments, aspectRatio, costPer
 
 // 1. Generate Story Segments (Text First, Images Background)
 app.post('/generate-segments', async (req, res) => {
+    let createdProjectId = null;
     try {
         const { prompt, aspectRatio, style, effect, userId, narrationStyle, subtitles, voiceId } = req.body;
         console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with subtitles ${subtitles}`);
@@ -595,12 +599,13 @@ app.post('/generate-segments', async (req, res) => {
         }
 
         // 1. Create Project
+        const defaultEffect = aspectRatio === '16:9' ? 'documentary' : 'cinematic';
         const { data: project, error } = await supabase.from('content_projects').insert({
             user_id: userId,
             title: prompt.substring(0, 50),
             aspect_ratio: aspectRatio,
             image_style: style,
-            effect: effect || 'chaos',
+            effect: effect || defaultEffect,
             narration_style: narrationStyle, // Save style to DB
             subtitles: subtitles || 'none', // Save subtitles to DB
             voice_id: voiceId || 'Charon', // Save voice to DB
@@ -608,6 +613,7 @@ app.post('/generate-segments', async (req, res) => {
         }).select().single();
         
         if (error) throw error;
+        createdProjectId = project.id;
         console.log(`[ContentServer] Project created: ${project.id}`);
 
         // 2. Generate Text Segments
@@ -616,12 +622,16 @@ app.post('/generate-segments', async (req, res) => {
         console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
         // 3. Determine Cost & Charge
-        const outputTokens = usageMetadata?.candidatesTokenCount || 0;
-        const inputTokens = usageMetadata?.promptTokenCount || 0;
+        const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;
+        const flashOutputTokens = usageMetadata?.flashUsage?.candidatesTokenCount || 0;
         
-        const outputAnalysisCost = (outputTokens / 1000) * COST_PER_THOUSAND_TOKENS;
-        const inputAnalysisCost = (inputTokens / 1000) * COST_PER_THOUSAND_INPUT_TOKENS;
-        let analysisCost = outputAnalysisCost + inputAnalysisCost;
+        const proInputTokens = usageMetadata?.proUsage?.promptTokenCount || 0;
+        const proOutputTokens = usageMetadata?.proUsage?.candidatesTokenCount || 0;
+        
+        const flashCost = (flashInputTokens / 1000) * FLASH_COST_THOUSAND_INPUT_TOKENS + (flashOutputTokens / 1000) * FLASH_COST_THOUSAND_OUTPUT_TOKENS;
+        const proCost = (proInputTokens / 1000) * COST_PER_THOUSAND_INPUT_TOKENS + (proOutputTokens / 1000) * COST_PER_THOUSAND_TOKENS;
+        
+        let analysisCost = flashCost + proCost;
 
         let isCapped = false;
         if (analysisCost > MAX_ANALYSIS_COST) {
@@ -632,7 +642,7 @@ app.post('/generate-segments', async (req, res) => {
         const costPerImage = COST_IMAGE_ULTRA;
         const totalCost = (segmentsData.length * costPerImage) + analysisCost;
 
-        console.log(`[Billing] Analysis Tokens - Input: ${inputTokens}, Output: ${outputTokens}`);
+        console.log(`[Billing] Analysis Tokens - Flash In/Out: ${flashInputTokens}/${flashOutputTokens}, Pro In/Out: ${proInputTokens}/${proOutputTokens}`);
         console.log(`[Billing] Calculated Analysis Cost: ${analysisCost.toFixed(4)} credits (Capped: ${isCapped})`);
         console.log(`[Billing] Total Potential Cost: ${totalCost.toFixed(2)} credits`);
 
@@ -678,7 +688,7 @@ app.post('/generate-segments', async (req, res) => {
         // 5. Set status to generating
         await supabase.from('content_projects').update({ 
             status: 'generating',
-            render_status: 'generating'
+            render_status: creditsLow ? 'failed' : 'generating'
         }).eq('id', project.id);
 
         // 6. Trigger Background Image Gen (Pass cost for refunds)
@@ -706,7 +716,11 @@ app.post('/generate-segments', async (req, res) => {
 
     } catch (e) {
         console.error("[ContentServer] Error in generate-segments:", e);
-        res.status(500).json({ error: e.message });
+        if (createdProjectId) {
+            res.status(500).json({ error: e.message, projectId: createdProjectId, segments: [] });
+        } else {
+            res.status(500).json({ error: e.message });
+        }
     }
 });
 
@@ -987,29 +1001,37 @@ app.post('/video-generation', async (req, res) => {
     const { segmentId, imageUrl, animationPrompt, model = 'fast' } = req.body;
     let userId = null;
     let charged = false;
-    let costPerVideo = model === 'ultra' ? COST_VIDEO_GROK : COST_VIDEO_PRUNAI;
+    let costPerSec = model === 'ultra' ? 5 : 2;
+    let finalDur = 4;
+    let totalCost = model === 'ultra' ? COST_VIDEO_GROK : COST_VIDEO_PRUNAI;
     
     try {
         // Fetch segment to get project -> userId
-        const { data: segment } = await supabase.from('content_segments').select('project_id').eq('id', segmentId).single();
+        const { data: segment } = await supabase.from('content_segments').select('project_id, order_index').eq('id', segmentId).single();
         if (!segment) throw new Error("Segment not found");
         
-        const { data: project } = await supabase.from('content_projects').select('user_id, aspect_ratio').eq('id', segment.project_id).single();
+        const { data: project } = await supabase.from('content_projects').select('user_id, aspect_ratio, segment_durations').eq('id', segment.project_id).single();
         if (!project) throw new Error("Project not found");
         userId = project.user_id;
 
+        const allSegments = await supabase.from('content_segments').select('id, order_index').eq('project_id', segment.project_id).order('order_index');
+        const idx = allSegments.data.findIndex(s => s.id === segmentId);
+        const rawDur = project.segment_durations && project.segment_durations[idx] ? project.segment_durations[idx] : 4;
+        finalDur = Math.max(2, Math.min(4, Math.ceil(rawDur)));
+        totalCost = finalDur * costPerSec;
+
         // 1. Check balance
         const balance = await getCredits(userId);
-        if (balance < costPerVideo) {
-            return res.status(402).json({ error: `Insufficient credits. Need ${costPerVideo} credits for video generation.` });
+        if (balance < totalCost) {
+            return res.status(402).json({ error: `Insufficient credits. Need ${totalCost} credits for video generation.` });
         }
 
         // 2. Charge credits
-        await chargeUser(userId, costPerVideo, `${model === 'ultra' ? 'Grok' : 'Prunai'} Video Generation`);
+        await chargeUser(userId, totalCost, `${model === 'ultra' ? 'Grok' : 'Prunai'} Video Generation`);
         charged = true;
 
         // 3. Generate video using Replicate
-        const videoBuffer = await generateVideo(imageUrl, animationPrompt, model, project.aspect_ratio || "16:9");
+        const videoBuffer = await generateVideo(imageUrl, animationPrompt, model, project.aspect_ratio || "16:9", finalDur);
 
         // After the video is generated:
         // 1. Upload the generated video to the R2 bucket
@@ -1079,11 +1101,11 @@ app.post('/generate-assets', async (req, res) => {
 
 app.post('/animate-all', async (req, res) => {
     const { projectId, userId, model = 'fast' } = req.body;
-    let costPerVideo = model === 'ultra' ? COST_VIDEO_GROK : COST_VIDEO_PRUNAI;
+    const costPerSec = model === 'ultra' ? 5 : 2;
     
     try {
         // 1. Fetch Project and Segments
-        const { data: project } = await supabase.from('content_projects').select('user_id, aspect_ratio').eq('id', projectId).single();
+        const { data: project } = await supabase.from('content_projects').select('user_id, aspect_ratio, segment_durations').eq('id', projectId).single();
         if (!project) throw new Error("Project not found");
         
         const { data: segments } = await supabase.from('content_segments').select('*').eq('project_id', projectId).order('order_index');
@@ -1096,7 +1118,17 @@ app.post('/animate-all', async (req, res) => {
         }
 
         // 3. Calculate Cost & Check Credits
-        const totalCost = qualifyingSegments.length * costPerVideo;
+        let totalCost = 0;
+        const segmentDurations = project.segment_durations || [];
+        qualifyingSegments.forEach(seg => {
+            const idx = segments.findIndex(s => s.id === seg.id);
+            const rawDur = segmentDurations[idx] || 4;
+            const finalDur = Math.max(2, Math.min(4, Math.ceil(rawDur)));
+            totalCost += (finalDur * costPerSec);
+            seg._duration = finalDur;
+            seg._cost = (finalDur * costPerSec);
+        });
+
         const balance = await getCredits(userId);
         if (balance < totalCost) {
             return res.status(402).json({ error: `Insufficient credits. Need ${totalCost} credits to animate ${qualifyingSegments.length} segments.` });
@@ -1109,7 +1141,7 @@ app.post('/animate-all', async (req, res) => {
         await supabase.from('content_projects').update({ render_status: 'Animating' }).eq('id', projectId);
 
         // 6. Start processing in background
-        processAnimationsBackground(projectId, qualifyingSegments, project.aspect_ratio, costPerVideo, userId, model).catch(e => {
+        processAnimationsBackground(projectId, qualifyingSegments, project.aspect_ratio, userId, model).catch(e => {
             console.error(`[ContentServer] Batch animation failed for project ${projectId}`, e);
         });
 
@@ -1230,6 +1262,8 @@ app.post('/demo/process-video', demoProcessVideo);
 app.post('/demo/export', exportDemoVideo);
 app.post('/demo/generate-motion-graphics', demoGenerateMotionGraphics);
 app.post('/demo/generate-hook-upload-url', generateHookUploadUrl);
+app.post('/demo/save-hook-asset', saveHookAsset);
+app.get('/demo/hook-assets/:userId', getHookAssets);
 app.post('/demo/generate-hook-image', generateHookImage);
 app.post('/demo/delete-hook-asset', deleteHookAsset);
 

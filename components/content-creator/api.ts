@@ -61,9 +61,16 @@ export async function generateSegments(prompt: string, aspect: string, style: st
         body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, subtitles, voiceId }),
         signal
     });
+    
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(sanitizeError(err.error, "Generation failed. Please try again later."));
+        const errorObj: any = new Error(sanitizeError(err.error, "Generation failed. Please try again later."));
+        if (err.projectId && err.segments) {
+            errorObj.projectId = err.projectId;
+            errorObj.segments = err.segments;
+            errorObj.isPartial = true;
+        }
+        throw errorObj;
     }
     return await res.json();
 }

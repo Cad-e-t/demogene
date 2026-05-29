@@ -167,7 +167,7 @@ export async function runDemoProcessing(jobData) {
     }
 }
 
-export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }) {
+export async function runDemoExport({ projectId, userId, motionGraphicsEnabled, exportQuality }) {
     console.log(`[Demo Export] Starting for Project: ${projectId}`);
     const filesToDelete = [];
     const workDir = path.join(TEMP_DIR, `demo_export_${uuidv4()}`);
@@ -197,11 +197,28 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
         let vh = 1080;
         if (hasSourceVideo) {
             try {
-                const probe = execSync(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${videoPath}"`).toString().trim();
-                const parts = probe.split('x');
-                if (parts.length >= 2) {
-                    vw = parseInt(parts[0]);
-                    vh = parseInt(parts[1]);
+                const probe = execSync(`ffprobe -v error -select_streams v:0 -show_streams -of json "${videoPath}"`).toString().trim();
+                const pJson = JSON.parse(probe);
+                if (pJson.streams && pJson.streams.length > 0) {
+                    const s = pJson.streams[0];
+                    vw = parseInt(s.width);
+                    vh = parseInt(s.height);
+                    let isRotated = false;
+                    if (s.tags && (s.tags.rotate === '90' || s.tags.rotate === '-90' || s.tags.rotate === '270')) {
+                        isRotated = true;
+                    } else if (s.side_data_list) {
+                        for (const sd of s.side_data_list) {
+                            if (sd.rotation === 90 || sd.rotation === -90 || sd.rotation === 270 || sd.rotation === -270) {
+                                isRotated = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (isRotated) {
+                        const temp = vw;
+                        vw = vh;
+                        vh = temp;
+                    }
                 }
             } catch (e) {
                 console.error("Failed to probe video dimensions:", e);
@@ -218,8 +235,9 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
             projectHookStyleObj = { style: projectHookStyleObj };
         }
         
-        const width = aspectRatio === '9:16' ? 1080 : 1920;
-        const height = aspectRatio === '9:16' ? 1920 : 1080;
+        const is480p = exportQuality === '480p';
+        const width = aspectRatio === '9:16' ? (is480p ? 480 : 1080) : (is480p ? 854 : 1920);
+        const height = aspectRatio === '9:16' ? (is480p ? 854 : 1920) : (is480p ? 480 : 1080);
 
         // Background generation helper
         const getBackgroundFilter = (bgType, dur) => {
@@ -261,8 +279,9 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
             const scaledW = Math.round(vw * actualScaleX);
             const scaledH = Math.round(vh * actualScaleY);
 
-            const centerX = targetW / 2 + (t.x || 0);
-            const centerY = targetH / 2 + (t.y || 0);
+            const scaleMultiplier = targetW / (targetW > targetH ? 1920 : 1080);
+            const centerX = targetW / 2 + (t.x || 0) * scaleMultiplier;
+            const centerY = targetH / 2 + (t.y || 0) * scaleMultiplier;
 
             const drawX = centerX - scaledW / 2;
             const drawY = centerY - scaledH / 2;
@@ -323,11 +342,28 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
                     
                     let mw = 1920, mh = 1080;
                     try {
-                        const mProbe = execSync(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${mediaPath}"`).toString().trim();
-                        const mParts = mProbe.split('x');
-                        if (mParts.length >= 2) {
-                            mw = parseInt(mParts[0]);
-                            mh = parseInt(mParts[1]);
+                        const mProbe = execSync(`ffprobe -v error -select_streams v:0 -show_streams -of json "${mediaPath}"`).toString().trim();
+                        const mJson = JSON.parse(mProbe);
+                        if (mJson.streams && mJson.streams.length > 0) {
+                            const s = mJson.streams[0];
+                            mw = parseInt(s.width);
+                            mh = parseInt(s.height);
+                            let isRotated = false;
+                            if (s.tags && (s.tags.rotate === '90' || s.tags.rotate === '-90' || s.tags.rotate === '270')) {
+                                isRotated = true;
+                            } else if (s.side_data_list) {
+                                for (const sd of s.side_data_list) {
+                                    if (sd.rotation === 90 || sd.rotation === -90 || sd.rotation === 270 || sd.rotation === -270) {
+                                        isRotated = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (isRotated) {
+                                const temp = mw;
+                                mw = mh;
+                                mh = temp;
+                            }
                         }
                     } catch (e) {}
 
@@ -336,13 +372,60 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled }
                     if (ext.match(/(jpg|jpeg|png|gif)/i)) {
                         const animation = hookStyleObj.animation || 'none';
                         const bgFilter = getBackgroundFilter(backgroundType, audioDur);
-                        let filterStr = `${bgFilter}[bg];[0:v]crop=${hp.sW}:${hp.sH}:${hp.sX}:${hp.sY},scale=${hp.dW}:${hp.dH}[fg];[bg][fg]overlay=x=${hp.dX}:y=${hp.dY}[v]`;
                         
-                        if (animation !== 'none') {
-                            // ... animation logic ...
+                        let loopArg = '-loop 1';
+                        let fgFilter = '';
+                        let overlayX = `${hp.dX}`;
+                        let overlayY = `${hp.dY}`;
+
+                        if (animation === 'zoom_in' || animation === 'zoom_out' || animation === 'slow_zoom_in' || animation === 'handheld_walk') {
+                            loopArg = '';
+                            let zExpr = "1";
+                            let xExpr = "iw/2-(iw/zoom)/2";
+                            let yExpr = "ih/2-(ih/zoom)/2";
+                            if (animation === 'zoom_in') zExpr = `1+0.1*(time/${audioDur})`;
+                            else if (animation === 'zoom_out') zExpr = `1.1-0.1*(time/${audioDur})`;
+                            else if (animation === 'slow_zoom_in') zExpr = `1+0.05*(time/${audioDur})`;
+                            else if (animation === 'handheld_walk') {
+                                const ez = `(1-pow(1-min(time,0.8)/0.8,2))`;
+                                zExpr = `1.6-0.5*${ez}`;
+                                const dx = `(iw/zoom/40)*sin(time*1.5)`; // time*30/20 = time*1.5
+                                const dy = `(ih/zoom/50)*cos(time*1.5)`;
+                                xExpr = `iw/2-(iw/zoom)/2+${dx}`;
+                                yExpr = `ih/2-(ih/zoom)/2+${dy}`;
+                            }
+
+                            const oW = Math.round(hp.dW);
+                            const oH = Math.round(hp.dH);
+                            fgFilter = `[0:v]crop=${hp.sW}:${hp.sH}:${hp.sX}:${hp.sY},zoompan=z='${zExpr}':x='${xExpr}':y='${yExpr}':d=${Math.ceil(audioDur*25)}:s=${oW}x${oH}[fg]`;
+                        } else {
+                            fgFilter = `[0:v]crop=${hp.sW}:${hp.sH}:${hp.sX}:${hp.sY},scale=${hp.dW}:${hp.dH}[fg]`;
+                            if (animation === 'slide_left') overlayX = `${hp.dX} - 0.05*W*(t/${audioDur})`;
+                            else if (animation === 'slide_right') overlayX = `${hp.dX} - 0.05*W*(1 - t/${audioDur})`;
+                            else if (animation === 'slide_up') overlayY = `${hp.dY} - 0.05*H*(t/${audioDur})`;
+                            else if (animation === 'slide_down') overlayY = `${hp.dY} - 0.05*H*(1 - t/${audioDur})`;
+                            else if (animation === 'slide_up_left') { overlayX = `${hp.dX} - 0.05*W*(t/${audioDur})`; overlayY = `${hp.dY} - 0.05*H*(t/${audioDur})`; }
+                            else if (animation === 'slide_up_right') { overlayX = `${hp.dX} - 0.05*W*(1 - t/${audioDur})`; overlayY = `${hp.dY} - 0.05*H*(t/${audioDur})`; }
+                            else if (animation === 'slide_down_left') { overlayX = `${hp.dX} - 0.05*W*(t/${audioDur})`; overlayY = `${hp.dY} - 0.05*H*(1 - t/${audioDur})`; }
+                            else if (animation === 'slide_down_right') { overlayX = `${hp.dX} - 0.05*W*(1 - t/${audioDur})`; overlayY = `${hp.dY} - 0.05*H*(1 - t/${audioDur})`; }
+                            else if (animation === 'slide_up_bounce') {
+                                overlayY = `${hp.dY} + if(lt(t,0.4), pow(1 - t/0.4, 2)*H, if(gte(t,0.4), abs(sin(t*PI*6))*-0.01*H, 0))`;
+                                overlayX = `${hp.dX} + sin(t*PI*6)*0.01*W`;
+                            }
+                            else if (animation === 'continuous_bounce') {
+                                overlayY = `${hp.dY} + abs(sin(t*PI*6))*-0.01*H`;
+                                overlayX = `${hp.dX} + sin(t*PI*6)*0.01*W`;
+                            }
+                            else if (animation === 'fast_pop_up') {
+                                overlayY = `${hp.dY} + if(lt(t,0.4), pow(1 - t/0.4, 2)*H, 0)`;
+                                overlayX = `${hp.dX}`;
+                            }
                         }
+
+                        let filterStr = `${bgFilter}[bg];${fgFilter};[bg][fg]overlay=x='${overlayX}':y='${overlayY}'[v]`;
                         
-                        execSync(`ffmpeg -loop 1 -i "${mediaPath}" -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterStr}" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
+                        let inputArgs = `${loopArg} -i "${mediaPath}"`.trim();
+                        execSync(`ffmpeg ${inputArgs} -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -filter_complex "${filterStr}" -map "[v]" -map 1:a -t ${audioDur} -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -y "${finalSegPath}"`, { stdio: 'ignore' });
                     } else {
                         // Video media
                         const mediaDur = getDurationValue(mediaPath);

@@ -7,6 +7,7 @@ import { SubtitleConfigurationPanel } from '../SubtitleConfigurationPanel';
 import { DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from '../types';
 import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2, Edit2, CheckCheck } from 'lucide-react';
 import { HookStyleModal } from './HookStyleModal';
+import { alignSegmentsWithTranscription } from './alignment-utils';
 
 interface DemoEditorProps {
     session: any;
@@ -30,6 +31,8 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const [motionGraphicsEnabled, setMotionGraphicsEnabled] = useState(false);
     const [isGeneratingMotionGraphics, setIsGeneratingMotionGraphics] = useState(false);
     
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    
     // Editor States for Frame Segments
     const [isEditingFrames, setIsEditingFrames] = useState(false);
     const [editingSegments, setEditingSegments] = useState<any[]>([]);
@@ -42,6 +45,32 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     useEffect(() => {
         historyIndexRef.current = historyIndex;
     }, [historyIndex]);
+
+    // Auto-correction for existing incorrectly sized segments
+    useEffect(() => {
+        if (!project || !project.segments || !project.transcription?.words || !project.total_audio_duration) return;
+        
+        const numSegments = project.segments.length;
+        const currentDurations = project.segment_durations || [];
+        
+        let needsCorrection = false;
+        
+        if (currentDurations.length !== numSegments) {
+            needsCorrection = true;
+        } else {
+            const currentTotal = currentDurations.reduce((a: number, b: number) => a + b, 0);
+            if (Math.abs(currentTotal - project.total_audio_duration) > 0.1) {
+                needsCorrection = true;
+            }
+        }
+
+        if (needsCorrection) {
+            const newDurations = alignSegmentsWithTranscription(project.segments, project.transcription, project.total_audio_duration);
+            if (newDurations && newDurations.length === numSegments) {
+                updateProject({ segment_durations: newDurations }, true);
+            }
+        }
+    }, [project?.id, project?.segments?.length, !!project?.transcription?.words, project?.total_audio_duration]);
 
     useEffect(() => {
         if (!projectId) return;
@@ -197,14 +226,15 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
         updateProject({ transcription: newTranscription });
     };
 
-    const handleExport = async () => {
+    const handleExport = async (exportQuality: '1080p' | '480p') => {
         if (!project) return;
         setExporting(true);
+        setShowExportMenu(false);
         try {
             const res = await fetch(`${API_URL}/demo/export`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectId: project.id, userId: session.user.id, motionGraphicsEnabled })
+                body: JSON.stringify({ projectId: project.id, userId: session.user.id, motionGraphicsEnabled, exportQuality })
             });
             if (!res.ok) {
                 const data = await res.json();
@@ -280,9 +310,9 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 relative">
                     <button 
-                        onClick={handleExport}
+                        onClick={() => setShowExportMenu(!showExportMenu)}
                         disabled={isProcessing || exporting}
                         className="px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
@@ -295,6 +325,24 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                             'Export Video'
                         )}
                     </button>
+                    {showExportMenu && !exporting && (
+                        <div className="absolute top-full mt-2 right-0 bg-zinc-800 border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 min-w-[200px]">
+                            <button 
+                                onClick={() => handleExport('1080p')}
+                                className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors text-sm font-bold flex flex-col border-b border-white/5"
+                            >
+                                <span>Export HD (1080p)</span>
+                                <span className="text-xs text-zinc-400 font-normal">High Quality, standard format</span>
+                            </button>
+                            <button 
+                                onClick={() => handleExport('480p')}
+                                className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors text-sm font-bold flex flex-col"
+                            >
+                                <span>Export SD (480p)</span>
+                                <span className="text-xs text-zinc-400 font-normal">Data saving, faster export</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </header>
 
@@ -360,7 +408,12 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                                 const { _duration, ...rest } = seg;
                                                                 return rest;
                                                             });
-                                                            const newDurations = editingSegments.map((seg: any) => seg._duration);
+                                                            
+                                                            let newDurations = alignSegmentsWithTranscription(newSegments, project.transcription, project.total_audio_duration);
+                                                            if (!newDurations || newDurations.length !== newSegments.length) {
+                                                                newDurations = editingSegments.map((seg: any) => seg._duration);
+                                                            }
+                                                            
                                                             updateProject({ segments: newSegments, segment_durations: newDurations });
                                                             setIsEditingFrames(false);
                                                         } else {

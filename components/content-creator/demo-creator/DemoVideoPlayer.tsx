@@ -311,13 +311,13 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         const vh = video instanceof HTMLVideoElement ? video.videoHeight : (video as HTMLImageElement).naturalHeight;
         if (vw === 0 || vh === 0) return;
 
-        const t = transform || { x: 0, y: 0, scaleX: 1, scaleY: 1, cropTop: 0, cropBottom: 0, cropLeft: 0, cropRight: 0 };
+        const t: any = transform || { x: 0, y: 0, scaleX: 1, scaleY: 1, cropTop: 0, cropBottom: 0, cropLeft: 0, cropRight: 0 };
         
         const scaleMultiplier = cw / (cw > ch ? 1920 : 1080);
         
         // Fallback for old scale property
-        const scX = t.scaleX !== undefined ? t.scaleX : (t.scale || 1);
-        const scY = t.scaleY !== undefined ? t.scaleY : (t.scale || 1);
+        const scX = (t.scaleX !== undefined ? t.scaleX : (t.scale || 1)) * (t.animScale || 1);
+        const scY = (t.scaleY !== undefined ? t.scaleY : (t.scale || 1)) * (t.animScale || 1);
 
         const fitScale = Math.min(cw / vw, ch / vh);
         const actualScaleX = fitScale * scX;
@@ -326,8 +326,8 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         const scaledW = vw * actualScaleX;
         const scaledH = vh * actualScaleY;
 
-        const centerX = cw / 2 + (t.x || 0) * scaleMultiplier;
-        const centerY = ch / 2 + (t.y || 0) * scaleMultiplier;
+        const centerX = cw / 2 + (t.x || 0) * scaleMultiplier + (t.animOffsetX || 0);
+        const centerY = ch / 2 + (t.y || 0) * scaleMultiplier + (t.animOffsetY || 0);
 
         const drawX = centerX - scaledW / 2;
         const drawY = centerY - scaledH / 2;
@@ -596,10 +596,72 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
         }
 
         // Draw Video Frame
-        const transform = getTransformForSegment(currentSegment);
+        const transform: any = { ...getTransformForSegment(currentSegment) };
         
         if (isHook && hStyle === 'media' && currentHookMedia) {
             const media = currentHookMedia;
+            if (media instanceof HTMLImageElement) {
+                const animation = currentHookStyleObj.animation || 'none';
+                if (animation !== 'none') {
+                    let progress = 0;
+                    if (currentSegment.audioDuration > 0) {
+                        progress = Math.min(1, Math.max(0, (drawTime - currentSegment.audioStart) / currentSegment.audioDuration));
+                    }
+                    
+                    let animScale = 1;
+                    let animX = 0;
+                    let animY = 0;
+
+                    if (animation === 'zoom_in') animScale = 1 + 0.1 * progress;
+                    else if (animation === 'zoom_out') animScale = 1.1 - 0.1 * progress;
+                    else if (animation === 'slow_zoom_in') animScale = 1 + 0.05 * progress;
+                    else if (animation === 'slide_left') animX = -0.05 * progress;
+                    else if (animation === 'slide_right') animX = -0.05 * (1 - progress);
+                    else if (animation === 'slide_up') animY = -0.05 * progress;
+                    else if (animation === 'slide_down') animY = -0.05 * (1 - progress);
+                    else if (animation === 'slide_up_left') { animX = -0.05 * progress; animY = -0.05 * progress; }
+                    else if (animation === 'slide_up_right') { animX = -0.05 * (1 - progress); animY = -0.05 * progress; }
+                    else if (animation === 'slide_down_left') { animX = -0.05 * progress; animY = -0.05 * (1 - progress); }
+                    else if (animation === 'slide_down_right') { animX = -0.05 * (1 - progress); animY = -0.05 * (1 - progress); }
+                    else if (animation === 'handheld_walk') {
+                        const zoomProgress = Math.min((progress * currentSegment.audioDuration) / 1.0, 1);
+                        const easeOut = 1 - Math.pow(1 - zoomProgress, 3);
+                        animScale = 1.30 - (easeOut * 0.24);
+                        animY = Math.sin(progress * Math.PI * 4) * 0.01;
+                        animX = Math.cos(progress * Math.PI * 4) * 0.005;
+                    } else if (animation === 'slide_up_bounce') {
+                        const tSec = progress * currentSegment.audioDuration;
+                        const slideDur = 0.4;
+                        if (tSec < slideDur) {
+                            const pList = tSec / slideDur;
+                            animY = Math.pow(1 - pList, 2); // 1.0 to 0.0 quadratic ease out
+                        } else {
+                            animY = 0;
+                        }
+                        animX = Math.sin(tSec * Math.PI * 6) * 0.01;
+                        if (tSec >= slideDur) {
+                            animY = Math.abs(Math.sin(tSec * Math.PI * 6)) * -0.01;
+                        }
+                    } else if (animation === 'continuous_bounce') {
+                        const tSec = progress * currentSegment.audioDuration;
+                        animX = Math.sin(tSec * Math.PI * 6) * 0.01;
+                        animY = Math.abs(Math.sin(tSec * Math.PI * 6)) * -0.01;
+                    } else if (animation === 'fast_pop_up') {
+                        const tSec = progress * currentSegment.audioDuration;
+                        const slideDur = 0.4;
+                        if (tSec < slideDur) {
+                            const pList = tSec / slideDur;
+                            animY = Math.pow(1 - pList, 2);
+                        } else {
+                            animY = 0;
+                        }
+                    }
+
+                    transform.animScale = animScale;
+                    transform.animOffsetX = animX * canvas.width;
+                    transform.animOffsetY = animY * canvas.height;
+                }
+            }
             drawVideoWithTransform(ctx, media, canvas.width, canvas.height, transform);
         } else {
             // Normal segment or non-media hook
