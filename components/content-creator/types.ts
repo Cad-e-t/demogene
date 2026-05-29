@@ -136,5 +136,6 @@ export const VOICE_ACCENTS = [
     { id: 'irish', name: 'Irish', prompt: 'Irish' },
     { id: 'nordic', name: 'Nordic', prompt: 'Nordic' },
     { id: 'spanish', name: 'Spanish', prompt: 'Spanish' },
-     { id: 'italian', name: 'Italian', prompt: 'Italian' }
+    { id: 'italian', name: 'Italian', prompt: 'Italian' },
+    { id: 'nigerian', name: 'Nigerian', prompt: 'Nigerian' }
 ];
