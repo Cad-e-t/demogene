@@ -454,14 +454,19 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         }
     };
     
-    const handleAnimateAllClick = (model: 'fast' | 'ultra') => {
+    const handleAnimateAllClick = () => {
         const unAnimatedSegments = segments.filter((seg: any) => seg.image_url && !seg.image_url.toLowerCase().endsWith('.mp4'));
         if (unAnimatedSegments.length > 0) {
-            const costPerSec = model === 'ultra' ? 5 : 2;
+            const costPerSec = 5;
             const cost = unAnimatedSegments.reduce((acc: number, seg: any) => {
                 const idx = segments.findIndex((s: any) => s.id === seg.id);
                 const rawDur = segmentDurations[idx] || 4;
-                const finalDur = Math.max(2, Math.min(4, Math.ceil(rawDur)));
+                const rounded = Math.round(rawDur);
+                let finalDur = 2;
+                if (rounded === 3 || rounded === 4) finalDur = 2;
+                else if (rounded === 5) finalDur = 3;
+                else if (rounded > 5) finalDur = 4;
+                else finalDur = 2;
                 return acc + (finalDur * costPerSec);
             }, 0);
             
@@ -469,19 +474,18 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 show: true,
                 cost: cost,
                 count: unAnimatedSegments.length,
-                model
+                model: 'ultra'
             });
         }
         setShowAnimateAllMenu(false);
     };
 
     const confirmAnimateAllAction = async () => {
-        const selectedModel = confirmAnimateAll.model;
-        setConfirmAnimateAll({ show: false, cost: 0, count: 0, model: 'fast' });
+        setConfirmAnimateAll({ show: false, cost: 0, count: 0, model: 'ultra' });
         setIsAnimatingAll(true);
         setLocalProject((prev: any) => ({ ...prev, render_status: 'Animating' }));
         try {
-            await animateAllSegments(project.id, session.user.id, selectedModel);
+            await animateAllSegments(project.id, session.user.id);
             setNotification({ message: 'Batch animation completely processed.', type: 'success' });
             setTimeout(() => setNotification(null), 4000);
         } catch (e: any) {
@@ -1132,7 +1136,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         
                         <div className="shrink-0 pt-4 pb-4 px-4 md:px-6 md:pb-6 border-t border-white/10 bg-black relative">
                             <button
-                                onClick={() => setShowAnimateAllMenu(!showAnimateAllMenu)}
+                                onClick={() => handleAnimateAllClick()}
                                 disabled={isAnimatingAll || localProject.render_status === 'Animating' || segments.filter((seg: any) => seg.image_url && !seg.image_url.toLowerCase().endsWith('.mp4')).length === 0}
                                 className="w-full py-3 bg-yellow-500 text-black text-sm font-bold rounded-xl hover:bg-yellow-400 disabled:opacity-50 transition shadow-sm flex items-center justify-center gap-2"
                             >
@@ -1145,28 +1149,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     <>
                                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2Z"/></svg>
                                         Animate All
-                                        <svg className={`w-4 h-4 transition-transform duration-200 ${showAnimateAllMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
                                     </>
                                 )}
                             </button>
-                            {showAnimateAllMenu && !isAnimatingAll && localProject.render_status !== 'Animating' && (
-                                <div className="absolute left-4 right-4 bottom-full mb-2 bg-zinc-900 border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2">
-                                    <button className="w-full px-4 py-3 text-left hover:bg-zinc-800 transition border-b border-white/5 flex justify-between items-center" onClick={() => handleAnimateAllClick('fast')}>
-                                        <div>
-                                            <div className="text-sm font-bold text-white">Fast</div>
-                                            <div className="text-[11px] text-zinc-400">Quick & affordable</div>
-                                        </div>
-                                        <div className="text-xs font-mono text-yellow-500">8 credits/vid</div>
-                                    </button>
-                                    <button className="w-full px-4 py-3 text-left hover:bg-zinc-800 transition flex justify-between items-center" onClick={() => handleAnimateAllClick('ultra')}>
-                                        <div>
-                                            <div className="text-sm font-bold text-white">Ultra</div>
-                                            <div className="text-[11px] text-zinc-400">Highest quality</div>
-                                        </div>
-                                        <div className="text-xs font-mono text-yellow-500">20 credits/vid</div>
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     </div>
                 );
@@ -1274,13 +1259,13 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                     >
                         <h3 className="text-xl font-bold text-white mb-2">Animate {confirmAnimateAll.count} Images?</h3>
                         <p className="text-zinc-400 text-sm mb-6">
-                            This will animate all your remaining static images into videos using the {confirmAnimateAll.model === 'ultra' ? 'Ultra (Grok)' : 'Fast (Prunai)'} model. 
+                            This will animate all your remaining static images into videos using the Grok model. 
                             This action will cost <strong className="text-yellow-500">{confirmAnimateAll.cost} credits</strong> 
                             &nbsp;for {confirmAnimateAll.count} segments based on their duration.
                         </p>
                         <div className="flex gap-3">
                             <button 
-                                onClick={() => setConfirmAnimateAll({ show: false, cost: 0, count: 0, model: 'fast' })}
+                                onClick={() => setConfirmAnimateAll({ show: false, cost: 0, count: 0, model: 'ultra' })}
                                 className="flex-1 py-2.5 bg-zinc-800 text-white font-bold rounded-xl hover:bg-zinc-700 transition"
                             >
                                 Cancel
@@ -1647,9 +1632,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                                     </div>
                                                     <div className="flex items-center gap-3 relative">
                                                         <button 
-                                                            onClick={isAnimating || !animationPrompt ? undefined : () => setShowAnimateMenu(!showAnimateMenu)}
+                                                            onClick={isAnimating || !animationPrompt ? undefined : () => handleAnimate(animatingSegmentId!)}
                                                             disabled={isAnimating || !animationPrompt}
-                                                            className="flex-1 h-12 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                                                            className="flex-1 h-12 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition flex items-center justify-center gap-2 disabled:opacity-50 relative"
                                                         >
                                                             {isAnimating ? (
                                                                 <>
@@ -1659,28 +1644,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                                             ) : (
                                                                 <>
                                                                     Animate with AI
-                                                                    <svg className={`w-4 h-4 transition-transform duration-200 ${showAnimateMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                                    <div className="text-[10px] bg-black/10 px-1.5 py-0.5 rounded ml-2 font-mono text-black/60">20 credits</div>
                                                                 </>
                                                             )}
                                                         </button>
-                                                        {showAnimateMenu && !isAnimating && animationPrompt && (
-                                                            <div className="absolute left-0 right-0 top-full mt-2 bg-zinc-900 border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
-                                                                <button className="w-full px-4 py-3 text-left hover:bg-zinc-800 transition border-b border-white/5 flex justify-between items-center" onClick={() => handleAnimate(animatingSegmentId!, 'fast')}>
-                                                                    <div>
-                                                                        <div className="text-sm font-bold text-white">Fast</div>
-                                                                        <div className="text-[11px] text-zinc-400">Quick & affordable</div>
-                                                                    </div>
-                                                                    <div className="text-xs font-mono text-yellow-500">8 credits</div>
-                                                                </button>
-                                                                <button className="w-full px-4 py-3 text-left hover:bg-zinc-800 transition flex justify-between items-center" onClick={() => handleAnimate(animatingSegmentId!, 'ultra')}>
-                                                                    <div>
-                                                                        <div className="text-sm font-bold text-white">Ultra</div>
-                                                                        <div className="text-[11px] text-zinc-400">Highest quality</div>
-                                                                    </div>
-                                                                    <div className="text-xs font-mono text-yellow-500">20 credits</div>
-                                                                </button>
-                                                            </div>
-                                                        )}
                                                     </div>
                                                     {errorMessage && (
                                                         <div className="text-[10px] text-center font-bold text-red-500 animate-pulse">{errorMessage}</div>

@@ -54,7 +54,6 @@ const client = new AssemblyAI({ apiKey: ASSEMBLYAI_API_KEY });
 const TEMP_DIR = os.tmpdir();
 
 // --- Constants & Pricing ---
-const COST_VIDEO_PRUNAI = 8;
 const COST_VIDEO_GROK = 20;
 const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
@@ -998,12 +997,12 @@ app.delete('/stories/:id', async (req, res) => {
 
 // 5. Generate Assets (Audio, Subtitles, Metadata) - No Video Assembly
 app.post('/video-generation', async (req, res) => {
-    const { segmentId, imageUrl, animationPrompt, model = 'fast' } = req.body;
+    const { segmentId, imageUrl, animationPrompt } = req.body;
     let userId = null;
     let charged = false;
-    let costPerSec = model === 'ultra' ? 5 : 2;
+    let costPerSec = 5; // Grok pricing
     let finalDur = 4;
-    let totalCost = model === 'ultra' ? COST_VIDEO_GROK : COST_VIDEO_PRUNAI;
+    let totalCost = COST_VIDEO_GROK;
     
     try {
         // Fetch segment to get project -> userId
@@ -1017,7 +1016,11 @@ app.post('/video-generation', async (req, res) => {
         const allSegments = await supabase.from('content_segments').select('id, order_index').eq('project_id', segment.project_id).order('order_index');
         const idx = allSegments.data.findIndex(s => s.id === segmentId);
         const rawDur = project.segment_durations && project.segment_durations[idx] ? project.segment_durations[idx] : 4;
-        finalDur = Math.max(2, Math.min(4, Math.ceil(rawDur)));
+        const rounded = Math.round(rawDur);
+        if (rounded === 3 || rounded === 4) finalDur = 2;
+        else if (rounded === 5) finalDur = 3;
+        else if (rounded > 5) finalDur = 4;
+        else finalDur = 2;
         totalCost = finalDur * costPerSec;
 
         // 1. Check balance
@@ -1027,11 +1030,11 @@ app.post('/video-generation', async (req, res) => {
         }
 
         // 2. Charge credits
-        await chargeUser(userId, totalCost, `${model === 'ultra' ? 'Grok' : 'Prunai'} Video Generation`);
+        await chargeUser(userId, totalCost, `Grok Video Generation`);
         charged = true;
 
         // 3. Generate video using Replicate
-        const videoBuffer = await generateVideo(imageUrl, animationPrompt, model, project.aspect_ratio || "16:9", finalDur);
+        const videoBuffer = await generateVideo(imageUrl, animationPrompt, "ultra", project.aspect_ratio || "16:9", finalDur);
 
         // After the video is generated:
         // 1. Upload the generated video to the R2 bucket
@@ -1067,7 +1070,7 @@ app.post('/video-generation', async (req, res) => {
         console.error("Video Generation Route Error", e);
         // 4. Refund if charged
         if (charged && userId) {
-            await refundUser(userId, costPerVideo, `Refund: Failed ${model === 'ultra' ? 'Grok' : 'Prunai'} Video Generation`);
+            await refundUser(userId, totalCost, `Refund: Failed Grok Video Generation`);
         }
         res.status(500).json({ error: e.message });
     }
@@ -1100,8 +1103,8 @@ app.post('/generate-assets', async (req, res) => {
 });
 
 app.post('/animate-all', async (req, res) => {
-    const { projectId, userId, model = 'fast' } = req.body;
-    const costPerSec = model === 'ultra' ? 5 : 2;
+    const { projectId, userId } = req.body;
+    const costPerSec = 5; // Grok pricing
     
     try {
         // 1. Fetch Project and Segments
@@ -1123,7 +1126,12 @@ app.post('/animate-all', async (req, res) => {
         qualifyingSegments.forEach(seg => {
             const idx = segments.findIndex(s => s.id === seg.id);
             const rawDur = segmentDurations[idx] || 4;
-            const finalDur = Math.max(2, Math.min(4, Math.ceil(rawDur)));
+            const rounded = Math.round(rawDur);
+            let finalDur = 2;
+            if (rounded === 3 || rounded === 4) finalDur = 2;
+            else if (rounded === 5) finalDur = 3;
+            else if (rounded > 5) finalDur = 4;
+            else finalDur = 2;
             totalCost += (finalDur * costPerSec);
             seg._duration = finalDur;
             seg._cost = (finalDur * costPerSec);
@@ -1135,13 +1143,13 @@ app.post('/animate-all', async (req, res) => {
         }
 
         // 4. Charge user
-        await chargeUser(userId, totalCost, `Batch Video Generation (${qualifyingSegments.length} segments, ${model === 'ultra' ? 'Grok' : 'Prunai'})`);
+        await chargeUser(userId, totalCost, `Batch Video Generation (${qualifyingSegments.length} segments, Grok)`);
 
         // 5. Set render_status to 'Animating'
         await supabase.from('content_projects').update({ render_status: 'Animating' }).eq('id', projectId);
 
         // 6. Start processing in background
-        processAnimationsBackground(projectId, qualifyingSegments, project.aspect_ratio, userId, model).catch(e => {
+        processAnimationsBackground(projectId, qualifyingSegments, project.aspect_ratio, userId, "ultra").catch(e => {
             console.error(`[ContentServer] Batch animation failed for project ${projectId}`, e);
         });
 

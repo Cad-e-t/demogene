@@ -78,7 +78,7 @@ export interface ContentStory {
 }
 
 export const IMAGE_STYLES = [
-    "Realistic", "Anime",  'Creepy', 'Cartoon', "Sketch", "Game3D", "Stickman", "Skeleton", "Claymation", "Lego", "Documentary", "Exaggerated2D", "Ukiyo-e"
+    "Realistic", "Anime",  'Creepy', 'Cartoon', "Sketch", "Game3D", "Stickman", "Skeleton", "Claymation", "Lego", "Bobblehead", "Faceless", "Écorché", "Documentary", "Exaggerated2D", "Ukiyo-e"
 ];
 
 export const EFFECT_PRESETS = [
@@ -102,21 +102,21 @@ export const SUBTITLE_PRESETS = [
 ];
 
 export const VOICE_STYLES = [
-    { id: 'deadpan', name: 'The Deadpan', description: 'Meme content, Reddit readings, Gen-Z humor', prompt: 'Flat, minimal pitch variation, dry, understated, and subtly sarcastic.' },
+    { id: 'deadpan', name: 'The Deadpan', description: 'Meme content, Reddit readings, Gen-Z humor', prompt: 'Flat, minimal pitch variation, subtly sarcastic with strong falling declarative intonation at sentence end' },
 
-    { id: 'storyteller', name: 'Storyteller', description: 'TikTok storytelling, suspense, narrative hooks', prompt: 'Neutral, slightly tense, with anticipatory inflection, and a subtle edge that builds intrigue.'},
+    { id: 'storyteller', name: 'Storyteller', description: 'TikTok storytelling, suspense, narrative hooks', prompt: 'Neutral, slightly tense, with anticipatory inflection, and strong falling declarative intonation at sentence end.'},
 
-    { id: 'conversational', name: 'Conversational', description: 'Storytime, pop-culture gossip, vlogs', prompt: 'Natural, expressive, relaxed articulation, casual, and friendly.' },
+    { id: 'conversational', name: 'Conversational', description: 'Storytime, pop-culture gossip, vlogs', prompt: 'Natural, expressive, and friendly with strong falling declarative intonation at sentence end.' },
 
-    { id: 'authoritative', name: 'Authoritative', description: 'Stoicism, epic history lore, cinematic', prompt: 'Low pitch, firm articulation, confident, and commanding.' },
+    { id: 'authoritative', name: 'Authoritative', description: 'Stoicism, epic history lore, cinematic', prompt: 'Low pitch, firm articulation, confident, and commanding with strong falling declarative intonation at sentence end.' },
 
-    { id: 'analytical', name: 'Analytical', description: 'Video essays, science, tech explainers', prompt: 'Clear, precise, neutral, objective, with subtle inquisitive inflection.' },
+    { id: 'analytical', name: 'Analytical', description: 'Video essays, science, tech explainers', prompt: 'Clear, precise, objective, with subtle inquisitive inflection and strong falling declarative intonation at sentence end.' },
 
     { id: 'warm', name: 'Warm', description: 'Cozy vlogs, mindfulness, journaling', prompt: 'Soft, warm, gentle projection, and smooth.' },
 
     { id: 'whisper', name: 'Whisper', description: 'True crime, horror, internet mysteries', prompt: 'Very soft with subtle tension, and a faint ominous edge.' },
 
-    { id: 'sophisticated', name: 'Sophisticated', description: 'Luxury showcases, art critique, high-end', prompt: 'Smooth, refined articulation, composed, and understated.' },
+    { id: 'sophisticated', name: 'Sophisticated', description: 'Luxury showcases, art critique, high-end', prompt: 'Smooth, refined articulation, composed, and understated with strong falling declarative intonation at sentence end.' },
 
     { id: 'broadcaster', name: 'Broadcaster', description: 'Top 10 lists, trivia shorts, life hacks', prompt: 'Bright, clear, punchy consonants, dynamic, with rhythmic pitch variation.' }
 ];

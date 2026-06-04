@@ -177,7 +177,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                         const video = document.createElement('video');
                         videoElement = video;
                         video.preload = "auto";
-                        video.muted = false;
+                        video.muted = true;
                         video.playsInline = true;
                         
                         video.onloadeddata = () => {

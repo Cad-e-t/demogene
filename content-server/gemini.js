@@ -1,8 +1,7 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
-
-const MODEL_NAME = "gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
+const MODEL_NAME = "gemini-3.5-flash"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
 const SEGMENTATION_MODEL_NAME = "gemini-3.5-flash"; // Using flash for segmentation
 const GENERATE_IMAGE_MODEL = "imagen-4.0-generate-001"
 const EDIT_IMAGE_MODEL = "gemini-2.5-flash-image"; //
@@ -33,33 +32,7 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
 
     const opening = STYLE_OPENINGS[style] || `A ${style} style image of`;
 
-    let segmentationSystemPrompt = "";
-
-    if (aspect === '16:9') {
-        segmentationSystemPrompt = `You are an expert documentary script segmentation model. Your task is to divide a long-form narration script into coherent story-beat segments for scene visualization.
-A segment should represent one continuous idea, moment, action, revelation, emotional shift, or visual beat.
-SEGMENTATION RULES:
-Segment by story beats, not by sentence count.
-Create a new segment when the narration shifts to:
-a new idea
-a new subject or focus
-a major emotional or tonal change
-Favor shorter, punchier segments over long blocks when possible.
-Very short transitional sentences should usually be merged with the most related adjacent sentence.
-Each segment should feel visually representable as a single continuous scene or sequence.
-OUTPUT FORMAT:
-Return ONLY raw JSON.
-[
-{
-"segment_id": "1",
-"narration": "Exact narration text for this segment."
-}
-]
-
-INPUT SCRIPT:
-${prompt}`;
-    } else {
-        segmentationSystemPrompt = `
+    const segmentationSystemPrompt = `
    Act as an expert Storyboard Artist for a documentary-style YouTube channel. I need you to segment my script into scenes for a faceless video.
 
    CRITICAL SEGMENTING RULES:
@@ -76,7 +49,6 @@ ${prompt}`;
 
 INPUT SCRIPT:
 ${prompt}`;
-    }
 
 
     console.log("--- GEMINI INPUT (Segmentation Step) ---");
@@ -109,7 +81,7 @@ ${prompt}`;
         'Game3D': 'Every image is a clean 3D simulation render with strong central framing and isolated subject focus. Characters are depicted with smooth, slightly plastic textures and subsurface scattering. Scene is rendered with bright studio lighting, crisp depth of field, Blender Cycles shading to achieve a striking, slightly uncanny visual style.',
         'Creepy': `Every image is a dark 2D cartoon horror scene with bold lines, exaggerated characters with large unsettling eyes (wide whites and dot pupils), muted night-time colors, simple distorted environments, and dim high-contrast lighting that creates an eerie, haunted tone.`,
         'Realistic': `Every image is a highly photorealistic depiction of the scene. Natural lighting only with soft shadows. Real-world textures, colors, and materials.`,
-        'Stickman': `Every image is flat 2D cartoon depiction using clean shapes and minimal detail. Characters are 2D stick figures with thin single black lines for limbs and body, and a circular face. They retain distinct permanent features (e.g., hair-style, eyes, facial hair). The environment is 2D with natural coloring.`,
+        'Stickman': `Every image is flat 2D cartoon depiction using clean shapes and minimal detail. Characters are 2D stick figures with thin single black lines for limbs and body, and a circular, skin-toned face. They retain distinct permanent features (e.g., hair-style, eyes, facial hair). The environment is 2D with natural coloring.`,
         'Anime': `Every image is a 2D anime-style depiction with clean, consistent line art. Colors are applied as flat or softly shaded fills with a consistent palette. Characters, objects, and environments are rendered in a cohesive anime style across all scenes.`,
         'Sketch': `Every image is a hand-drawn pencil sketch depiction. All characters, objects, and environments are drawn using visible pencil lines and light sketch strokes. Lines vary slightly in thickness with a natural hand-drawn feel. Minimal use of soft grayscale shading. No color, no solid fills or rendering.`,
         'Documentary': `Every image is a black and white or heavily desaturated photojournalistic shot. No color — only stark greys, deep blacks, and blown highlights. Compositions are candid and unposed with visible grain, harsh natural lighting, and slight motion blur. Gritty and immediate, never polished or staged.`,
@@ -118,6 +90,9 @@ ${prompt}`;
         'Claymation': `Every image is a stop-motion clay scene. All subjects appear hand-sculpted — rounded, chunky, and visibly textured with soft imperfections. Surfaces are matte, lighting warm and studio-cast. Nothing is digitally smooth or sharp-edged.`,
         'Cartoon': `Every image is a semi-realistic cartoon depiction blending stylized characters with believable proportions and detail. Characters maintain realistic anatomy with slightly exaggerated features for expression. Lighting is soft and cinematic with gentle shading and depth. Colors are rich and cohesive with subtle gradients. Materials and environments have mild texture but remain stylized, not photorealistic. Composition and framing are more grounded and cinematic. Expressions are controlled rather than extreme. No full realism.`,
         'Skeleton': `Every image is a cinematic, photo-realistic environment with natural lighting. The main subject(s) are stylized skeleton characters — typically one, but when a scene compares or contrasts two distinct individuals, both are rendered as skeletons. Each skeleton is pristine: smooth off-white bones, rounded edges, an articulated jaw, and a proportionate skull with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. All other characters and settings are completely photo-realistic.`,
+        'Bobblehead': `very image is a cinematic, photo-realistic environment with natural lighting. All characters are stylized bobbleheads with realistically proportioned human body, but feature a disproportionately massive, oversized head with highly expressive and slightly exaggerated facial features. They move realistically and retain distinct permanent features (e.g., hair-style, skin tone, and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
+        'Faceless': `Every image is a cinematic, photo-realistic environment with natural lighting. Characters are rendered as faceless minimalists. Each character is rendered in a smooth, 3D corporate aesthetic: their skin is featureless and matte, and their faces are completely blank with no eyes, noses, or mouths. They move realistically and retain distinct permanent features (e.g., hair-style and skin tone), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. `,
+        'Écorché':  `Every image is a cinematic, photo-realistic environment with natural lighting. Characters are rendered as écorchés. Each character is a flayed anatomical model: entirely devoid of skin on any exposed body parts (like faces, necks, and hands), revealing highly detailed, photo-realistic red muscle fibers and white tendons, yet retaining a proportionate facial structure with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
         'Lego': `Every image is a LEGO scene. All subjects are constructed from interlocking plastic bricks — blocky, rigid, and featuring visible studs and seams. Their wardrobe is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. Surfaces are glossy, lighting bright and studio-cast with miniature depth-of-field.`
     };
 
@@ -174,10 +149,10 @@ The VISUAL IDENTITY dictates visual style, character design, and rendering rules
 2. IMAGE PROMPT RULES
 
 - Independence: Treat every prompt as an independent image prompt. Aside from main subjects, you must repeat the full description of other characters, objects and environments every time they appear. (e.g., IMAGE_PROMPT1: CHAR1 resting on a black, heavy metal, throne. IMAGE_PROMPT2: CHAR1 stands beside a black, heavy, metal throne.)
-- Banned Words: Use of the word "The" (and "the") in the image prompt is prohibited. 
+- Banned Words: Use of the words "The" (and "the"), and"over-the-shoulder shot" in the image prompt is prohibited. 
 - Format: A detailed, comma-separated paragraph aligning with the VISUAL IDENTITY.
 - Still State: Depict a still state (resting, anticipation, or exact start of action) with ZERO baked-in motion (no motion blur, no speed lines).
-- Subject Handling: Reference main subjects strictly by ID not descriptions (e.g., 'CHAR1 sitting in a..').
+- Subject Handling: Reference main subjects strictly by ID not descriptions (e.g., 'CHAR1 sitting in a..'). Do not reference or describe their outfits inside the prompt.
 - Environment: Fully describe location, materials, and lighting for every single shot.
 - Composition: Clearly specify camera framing and perspective.
 - Labels: Artificial text, words, or labels inside the image is prohibited.
@@ -186,7 +161,7 @@ The VISUAL IDENTITY dictates visual style, character design, and rendering rules
 
 - Progression: The animation must naturally animate the exact starting state established in the Image Prompt.
 - Motion: Keep it simple. One main subject + one primary action + one camera move.
-- Subject Referencing: Never use IDs in the animation prompt. Identify subjects strictly by their recognizable visual traits so the video model can accurately target and animate them within the frame.
+- Subject Referencing: Never use IDs in the animation prompt. Identify main subjects strictly by their recognizable visual traits so the video model can accurately target and animate them within the frame.
 - Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan left, push in, orbit, tracking shot, static).
 - Audio & SFX: Include appropriate sound effects at the end (e.g., 'Audio: heavy footsteps', 'Audio: distant thunder') or ambient terms for silence.
 - No Dialogue: Never prompt for characters speaking or dialogue.

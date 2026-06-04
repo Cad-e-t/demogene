@@ -12,7 +12,10 @@ export const STYLE_PREVIEWS: Record<string, string> = {
     "Claymation": "https://assets.productcam.site/image-styles/claymation.png",
     "Lego": "https://assets.productcam.site/image-styles/lego.png",
     'Exaggerated2D': "https://assets.productcam.site/image-styles/exaggerated2d.png",
-    'Ukiyo-e': "https://assets.productcam.site/image-styles/ukiyo-e.png"
+    'Ukiyo-e': "https://assets.productcam.site/image-styles/ukiyo-e.png",
+    'Bobblehead': "https://assets.productcam.site/image-styles/bobblehead.png",
+    'Écorché':  "https://assets.productcam.site/image-styles/ecorche.png",
+    'Faceless':  "https://assets.productcam.site/image-styles/faceless.png"
 };
 
 export const DEMO_CLIPS: Record<string, string> = {

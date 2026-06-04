@@ -268,7 +268,7 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
     await runFFmpeg([
         '-i', visualPath,
         '-i', audioPath,
-        '-filter_complex', '[0:a]volume=0.3[v_vol]; [v_vol][1:a]amix=inputs=2:duration=longest:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11[a]',
+        '-filter_complex', '[1:a]loudnorm=I=-16:TP=-1.5:LRA=11[a]',
         '-map', '0:v:0',
         '-map', '[a]',
         '-c:v', 'copy',
