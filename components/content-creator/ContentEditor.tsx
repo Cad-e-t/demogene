@@ -1613,6 +1613,16 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     if (!seg) return null;
                                     const isVideo = seg.image_url?.toLowerCase().endsWith('.mp4');
 
+                                    const idx = segments.findIndex((s: any) => s.id === animatingSegmentId);
+                                    const rawDur = segmentDurations[idx] || 4;
+                                    const rounded = Math.round(rawDur);
+                                    let finalDur = 2;
+                                    if (rounded === 3 || rounded === 4) finalDur = 2;
+                                    else if (rounded === 5) finalDur = 3;
+                                    else if (rounded > 5) finalDur = 4;
+                                    else finalDur = 2;
+                                    const animationCost = finalDur * 5;
+
                                     return (
                                         <div className="space-y-6">
                                             {/* Top: Animation Input */}
@@ -1644,7 +1654,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                                             ) : (
                                                                 <>
                                                                     Animate with AI
-                                                                    <div className="text-[10px] bg-black/10 px-1.5 py-0.5 rounded ml-2 font-mono text-black/60">20 credits</div>
+                                                                    <div className="text-[10px] bg-black/10 px-1.5 py-0.5 rounded ml-2 font-mono text-black/60">{animationCost} credits</div>
                                                                 </>
                                                             )}
                                                         </button>

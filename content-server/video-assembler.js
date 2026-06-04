@@ -219,11 +219,11 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
             }
 
             filter = `${setptsFilter}${fpsFilter},${inputScale},${effectFilter},setsar=1,${vignetteFilter}`;
-            mapArgs = hasAudioStream ? ['-map', '0:v', '-map', '0:a', '-af', afFilter] : ['-map', '0:v', '-map', '1:a', '-af', afFilter];
+            mapArgs = hasAudioStream ? ['-map', '0:v:0', '-map', '0:a:0', '-af', afFilter] : ['-map', '0:v:0', '-map', '1:a:0', '-af', afFilter];
         } else {
             inputArgs = ['-loop', '1', '-i', imagePath, '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000'];
             filter = `${inputScale},${effectFilter},${fpsFilter},setsar=1,${vignetteFilter}`;
-            mapArgs = ['-map', '0:v', '-map', '1:a', '-af', 'aresample=48000'];
+            mapArgs = ['-map', '0:v:0', '-map', '1:a:0', '-af', 'aresample=48000'];
         }
 
         await runFFmpeg([

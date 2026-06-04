@@ -1,4 +1,3 @@
-
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
@@ -18,6 +17,7 @@ import { AssemblyAI } from 'assemblyai';
 import numberToWords from 'number-to-words';
 
 import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics, saveHookAsset, getHookAssets } from './demo-maker/controllers.js';
+
 
 // --- Setup ---
 const app = express();
@@ -59,8 +59,8 @@ const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
 const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
-const COST_PER_THOUSAND_TOKENS = 1.2;
-const COST_PER_THOUSAND_INPUT_TOKENS = 0.2;
+const COST_PER_THOUSAND_TOKENS = 1;
+const COST_PER_THOUSAND_INPUT_TOKENS = 0.15;
 const FLASH_COST_THOUSAND_INPUT_TOKENS = 0.15;
 const FLASH_COST_THOUSAND_OUTPUT_TOKENS = 0.9;
 const MAX_ANALYSIS_COST = 20;

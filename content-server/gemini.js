@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
+
 const MODEL_NAME = "gemini-3.5-flash"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
 const SEGMENTATION_MODEL_NAME = "gemini-3.5-flash"; // Using flash for segmentation
 const GENERATE_IMAGE_MODEL = "imagen-4.0-generate-001"
@@ -121,7 +122,7 @@ Your task is to:
     {
       "segment_id": "The exact ID provided in the segmented script (e.g., 1).",
       "image_prompt": "A highly detailed, comma-separated paragraph describing the initial first frame of the scene. Follow all IMAGE PROMPT RULES strictly.",
-      "animation_prompt": "Animation of the image prompt scene, with complete subject(s) actions, camera movements, and appropriate sound effects.",
+      "animation_prompt": "Animation of the image prompt scene, with complete subject(s) actions, and camera movements.",
       "subjects": [
         {
           "id": "ID of the main subject present in this segment (e.g., 'CHAR1')",
@@ -163,7 +164,6 @@ The VISUAL IDENTITY dictates visual style, character design, and rendering rules
 - Motion: Keep it simple. One main subject + one primary action + one camera move.
 - Subject Referencing: Never use IDs in the animation prompt. Identify main subjects strictly by their recognizable visual traits so the video model can accurately target and animate them within the frame.
 - Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan left, push in, orbit, tracking shot, static).
-- Audio & SFX: Include appropriate sound effects at the end (e.g., 'Audio: heavy footsteps', 'Audio: distant thunder') or ambient terms for silence.
 - No Dialogue: Never prompt for characters speaking or dialogue.
 
 3. WORLD BUILDING & SUBJECT HANDLING: 
