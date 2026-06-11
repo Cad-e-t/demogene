@@ -1,21 +1,21 @@
 
 export const STYLE_PREVIEWS: Record<string, string> = {
-    "Realistic": "https://assets.productcam.site/image-styles/reaistic.png",
-    "Anime": "https://assets.productcam.site/image-styles/aime.png",
-    'Creepy': "https://assets.productcam.site/image-styles/cartoonh]orror.png",
-    'Game3D': "https://assets.productcam.site/image-styles/gamecinmatic.png",
-    "Sketch": "https://assets.productcam.site/image-styles/sktch.png",
-    "Stickman": "https://assets.productcam.site/image-styles/stckman.png",
-    'Skeleton': "https://assets.productcam.site/image-styles/skleton.png",
-    'Cartoon': "https://assets.productcam.site/image-styles/softcatoon.png",
-     "Documentary": "https://assets.productcam.site/image-styles/docentary.png",
-    "Claymation": "https://assets.productcam.site/image-styles/claymtion.png",
+    "Realistic": "https://assets.productcam.site/image-styles/realistic.png",
+    "Anime": "https://assets.productcam.site/image-styles/anime.png",
+    'Creepy': "https://assets.productcam.site/image-styles/cartoonhorror.png",
+    'Game3D': "https://assets.productcam.site/image-styles/gamecinematic.png",
+    "Sketch": "https://assets.productcam.site/image-styles/sketch.png",
+    "Stickman": "https://assets.productcam.site/image-styles/stickman.png",
+    'Skeleton': "https://assets.productcam.site/image-styles/skeleton.png",
+    'Cartoon': "https://assets.productcam.site/image-styles/softcattoon.png",
+     "Documentary": "https://assets.productcam.site/image-styles/documentary.png",
+    "Claymation": "https://assets.productcam.site/image-styles/claymation.png",
     "Lego": "https://assets.productcam.site/image-styles/lego.png",
-    'Exaggerated2D': "https://assets.productcam.site/image-styles/exaggrated2d.png",
-    'Ukiyo-e': "https://assets.productcam.site/image-styles/ukyo-e.png",
-    'Bobblehead': "https://assets.productcam.site/image-styles/boblehead.png",
-    'Écorché':  "https://assets.productcam.site/image-styles/ecoche.png",
-    'Faceless':  "https://assets.productcam.site/image-styles/faeless.png"
+    'Exaggerated2D': "https://assets.productcam.site/image-styles/exaggerated2d.png",
+    'Ukiyo-e': "https://assets.productcam.site/image-styles/ukiyo-e.png",
+    'Bobblehead': "https://assets.productcam.site/image-styles/bobblehead.png",
+    'Écorché':  "https://assets.productcam.site/image-styles/ecorche.png",
+    'Faceless':  "https://assets.productcam.site/image-styles/faceless.png"
 };
 
 export const DEMO_CLIPS: Record<string, string> = {
@@ -26,12 +26,12 @@ export const DEMO_CLIPS: Record<string, string> = {
 }
 
 export const LANDING_PREVIEWS: Record<string, { src: string, aspectRatio: string }> = {
-    "Immersive Long Forms ": { src: "https://assets.productcam.site/image-styles/examle1.mp4", aspectRatio: "16:9" },
-    "Hoorror Story": { src: "https://assets.productcam.site/image-styles/cartoonhrror.mp4", aspectRatio: "9:16" },
-    "Animated Story": { src: "https://assets.productcam.site/image-styles/GameCiematic.mp4", aspectRatio: "9:16" },
-    "Skeleton Videos":  { src: "https://assets.productcam.site/image-styles/skelton.mp4" , aspectRatio: "9:16" },
-    "Stickman Videos": { src: "https://assets.productcam.site/image-styles/Stickan.mp4", aspectRatio: "16:9" },
-     "Motivational": { src: "https://assets.productcam.site/image-styles/semirealisticartoon.mp4", aspectRatio: "16:9" },
+    "Immersive Long Forms ": { src: "https://assets.productcam.site/image-styles/example1.mp4", aspectRatio: "16:9" },
+    "Hoorror Story": { src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4", aspectRatio: "9:16" },
+    "Animated Story": { src: "https://assets.productcam.site/image-styles/GameCinematic.mp4", aspectRatio: "9:16" },
+    "Skeleton Videos":  { src: "https://assets.productcam.site/image-styles/skeleton.mp4" , aspectRatio: "9:16" },
+    "Stickman Videos": { src: "https://assets.productcam.site/image-styles/Stickman.mp4", aspectRatio: "16:9" },
+     "Motivational": { src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4", aspectRatio: "16:9" },
    
 };
 
