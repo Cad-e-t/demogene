@@ -6,26 +6,22 @@ import { supabase } from "../../supabaseClient";
 
 export const API_URL = "https://content-creator-417540185411.us-central1.run.app"; // Or env var
 
-const sanitizeError = (error: string, fallback: string) => {
-    if (!error) return fallback;
-    const lower = error.toLowerCase();
-    const technicalTerms = [
-        'quota', 'limit', 'rate', 'internal server error', '500', '404', '403', '401', 
-        'bad request', 'upstream', 'gateway', 'proxy', 'socket', 'connection', 'refused',
-        'fetch', 'network', 'timeout', 'safety', 'model', 'ai', 'gemini', '{', '}'
-    ];
-    const isTechnical = technicalTerms.some(term => lower.includes(term)) || error.length > 150;
+export const sanitizeErrorMsg = (error: any, fallback: string) => {
+    const rawError = typeof error === 'string' ? error : error?.message || String(error) || "";
+    const lower = rawError.toLowerCase();
     
-    if (isTechnical) {
-        if (lower.includes('safety')) {
-            return "The content was flagged by our safety filters. Please try a different prompt.";
-        }
-        if (lower.includes('insufficient') || lower.includes('credit') || lower.includes('balance')) {
-             return error; // Keep credit errors as they are friendly enough
-        }
-        return fallback;
+    if (lower.includes('credit') || lower.includes('balance') || lower.includes('insufficient')) {
+        return "Insufficient credits. Please upgrade your plan.";
     }
-    return error;
+    if (lower.includes('safety') || lower.includes('flagged')) {
+        return "The content was flagged by our safety filters. Please try a different prompt.";
+    }
+    if (lower.includes('quota') || lower.includes('rate') || lower.includes('limit')) {
+        return "Too many requests. Please try again later.";
+    }
+
+    // Never return raw server strings. Always return fallback if no friendly override is matched.
+    return fallback;
 };
 
 export async function generateUploadUrl(projectId: string, segmentId: string, filename: string, contentType: string) {
@@ -36,7 +32,7 @@ export async function generateUploadUrl(projectId: string, segmentId: string, fi
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(sanitizeError(err.error, "Failed to generate upload URL. Please try again."));
+        throw new Error(sanitizeErrorMsg(err.error, "Failed to generate upload URL. Please try again."));
     }
     return await res.json();
 }
@@ -49,7 +45,7 @@ export async function updateSegmentImage(segmentId: string, newImageUrl: string,
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(sanitizeError(err.error, "Failed to update segment image. Please try again."));
+        throw new Error(sanitizeErrorMsg(err.error, "Failed to update segment image. Please try again."));
     }
     return await res.json();
 }
@@ -64,7 +60,7 @@ export async function generateSegments(prompt: string, aspect: string, style: st
     
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        const errorObj: any = new Error(sanitizeError(err.error, "Generation failed. Please try again later."));
+        const errorObj: any = new Error(sanitizeErrorMsg(err.error, "Generation failed. Please try again later."));
         if (err.projectId && err.segments) {
             errorObj.projectId = err.projectId;
             errorObj.segments = err.segments;
@@ -83,7 +79,7 @@ export async function editImageSegment(segmentId: string, currentImageUrl: strin
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(sanitizeError(err.error, "Edit failed. Please try again."));
+        throw new Error(sanitizeErrorMsg(err.error, "Edit failed. Please try again."));
     }
     return await res.json();
 }
@@ -96,7 +92,7 @@ export async function regenerateImageSegment(segmentId: string, projectId: strin
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(sanitizeError(err.error, "Regeneration failed. Please try again."));
+        throw new Error(sanitizeErrorMsg(err.error, "Regeneration failed. Please try again."));
     }
     return await res.json();
 }
@@ -119,7 +115,7 @@ export async function generateAssets(projectId: string, voiceId: string, userId:
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(sanitizeError(err.error, "Asset generation failed. Please try again."));
+        throw new Error(sanitizeErrorMsg(err.error, "Asset generation failed. Please try again."));
     }
     return await res.json();
 }
@@ -132,7 +128,7 @@ export async function exportVideo(projectId: string, userId: string, quality: st
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(sanitizeError(err.error, "Export failed. Please try again."));
+        throw new Error(sanitizeErrorMsg(err.error, "Export failed. Please try again."));
     }
     return await res.json();
 }
@@ -163,7 +159,7 @@ export async function generateVideoSegment(segmentId: string, imageUrl: string, 
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(sanitizeError(err.error, "Video generation failed. Please try again."));
+        throw new Error(sanitizeErrorMsg(err.error, "Video generation failed. Please try again."));
     }
     return await res.json();
 }
@@ -176,7 +172,7 @@ export async function animateAllSegments(projectId: string, userId: string, mode
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(sanitizeError(err.error, "Batch animation failed. Please try again."));
+        throw new Error(sanitizeErrorMsg(err.error, "Batch animation failed. Please try again."));
     }
     return await res.json();
 }

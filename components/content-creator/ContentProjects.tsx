@@ -96,12 +96,19 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
             setError("Failed to delete project");
             setTimeout(() => setError(null), 5000);
             // Refresh list on failure
-            const { data } = await supabase.from('content_projects').select('*, content_segments(image_url)').eq('user_id', session.user.id).order('created_at', { ascending: false });
-            const formatted = (data || []).map((p: any) => {
+            const { data: contentData } = await supabase.from('content_projects').select('*, content_segments(image_url)').eq('user_id', session.user.id);
+            const formattedContent = (contentData || []).map((p: any) => {
                 const firstValidSegment = p.content_segments?.find((s: any) => s.image_url);
-                return { ...p, previewUrl: firstValidSegment ? firstValidSegment.image_url : null };
+                return { ...p, type: 'faceless', previewUrl: firstValidSegment ? firstValidSegment.image_url : null };
             });
-            setProjects(formatted);
+
+            const { data: demoData } = await supabase.from('demo_projects').select('*').eq('user_id', session.user.id);
+            const formattedDemo = (demoData || []).map((p: any) => {
+                return { ...p, type: 'demo', previewUrl: null };
+            });
+
+            const combined = [...formattedContent, ...formattedDemo].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            setProjects(combined);
         } finally {
             setDeletingId(null);
         }

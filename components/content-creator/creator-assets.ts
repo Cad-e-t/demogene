@@ -15,7 +15,7 @@ export const STYLE_PREVIEWS: Record<string, string> = {
     'Ukiyo-e': "https://assets.productcam.site/image-styles/ukiyo-e.png",
     'Bobblehead': "https://assets.productcam.site/image-styles/bobblehead.png",
     'Écorché':  "https://assets.productcam.site/image-styles/ecorche.png",
-    'Faceless':  "https://assets.productcam.site/image-styles/faceless.png"
+    'Mannequin':  "https://assets.productcam.site/image-styles/faceless.png"
 };
 
 export const DEMO_CLIPS: Record<string, string> = {

@@ -78,7 +78,7 @@ export interface ContentStory {
 }
 
 export const IMAGE_STYLES = [
-    "Realistic", "Anime",  'Creepy', 'Cartoon', "Sketch", "Game3D", "Stickman", "Skeleton", "Claymation", "Lego", "Bobblehead", "Faceless", "Écorché", "Documentary", "Exaggerated2D", "Ukiyo-e"
+    "Realistic", "Anime",  'Creepy', 'Cartoon', "Sketch", "Game3D", "Stickman", "Skeleton", "Claymation", "Lego", "Bobblehead", "Mannequin", "Écorché", "Documentary", "Exaggerated2D", "Ukiyo-e"
 ];
 
 export const EFFECT_PRESETS = [
@@ -118,7 +118,7 @@ export const VOICE_STYLES = [
 
     { id: 'sophisticated', name: 'Sophisticated', description: 'Luxury showcases, art critique, high-end', prompt: 'Smooth, refined articulation, composed, and understated with strong falling declarative intonation at sentence end.' },
 
-    { id: 'broadcaster', name: 'Broadcaster', description: 'Top 10 lists, trivia shorts, life hacks', prompt: 'Bright, clear, punchy consonants, dynamic, with rhythmic pitch variation.' }
+    { id: 'broadcaster', name: 'Broadcaster', description: 'Top 10 lists, trivia shorts, life hacks', prompt: 'Bright, clear, punchy consonants, dynamic, with rhythmic pitch variation and strong falling declarative intonation at sentence end.' }
 ];
 
 export const VOICE_PACES = [

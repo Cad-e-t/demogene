@@ -927,28 +927,52 @@ app.delete('/projects/:id', async (req, res) => {
         
         console.log(`[ContentServer] Deleting project ${id} for user ${userId}`);
 
+        let projectType = 'content_projects';
+        
         // Verify ownership and get file paths
-        const { data: project } = await supabase.from('content_projects').select('user_id, voice_file_path').eq('id', id).single();
+        let { data: project } = await supabase.from('content_projects').select('user_id, voice_file_path').eq('id', id).single();
+        
+        if (!project) {
+            const { data: demoProject } = await supabase.from('demo_projects').select('user_id, voice_path, video_url').eq('id', id).single();
+            if (demoProject) {
+                projectType = 'demo_projects';
+                project = demoProject;
+            }
+        }
+
         if (!project || project.user_id !== userId) return res.status(403).json({ error: "Unauthorized" });
 
-        // Get segments to find images to delete
-        const { data: segments } = await supabase.from('content_segments').select('image_url').eq('project_id', id);
-        
         // Collect all storage keys to delete
         const keysToDelete = [];
 
-        // Add image keys
-        if (segments && segments.length > 0) {
-            segments.forEach(s => {
-                const key = getKeyFromUrl(s.image_url);
-                if (key) keysToDelete.push(key);
-            });
-        }
+        if (projectType === 'content_projects') {
+            // Get segments to find images to delete
+            const { data: segments } = await supabase.from('content_segments').select('image_url').eq('project_id', id);
+            
+            // Add image keys
+            if (segments && segments.length > 0) {
+                segments.forEach(s => {
+                    const key = getKeyFromUrl(s.image_url);
+                    if (key) keysToDelete.push(key);
+                });
+            }
 
-        // Add audio key
-        if (project.voice_file_path) {
-            const audioKey = getKeyFromUrl(project.voice_file_path);
-            if (audioKey) keysToDelete.push(audioKey);
+            // Add audio key
+            if (project.voice_file_path) {
+                const audioKey = getKeyFromUrl(project.voice_file_path);
+                if (audioKey) keysToDelete.push(audioKey);
+            }
+        } else {
+            // Add audio key for demo
+            if (project.voice_path) {
+                const audioKey = getKeyFromUrl(project.voice_path);
+                if (audioKey) keysToDelete.push(audioKey);
+            }
+            // Add video key for demo
+            if (project.video_url) {
+                const videoKey = getKeyFromUrl(project.video_url);
+                if (videoKey) keysToDelete.push(videoKey);
+            }
         }
         
         // Delete all files from S3
@@ -959,7 +983,7 @@ app.delete('/projects/:id', async (req, res) => {
         }
 
         // Delete DB record (cascade will handle segments)
-        await supabase.from('content_projects').delete().eq('id', id);
+        await supabase.from(projectType).delete().eq('id', id);
         
         res.json({ success: true });
     } catch (e) {

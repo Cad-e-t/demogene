@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, generateVideoSegment, animateAllSegments } from './api';
+import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, generateVideoSegment, animateAllSegments, sanitizeErrorMsg } from './api';
 import { ContentVideoPlayer, EFFECT_TYPES, EFFECT_SEQUENCES } from './ContentVideoPlayer';
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
@@ -225,42 +225,6 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [lastStatus, setLastStatus] = useState<string | null>(project.status);
     const [lastRenderStatus, setLastRenderStatus] = useState<string | null>(project.render_status);
 
-    // Timer logic for generation
-    const sanitizeError = (error: any, fallback: string) => {
-        const message = error?.message || String(error) || "";
-        const lowerMessage = message.toLowerCase();
-        
-        const isTechnical = 
-            lowerMessage.includes('quota') || 
-            lowerMessage.includes('limit') || 
-            lowerMessage.includes('rate') ||
-            lowerMessage.includes('credit') || 
-            lowerMessage.includes('balance') || 
-            lowerMessage.includes('insufficient') ||
-            lowerMessage.includes('gemini') || 
-            lowerMessage.includes('ai') || 
-            lowerMessage.includes('model') || 
-            lowerMessage.includes('safety') ||
-            lowerMessage.includes('network') || 
-            lowerMessage.includes('fetch') || 
-            lowerMessage.includes('timeout') ||
-            lowerMessage.includes('{') ||
-            message.length > 100;
-
-        if (isTechnical) {
-            if (lowerMessage.includes('credit') || lowerMessage.includes('balance') || lowerMessage.includes('insufficient')) {
-                // Return the actual error message from the server instead of a generic one
-                return message;
-            }
-            if (lowerMessage.includes('safety')) {
-                return "The content was flagged by our safety filters. Please try a different prompt.";
-            }
-            return fallback;
-        }
-
-        return message || fallback;
-    };
-
     useEffect(() => {
         let interval: any;
         if (isGeneratingAssets || loadingImage || submitting) {
@@ -313,7 +277,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             return true;
         } catch (e: any) {
             console.error("Asset generation failed", e);
-            const friendlyError = sanitizeError(e, "Asset generation failed. Credits were not charged or have been refunded.");
+            const friendlyError = sanitizeErrorMsg(e, "Asset generation failed. Credits were not charged or have been refunded.");
             setErrorMessage(friendlyError);
             setNotification({
                 message: friendlyError,
@@ -366,9 +330,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             
             setSegments((prev: any[]) => prev.map(s => s.id === uploadingSegmentId ? { ...s, image_url: publicUrl } : s));
         } catch (err: any) {
-            console.error("Upload failed", err);
+            console.error("Upload failed");
             setNotification({
-                message: err.message || "Failed to upload image.",
+                message: sanitizeErrorMsg(err, "Failed to upload image."),
                 type: 'error'
             });
             setTimeout(() => setNotification(null), 6000);
@@ -390,7 +354,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             onComplete();
         } catch (e: any) {
             setExportStatus('error');
-            const friendlyError = sanitizeError(e, "Export failed. Please try again.");
+            const friendlyError = sanitizeErrorMsg(e, "Export failed. Please try again.");
             setErrorMessage(friendlyError);
             setNotification({
                 message: friendlyError,
@@ -441,8 +405,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             setTimeout(() => setNotification(null), 4000);
             
         } catch (e: any) {
-            console.error("Animation failed", e);
-            const friendlyError = sanitizeError(e, "Video generation failed. Please try again.");
+            console.error("Animation failed");
+            const friendlyError = sanitizeErrorMsg(e, "Video generation failed. Please try again.");
             setErrorMessage(friendlyError);
             setNotification({
                 message: friendlyError,
@@ -489,8 +453,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             setNotification({ message: 'Batch animation completely processed.', type: 'success' });
             setTimeout(() => setNotification(null), 4000);
         } catch (e: any) {
-            console.error("Animate All failed", e);
-            const friendlyError = sanitizeError(e, "Batch animation failed. Please try again.");
+            console.error("Animate All failed");
+            const friendlyError = sanitizeErrorMsg(e, "Batch animation failed. Please try again.");
             setErrorMessage(friendlyError);
             setNotification({ message: friendlyError, type: 'error' });
             setTimeout(() => setNotification(null), 6000);
@@ -749,9 +713,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             setSegments((prev: any[]) => prev.map(s => s.id === id ? { ...s, image_url: res.imageUrl } : s));
             setRegeneratingId(null);
         } catch (e: any) {
-            console.error(e);
+            console.error("Image regeneration failed.");
             setRegenerateStatus('error');
-            const friendlyError = sanitizeError(e, "Image regeneration failed. Credits were not charged or have been refunded.");
+            const friendlyError = sanitizeErrorMsg(e, "Image regeneration failed. Credits were not charged or have been refunded.");
             setErrorMessage(friendlyError);
             setNotification({
                 message: friendlyError,
@@ -780,9 +744,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             setEditingImageId(null);
             setEditPrompt('');
         } catch (e: any) {
-            console.error(e);
+            console.error("Image edit failed.");
             setEditStatus('error');
-            const friendlyError = sanitizeError(e, "Image edit failed. Credits were not charged or have been refunded.");
+            const friendlyError = sanitizeErrorMsg(e, "Image edit failed. Credits were not charged or have been refunded.");
             setErrorMessage(friendlyError);
             setNotification({
                 message: friendlyError,

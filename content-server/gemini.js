@@ -4,7 +4,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 
 const MODEL_NAME = "gemini-3.5-flash"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
 const SEGMENTATION_MODEL_NAME = "gemini-3.5-flash"; // Using flash for segmentation
-const GENERATE_IMAGE_MODEL = "imagen-4.0-generate-001"
+const GENERATE_IMAGE_MODEL = "imagen-4.0-generate-001";  
 const EDIT_IMAGE_MODEL = "gemini-2.5-flash-image"; //
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const VIDEO_MODEL = "veo-3.1-lite-generate-preview";
@@ -38,7 +38,10 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
 
    CRITICAL SEGMENTING RULES:
    
-   The 'Camera Cut' Rule (When to split): Create a new scene ONLY when the script introduces a new subject, a new location, a new idea, a new moment, or a shift in emotion/action.
+   The 'Camera Cut' Rule (When to split): Create a new scene when 
+   1) The script introduces a new subject, a new idea, a new moment, a new situation, or a shift in emotion/action.
+   2) The physical OR virtual location changes.
+   3) The core activity of the subject changes: subject begins a fundamentally new task that requires a completely new visual setup.
    Output strictly as a JSON array of objects. No markdown explanation.
 
 [
@@ -79,7 +82,7 @@ ${prompt}`;
     const segmentedScript = JSON.stringify(baseSegments, null, 2);
 
     const predefinedVisualIdentityBlocks = {
-        'Game3D': 'Every image is a clean 3D simulation render with strong central framing and isolated subject focus. Characters are depicted with smooth, slightly plastic textures and subsurface scattering. Scene is rendered with bright studio lighting, crisp depth of field, Blender Cycles shading to achieve a striking, slightly uncanny visual style.',
+        'Game3D': 'Every image is a clean 3D simulation render. Characters are depicted with smooth, slightly plastic textures and subsurface scattering. Scene is rendered with bright studio lighting, crisp depth of field, Blender Cycles shading to achieve a striking, slightly uncanny visual style.',
         'Creepy': `Every image is a dark 2D cartoon horror scene with bold lines, exaggerated characters with large unsettling eyes (wide whites and dot pupils), muted night-time colors, simple distorted environments, and dim high-contrast lighting that creates an eerie, haunted tone.`,
         'Realistic': `Every image is a highly photorealistic depiction of the scene. Natural lighting only with soft shadows. Real-world textures, colors, and materials.`,
         'Stickman': `Every image is flat 2D cartoon depiction using clean shapes and minimal detail. Characters are 2D stick figures with thin single black lines for limbs and body, and a circular, skin-toned face. They retain distinct permanent features (e.g., hair-style, eyes, facial hair). The environment is 2D with natural coloring.`,
@@ -92,7 +95,7 @@ ${prompt}`;
         'Cartoon': `Every image is a semi-realistic cartoon depiction blending stylized characters with believable proportions and detail. Characters maintain realistic anatomy with slightly exaggerated features for expression. Lighting is soft and cinematic with gentle shading and depth. Colors are rich and cohesive with subtle gradients. Materials and environments have mild texture but remain stylized, not photorealistic. Composition and framing are more grounded and cinematic. Expressions are controlled rather than extreme. No full realism.`,
         'Skeleton': `Every image is a cinematic, photo-realistic environment with natural lighting. The main subject(s) are stylized skeleton characters — typically one, but when a scene compares or contrasts two distinct individuals, both are rendered as skeletons. Each skeleton is pristine: smooth off-white bones, rounded edges, an articulated jaw, and a proportionate skull with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. All other characters and settings are completely photo-realistic.`,
         'Bobblehead': `very image is a cinematic, photo-realistic environment with natural lighting. All characters are stylized bobbleheads with realistically proportioned human body, but feature a disproportionately massive, oversized head with highly expressive and slightly exaggerated facial features. They move realistically and retain distinct permanent features (e.g., hair-style, skin tone, and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
-        'Faceless': `Every image is a cinematic, photo-realistic environment with natural lighting. Characters are rendered as faceless minimalists. Each character is rendered in a smooth, 3D corporate aesthetic: their skin is featureless and matte, and their faces are completely blank with no eyes, noses, or mouths. They move realistically and retain distinct permanent features (e.g., hair-style and skin tone), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. `,
+        'Mannequin': `Every image is a cinematic, photo-realistic environment with natural lighting. All characters are stylized 3D mannequins rendered in a modern corporate aesthetic, with smooth matte surfaces and simplified human proportions. They move realistically and retain distinct permanent features (e.g., hairstyle and skin tone), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
         'Écorché':  `Every image is a cinematic, photo-realistic environment with natural lighting. Characters are rendered as écorchés. Each character is a flayed anatomical model: entirely devoid of skin on any exposed body parts (like faces, necks, and hands), revealing highly detailed, photo-realistic red muscle fibers and white tendons, yet retaining a proportionate facial structure with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
         'Lego': `Every image is a LEGO scene. All subjects are constructed from interlocking plastic bricks — blocky, rigid, and featuring visible studs and seams. Their wardrobe is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. Surfaces are glossy, lighting bright and studio-cast with miniature depth-of-field.`
     };
@@ -100,111 +103,134 @@ ${prompt}`;
     const visualIdentityBlock = predefinedVisualIdentityBlocks[style] ;
 
     const systemPrompt = `
-You are an elite Virtual Animation Director. 
+You are an elite Virtual Animation Director.
 
 Your task is to:
-1. Analyze the user's segmented script.
-2. Treat each segment as an unbroken camera shot to visualize.
-3. Translate into precise Image and Animation Prompts for a generative AI video pipeline.
-4. Output the results strictly in the following JSON format. Return ONLY raw JSON with no markdown formatting, preamble, or explanations.
 
-{
-  "main_subjects": {
-    "CHAR1": {
-      "base": "Immutable physical traits (e.g., facial structure, body shape, distinct features). Do not include clothing here.",
-      "outfits": {
-        "O1": "Detailed physical description of the first/primary outfit.",
-        "O2": "Detailed description of a second outfit. Only generate subsequent outfits if the script requires a change. Leave empty for subjects that do not require clothes."
-      }
-    }
-  },
-  "segments": [
-    {
-      "segment_id": "The exact ID provided in the segmented script (e.g., 1).",
-      "image_prompt": "A highly detailed, comma-separated paragraph describing the initial first frame of the scene. Follow all IMAGE PROMPT RULES strictly.",
-      "animation_prompt": "Animation of the image prompt scene, with complete subject(s) actions, and camera movements.",
-      "subjects": [
-        {
-          "id": "ID of the main subject present in this segment (e.g., 'CHAR1')",
-          "outfit": "ID of the outfit worn by the subject in this segment (e.g., 'O1')"
-        }
-      ]
-    }
-  ]
-}
+1.  Analyze the user's segmented script.
+2.  Treat each segment as a cinematic scene capturing real physical action.
+3.  Direct the scene cinematically like a live-action film or documentary.
+    Translate the script into precise Image and Animation Prompts by capturing
+    subjects performing grounded, realistic physical actions in real-world
+    environments. Convey all meaning through dramatic, real-world physical
+    behavior and concrete events, strictly avoiding symbolic or metaphorical
+    visuals.
+4.  Output the results strictly in the following JSON format. Return ONLY raw
+    JSON with no markdown formatting, preamble, or explanations.
 
-SEGMENTED SCRIPT:
-${segmentedScript}
+{ "main_subjects": { "CHAR1": { "base": "Immutable physical traits (e.g., facial
+structure, body shape, distinct features). Do not include clothing here.",
+"outfits": { "O1": "Detailed physical description of the first/primary outfit.",
+"O2": "Detailed description of a second outfit. Only generate subsequent outfits
+if the script requires a change. Leave empty for subjects that do not require
+clothes." } } }, "segments": [ { "segment_id": "The exact ID provided in the
+segmented script (e.g., 1).", "image_prompt": "A highly detailed,
+comma-separated paragraph describing the exact first frame of the scene. Follow
+all IMAGE PROMPT RULES strictly.", "animation_prompt": "Animation of the scene,
+detailing the continuous subject actions and camera movements that follow the
+first frame.", "subjects": [ { "id": "ID of the main subject
+present in this segment (e.g., 'CHAR1')", "outfit": "ID of the outfit worn by
+the subject in this segment (e.g., 'O1')" } ] } ] }
 
-VISUAL IDENTITY:
-${visualIdentityBlock}
+SEGMENTED SCRIPT: ${segmentedScript}
 
-=========================================
-CORE PRINCIPLES
-=========================================
+VISUAL IDENTITY: ${visualIdentityBlock}
 
-1. VISUAL IDENTITY LOCK
+========================================= CORE PRINCIPLES
 
-The VISUAL IDENTITY dictates visual style, character design, and rendering rules. Follow instructions precisely, and apply all relevant characteristics and styles to the description of subjects, characters, and environment within every Image Prompts. 
+1.  VISUAL IDENTITY LOCK
 
-2. IMAGE PROMPT RULES
+The VISUAL IDENTITY dictates visual style, character design, and rendering
+rules. Follow instructions precisely, and apply all relevant characteristics and
+styles to the description of subjects, characters, and environment within every
+Image Prompts.
 
-- Independence: Treat every prompt as an independent image prompt. Aside from main subjects, you must repeat the full description of other characters, objects and environments every time they appear. (e.g., IMAGE_PROMPT1: CHAR1 resting on a black, heavy metal, throne. IMAGE_PROMPT2: CHAR1 stands beside a black, heavy, metal throne.)
-- Banned Words: Use of the words "The" (and "the"), and"over-the-shoulder shot" in the image prompt is prohibited. 
-- Format: A detailed, comma-separated paragraph aligning with the VISUAL IDENTITY.
-- Still State: Depict a still state (resting, anticipation, or exact start of action) with ZERO baked-in motion (no motion blur, no speed lines).
-- Subject Handling: Reference main subjects strictly by ID not descriptions (e.g., 'CHAR1 sitting in a..'). Do not reference or describe their outfits inside the prompt.
-- Environment: Fully describe location, materials, and lighting for every single shot.
-- Composition: Clearly specify camera framing and perspective.
-- Labels: Artificial text, words, or labels inside the image is prohibited.
+2.  IMAGE PROMPT RULES
 
-3. ANIMATION PROMPT RULES
+  - Independence: Treat every prompt as an independent image prompt. Aside from
+    main subjects, you must repeat the full description of other characters,
+    objects and environments every time they appear. (e.g., IMAGE_PROMPT1: CHAR1
+    resting on a black, heavy metal, throne. IMAGE_PROMPT2: CHAR1 stands beside
+    a black, heavy, metal throne.)
+  - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder shot", "split-screen", in the image prompt is prohibited.
+  - Format: A detailed, comma-separated paragraph aligning with the VISUAL
+    IDENTITY.
+  - First Frame Snapshot: The image prompt describes the exact visual layout of
+    the very first frame of the shot. Detail the physical placement, posture,
+    and active engagement of the subjects at that specific starting millisecond. No baked-in motion blur or speed lines.
+  - Subject Handling: Reference main subjects strictly by ID not descriptions
+    (e.g., 'CHAR1 sitting in a..'). Do not reference or describe their outfits
+    inside the prompt.
+  - Environment: Fully describe location, materials, and lighting for every
+    single shot.
+  - Composition: Clearly specify camera framing and perspective.
+  - Labels: Artificial text, words, or labels inside the image is prohibited.
+  - Split screen prohibition: Use of split-screen shots is prohibited
 
-- Progression: The animation must naturally animate the exact starting state established in the Image Prompt.
-- Motion: Keep it simple. One main subject + one primary action + one camera move.
-- Subject Referencing: Never use IDs in the animation prompt. Identify main subjects strictly by their recognizable visual traits so the video model can accurately target and animate them within the frame.
-- Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan left, push in, orbit, tracking shot, static).
-- No Dialogue: Never prompt for characters speaking or dialogue.
+3.  ANIMATION PROMPT RULES
 
-3. WORLD BUILDING & SUBJECT HANDLING: 
+  - Action & Movement: Describe the continuous physical movement, subject
+    actions, and camera mechanics that directly follow the first frame
+    established in the Image Prompt.
+  - Motion: Keep it simple. One main subject + one primary action + one camera
+    move.
+  - Subject Referencing: Never use IDs in the animation prompt. Identify main
+    subjects strictly by their recognizable visual traits so the video model can
+    accurately target and animate them within the frame.
+  - Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan
+    left, push in, orbit, tracking shot, static).
+    
+3.  WORLD BUILDING & SUBJECT HANDLING:
 
 Define the persistent reality and reoccurring anchors before generating prompts:
 
-- Cast (Modular Canonical Anchors): Define main subjects based on the script by establishing their Immutable Base and Outfit Selection in the 'main_subjects' object.
-- Tracking Subjects: In the 'segments' field, list every main subject actively appearing in that segment under the 'subjects' array, paired with their chosen outfit ID for that scene (defaulting to O1 unless a change or no outfit is required).
-- Environment: Define Macro and Micro physical locations with concrete physical descriptions (materials, colors, architecture).
+  - Cast (Modular Canonical Anchors): Define main subjects based on the script
+    by establishing their Immutable Base and Outfit Selection in the
+    'main_subjects' object.
+  - Tracking Subjects: In the 'segments' field, list every main subject actively
+    appearing in that segment under the 'subjects' array, paired with their
+    chosen outfit ID for that scene (defaulting to O1 unless a change or no
+    outfit is required).
+  - Environment: Define Macro and Micro physical locations with concrete
+    physical descriptions (materials, colors, architecture).
 
-4. SCENE CONCEPTUALIZATION:
+4.  SCENE CONCEPTUALIZATION:
 
-- Single Intent Framing - Each scene defines a clear primary visual intention, with additional subjects included when they contribute to the same unified action, event, or environmental transformation.
-- Continuous Action: Connect scenes using camera logic (e.g., pull out from a macro shot to reveal a wide environment).
-- Internal Reveal: When generating prompts for how a process or object works. Show the internal mechanics by framing shot from directly inside the object.
-- When a scene involves multiple agents, represent them as a visible group with distributed individuals or crowd mass showing collective movement and correct scale.
+  - Cinematic Realism: Frame scenes dramatically like a physical camera
+    capturing reality. Force all abstract ideas into visible, concrete physical
+    behaviors, mechanical actions, or direct environmental consequences. Do not
+    place subjects next to arbitrary objects just to symbolize an idea.
+  - Single Intent Framing: Each scene defines a clear primary visual intention,
+    with additional subjects included when they contribute to the same unified
+    action, event, or environmental transformation.
+  - Continuous Action: Connect scenes using camera logic (e.g., pull out from a
+    macro shot to reveal a wide environment).
+  - Internal Reveal: When generating prompts for how a process or object works.
+    Show the internal mechanics by framing shot from directly inside the object.
+  - Group Dynamics: When a segment involves a collective subject (e.g people, workers, etc), depict their numbers correctly with mutiple characters.
 
-5. HANDLING ABSTRACT EXPLANATION: 
-
-Visualize abstract concepts through characters or subject(s) behavior, environmental changes, or directly visible consequences of actions, ensuring every meaning is conveyed through concrete, camera-capturable behavior within the scene’s established reality.
-
-6. SAFETY
+5.  SAFETY
 
 Never depict:
-- explicit sexual activity
-- graphic nudity
-- sexualized minors
-- exploitative content
+
+  - explicit sexual activity
+  - graphic nudity
+  - sexualized minors
+  - exploitative content
 
 If needed, use:
-- implication
-- aftermath
-- reaction shots
-- environmental storytelling
+
+  - implication
+  - aftermath
+  - reaction shots
+  - environmental storytelling
 
 Preserve narrative meaning without graphic depiction.
 
-=========================================
-FINAL OUTPUT RULE
-=========================================
-Return ONLY a raw, valid JSON object matching the exact structure provided in Task 4. No markdown, no preamble, no explanation.
+========================================= FINAL OUTPUT RULE
+
+Return ONLY a raw, valid JSON object matching the exact structure provided in
+Task 4. No markdown, no preamble, no explanation.
 `;
 
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../supabaseClient';
 import { DemoVideoPlayer } from './DemoVideoPlayer';
-import { API_URL } from '../api';
+import { API_URL, sanitizeErrorMsg } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
 import { SubtitleConfigurationPanel } from '../SubtitleConfigurationPanel';
 import { DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from '../types';
@@ -244,7 +244,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             onNavigate('/content-creator/stories');
         } catch (e: any) {
             console.error(e);
-            alert(`Export failed: ${e.message}`);
+            alert(sanitizeErrorMsg(e, `Export failed. Please try again.`));
         } finally {
             setExporting(false);
         }
@@ -405,7 +405,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                         if (isEditingFrames) {
                                                             // Save logic
                                                             const newSegments = editingSegments.map((seg: any) => {
-                                                                const { _duration, ...rest } = seg;
+                                                                const { _duration, _originalIndex, ...rest } = seg;
                                                                 return rest;
                                                             });
                                                             
@@ -414,13 +414,39 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                                 newDurations = editingSegments.map((seg: any) => seg._duration);
                                                             }
                                                             
-                                                            updateProject({ segments: newSegments, segment_durations: newDurations });
+                                                            const oldTransform = project.video_transform || {};
+                                                            const newHooks: Record<string, any> = {};
+                                                            const newSegmentList: Record<string, any> = {};
+                                                            
+                                                            editingSegments.forEach((seg: any, newIndex: number) => {
+                                                                if (seg._originalIndex !== undefined) {
+                                                                    if (seg.isHook) {
+                                                                        if (oldTransform.hooks && oldTransform.hooks[seg._originalIndex]) {
+                                                                            newHooks[newIndex] = oldTransform.hooks[seg._originalIndex];
+                                                                        }
+                                                                        // fallback hook check
+                                                                        else if (oldTransform.hook && newIndex === 0) {
+                                                                            // This is a rough fallback to keep the overall hook transform if nothing is indexed
+                                                                            newHooks[newIndex] = oldTransform.hook;
+                                                                        }
+                                                                    } else {
+                                                                        if (oldTransform.segmentList && oldTransform.segmentList[seg._originalIndex]) {
+                                                                            newSegmentList[newIndex] = oldTransform.segmentList[seg._originalIndex];
+                                                                        }
+                                                                    }
+                                                                }
+                                                            });
+                                                            
+                                                            const newTransform = { ...oldTransform, hooks: newHooks, segmentList: newSegmentList };
+                                                            
+                                                            updateProject({ segments: newSegments, segment_durations: newDurations, video_transform: newTransform });
                                                             setIsEditingFrames(false);
                                                         } else {
                                                             // Enter edit mode
                                                             setEditingSegments((project.segments || []).map((seg: any, i: number) => ({
                                                                 ...seg,
-                                                                _duration: project.segment_durations?.[i] || 0
+                                                                _duration: project.segment_durations?.[i] || 0,
+                                                                _originalIndex: i
                                                             })));
                                                             setIsEditingFrames(true);
                                                         }
@@ -603,7 +629,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                                         setMotionGraphicsEnabled(true);
                                                                     } catch (e: any) {
                                                                         console.error(e);
-                                                                        alert(e.message);
+                                                                        alert(sanitizeErrorMsg(e, "Failed to generate script breakdown. Please try again."));
                                                                     } finally {
                                                                         setIsGeneratingMotionGraphics(false);
                                                                     }

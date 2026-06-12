@@ -177,7 +177,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                         const video = document.createElement('video');
                         videoElement = video;
                         video.preload = "auto";
-                        video.muted = true;
+                        video.muted = true; // Mute the native audio of AI generated clips
                         video.playsInline = true;
                         
                         video.onloadeddata = () => {
@@ -353,6 +353,17 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         const med = media[currentSegmentIndex];
         const isVideo = med instanceof HTMLVideoElement;
         const isReady = med && (isVideo ? med.readyState >= 2 : (med as HTMLImageElement).complete);
+
+        // Pause any active videos that shouldn't be playing (to prevent audio bleeding)
+        media.forEach((m, idx) => {
+            if (m instanceof HTMLVideoElement) {
+                if (idx !== currentSegmentIndex && !m.paused) {
+                    m.pause();
+                } else if (!isPlaying && !m.paused) {
+                    m.pause();
+                }
+            }
+        });
 
         if (isReady) {
             const segmentTime = drawTime - accumulatedTime;

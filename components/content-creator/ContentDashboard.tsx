@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Equal, ChevronRight, ChevronLeft, Mic, Monitor, MonitorPlay, Sparkles, Settings2, Play, Pause, Volume2, VolumeX } from 'lucide-react';
-import { generateSegments } from './api';
+import { generateSegments, sanitizeErrorMsg } from './api';
 import { ContentEditor } from './ContentEditor';
 import { IMAGE_STYLES, EFFECT_PRESETS, LONG_FORM_PRESETS, VOICE_STYLES, VOICE_PACES, VOICE_ACCENTS, VoiceStyleConfig, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
 import { VOICES } from '../../constants';
@@ -326,8 +326,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             setSegments(res.segments);
             // We transition immediately to editor even if images are null
         } catch (e: any) {
-            console.error("[ContentDashboard] Generation failed", e);
-            setNotification({ message: e.message || "Generation failed", type: 'error' });
+            console.error("[ContentDashboard] Generation failed");
+            setNotification({ message: sanitizeErrorMsg(e, "Generation failed"), type: 'error' });
             setTimeout(() => setNotification(null), 5000);
             
             if (e.isPartial && e.projectId && e.segments) {

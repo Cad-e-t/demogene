@@ -122,14 +122,24 @@ export async function generateVoiceover(scriptLines, voiceName, stylePrompt) {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const fullText = linesToSpeak.map(l => l.narration).join(" ");
-    const textToSpeak = stylePrompt ? `${stylePrompt}: ${fullText}` : fullText;
+    
+    const prompt = `Read the following transcript based on the director's note.
+
+# Director's note
+Style: Flat delivery with minimal pitch variation and a dry, understated sarcastic edge.
+Pace: Natural conversation pace
+Accent: American (Gen)
+
+## Transcript:
+${fullText}`;
     
     try {
         console.log("Generating single audio file for text length:", fullText.length);
+        console.log("TTS Director Prompt:", prompt);
         
         const response = await ai.models.generateContent({
             model: TTS_MODEL_NAME,
-            contents: [{ parts: [{ text: textToSpeak }] }],
+            contents: [{ parts: [{ text: prompt }] }],
             config: {
                 responseModalities: [Modality.AUDIO],
                 speechConfig: {

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../../supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-import { API_URL } from '../api';
+import { API_URL, sanitizeErrorMsg } from '../api';
 import { VOICES, VOICE_SAMPLES } from '../../../voiceConfig';
 import { Play, Pause, ChevronDown, Plus, X } from 'lucide-react';
 
@@ -203,7 +203,7 @@ export const DemoVideoPage: React.FC<Props> = ({ session, onToggleSidebar, onPro
             
         } catch (err: any) {
             console.error(err);
-            alert(`Processing failed: ${err.message}`);
+            alert(sanitizeErrorMsg(err, `Processing failed. Please try again.`));
             setProcessingStatus(null);
         } finally {
             setIsProcessing(false);

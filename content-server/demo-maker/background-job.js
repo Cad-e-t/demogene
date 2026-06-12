@@ -6,8 +6,7 @@ import { execSync } from 'child_process';
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { AssemblyAI } from 'assemblyai';
 
-import { analyzeVideo } from './gemini.js';
-import { generateFullVoiceover } from '../gemini.js';
+import { analyzeVideo, generateVoiceover } from './gemini.js';
 import { preprocessVideo, calculateAudioLineDurations, PREPROCESS_FLAGS } from './video-processor.js';
 import { supabase } from './supabase.js';
 import { getVideoAnalysisPrompt } from './prompts.js';
@@ -94,7 +93,7 @@ export async function runDemoProcessing(jobData) {
 
             const fullScript = segments.map(s => s.narration).join(" ");
             
-            const audioBuffer = await generateFullVoiceover(fullScript, voiceId, "Read aloud in a calm, deliberate tone with brisk continuous delivery");
+            const { audioBuffer } = await generateVoiceover(segments, voiceId, "Read aloud in a calm, deliberate tone with brisk continuous delivery");
             
             const rawAudioPath = path.join(TEMP_DIR, `raw_audio_${uuidv4()}.pcm`);
             filesToDelete.push(rawAudioPath);
