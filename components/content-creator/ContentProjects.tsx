@@ -8,48 +8,56 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [openingId, setOpeningId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetch = async () => {
-            console.log("[ContentProjects] Fetching projects...");
-            // Fetch content_projects
-            const { data: contentData } = await supabase
-                .from('content_projects')
-                .select('*, content_segments(image_url)')
-                .eq('user_id', session.user.id)
-                .order('created_at', { ascending: false });
-            
-            // Format content_projects
-            const formattedContent = (contentData || []).map((p: any) => {
-                const firstValidSegment = p.content_segments?.find((s: any) => s.image_url);
-                return {
-                    ...p,
-                    type: 'faceless',
-                    previewUrl: firstValidSegment ? firstValidSegment.image_url : null
-                };
-            });
+            setIsLoading(true);
+            try {
+                console.log("[ContentProjects] Fetching projects...");
+                // Fetch content_projects
+                const { data: contentData } = await supabase
+                    .from('content_projects')
+                    .select('*, content_segments(image_url)')
+                    .eq('user_id', session.user.id)
+                    .order('created_at', { ascending: false });
+                
+                // Format content_projects
+                const formattedContent = (contentData || []).map((p: any) => {
+                    const firstValidSegment = p.content_segments?.find((s: any) => s.image_url);
+                    return {
+                        ...p,
+                        type: 'faceless',
+                        previewUrl: firstValidSegment ? firstValidSegment.image_url : null
+                    };
+                });
 
-            // Fetch demo_projects
-            const { data: demoData } = await supabase
-                .from('demo_projects')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .order('created_at', { ascending: false });
+                // Fetch demo_projects
+                const { data: demoData } = await supabase
+                    .from('demo_projects')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+                    .order('created_at', { ascending: false });
 
-            const formattedDemo = (demoData || []).map((p: any) => {
-                return {
-                    ...p,
-                    type: 'demo',
-                    previewUrl: null // We could extract a frame later, but for now null
-                };
-            });
+                const formattedDemo = (demoData || []).map((p: any) => {
+                    return {
+                        ...p,
+                        type: 'demo',
+                        previewUrl: null // We could extract a frame later, but for now null
+                    };
+                });
 
-            // Combine and sort
-            const combined = [...formattedContent, ...formattedDemo].sort((a, b) => {
-                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-            });
+                // Combine and sort
+                const combined = [...formattedContent, ...formattedDemo].sort((a, b) => {
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                });
 
-            setProjects(combined);
+                setProjects(combined);
+            } catch (e) {
+                console.error("Error fetching projects", e);
+            } finally {
+                setIsLoading(false);
+            }
         };
         fetch();
     }, [session]);
@@ -139,31 +147,37 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                 )}
             </div>
 
-            {/* Delete Confirmation Modal */}
-            {confirmDeleteId && (
-                <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-zinc-900 rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
-                        <h3 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Delete Project?</h3>
-                        <p className="text-zinc-400 text-sm mb-8 font-medium">This will permanently remove all generated segments and assets. This action cannot be undone.</p>
-                        <div className="flex gap-3">
-                            <button 
-                                onClick={() => setConfirmDeleteId(null)}
-                                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:bg-black rounded-xl transition"
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                onClick={() => handleDelete(confirmDeleteId)}
-                                className="flex-1 py-3 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-200"
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    </div>
+            {isLoading ? (
+                <div className="flex-1 h-full flex flex-col items-center justify-center p-8 bg-black">
+                    <div className="w-12 h-12 border-4 border-zinc-800 border-t-yellow-500 rounded-full animate-spin"></div>
                 </div>
-            )}
+            ) : (
+                <>
+                    {/* Delete Confirmation Modal */}
+                    {confirmDeleteId && (
+                        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                            <div className="bg-zinc-900 rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+                                <h3 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Delete Project?</h3>
+                                <p className="text-zinc-400 text-sm mb-8 font-medium">This will permanently remove all generated segments and assets. This action cannot be undone.</p>
+                                <div className="flex gap-3">
+                                    <button 
+                                        onClick={() => setConfirmDeleteId(null)}
+                                        className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:bg-black rounded-xl transition"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDelete(confirmDeleteId)}
+                                        className="flex-1 py-3 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-200"
+                                    >
+                                        Delete Forever
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {projects.map(p => (
                     <div 
                         key={p.id} 
@@ -215,6 +229,8 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                     </div>
                 ))}
             </div>
+            </>
+            )}
         </div>
     );
 };

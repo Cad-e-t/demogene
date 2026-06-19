@@ -33,6 +33,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     
     const [loading, setLoading] = useState(false);
     const [credits, setCredits] = useState<number | null>(null);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
     
     // Typewriter State
     const [placeholder, setPlaceholder] = useState('');
@@ -102,46 +103,26 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         return Math.max(1, count);
     }, [sentenceCount]);
 
-    // 0. Init & Credit Check & Typewriter Effect
-    useEffect(() => {
-        // Fetch Credits and Profile details (for display only, gating handled in parent)
-        const fetchProfileData = async () => {
-            if (!session?.user?.id) return;
-            const { data } = await supabase.from('profiles').select('credits, used_free_trial, dodo_customer_id').eq('id', session.user.id).single();
-            if (data) {
-                setCredits(data.credits || 0);
-                setUsedFreeTrial(data.used_free_trial || false);
-                setDodoCustomerId(data.dodo_customer_id || null);
-            }
-        };
-        fetchProfileData();
-
-        // Typewriter
-        let currentIndex = 0;
-        const interval = setInterval(() => {
-            if (currentIndex <= placeholderText.length) {
-                setPlaceholder(placeholderText.slice(0, currentIndex));
-                currentIndex++;
-            } else {
-                clearInterval(interval);
-            }
-        }, 40); 
-        return () => clearInterval(interval);
-    }, [session]);
-
-    // 1. Load Persisted State from DB (Replacing localStorage)
+    // 0 & 1. Init, Load Settings, and Credits
     useEffect(() => {
         if (!session?.user?.id) return;
 
-        const loadConfig = async () => {
+        const fetchInitialData = async () => {
+            setIsInitialLoading(true);
             try {
-                const { data, error } = await supabase
-                    .from('user_configurations')
-                    .select('*')
-                    .eq('user_id', session.user.id)
-                    .single();
+                const [profileRes, configRes] = await Promise.all([
+                    supabase.from('profiles').select('credits, used_free_trial, dodo_customer_id').eq('id', session.user.id).single(),
+                    supabase.from('user_configurations').select('*').eq('user_id', session.user.id).single()
+                ]);
 
-                if (data && !error) {
+                if (profileRes.data) {
+                    setCredits(profileRes.data.credits || 0);
+                    setUsedFreeTrial(profileRes.data.used_free_trial || false);
+                    setDodoCustomerId(profileRes.data.dodo_customer_id || null);
+                }
+
+                if (configRes.data && !configRes.error) {
+                    const data = configRes.data;
                     if (data.prompt) setPrompt(data.prompt);
                     if (data.aspect_ratio) setAspect(data.aspect_ratio as any);
                     if (data.image_style) setStyle(data.image_style);
@@ -158,7 +139,6 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                             try {
                                 parsedStyle = JSON.parse(data.narration_style);
                             } catch (e) {
-                                // Ignore legacy string formats
                             }
                         }
                         if (parsedStyle) {
@@ -173,13 +153,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                         if (e) setEffect(e);
                     }
                     if (data.subtitles) {
-                        // Check if it's a string (old preset ID) or object
                         if (typeof data.subtitles === 'string') {
-                             const s = SUBTITLE_PRESETS.find(x => x.id === data.subtitles);
-                             // If it was a preset, we might want to map it to a config, but for now let's just use default if it's a string to avoid type errors, or maybe we can map it?
-                             // Since we are transitioning, let's just use default if it's a string, or maybe we can try to parse it if it's a JSON string?
-                             // But the previous code stored just the ID.
-                             // Let's just fallback to default for now to be safe and encourage new config.
                              setSubtitles(DEFAULT_SUBTITLE_CONFIG);
                         } else {
                             setSubtitles(data.subtitles as SubtitleConfiguration);
@@ -187,10 +161,25 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     }
                 }
             } catch (e) {
-                console.error("Failed to load user configuration", e);
+                console.error("Failed to load initial data", e);
+            } finally {
+                setIsInitialLoading(false);
             }
         };
-        loadConfig();
+
+        fetchInitialData();
+
+        // Typewriter
+        let currentIndex = 0;
+        const interval = setInterval(() => {
+            if (currentIndex <= placeholderText.length) {
+                setPlaceholder(placeholderText.slice(0, currentIndex));
+                currentIndex++;
+            } else {
+                clearInterval(interval);
+            }
+        }, 40); 
+        return () => clearInterval(interval);
     }, [session]);
 
     // 2. Adjust Textarea Height after state load
@@ -445,7 +434,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 {/* Header */}
                 <div className="w-full mt-12 md:mt-16 flex flex-col items-center">
                     <h1 className="text-sm sm:text-2xl md:text-4xl font-black uppercase tracking-[0.2em] text-zinc-500 mb-8 text-center whitespace-nowrap">
-                        Script To Video
+                        Script To Video in Secs
                     </h1>
 
                     {/* Prompt Box Section */}
@@ -990,8 +979,14 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                 </div>
             )}
 
-            {/* Render Content */}
-            {renderContent()}
+            {isInitialLoading ? (
+                <div className="flex-1 h-full flex flex-col items-center justify-center p-8 bg-black">
+                    <div className="w-12 h-12 border-4 border-zinc-800 border-t-yellow-500 rounded-full animate-spin"></div>
+                </div>
+            ) : (
+                /* Render Content */
+                renderContent()
+            )}
         </div>
     );
 };

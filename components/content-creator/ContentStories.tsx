@@ -51,18 +51,34 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetch = async () => {
-            const { data } = await supabase
+            setIsLoading(true);
+            try {
+                const { data } = await supabase
+                    .from('content_stories')
+                    .select('*, content_projects(title, aspect_ratio), demo_projects(title, aspect_ratio)')
+                    .eq('user_id', session.user.id)
+                    .order('created_at', { ascending: false });
+                setStories(data || []);
+            } catch (e) {
+                console.error("Error fetching stories", e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetch();
+        const sub = supabase.channel('stories').on('postgres_changes', { event: '*', schema: 'public', table: 'content_stories' }, () => {
+            // Re-fetch blindly on changes (without showing overall loading spinner again)
+            supabase
                 .from('content_stories')
                 .select('*, content_projects(title, aspect_ratio), demo_projects(title, aspect_ratio)')
                 .eq('user_id', session.user.id)
-                .order('created_at', { ascending: false });
-            setStories(data || []);
-        };
-        fetch();
-        const sub = supabase.channel('stories').on('postgres_changes', { event: '*', schema: 'public', table: 'content_stories' }, fetch).subscribe();
+                .order('created_at', { ascending: false })
+                .then(({ data }) => setStories(data || []));
+        }).subscribe();
         return () => { sub.unsubscribe(); };
     }, [session]);
 
@@ -113,31 +129,37 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                 )}
             </div>
 
-            {/* Delete Confirmation Modal */}
-            {confirmDeleteId && (
-                <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-zinc-900 rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
-                        <h3 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Delete Video?</h3>
-                        <p className="text-zinc-400 text-sm mb-8 font-medium">This will permanently remove the exported video. This action cannot be undone.</p>
-                        <div className="flex gap-3">
-                            <button 
-                                onClick={() => setConfirmDeleteId(null)}
-                                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:bg-black rounded-xl transition"
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                onClick={() => handleDelete(confirmDeleteId)}
-                                className="flex-1 py-3 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-200"
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    </div>
+            {isLoading ? (
+                <div className="flex-1 h-full flex flex-col items-center justify-center p-8 bg-black">
+                    <div className="w-12 h-12 border-4 border-zinc-800 border-t-yellow-500 rounded-full animate-spin"></div>
                 </div>
-            )}
+            ) : (
+                <>
+                    {/* Delete Confirmation Modal */}
+                    {confirmDeleteId && (
+                        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                            <div className="bg-zinc-900 rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+                                <h3 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Delete Video?</h3>
+                                <p className="text-zinc-400 text-sm mb-8 font-medium">This will permanently remove the exported video. This action cannot be undone.</p>
+                                <div className="flex gap-3">
+                                    <button 
+                                        onClick={() => setConfirmDeleteId(null)}
+                                        className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:bg-black rounded-xl transition"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDelete(confirmDeleteId)}
+                                        className="flex-1 py-3 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-200"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-            <div className="columns-1 md:columns-3 lg:columns-4 gap-6 space-y-6">
+                    <div className="columns-1 md:columns-3 lg:columns-4 gap-6 space-y-6">
                 {stories.map(s => {
                     const isLandscape = (s.content_projects?.aspect_ratio || s.demo_projects?.aspect_ratio) === '16:9';
                     const aspectClass = isLandscape ? 'aspect-video' : 'aspect-[9/16]';
@@ -225,6 +247,8 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                     );
                 })}
             </div>
+                </>
+            )}
         </div>
     );
 };

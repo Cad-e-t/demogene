@@ -77,6 +77,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     const lastTimestampRef = useRef(0);
     const mediaCacheRef = useRef<Record<string, HTMLImageElement | HTMLVideoElement>>({});
     const grainCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const activeSegmentRef = useRef<number>(-1);
 
     useEffect(() => {
         currentTimeRef.current = currentTime;
@@ -352,13 +353,19 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         // Draw Media
         const med = media[currentSegmentIndex];
         const isVideo = med instanceof HTMLVideoElement;
-        const isReady = med && (isVideo ? med.readyState >= 2 : (med as HTMLImageElement).complete);
+        const isReady = med && (isVideo ? med.readyState >= 1 : (med as HTMLImageElement).complete);
 
-        // Pause any active videos that shouldn't be playing (to prevent audio bleeding)
+        // Pre-manage all videos
         media.forEach((m, idx) => {
-            if (m instanceof HTMLVideoElement) {
-                if (idx !== currentSegmentIndex && !m.paused) {
-                    m.pause();
+            if (m instanceof HTMLVideoElement && m.duration) {
+                if (idx !== currentSegmentIndex) {
+                    // Pause if playing
+                    if (!m.paused) m.pause();
+                    // Pre-seek to prepare for playback
+                    const targetTime = idx > currentSegmentIndex ? 0 : m.duration;
+                    if (Math.abs(m.currentTime - targetTime) > 0.1) {
+                        m.currentTime = targetTime;
+                    }
                 } else if (!isPlaying && !m.paused) {
                     m.pause();
                 }
@@ -373,9 +380,15 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             const currentFrame = Math.floor(segmentTime * 30);
 
             if (isVideo && med.duration) {
-                // Calculate the required playback rate to perfectly match the segment duration.
-                // If a 5s video needs to fit a 3s segment, play at 5/3 = 1.66x speed.
                 const requiredPlaybackRate = med.duration / duration;
+                const expectedVideoTime = (segmentTime / duration) * med.duration;
+
+                if (activeSegmentRef.current !== currentSegmentIndex) {
+                    activeSegmentRef.current = currentSegmentIndex;
+                    if (Math.abs(med.currentTime - expectedVideoTime) > 0.1) {
+                        med.currentTime = expectedVideoTime;
+                    }
+                }
                 
                 if (isPlaying) {
                     if (med.paused) {
@@ -389,20 +402,20 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                         med.playbackRate = requiredPlaybackRate;
                     }
                     
-                    // Only forcefully seek if the video has drifted significantly off the target time mapped to duration.
-                    const expectedVideoTime = (segmentTime / duration) * med.duration;
-                    if (Math.abs(med.currentTime - expectedVideoTime) > 0.3) {
+                    if (Math.abs(med.currentTime - expectedVideoTime) > 0.5) {
                          med.currentTime = expectedVideoTime;
                     }
                 } else {
                     if (!med.paused) {
                         med.pause();
                     }
-                    // When scrubbed/paused, forcibly jump accurately
-                    const targetVideoTime = progress * med.duration;
-                    if (Math.abs(med.currentTime - targetVideoTime) > 0.05) {
-                        med.currentTime = targetVideoTime;
+                    if (Math.abs(med.currentTime - expectedVideoTime) > 0.05) {
+                        med.currentTime = expectedVideoTime;
                     }
+                }
+            } else {
+                if (activeSegmentRef.current !== currentSegmentIndex) {
+                    activeSegmentRef.current = currentSegmentIndex;
                 }
             }
 
