@@ -5,9 +5,11 @@ import { API_URL, sanitizeErrorMsg } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
 import { SubtitleConfigurationPanel } from '../SubtitleConfigurationPanel';
 import { DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from '../types';
-import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2, Edit2, CheckCheck } from 'lucide-react';
+import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2, Edit2, CheckCheck, Mic } from 'lucide-react';
 import { HookStyleModal } from './HookStyleModal';
 import { alignSegmentsWithTranscription } from './alignment-utils';
+import { VOICES } from '../../../voiceConfig';
+import { VOICE_SAMPLES } from '../../../voiceSamples';
 
 interface DemoEditorProps {
     session: any;
@@ -36,6 +38,14 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     // Editor States for Frame Segments
     const [isEditingFrames, setIsEditingFrames] = useState(false);
     const [editingSegments, setEditingSegments] = useState<any[]>([]);
+
+    const [narrationView, setNarrationView] = useState<'summary' | 'edit_script'>('summary');
+    const [narrationSection, setNarrationSection] = useState<'voice' | 'style' | null>(null);
+    const [voice, setVoice] = useState(VOICES[0]);
+    const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+    const [isGeneratingAssets, setIsGeneratingAssets] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const [history, setHistory] = useState<any[]>([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
@@ -91,6 +101,10 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                 setHistoryIndex(0);
                 if (data.subtitle_state) {
                     setSubtitleState(data.subtitle_state);
+                }
+                if (data.voice_id) {
+                    const v = VOICES.find(v => v.id === data.voice_id);
+                    if (v) setVoice(v);
                 }
             }
             setLoading(false);
@@ -226,6 +240,72 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
         updateProject({ transcription: newTranscription });
     };
 
+    const handleRegenerateVoice = async () => {
+        if (!project || isGeneratingAssets) return;
+        setIsGeneratingAssets(true);
+        setErrorMessage(null);
+        try {
+            const res = await fetch(`${API_URL}/demo/regenerate-audio`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    projectId: project.id, 
+                    segments: project.segments, 
+                    voiceId: voice.id, 
+                    userId: session.user.id 
+                })
+            });
+            
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Voice regeneration failed.");
+            }
+            
+            // Success: database gets updated in background/wait
+            await res.json();
+            
+            // Fetch updated project
+            const { data } = await supabase.from('demo_projects').select('*').eq('id', project.id).single();
+            if (data) {
+                setProject(data);
+                if (data.voice_id) {
+                    const v = VOICES.find(v => v.id === data.voice_id);
+                    if (v) setVoice(v);
+                }
+            }
+        } catch (e: any) {
+            console.error("Audio regeneration error", e);
+            setErrorMessage(sanitizeErrorMsg(e, "Audio regeneration failed."));
+        } finally {
+            setIsGeneratingAssets(false);
+        }
+    };
+
+    const handleVoiceSelect = (v: typeof VOICES[0]) => {
+        setVoice(v);
+        updateProject({ voice_id: v.id });
+    };
+
+    const toggleVoiceSample = (e: React.MouseEvent, vId: string) => {
+        e.stopPropagation();
+        if (playingVoiceId === vId) {
+            audioRef.current?.pause();
+            setPlayingVoiceId(null);
+        } else {
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+            const sampleUrl = VOICE_SAMPLES[vId];
+            if (sampleUrl) {
+                const audio = new window.Audio(sampleUrl);
+                audioRef.current = audio;
+                audio.play();
+                setPlayingVoiceId(vId);
+                audio.onended = () => setPlayingVoiceId(null);
+            }
+        }
+    };
+
     const handleExport = async (exportQuality: '1080p' | '480p') => {
         if (!project) return;
         setExporting(true);
@@ -271,6 +351,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
 
     const MODULES = [
         { id: 'frames', icon: Layers, label: 'Frames' },
+        { id: 'audio', icon: Mic, label: 'Audio' },
         { id: 'subtitles', icon: Type, label: 'Subtitles' },
         { id: 'background', icon: Palette, label: 'Background' },
         { id: 'size', icon: Layout, label: 'Size' }
@@ -601,6 +682,110 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                     );
                                                 })}
                                             </div>
+                                        </div>
+                                    )}
+
+                                    {activeModule === 'audio' && (
+                                        <div className="space-y-4">
+                                            {narrationView === 'edit_script' ? (
+                                                <div className="space-y-2">
+                                                    <button 
+                                                        onClick={() => setNarrationView('summary')}
+                                                        className="flex items-center gap-2 text-zinc-500 hover:text-white transition mb-1"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                                        <span className="text-xs font-bold uppercase tracking-wider">Back</span>
+                                                    </button>
+                                                    <div className="space-y-4 pr-2">
+                                                        {(project.segments || []).map((seg: any, idx: number) => (
+                                                            <div key={idx} className="space-y-1">
+                                                                <label className="text-[10px] font-bold text-zinc-500 uppercase">{seg.isHook ? `Hook ${idx + 1}` : `Segment ${idx + 1}`}</label>
+                                                                <textarea
+                                                                    value={seg.narration}
+                                                                    onChange={(e) => {
+                                                                        const newText = e.target.value;
+                                                                        const newSegments = [...project.segments];
+                                                                        newSegments[idx] = { ...seg, narration: newText };
+                                                                        updateProject({ segments: newSegments });
+                                                                    }}
+                                                                    className="w-full p-3 bg-black border border-white/10 rounded-xl text-sm text-zinc-200 focus:border-white/10 focus:ring-1 focus:ring-white/20 outline-none resize-y min-h-[80px]"
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setNarrationView('summary');
+                                                            handleRegenerateVoice();
+                                                        }}
+                                                        disabled={isGeneratingAssets}
+                                                        className="w-full py-3 bg-yellow-500 text-black text-sm font-bold rounded-xl hover:bg-yellow-400 disabled:opacity-50 transition shadow-sm mt-4"
+                                                    >
+                                                        {isGeneratingAssets ? 'Regenerating...' : 'Save & Regenerate Audio'}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {/* Script Edit Button */}
+                                                    <div className="border border-white/10 rounded-xl overflow-hidden">
+                                                        <button
+                                                            onClick={() => setNarrationView('edit_script')}
+                                                            className="w-full flex items-center justify-between p-4 bg-black hover:bg-zinc-900 transition"
+                                                        >
+                                                            <div className="text-left">
+                                                                <div className="text-xs font-bold text-zinc-500 uppercase">Script</div>
+                                                                <div className="font-bold text-white">Edit Segment by Segment</div>
+                                                            </div>
+                                                            <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Voice Accordion */}
+                                                    <div className="border border-white/10 rounded-xl overflow-hidden">
+                                                        <button
+                                                            onClick={() => setNarrationSection(narrationSection === 'voice' ? null : 'voice')}
+                                                            className="w-full flex items-center justify-between p-4 bg-black hover:bg-zinc-900 transition"
+                                                        >
+                                                            <div className="text-left">
+                                                                <div className="text-xs font-bold text-zinc-500 uppercase">Voice</div>
+                                                                <div className="font-bold text-white">{voice.name}</div>
+                                                            </div>
+                                                            <svg className={`w-5 h-5 text-zinc-500 transition-transform ${narrationSection === 'voice' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                        </button>
+                                                        {narrationSection === 'voice' && (
+                                                            <div className="p-2 bg-zinc-900 border-t border-white/10 space-y-2 max-h-60 overflow-y-auto">
+                                                                {VOICES.map(v => (
+                                                                    <button
+                                                                        key={v.id}
+                                                                        onClick={() => handleVoiceSelect(v)}
+                                                                        className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-all ${voice.id === v.id ? 'bg-zinc-900 border-white/10 text-white' : 'bg-black border-white/10 hover:border-white/20 text-zinc-200'}`}
+                                                                    >
+                                                                        <span className="font-bold">{v.name}</span>
+                                                                        {VOICE_SAMPLES[v.id] && (
+                                                                            <div onClick={(e) => toggleVoiceSample(e, v.id)} className={`p-1 rounded-full ${voice.id === v.id ? 'bg-zinc-700 text-zinc-600' : 'bg-black hover:bg-zinc-900 text-zinc-400'}`}>
+                                                                                {playingVoiceId === v.id ? <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+                                                                            </div>
+                                                                        )}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <button 
+                                                        onClick={handleRegenerateVoice}
+                                                        disabled={isGeneratingAssets}
+                                                        className="w-full py-3 bg-yellow-500 text-black text-sm font-bold rounded-xl hover:bg-yellow-400 disabled:opacity-50 transition shadow-sm mt-4"
+                                                    >
+                                                        {isGeneratingAssets ? 'Regenerating...' : 'Regenerate Audio'}
+                                                    </button>
+                                                    {errorMessage && !isGeneratingAssets && (
+                                                        <div className="text-[10px] font-bold text-red-600 animate-pulse text-center">
+                                                            {errorMessage}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 

@@ -248,9 +248,9 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
 
             {/* Global Pricing Overlay Gatekeeper */}
             {showGlobalOverlay && (
-                <div className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-sm overflow-y-auto animate-fade-in">
+                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm overflow-y-auto animate-fade-in">
                     <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
-                        <div className="w-full max-w-6xl flex flex-col items-center bg-zinc-900/90 backdrop-blur-xl border border-white/50 shadow-2xl rounded-[3rem] p-8 md:p-12 my-8 relative">
+                        <div className="w-full max-w-6xl flex flex-col items-center bg-zinc-900 border border-white/10 shadow-2xl rounded-[3rem] p-8 md:p-12 my-8 relative">
                             <div className="text-center mb-10">
                                 <h2 className="text-3xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter">
                                     Unlock Creator Studio

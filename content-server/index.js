@@ -16,7 +16,7 @@ import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
 import { AssemblyAI } from 'assemblyai';
 import numberToWords from 'number-to-words';
 
-import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics, saveHookAsset, getHookAssets } from './demo-maker/controllers.js';
+import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics, saveHookAsset, getHookAssets, regenerateDemoAudio } from './demo-maker/controllers.js';
 
 
 // --- Setup ---
@@ -723,6 +723,100 @@ app.post('/generate-segments', async (req, res) => {
     }
 });
 
+// New Route: Free Trial Generate
+app.post('/generate-free-trial-segments', async (req, res) => {
+    let createdProjectId = null;
+    try {
+        const { prompt, aspectRatio, style, effect, userId, narrationStyle, subtitles, voiceId } = req.body;
+        console.log(`[ContentServer] Received free trial generate request: "${prompt.substring(0, 30)}..."`);
+        
+        // 1. Create Project
+        const defaultEffect = aspectRatio === '16:9' ? 'documentary' : 'cinematic';
+        const { data: project, error } = await supabase.from('content_projects').insert({
+            user_id: userId,
+            title: prompt.substring(0, 50),
+            aspect_ratio: aspectRatio,
+            image_style: style,
+            effect: effect || defaultEffect,
+            narration_style: narrationStyle,
+            subtitles: subtitles || 'none',
+            voice_id: voiceId || 'Charon',
+            status: 'draft'
+        }).select().single();
+        
+        if (error) throw error;
+        createdProjectId = project.id;
+        console.log(`[ContentServer] Project created: ${project.id}`);
+
+        // 2. Generate Text Segments (Free Trial Mode)
+        console.log(`[ContentServer] Generating text segments (Free Trial)...`);
+        const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', true);
+        console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
+
+        // 3. Determine Cost & Charge (Allow negative balance)
+        const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;
+        const flashOutputTokens = usageMetadata?.flashUsage?.candidatesTokenCount || 0;
+        
+        const proInputTokens = usageMetadata?.proUsage?.promptTokenCount || 0;
+        const proOutputTokens = usageMetadata?.proUsage?.candidatesTokenCount || 0;
+        
+        const flashCost = (flashInputTokens / 1000) * FLASH_COST_THOUSAND_INPUT_TOKENS + (flashOutputTokens / 1000) * FLASH_COST_THOUSAND_OUTPUT_TOKENS;
+        const proCost = (proInputTokens / 1000) * COST_PER_THOUSAND_INPUT_TOKENS + (proOutputTokens / 1000) * COST_PER_THOUSAND_TOKENS;
+        
+        let analysisCost = flashCost + proCost;
+
+        if (analysisCost > MAX_ANALYSIS_COST) {
+            analysisCost = MAX_ANALYSIS_COST;
+        }
+
+        const costPerImage = COST_IMAGE_ULTRA;
+        const totalCost = (segmentsData.length * costPerImage) + analysisCost;
+
+        console.log(`[Billing] Free Trial - Charging full cost anyway: ${totalCost.toFixed(2)} credits`);
+
+        await chargeUser(userId, totalCost, `Free Trial Batch - ${segmentsData.length} images + AI Analysis`);
+        
+        // Mark user as having used free trial
+        await supabase.from('profiles').update({ used_free_trial: true }).eq('id', userId);
+
+        // 4. Save Text Segments to DB
+        const segmentsToInsert = segmentsData.map((s, idx) => ({
+            project_id: project.id,
+            narration: s.narration,
+            image_prompt: s.image_prompt,
+            animation_prompt: s.animation_prompt,
+            image_url: null,
+            order_index: idx
+        }));
+
+        const { data: insertedSegments, error: segError } = await supabase
+            .from('content_segments')
+            .insert(segmentsToInsert)
+            .select();
+
+        if (segError) throw segError;
+
+        // 5. Set status to generating
+        await supabase.from('content_projects').update({ status: 'generating', render_status: 'generating' }).eq('id', project.id);
+
+        // 6. Trigger Background Image Gen
+        processImagesBackground(project.id, insertedSegments, aspectRatio, costPerImage, userId);
+
+        // 7. Trigger Background Asset Gen
+        processAssetsBackground(project.id, insertedSegments, voiceId, userId).catch(e => {
+            console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
+        });
+
+        // 8. Return Response
+        res.json({ projectId: project.id, segments: insertedSegments });
+
+    } catch (e) {
+        console.error("[ContentServer] Error in generate-free-trial-segments:", e);
+        if (createdProjectId) res.status(500).json({ error: e.message, projectId: createdProjectId, segments: [] });
+        else res.status(500).json({ error: e.message });
+    }
+});
+
 // New Route: Regenerate Single Image
 app.post('/regenerate-image', async (req, res) => {
     const { segmentId, projectId, imagePrompt, aspectRatio, currentImageUrl } = req.body;
@@ -1291,6 +1385,7 @@ app.post('/export-video', async (req, res) => {
 app.post('/demo/generate-upload-url', demoGenerateUploadUrl);
 app.delete('/demo/videos/:id', demoDeleteVideo);
 app.post('/demo/process-video', demoProcessVideo);
+app.post('/demo/regenerate-audio', regenerateDemoAudio);
 app.post('/demo/export', exportDemoVideo);
 app.post('/demo/generate-motion-graphics', demoGenerateMotionGraphics);
 app.post('/demo/generate-hook-upload-url', generateHookUploadUrl);

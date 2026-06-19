@@ -27,13 +27,13 @@ const STYLE_OPENINGS = {
 
 };
 
-export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced') {
+export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced', isFreeTrial = false) {
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const opening = STYLE_OPENINGS[style] || `A ${style} style image of`;
 
-    const segmentationSystemPrompt = `
+    const normalSegmentationPrompt = `
    Act as an expert Storyboard Artist for a documentary-style YouTube channel. I need you to segment my script into scenes for a faceless video.
 
    CRITICAL SEGMENTING RULES:
@@ -42,7 +42,7 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
    1) The script introduces a new subject, a new idea, a new moment, a new situation, or a shift in emotion/action.
    2) The physical OR virtual location changes.
    3) The core activity of the subject changes: subject begins a fundamentally new task that requires a completely new visual setup.
-   Output strictly as a JSON array of objects. No markdown explanation.
+   Output strictly as a JSON array of objects. No markdown or explanation.
 
 [
    {
@@ -53,6 +53,51 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
 
 INPUT SCRIPT:
 ${prompt}`;
+
+    const freeTrialSegmentationPrompt = `
+Act as an expert Scriptwriter and Storyboard Artist for a documentary-style
+YouTube channel. Your task is to process the provided input in two steps: first,
+compress it into a highly structured script, and second, segment that script for
+visualization.
+
+STEP 1: SCRIPT COMPRESSION & STRUCTURING Turn the input into a 30–40 second
+faceless video script based on these strict rules:
+
+  - Preserve the original meaning, intent, and viewpoint exactly. Do not change
+    the topic, argument, or message. Do not introduce new ideas or reinterpret
+    the content.
+  - Compress low-value or repetitive content. If something is unclear, keep it
+    neutral rather than guessing.
+  - Prioritize fidelity over engagement. Prioritize structure over length.
+  - Structure the script for retention:
+      - The hook must create curiosity by implying an unanswered point or
+        unresolved outcome. Do not ask direct questions in the hook unless the
+        original input does in which case you must reuse the exact question as
+        the hook. Instead, create anticipation through implication.
+      - The body should build toward resolving that curiosity.
+      - The ending must deliver the resolution clearly.
+
+STEP 2: SCENE SEGMENTATION Segment your newly generated script into scenes for a
+faceless video using the CRITICAL SEGMENTING RULES (The 'Camera Cut' Rule).
+Create a new scene/segment ONLY when:
+
+1)  The script introduces a new subject, a new idea, a new moment, a new
+    situation, or a shift in emotion/action.
+2)  The physical OR virtual location changes.
+3)  The core activity of the subject changes: the subject begins a fundamentally
+    new task that requires a completely new visual setup.
+
+OUTPUT CONSTRAINTS: Return the entirety of the restructured script output
+strictly as a JSON array of objects. No markdown or explanation.
+
+Format strictly as follows: [ { "segment_id": "1", "narration": "The exact
+script segment being visualized." } ]
+
+INPUT SCRIPT:
+
+${prompt}`;
+
+    const segmentationSystemPrompt = isFreeTrial ? freeTrialSegmentationPrompt : normalSegmentationPrompt;
 
 
     console.log("--- GEMINI INPUT (Segmentation Step) ---");
@@ -93,10 +138,10 @@ ${prompt}`;
         'Ukiyo-e': `Every image is a traditional Japanese woodblock print. Bold outlines, flat color fills, and zero shading define the look. Compositions feature stylized natural motifs — waves, clouds, foliage — with a decorative, hand-carved flatness.`,
         'Claymation': `Every image is a stop-motion clay scene. All subjects appear hand-sculpted — rounded, chunky, and visibly textured with soft imperfections. Surfaces are matte, lighting warm and studio-cast. Nothing is digitally smooth or sharp-edged.`,
         'Cartoon': `Every image is a semi-realistic cartoon depiction blending stylized characters with believable proportions and detail. Characters maintain realistic anatomy with slightly exaggerated features for expression. Lighting is soft and cinematic with gentle shading and depth. Colors are rich and cohesive with subtle gradients. Materials and environments have mild texture but remain stylized, not photorealistic. Composition and framing are more grounded and cinematic. Expressions are controlled rather than extreme. No full realism.`,
-        'Skeleton': `Every image is a cinematic, photo-realistic environment with natural lighting. The main subject(s) are stylized skeleton characters — typically one, but when a scene compares or contrasts two distinct individuals, both are rendered as skeletons. Each skeleton is pristine: smooth off-white bones, rounded edges, an articulated jaw, and a proportionate skull with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. All other characters and settings are completely photo-realistic.`,
-        'Bobblehead': `very image is a cinematic, photo-realistic environment with natural lighting. All characters are stylized bobbleheads with realistically proportioned human body, but feature a disproportionately massive, oversized head with highly expressive and slightly exaggerated facial features. They move realistically and retain distinct permanent features (e.g., hair-style, skin tone, and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
-        'Mannequin': `Every image is a cinematic, photo-realistic environment with natural lighting. All characters are stylized 3D mannequins rendered in a modern corporate aesthetic, with smooth matte surfaces and simplified human proportions. They move realistically and retain distinct permanent features (e.g., hairstyle and skin tone), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
-        'Écorché':  `Every image is a cinematic, photo-realistic environment with natural lighting. Characters are rendered as écorchés. Each character is a flayed anatomical model: entirely devoid of skin on any exposed body parts (like faces, necks, and hands), revealing highly detailed, photo-realistic red muscle fibers and white tendons, yet retaining a proportionate facial structure with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
+        'Skeleton': `Every image is a cinematic, photo-realistic scene. The main character(s) is a clean, naturally proportioned skeleton with articulated jaw and real human eyes — typically one, but when a scene compares or contrasts two distinct individuals, both are rendered as skeletons. They move realistically and retain distinct permanent features (e.g. hair-style, eye-color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. All other characters and settings are completely photo-realistic.`,
+        'Bobblehead': `Every image is a cinematic, photo-realistic scene. All characters are stylized bobbleheads with realistically proportioned human body, but feature a disproportionately massive, oversized head with highly expressive and slightly exaggerated facial features. They move realistically and retain distinct permanent features (e.g., hair-style, etc), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
+        'Mannequin': `Every image is a cinematic, photo-realistic scene. All characters are stylized 3D mannequins rendered in a modern corporate aesthetic, with smooth matte surfaces and simplified human proportions. They move realistically and retain distinct permanent features (e.g., hairstyle and natural skin tone), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
+        'Écorché':  `Every image is a cinematic, photo-realistic scene. Characters are rendered as écorchés. Each character is a flayed anatomical model: entirely devoid of skin on any exposed body parts (like faces, necks, and hands), revealing highly detailed, photo-realistic red muscle fibers and white tendons, yet retaining a proportionate facial structure with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
         'Lego': `Every image is a LEGO scene. All subjects are constructed from interlocking plastic bricks — blocky, rigid, and featuring visible studs and seams. Their wardrobe is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. Surfaces are glossy, lighting bright and studio-cast with miniature depth-of-field.`
     };
 
@@ -118,8 +163,7 @@ Your task is to:
 4.  Output the results strictly in the following JSON format. Return ONLY raw
     JSON with no markdown formatting, preamble, or explanations.
 
-{ "main_subjects": { "CHAR1": { "base": "Immutable physical traits (e.g., facial
-structure, body shape, distinct features). Do not include clothing here.",
+{ "main_subjects": { "CHAR1": { "base": "Complete immutable physical description. Do not include clothing here.",
 "outfits": { "O1": "Detailed physical description of the first/primary outfit.",
 "O2": "Detailed description of a second outfit. Only generate subsequent outfits
 if the script requires a change. Leave empty for subjects that do not require
@@ -152,7 +196,8 @@ Image Prompts.
     objects and environments every time they appear. (e.g., IMAGE_PROMPT1: CHAR1
     resting on a black, heavy metal, throne. IMAGE_PROMPT2: CHAR1 stands beside
     a black, heavy, metal throne.)
-  - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder shot", "split-screen", in the image prompt is prohibited.
+ - Complete Base Description: The "base" description of main subjects must be complete and include: gender, age range, skin tone, hair color, and hair style.
+ - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder shot", "split-screen", in the image prompt is prohibited.
   - Format: A detailed, comma-separated paragraph aligning with the VISUAL
     IDENTITY.
   - First Frame Snapshot: The image prompt describes the exact visual layout of
@@ -179,15 +224,15 @@ Image Prompts.
     accurately target and animate them within the frame.
   - Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan
     left, push in, orbit, tracking shot, static).
-    
+
 3.  WORLD BUILDING & SUBJECT HANDLING:
 
 Define the persistent reality and reoccurring anchors before generating prompts:
 
-  - Cast (Modular Canonical Anchors): Define main subjects based on the script
-    by establishing their Immutable Base and Outfit Selection in the
-    'main_subjects' object.
-  - Tracking Subjects: In the 'segments' field, list every main subject actively
+  
+   - Cast (Modular Canonical Anchors): Define main subjects based on the script
+    by establishing their Immutable Base and Outfit Selection in the 'main_subjects' object.
+    - Tracking Subjects: In the 'segments' field, list every main subject actively
     appearing in that segment under the 'subjects' array, paired with their
     chosen outfit ID for that scene (defaulting to O1 unless a change or no
     outfit is required).
@@ -243,7 +288,7 @@ Task 4. No markdown, no preamble, no explanation.
         contents: systemPrompt,
         config: {
             responseMimeType: "application/json",
-            thinkingConfig: { thinkingBudget: 3000 }
+            thinkingConfig: { thinkingLevel: "HIGH" }
         }
     });
 
@@ -460,4 +505,5 @@ export async function generateGeminiVideo(imageUrl, animationPrompt, aspectRatio
     
     return await videoResponse.arrayBuffer();
 }
+
 

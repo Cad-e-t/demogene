@@ -1,13 +1,15 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Equal, ChevronRight, ChevronLeft, Mic, Monitor, MonitorPlay, Sparkles, Settings2, Play, Pause, Volume2, VolumeX } from 'lucide-react';
-import { generateSegments, sanitizeErrorMsg } from './api';
+import { generateSegments, generateFreeTrialSegments, sanitizeErrorMsg } from './api';
 import { ContentEditor } from './ContentEditor';
 import { IMAGE_STYLES, EFFECT_PRESETS, LONG_FORM_PRESETS, VOICE_STYLES, VOICE_PACES, VOICE_ACCENTS, VoiceStyleConfig, SUBTITLE_PRESETS, DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from './types';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
 import { STYLE_PREVIEWS, LANDING_PREVIEWS } from './creator-assets';
 import { supabase } from '../../supabaseClient';
+import { CreatorPricingCards } from './CreatorPricingCards';
+import { createCheckoutSession } from '../../frontend-api';
 
 const CHOSEN_GALLERY_VIDEOS = [
     "Hoorror Story",
@@ -80,6 +82,14 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
     // Notification State
     const [notification, setNotification] = useState<{ message: string, type: 'error' | 'success' } | null>(null);
 
+    // Free Trial State
+    const [usedFreeTrial, setUsedFreeTrial] = useState(false);
+    const [dodoCustomerId, setDodoCustomerId] = useState<string | null>(null);
+    const [showFreeTrialModal, setShowFreeTrialModal] = useState(false);
+    
+    // Pricing Overlay State
+    const [showPricingModal, setShowPricingModal] = useState(false);
+
     // Image Count Estimation Logic
     const sentenceCount = React.useMemo(() => {
         if (!prompt.trim()) return 0;
@@ -94,14 +104,17 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
     // 0. Init & Credit Check & Typewriter Effect
     useEffect(() => {
-        // Fetch Credits (for display only, gating handled in parent)
-        const fetchCredits = async () => {
+        // Fetch Credits and Profile details (for display only, gating handled in parent)
+        const fetchProfileData = async () => {
             if (!session?.user?.id) return;
-            const { data } = await supabase.from('profiles').select('credits').eq('id', session.user.id).single();
-            const currentCredits = data?.credits || 0;
-            setCredits(currentCredits);
+            const { data } = await supabase.from('profiles').select('credits, used_free_trial, dodo_customer_id').eq('id', session.user.id).single();
+            if (data) {
+                setCredits(data.credits || 0);
+                setUsedFreeTrial(data.used_free_trial || false);
+                setDodoCustomerId(data.dodo_customer_id || null);
+            }
         };
-        fetchCredits();
+        fetchProfileData();
 
         // Typewriter
         let currentIndex = 0;
@@ -300,16 +313,35 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
         };
     }, [configView]);
 
-    const handleGenerate = async () => {
+    const handleGenerateClick = () => {
+        if (!prompt.trim()) return;
+        if (!dodoCustomerId && !usedFreeTrial) {
+            setShowFreeTrialModal(true);
+        } else {
+            handleGenerate(false);
+        }
+    };
+
+    const handleConfirmFreeTrial = () => {
+        setShowFreeTrialModal(false);
+        handleGenerate(true);
+    };
+
+    const handleGenerate = async (isFreeTrial: boolean) => {
         if (!prompt.trim()) return;
         setLoading(true);
         try {
-            console.log("[ContentDashboard] Starting generation...");
+            console.log(`[ContentDashboard] Starting generation... (Free Trial: ${isFreeTrial})`);
             
             // Ensure we use the correct default if user hasn't touched it
             let finalEffectId = effect.id;
 
-            const res = await generateSegments(prompt, aspect, style, finalEffectId, session.user.id, narrationStyle, subtitles, voice.id);
+            let res;
+            if (isFreeTrial) {
+                res = await generateFreeTrialSegments(prompt, aspect, style, finalEffectId, session.user.id, narrationStyle, subtitles, voice.id);
+            } else {
+                res = await generateSegments(prompt, aspect, style, finalEffectId, session.user.id, narrationStyle, subtitles, voice.id);
+            }
             console.log("[ContentDashboard] Text segments received:", res.segments.length);
             
             setProject({ 
@@ -326,9 +358,15 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
             setSegments(res.segments);
             // We transition immediately to editor even if images are null
         } catch (e: any) {
-            console.error("[ContentDashboard] Generation failed");
-            setNotification({ message: sanitizeErrorMsg(e, "Generation failed"), type: 'error' });
-            setTimeout(() => setNotification(null), 5000);
+            console.error("[ContentDashboard] Generation failed", e);
+            const errorMsg = sanitizeErrorMsg(e, "Generation failed");
+            
+            if (errorMsg.includes("Insufficient credits")) {
+                setShowPricingModal(true);
+            } else {
+                setNotification({ message: errorMsg, type: 'error' });
+                setTimeout(() => setNotification(null), 5000);
+            }
             
             if (e.isPartial && e.projectId && e.segments) {
                 setProject({ 
@@ -365,6 +403,8 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                     onViewChange('projects');
                 }} 
                 onComplete={() => onViewChange('stories')}
+                dodoCustomerId={dodoCustomerId}
+                onViewChange={onViewChange}
             />;
         }
 
@@ -774,7 +814,7 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
 
                             {/* Right Side: Generate Button */}
                             <button 
-                                onClick={handleGenerate}
+                                onClick={handleGenerateClick}
                                 disabled={loading || !prompt.trim() || prompt.length > MAX_CHARS}
                                 className="w-12 h-12 flex-none bg-yellow-600 text-black rounded-2xl flex items-center justify-center hover:bg-yellow-500 transition disabled:opacity-50 shadow-lg shadow-yellow-500/20 transform active:scale-95 duration-200"
                             >
@@ -853,6 +893,66 @@ export const ContentDashboard = ({ session, onViewChange, initialProjectData, on
                         })}
                     </div>
                 </div>
+
+                {/* Free Trial Modal */}
+                {showFreeTrialModal && (
+                    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <div className="bg-zinc-900 border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl relative animate-fade-in-up">
+                            <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Sparkles className="w-8 h-8 text-yellow-500" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-white text-center mb-4">Start Your Free Trial!</h2>
+                            <p className="text-zinc-300 text-center mb-8 leading-relaxed">
+                                You're using your free trial! Your script will be optimized for a 30-40 second short. After this, your own script will be used as-is for future generations.
+                            </p>
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => setShowFreeTrialModal(false)}
+                                    className="flex-1 py-3 bg-zinc-800 text-white rounded-xl font-bold hover:bg-zinc-700 transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleConfirmFreeTrial}
+                                    className="flex-1 py-3 bg-yellow-600 text-black rounded-xl font-bold hover:bg-yellow-500 transition"
+                                >
+                                    Confirm
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Pricing Overlay Modal */}
+                {showPricingModal && (
+                    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+                        <div className="bg-zinc-900 border border-white/10 rounded-[32px] p-6 max-w-5xl w-full shadow-2xl relative animate-fade-in-up mt-auto mb-auto my-12 text-center">
+                            <button 
+                                onClick={() => setShowPricingModal(false)}
+                                className="absolute top-6 right-6 p-2 bg-black hover:bg-zinc-800 text-zinc-500 hover:text-white rounded-full transition"
+                            >
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                            <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter">Out of Credits!</h2>
+                            <p className="text-zinc-400 mb-8 max-w-lg mx-auto">
+                                Choose a pack below to continue creating amazing content instantly.
+                            </p>
+                            
+                            <CreatorPricingCards 
+                                onAction={async (productId) => {
+                                    try {
+                                        const { checkout_url } = await createCheckoutSession(productId);
+                                        window.location.href = checkout_url;
+                                    } catch (e) {
+                                        console.error(e);
+                                        setNotification({ message: "Failed to initiate checkout", type: "error" });
+                                    }
+                                }} 
+                                actionLabel="Buy Pack" 
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }

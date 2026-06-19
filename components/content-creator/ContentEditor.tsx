@@ -7,6 +7,8 @@ import { VOICE_SAMPLES } from '../../voiceSamples';
 import { EFFECT_PRESETS, LONG_FORM_PRESETS, VOICE_STYLES, VOICE_PACES, VOICE_ACCENTS, VoiceStyleConfig, SUBTITLE_PRESETS, SubtitleConfiguration, DEFAULT_SUBTITLE_CONFIG } from './types';
 import { STYLE_PREVIEWS } from './creator-assets';
 import { SubtitleConfigurationPanel } from './SubtitleConfigurationPanel';
+import { CreatorPricingCards } from './CreatorPricingCards';
+import { createCheckoutSession } from '../../frontend-api';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectType: string, imageUrl: string, aspectRatio: '9:16' | '16:9' }) => {
@@ -180,7 +182,7 @@ export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectTyp
     );
 };
 
-export const ContentEditor = ({ session, project, initialSegments, onBack, onComplete }: any) => {
+export const ContentEditor = ({ session, project, initialSegments, onBack, onComplete, dodoCustomerId, onViewChange }: any) => {
     const [segments, setSegments] = useState(initialSegments);
     const [localProject, setLocalProject] = useState(project); // Local project copy for status sync
     const [editingImageId, setEditingImageId] = useState<string | null>(null);
@@ -222,6 +224,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [showAnimateAllMenu, setShowAnimateAllMenu] = useState(false);
     const [showAnimateMenu, setShowAnimateMenu] = useState(false);
     const [notification, setNotification] = useState<{ message: string, type: 'error' | 'success' } | null>(null);
+    const [showPricingModal, setShowPricingModal] = useState(false);
+    const [showExportUpgradeModal, setShowExportUpgradeModal] = useState(false);
     const [lastStatus, setLastStatus] = useState<string | null>(project.status);
     const [lastRenderStatus, setLastRenderStatus] = useState<string | null>(project.render_status);
 
@@ -278,15 +282,19 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         } catch (e: any) {
             console.error("Asset generation failed", e);
             const friendlyError = sanitizeErrorMsg(e, "Asset generation failed. Credits were not charged or have been refunded.");
-            setErrorMessage(friendlyError);
-            setNotification({
-                message: friendlyError,
-                type: 'error'
-            });
-            setTimeout(() => {
-                setErrorMessage(null);
-                setNotification(null);
-            }, 6000);
+            if (friendlyError.includes("Insufficient credits")) {
+                setShowPricingModal(true);
+            } else {
+                setErrorMessage(friendlyError);
+                setNotification({
+                    message: friendlyError,
+                    type: 'error'
+                });
+                setTimeout(() => {
+                    setErrorMessage(null);
+                    setNotification(null);
+                }, 6000);
+            }
             return false;
         } finally {
             setIsGeneratingAssets(false);
@@ -344,6 +352,11 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const handleExport = async (quality: string) => {
+        if (!dodoCustomerId) {
+            setShowExportUpgradeModal(true);
+            return;
+        }
+
         setSubmitting(true);
         setExportStatus('idle');
         setErrorMessage(null);
@@ -407,12 +420,16 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         } catch (e: any) {
             console.error("Animation failed");
             const friendlyError = sanitizeErrorMsg(e, "Video generation failed. Please try again.");
-            setErrorMessage(friendlyError);
-            setNotification({
-                message: friendlyError,
-                type: 'error'
-            });
-            setTimeout(() => setNotification(null), 6000);
+            if (friendlyError.includes("Insufficient credits")) {
+                setShowPricingModal(true);
+            } else {
+                setErrorMessage(friendlyError);
+                setNotification({
+                    message: friendlyError,
+                    type: 'error'
+                });
+                setTimeout(() => setNotification(null), 6000);
+            }
         } finally {
             setIsAnimating(false);
         }
@@ -455,9 +472,13 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         } catch (e: any) {
             console.error("Animate All failed");
             const friendlyError = sanitizeErrorMsg(e, "Batch animation failed. Please try again.");
-            setErrorMessage(friendlyError);
-            setNotification({ message: friendlyError, type: 'error' });
-            setTimeout(() => setNotification(null), 6000);
+            if (friendlyError.includes("Insufficient credits")) {
+                setShowPricingModal(true);
+            } else {
+                setErrorMessage(friendlyError);
+                setNotification({ message: friendlyError, type: 'error' });
+                setTimeout(() => setNotification(null), 6000);
+            }
             setLocalProject((prev: any) => ({ ...prev, render_status: 'ready' }));
         } finally {
             setIsAnimatingAll(false);
@@ -716,16 +737,20 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             console.error("Image regeneration failed.");
             setRegenerateStatus('error');
             const friendlyError = sanitizeErrorMsg(e, "Image regeneration failed. Credits were not charged or have been refunded.");
-            setErrorMessage(friendlyError);
-            setNotification({
-                message: friendlyError,
-                type: 'error'
-            });
-            setTimeout(() => {
-                setRegenerateStatus('idle');
-                setErrorMessage(null);
-                setNotification(null);
-            }, 6000);
+            if (friendlyError.includes("Insufficient credits")) {
+                setShowPricingModal(true);
+            } else {
+                setErrorMessage(friendlyError);
+                setNotification({
+                    message: friendlyError,
+                    type: 'error'
+                });
+                setTimeout(() => {
+                    setRegenerateStatus('idle');
+                    setErrorMessage(null);
+                    setNotification(null);
+                }, 6000);
+            }
         } finally {
             setLoadingImage(false);
         }
@@ -747,16 +772,20 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             console.error("Image edit failed.");
             setEditStatus('error');
             const friendlyError = sanitizeErrorMsg(e, "Image edit failed. Credits were not charged or have been refunded.");
-            setErrorMessage(friendlyError);
-            setNotification({
-                message: friendlyError,
-                type: 'error'
-            });
-            setTimeout(() => {
-                setEditStatus('idle');
-                setErrorMessage(null);
-                setNotification(null);
-            }, 6000);
+            if (friendlyError.includes("Insufficient credits")) {
+                setShowPricingModal(true);
+            } else {
+                setErrorMessage(friendlyError);
+                setNotification({
+                    message: friendlyError,
+                    type: 'error'
+                });
+                setTimeout(() => {
+                    setEditStatus('idle');
+                    setErrorMessage(null);
+                    setNotification(null);
+                }, 6000);
+            }
         } finally {
             setLoadingImage(false);
         }
@@ -1717,6 +1746,64 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 Continue
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Pricing Overlay Modal */}
+            {showPricingModal && (
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-zinc-900 border border-white/10 rounded-[32px] p-6 max-w-5xl w-full shadow-2xl relative animate-fade-in-up mt-auto mb-auto my-12 text-center">
+                        <button 
+                            onClick={() => setShowPricingModal(false)}
+                            className="absolute top-6 right-6 p-2 bg-black hover:bg-zinc-800 text-zinc-500 hover:text-white rounded-full transition"
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter">Out of Credits!</h2>
+                        <p className="text-zinc-400 mb-8 max-w-lg mx-auto">
+                            Choose a pack below to continue creating amazing content instantly.
+                        </p>
+                        
+                        <CreatorPricingCards 
+                            onAction={async (productId) => {
+                                try {
+                                    const { checkout_url } = await createCheckoutSession(productId);
+                                    window.location.href = checkout_url;
+                                } catch (e) {
+                                    console.error(e);
+                                    setNotification({ message: "Failed to initiate checkout", type: "error" });
+                                }
+                            }} 
+                            actionLabel="Buy Pack" 
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Export Upgrade Modal */}
+            {showExportUpgradeModal && (
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-zinc-900 border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl relative animate-fade-in-up text-center">
+                        <button 
+                            onClick={() => setShowExportUpgradeModal(false)}
+                            className="absolute top-4 right-4 p-2 text-zinc-500 hover:text-white rounded-full transition"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter">Upgrade to Export</h2>
+                        <p className="text-zinc-300 mb-8 leading-relaxed">
+                            Upgrade your plan to export this video in brilliant Ultra HD. Click the button below to view pricing and get your packs.
+                        </p>
+                        <button
+                            onClick={() => {
+                                setShowExportUpgradeModal(false);
+                                if (onViewChange) onViewChange('creator-pricing');
+                            }}
+                            className="w-full py-4 bg-yellow-600 text-black rounded-xl font-black uppercase tracking-widest hover:bg-yellow-500 transition shadow-lg shadow-yellow-600/20"
+                        >
+                            View Pricing
+                        </button>
                     </div>
                 </div>
             )}

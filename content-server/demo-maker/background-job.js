@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import { execSync } from 'child_process';
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { AssemblyAI } from 'assemblyai';
 
 import { analyzeVideo, generateVoiceover } from './gemini.js';
@@ -14,6 +14,15 @@ import { s3, R2_BUCKET, R2_PUBLIC_URL } from '../storage.js';
 import { downloadFile, getDurationValue, parseTime, cleanup, alignSegmentsWithTranscription } from './utils.js';
 
 const TEMP_DIR = os.tmpdir();
+
+function getKeyFromUrl(url) {
+    if (!url) return null;
+    const baseUrl = R2_PUBLIC_URL.endsWith('/') ? R2_PUBLIC_URL : `${R2_PUBLIC_URL}/`;
+    if (url.startsWith(baseUrl)) {
+        return url.replace(baseUrl, '');
+    }
+    return null;
+}
 
 export async function runDemoProcessing(jobData) {
     const { projectId, sourceVideoUrl, sections, voiceId, userId } = jobData;
@@ -161,6 +170,93 @@ export async function runDemoProcessing(jobData) {
              p_description: 'Refund: Demo processing failed',
              p_metadata: { error: error.message }
         });
+    } finally {
+        cleanup(filesToDelete);
+    }
+}
+
+export async function runDemoAudioRegeneration({ projectId, segments, voiceId, userId }) {
+    const filesToDelete = [];
+    console.log(`[Demo Audio Regen] Starting for Project: ${projectId}`);
+    try {
+        let transcription = null;
+        let segmentDurations = [];
+        let audioUrl = null;
+
+        const { audioBuffer } = await generateVoiceover(segments, voiceId, "Read aloud in a calm, deliberate tone with brisk continuous delivery");
+
+        const rawAudioPath = path.join(TEMP_DIR, `raw_audio_${uuidv4()}.pcm`);
+        filesToDelete.push(rawAudioPath);
+        fs.writeFileSync(rawAudioPath, audioBuffer);
+        
+        const audioFilename = `audio_${uuidv4()}.wav`;
+        const audioPath = path.join(TEMP_DIR, audioFilename);
+        filesToDelete.push(audioPath);
+        
+        try {
+            execSync(`ffmpeg -f s16le -ar 24000 -ac 1 -i "${rawAudioPath}" -y "${audioPath}"`, { stdio: 'ignore' });
+        } catch (e) {
+            console.error("FFmpeg PCM Conversion Failed:", e);
+            throw new Error("Failed to convert TTS audio");
+        }
+
+        const totalAudioDuration = getDurationValue(audioPath);
+
+        // Upload audio to R2
+        const audioKey = `demo-audio/${audioFilename}`;
+        await s3.send(new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: audioKey,
+            Body: fs.createReadStream(audioPath),
+            ContentType: 'audio/wav'
+        }));
+        audioUrl = `${R2_PUBLIC_URL}/${audioKey}`;
+
+        console.log('--- Transcribing Audio ---');
+        const aaiClient = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
+        transcription = await aaiClient.transcripts.transcribe({
+            audio: audioPath,
+            speech_models: ["universal-3-pro", "universal-2"],
+            language_detection: true,
+        });
+
+        console.log('--- Aligning Segments ---');
+        segmentDurations = alignSegmentsWithTranscription(segments, transcription, totalAudioDuration);
+        
+        if (!segmentDurations) {
+            console.log("Transcription alignment failed, falling back to character count.");
+            segmentDurations = calculateAudioLineDurations(segments, totalAudioDuration);
+        }
+
+        console.log('--- Saving to Database ---');
+        // Fetch existing project to get the old voice_path
+        const { data: project } = await supabase.from('demo_projects').select('voice_path').eq('id', projectId).single();
+
+        await supabase.from('demo_projects').update({
+            transcription,
+            segments,
+            segment_durations: segmentDurations,
+            voice_path: audioUrl,
+            status: 'ready'
+        }).eq('id', projectId);
+
+        // Delete the old audio from R2 if it exists
+        if (project && project.voice_path) {
+            const oldKey = getKeyFromUrl(project.voice_path);
+            if (oldKey) {
+                console.log(`[Demo Audio Regen] Deleting old audio: ${oldKey}`);
+                await s3.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: oldKey })).catch(err => {
+                    console.error("[Demo Audio Regen] Error deleting old audio:", err);
+                });
+            }
+        }
+
+        console.log(`[Demo Audio Regen] Completed for Project: ${projectId}`);
+        return { audioUrl, transcription, segmentDurations };
+
+    } catch (error) {
+        console.error(`[Demo Audio Regen] Error for Project ${projectId}:`, error);
+        throw error;
     } finally {
         cleanup(filesToDelete);
     }

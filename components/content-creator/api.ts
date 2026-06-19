@@ -71,6 +71,27 @@ export async function generateSegments(prompt: string, aspect: string, style: st
     return await res.json();
 }
 
+export async function generateFreeTrialSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: VoiceStyleConfig, subtitles: SubtitleConfiguration, voiceId: string, signal?: AbortSignal) {
+    const res = await fetch(`${API_URL}/generate-free-trial-segments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, subtitles, voiceId }),
+        signal
+    });
+    
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const errorObj: any = new Error(sanitizeErrorMsg(err.error, "Free trial generation failed. Please try again later."));
+        if (err.projectId && err.segments) {
+            errorObj.projectId = err.projectId;
+            errorObj.segments = err.segments;
+            errorObj.isPartial = true;
+        }
+        throw errorObj;
+    }
+    return await res.json();
+}
+
 export async function editImageSegment(segmentId: string, currentImageUrl: string, editPrompt: string) {
     const res = await fetch(`${API_URL}/edit-image`, {
         method: 'POST',

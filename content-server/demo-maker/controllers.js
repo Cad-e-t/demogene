@@ -4,7 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from '../storage.js';
 import { supabase } from './supabase.js';
-import { runDemoProcessing, runDemoExport } from './background-job.js';
+import { runDemoProcessing, runDemoExport, runDemoAudioRegeneration } from './background-job.js';
 import { generateImage } from '../gemini.js';
 
 export const generateUploadUrl = async (req, res) => {
@@ -130,6 +130,38 @@ export const exportDemoVideo = async (req, res) => {
 
     } catch (error) {
         console.error("Export Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const regenerateDemoAudio = async (req, res) => {
+    try {
+        const { projectId, segments, voiceId, userId } = req.body;
+        if (!projectId || !segments || !voiceId || !userId) {
+            return res.status(400).json({ error: 'Missing parameters' });
+        }
+        
+        // 1. Charge Credit Initially (Optional, let's charge 1 credit)
+        const { error: chargeError } = await supabase.rpc('charge_credit', { p_user_id: userId });
+        if (chargeError) {
+            return res.status(402).json({ error: 'Insufficient credits.' });
+        }
+
+        try {
+            const result = await runDemoAudioRegeneration({ projectId, segments, voiceId, userId });
+            res.json({ success: true, ...result });
+        } catch (error) {
+            // Refund on failure
+            await supabase.rpc('grant_credits_from_purchase', {
+                 p_user_id: userId,
+                 p_credits_to_add: 1,
+                 p_description: 'Refund: Demo audio regeneration failed',
+                 p_metadata: { error: error.message }
+            });
+            throw error;
+        }
+    } catch (error) {
+        console.error("Audio Regeneration Error:", error);
         res.status(500).json({ error: error.message });
     }
 };

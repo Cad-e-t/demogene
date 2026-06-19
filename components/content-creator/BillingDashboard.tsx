@@ -75,7 +75,7 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
 
             {/* Pricing Details Modal */}
             {isPricingModalOpen && (
-                <div className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
                     <div className="bg-zinc-900 rounded-3xl shadow-2xl border border-white/5 w-full max-w-lg overflow-hidden flex flex-col">
                         <div className="p-6 border-b border-white/5 flex justify-between items-center bg-black">
                             <h3 className="text-xl font-black text-white uppercase tracking-tighter">Credit Pricing</h3>
@@ -83,7 +83,7 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
-                        <div className="p-6 space-y-6 overflow-y-auto">
+                        <div className="bg-zinc-900 p-6 space-y-6 overflow-y-auto">
                             <div>
                                 <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Image Generation</h4>
                                 <div className="space-y-3">
