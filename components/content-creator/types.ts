@@ -24,16 +24,49 @@ export interface SubtitleConfiguration {
 
 export const DEFAULT_SUBTITLE_CONFIG: SubtitleConfiguration = {
     enabled: true,
-    placement: 35,
-    fontFamily: 'Arimo',
-    fontSize: 54,
-    primaryColor: '#ffffff',
-    secondaryColor: '#0f0f0f',
-    highlightColor: '#FFFF00',
-    strokeWidth: 4,
-    letterSpacing: 3,
-    textTransform: 'capitalize',
-    animationType: 'pulse_bold'
+    fontSize: 98,
+    maxWords: 1,
+    presetId: "preset_05_impact_box",
+    fontStyle: "italic",
+    placement: 36,
+    fontFamily: "Impact",
+    fontWeight: "normal",
+    strokeWidth: 12,
+    primaryColor: "#FFFFFF",
+    advancedStyle: {
+        stroke: {
+            color: "#000000",
+            width: "12px"
+        },
+        background: {
+            type: "box-per-word",
+            color: "#E60000",
+            padding: "5px"
+        }
+    },
+    animationType: "word-by-word",
+    letterSpacing: -1,
+    textTransform: "uppercase",
+    advancedColors: {
+        text: "#FFFFFF",
+        inactive: "#FFFFFF",
+        highlight: "none"
+    },
+    advancedLayout: {
+        maxLines: 1,
+        position: "bottom-center",
+        alignment: "center",
+        placement: 15
+    },
+    highlightColor: "#FFFFFF",
+    secondaryColor: "#000000",
+    advancedAnimation: {
+        in: "skew-in (skewX -20deg to 0deg) + pop",
+        out: "fade-out",
+        type: "word-by-word",
+        easing: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        emphasis: "background box expands slightly"
+    }
 };
 
 export interface VoiceStyleConfig {

@@ -105,7 +105,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
 
     // 1. Load Audio
     useEffect(() => {
-        if (!audioUrl) return;
+        if (!audioUrl || audioUrl.trim() === '') return;
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
         
@@ -121,8 +121,15 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
             setShowControls(true);
         });
 
+        // If it was already supposed to be playing, play it once it's ready
+        if (isPlayingRef.current) {
+            audio.play().catch(e => console.error("Play failed after load", e));
+        }
+
         return () => {
             audio.pause();
+            audio.removeAttribute('src');
+            audio.load();
             audioRef.current = null;
         };
     }, [audioUrl]);
@@ -178,7 +185,8 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                         const video = document.createElement('video');
                         videoElement = video;
                         video.preload = "auto";
-                        video.muted = true; // Mute the native audio of AI generated clips
+                        video.muted = false; // Mute the native audio of AI generated clips
+                        video.volume = 0.15;
                         video.playsInline = true;
                         
                         video.onloadeddata = () => {
@@ -392,10 +400,11 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                 
                 if (isPlaying) {
                     if (med.paused) {
-                        try {
-                            med.play();
-                        } catch (e) {
-                            console.error("Video play error in render loop:", e);
+                        const playPromise = med.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(e => {
+                                console.error("Video play error in render loop:", e);
+                            });
                         }
                     }
                     if (Math.abs(med.playbackRate - requiredPlaybackRate) > 0.05) {

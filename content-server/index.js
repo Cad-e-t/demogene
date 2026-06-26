@@ -335,7 +335,7 @@ async function processAnimationsBackground(projectId, segments, aspectRatio, use
     await supabase.from('content_projects').update({ render_status: 'ready' }).eq('id', projectId);
 }
 
-async function processAssetsBackground(projectId, segments, voiceId, userId) {
+async function processAssetsBackground(projectId, segments, voiceId, userId, isFreeTrial = false) {
     console.log(`[ContentServer] Starting background asset generation for project ${projectId}`);
     let workDir = null;
     let chargedAmount = 0;
@@ -423,8 +423,12 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
         const subtitleCost = project.subtitles ? totalDuration * COST_SUBTITLE_PER_SECOND : 0;
         const totalCharge = Math.round((audioCost + subtitleCost) * 100) / 100;
 
-        chargedAmount = totalCharge;
-        await chargeUser(userId, totalCharge, `Asset Gen (Audio+Subs) ${totalDuration.toFixed(1)}s`);
+        if (!isFreeTrial) {
+            chargedAmount = totalCharge;
+            await chargeUser(userId, totalCharge, `Asset Gen (Audio+Subs) ${totalDuration.toFixed(1)}s`);
+        } else {
+            console.log(`[Billing] Free Trial - Skipping audio charge`);
+        }
 
         // 3. Upload Audio
         const audioKey = `content/${projectId}/${audioFilename}`;
@@ -516,7 +520,7 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
     }
 }
 
-async function processImagesBackground(projectId, segments, aspectRatio, costPerImage, userId) {
+async function processImagesBackground(projectId, segments, aspectRatio, costPerImage, userId, isFreeTrial = false) {
     console.log(`[ContentServer] Starting background image generation for project ${projectId}`);
     
     let failedCount = 0;
@@ -569,7 +573,7 @@ async function processImagesBackground(projectId, segments, aspectRatio, costPer
     await Promise.all(workers);
     
     // Refund for failures
-    if (failedCount > 0) {
+    if (failedCount > 0 && !isFreeTrial) {
         console.log(`[ContentServer] Refunding ${failedCount} failed images for user ${userId}`);
         await refundUser(userId, failedCount * costPerImage, `Refund: Failed Images (${failedCount})`);
     }
@@ -598,7 +602,7 @@ app.post('/generate-segments', async (req, res) => {
         }
 
         // 1. Create Project
-        const defaultEffect = aspectRatio === '16:9' ? 'documentary' : 'cinematic';
+        const defaultEffect = aspectRatio === '16:9' ? 'immersive' : 'cinematic';
         const { data: project, error } = await supabase.from('content_projects').insert({
             user_id: userId,
             title: prompt.substring(0, 50),
@@ -731,10 +735,10 @@ app.post('/generate-free-trial-segments', async (req, res) => {
         console.log(`[ContentServer] Received free trial generate request: "${prompt.substring(0, 30)}..."`);
         
         // 1. Create Project
-        const defaultEffect = aspectRatio === '16:9' ? 'documentary' : 'cinematic';
+        const defaultEffect = aspectRatio === '16:9' ? 'immersive' : 'cinematic';
         const { data: project, error } = await supabase.from('content_projects').insert({
             user_id: userId,
-            title: prompt.substring(0, 50),
+            title: prompt.substring(0, 50) + " - free-trial",
             aspect_ratio: aspectRatio,
             image_style: style,
             effect: effect || defaultEffect,
@@ -748,12 +752,12 @@ app.post('/generate-free-trial-segments', async (req, res) => {
         createdProjectId = project.id;
         console.log(`[ContentServer] Project created: ${project.id}`);
 
-        // 2. Generate Text Segments (Free Trial Mode)
+        // 2. Generate Text Segments (Free Trial Mode uses normal prompt now, but we pass true)
         console.log(`[ContentServer] Generating text segments (Free Trial)...`);
         const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', true);
         console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
-        // 3. Determine Cost & Charge (Allow negative balance)
+        // 3. Determine Cost & Charge
         const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;
         const flashOutputTokens = usageMetadata?.flashUsage?.candidatesTokenCount || 0;
         
@@ -770,14 +774,15 @@ app.post('/generate-free-trial-segments', async (req, res) => {
         }
 
         const costPerImage = COST_IMAGE_ULTRA;
-        const totalCost = (segmentsData.length * costPerImage) + analysisCost;
-
-        console.log(`[Billing] Free Trial - Charging full cost anyway: ${totalCost.toFixed(2)} credits`);
-
-        await chargeUser(userId, totalCost, `Free Trial Batch - ${segmentsData.length} images + AI Analysis`);
         
-        // Mark user as having used free trial
-        await supabase.from('profiles').update({ used_free_trial: true }).eq('id', userId);
+        // Only 8 segments max can be processed when isFreeTrial is true
+        const processedSegmentsCount = Math.min(segmentsData.length, 8);
+        const totalCost = (processedSegmentsCount * costPerImage) + analysisCost;
+
+        console.log(`[Billing] Free Trial - Project creation complete. Setting user credits to 0.`);
+        
+        // Mark user as having used free trial and reset credits to 0
+        await supabase.from('profiles').update({ used_free_trial: true, credits: 0 }).eq('id', userId);
 
         // 4. Save Text Segments to DB
         const segmentsToInsert = segmentsData.map((s, idx) => ({
@@ -800,10 +805,11 @@ app.post('/generate-free-trial-segments', async (req, res) => {
         await supabase.from('content_projects').update({ status: 'generating', render_status: 'generating' }).eq('id', project.id);
 
         // 6. Trigger Background Image Gen
-        processImagesBackground(project.id, insertedSegments, aspectRatio, costPerImage, userId);
+        const segmentsToProcess = insertedSegments.slice(0, 8);
+        processImagesBackground(project.id, segmentsToProcess, aspectRatio, costPerImage, userId, true);
 
         // 7. Trigger Background Asset Gen
-        processAssetsBackground(project.id, insertedSegments, voiceId, userId).catch(e => {
+        processAssetsBackground(project.id, segmentsToProcess, voiceId, userId, true).catch(e => {
             console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
         });
 
@@ -1137,7 +1143,10 @@ app.post('/video-generation', async (req, res) => {
         const rounded = Math.round(rawDur);
         if (rounded === 3 || rounded === 4) finalDur = 2;
         else if (rounded === 5) finalDur = 3;
-        else if (rounded > 5) finalDur = 4;
+        else if (rounded === 6 || rounded === 7) finalDur = 4;
+        else if (rounded === 8 || rounded === 9) finalDur = 5;
+        else if (rounded === 10 || rounded === 11) finalDur = 6;
+        else if (rounded > 11) finalDur = 7;
         else finalDur = 2;
         totalCost = finalDur * costPerSec;
 
@@ -1248,7 +1257,10 @@ app.post('/animate-all', async (req, res) => {
             let finalDur = 2;
             if (rounded === 3 || rounded === 4) finalDur = 2;
             else if (rounded === 5) finalDur = 3;
-            else if (rounded > 5) finalDur = 4;
+            else if (rounded === 6 || rounded === 7) finalDur = 4;
+            else if (rounded === 8 || rounded === 9) finalDur = 5;
+            else if (rounded === 10 || rounded === 11) finalDur = 6;
+            else if (rounded > 11) finalDur = 7;
             else finalDur = 2;
             totalCost += (finalDur * costPerSec);
             seg._duration = finalDur;

@@ -184,6 +184,11 @@ export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectTyp
 
 export const ContentEditor = ({ session, project, initialSegments, onBack, onComplete, dodoCustomerId, onViewChange }: any) => {
     const [segments, setSegments] = useState(initialSegments);
+    useEffect(() => {
+        // Only set initial segments when the project changes to prevent 
+        // stale activeProjectData from reverting real-time updates
+        setSegments(initialSegments);
+    }, [project.id]);
     const [localProject, setLocalProject] = useState(project); // Local project copy for status sync
     const [editingImageId, setEditingImageId] = useState<string | null>(null);
     const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
@@ -446,7 +451,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 let finalDur = 2;
                 if (rounded === 3 || rounded === 4) finalDur = 2;
                 else if (rounded === 5) finalDur = 3;
-                else if (rounded > 5) finalDur = 4;
+                else if (rounded === 6 || rounded === 7) finalDur = 4;
+                else if (rounded === 8 || rounded === 9) finalDur = 5;
+                else if (rounded === 10 || rounded === 11) finalDur = 6;
+                else if (rounded > 11) finalDur = 7;
                 else finalDur = 2;
                 return acc + (finalDur * costPerSec);
             }, 0);
@@ -486,11 +494,30 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     // Config Panel State
-    const [activeModule, setActiveModule] = useState<'narration' | 'images' | 'effect' | 'captions' | null>('images');
-    const [isMobileConfigOpen, setIsMobileConfigOpen] = useState(true);
+    const [activeModule, setActiveModule] = useState<'narration' | 'images' | 'effect' | 'captions' | null>(() => {
+        const saved = localStorage.getItem('content_editor_active_module');
+        return (saved as 'narration' | 'images' | 'effect' | 'captions' | null) || 'images';
+    });
+    const [isMobileConfigOpen, setIsMobileConfigOpen] = useState(() => {
+        const saved = localStorage.getItem('content_editor_mobile_config_open');
+        return saved ? saved === 'true' : true;
+    });
     const [narrationSection, setNarrationSection] = useState<'voice' | 'style' | null>(null);
-    const [narrationView, setNarrationView] = useState<'summary' | 'edit_script'>('summary');
-    const [subtitleView, setSubtitleView] = useState<'summary' | 'edit' | 'transcription'>('summary');
+    const [narrationView, setNarrationView] = useState<'summary' | 'edit_script'>(() => {
+        const saved = localStorage.getItem('content_editor_narration_view');
+        return (saved as 'summary' | 'edit_script') || 'summary';
+    });
+    const [subtitleView, setSubtitleView] = useState<'summary' | 'edit' | 'transcription'>(() => {
+        const saved = localStorage.getItem('content_editor_subtitle_view');
+        return (saved as 'summary' | 'edit' | 'transcription') || 'summary';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('content_editor_active_module', activeModule || '');
+        localStorage.setItem('content_editor_mobile_config_open', isMobileConfigOpen.toString());
+        localStorage.setItem('content_editor_narration_view', narrationView);
+        localStorage.setItem('content_editor_subtitle_view', subtitleView);
+    }, [activeModule, isMobileConfigOpen, narrationView, subtitleView]);
     
     // Local state for editable settings
     const [voice, setVoice] = useState(VOICES.find(v => v.id === project.voice_id) || VOICES[0]);
@@ -508,7 +535,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         if (Array.isArray(parsedEffect)) return parsedEffect;
         
         // Migration: If it's a string, convert to sequence
-        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'documentary' : 'cinematic';
+        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'immersive' : 'cinematic';
         const baseSequence = EFFECT_SEQUENCES[parsedEffect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey];
         // Expand to match segments if possible
         if (initialSegments?.length) {
@@ -540,7 +567,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         }
 
         if (typeof parsedEffect === 'string' && Object.keys(EFFECT_SEQUENCES).includes(parsedEffect)) {
-            const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'documentary' : 'cinematic';
+            const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'immersive' : 'cinematic';
             const baseSequence = EFFECT_SEQUENCES[parsedEffect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey];
             const expanded = [];
             const targetLength = segments?.length || 5;
@@ -632,8 +659,6 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                     setAudioUrl(payload.new.voice_file_path);
                     setTranscription(payload.new.transcription);
                     setSegmentDurations(payload.new.segment_durations || []);
-                    // Auto-play when ready
-                    setIsPlaying(true);
                 }
                 if (payload.new.subtitles) {
                     setSubtitles(payload.new.subtitles as SubtitleConfiguration);
@@ -792,7 +817,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const handleEffectChange = async (newEffect: any) => {
-        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'documentary' : 'cinematic';
+        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'immersive' : 'cinematic';
         const baseSequence = EFFECT_SEQUENCES[newEffect.id as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey];
         const expanded = [];
         for (let i = 0; i < segments.length; i++) {
@@ -803,7 +828,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const handleSegmentEffectChange = async (segmentIndex: number, effectType: string) => {
-        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'documentary' : 'cinematic';
+        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'immersive' : 'cinematic';
         const currentEffect = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey]);
         const newSequence = [...currentEffect];
         
@@ -1054,7 +1079,14 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 return (
                     <div className="flex flex-col flex-1 h-full overflow-hidden">
                         <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-2 pb-4 space-y-2 md:space-y-4">
-                            {segments.map((seg: any, idx: number) => {
+                            {(() => {
+                                const isFreeTrial = project?.title?.toLowerCase().includes('free-trial') || localProject?.title?.toLowerCase().includes('free-trial');
+                                const visibleSegments = isFreeTrial ? segments.slice(0, 8) : segments;
+
+                                return (
+                                    <>
+                                        {visibleSegments.map((seg: any, idx: number) => {
+
                             let currentAudioTime = 0;
                             let isActive = false;
                             for (let j = 0; j <= idx; j++) {
@@ -1124,7 +1156,17 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     </div>
                                 </div>
                             </div>
-                        )})}
+                                        )})}
+                                        {isFreeTrial && segments.length > 8 && (
+                                            <div key="free-trial-limit" className="p-4 md:p-6 border-2 border-yellow-500/50 bg-yellow-500/10 rounded-xl text-center flex flex-col items-center justify-center mt-2">
+                                                <p className="text-zinc-200 text-sm md:text-base font-medium">
+                                                    You exceeded your free trial limit. <button onClick={() => setShowPricingModal(true)} className="text-yellow-500 underline hover:text-yellow-400 font-bold transition">Upgrade</button> to create longer videos.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </div>
                         
                         <div className="shrink-0 pt-4 pb-4 px-4 md:px-6 md:pb-6 border-t border-white/10 bg-black relative">
@@ -1331,6 +1373,13 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
                 {/* Video Preview Area */}
                 <div className={`flex-1 bg-zinc-900 flex flex-col relative overflow-hidden h-full transition-all duration-300 ${isMobileConfigOpen ? 'md:h-full h-[35%]' : 'h-full'}`}>
+                    {(project?.title?.toLowerCase().includes('free-trial') || localProject?.title?.toLowerCase().includes('free-trial')) && (
+                        <div className="absolute top-4 left-0 right-0 z-20 flex justify-center pointer-events-none px-4">
+                            <p className="text-white/50 text-[10px] md:text-xs font-medium bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full pointer-events-auto border border-white/5 shadow-sm text-center">
+                                You exceeded your free trial limit. <button onClick={() => setShowPricingModal(true)} className="underline hover:text-white transition cursor-pointer">Upgrade</button> to create longer videos.
+                            </p>
+                        </div>
+                    )}
                     <div className={`flex-1 flex items-center justify-center p-4 md:p-8 min-h-0 w-full relative transition-all duration-300 ${isMobileConfigOpen ? 'scale-90 md:scale-100' : 'scale-100'}`}>
                         {(!audioUrl || segmentDurations.length === 0 || localProject.render_status === 'Animating') ? (
                             <div className="flex flex-col items-center gap-4">
@@ -1612,7 +1661,10 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     let finalDur = 2;
                                     if (rounded === 3 || rounded === 4) finalDur = 2;
                                     else if (rounded === 5) finalDur = 3;
-                                    else if (rounded > 5) finalDur = 4;
+                                    else if (rounded === 6 || rounded === 7) finalDur = 4;
+                                    else if (rounded === 8 || rounded === 9) finalDur = 5;
+                                    else if (rounded === 10 || rounded === 11) finalDur = 6;
+                                    else if (rounded > 11) finalDur = 7;
                                     else finalDur = 2;
                                     const animationCost = finalDur * 5;
 
@@ -1661,7 +1713,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 {EFFECT_TYPES.map((eff) => {
                                                     const idx = segments.findIndex((s: any) => s.id === animatingSegmentId);
-                                                    const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'documentary' : 'cinematic';
+                                                    const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'immersive' : 'cinematic';
                                                     const currentEffectArray = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey]);
                                                     const isCurrent = currentEffectArray[idx % currentEffectArray.length] === eff.id;
 

@@ -46,7 +46,7 @@ const ExpirationBadge = ({ createdAt }: { createdAt: string }) => {
     );
 };
 
-export const ContentStories = ({ session, onToggleSidebar }: any) => {
+export const ContentStories = ({ session, onToggleSidebar, isActive }: any) => {
     const [stories, setStories] = useState<any[]>([]);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -54,8 +54,10 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetch = async () => {
-            setIsLoading(true);
+        const fetchStories = async () => {
+            if (stories.length === 0) {
+                setIsLoading(true);
+            }
             try {
                 const { data } = await supabase
                     .from('content_stories')
@@ -69,7 +71,11 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                 setIsLoading(false);
             }
         };
-        fetch();
+
+        if (isActive) {
+            fetchStories();
+        }
+
         const sub = supabase.channel('stories').on('postgres_changes', { event: '*', schema: 'public', table: 'content_stories' }, () => {
             // Re-fetch blindly on changes (without showing overall loading spinner again)
             supabase
@@ -80,7 +86,7 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
                 .then(({ data }) => setStories(data || []));
         }).subscribe();
         return () => { sub.unsubscribe(); };
-    }, [session]);
+    }, [session, isActive]);
 
     const handleDelete = async (storyId: string) => {
         setConfirmDeleteId(null);
@@ -105,7 +111,7 @@ export const ContentStories = ({ session, onToggleSidebar }: any) => {
     };
 
     return (
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-black">
+        <div className="w-full h-full overflow-y-auto p-6 md:p-8 bg-black">
             
             {/* Mobile Header */}
             <div className="md:hidden flex items-center justify-between mb-6 sticky top-0 bg-black z-20 py-2">

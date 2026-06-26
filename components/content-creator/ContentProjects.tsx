@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { deleteProject } from './api';
 
-export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggleSidebar }: any) => {
+export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggleSidebar, isActive }: any) => {
     const [projects, setProjects] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -11,8 +11,11 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetch = async () => {
-            setIsLoading(true);
+        const fetchProjects = async () => {
+            // Only show full loading spinner if we have no projects yet
+            if (projects.length === 0) {
+                setIsLoading(true);
+            }
             try {
                 console.log("[ContentProjects] Fetching projects...");
                 // Fetch content_projects
@@ -59,8 +62,11 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
                 setIsLoading(false);
             }
         };
-        fetch();
-    }, [session]);
+
+        if (isActive) {
+            fetchProjects();
+        }
+    }, [session, isActive]);
 
     const handleProjectClick = async (project: any) => {
         console.log(`[ContentProjects] Loading project: ${project.id}`);
@@ -123,7 +129,7 @@ export const ContentProjects = ({ session, onViewChange, onOpenProject, onToggle
     };
 
     return (
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-black">
+        <div className="w-full h-full overflow-y-auto p-6 md:p-8 bg-black">
             
             {/* Mobile Header */}
             <div className="md:hidden flex items-center justify-between mb-6 sticky top-0 bg-black z-20 py-2">

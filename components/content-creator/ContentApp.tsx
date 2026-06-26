@@ -116,6 +116,41 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         };
     }, [session]);
 
+    // Fetch project from URL if present
+    useEffect(() => {
+        if (!session) return;
+        const fetchUrlProject = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('project');
+            
+            if (projectId && view === 'dashboard' && !activeProjectData) {
+                try {
+                    const { data: projectData, error: projectError } = await supabase
+                        .from('content_projects')
+                        .select('*')
+                        .eq('id', projectId)
+                        .eq('user_id', session.user.id)
+                        .single();
+                        
+                    if (projectError || !projectData) return;
+
+                    const { data: segmentsData, error: segmentsError } = await supabase
+                        .from('content_segments')
+                        .select('*')
+                        .eq('project_id', projectId)
+                        .order('order_index', { ascending: true });
+                        
+                    if (!segmentsError && segmentsData) {
+                        setActiveProjectData({ project: projectData, segments: segmentsData });
+                    }
+                } catch (e) {
+                    console.error("Error fetching URL project:", e);
+                }
+            }
+        };
+        fetchUrlProject();
+    }, [session, view, activeProjectData]);
+
     // Fix: Clear active project when navigating away from dashboard to prevent editor from reopening
     useEffect(() => {
         if (view !== 'dashboard') {
@@ -153,11 +188,12 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
         console.log(`[ContentApp] Opening project ${project.id} with ${segments.length} segments`);
         setActiveProjectData({ project, segments });
         // Manually set view to dashboard via navigate
-        onNavigate('/content-creator/dashboard');
+        onNavigate(`/content-creator/dashboard?project=${project.id}`);
     };
 
     const handleClearActiveProject = () => {
         setActiveProjectData(null);
+        onNavigate('/content-creator/dashboard');
     };
 
     const handlePurchase = async (productId: string) => {
@@ -190,7 +226,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                 />
             )}
             <main className="flex-1 flex flex-col relative h-full overflow-hidden md:pt-0">
-                {view === 'dashboard' && (
+                <div className={`w-full h-full ${view === 'dashboard' ? 'block' : 'hidden'}`}>
                     <ContentDashboard 
                         session={session} 
                         onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
@@ -198,21 +234,23 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                         onClearProject={handleClearActiveProject}
                         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     />
-                )}
-                {view === 'projects' && (
+                </div>
+                <div className={`w-full h-full ${view === 'projects' ? 'block' : 'hidden'}`}>
                     <ContentProjects 
                         session={session} 
+                        isActive={view === 'projects'}
                         onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
                         onOpenProject={handleOpenProject}
                         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     />
-                )}
-                {view === 'stories' && (
+                </div>
+                <div className={`w-full h-full ${view === 'stories' ? 'block' : 'hidden'}`}>
                     <ContentStories 
                         session={session}
+                        isActive={view === 'stories'}
                         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     />
-                )}
+                </div>
                 {view === 'billing' && (
                     <BillingDashboard 
                         session={session}
@@ -225,7 +263,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                         onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
                     />
                 )}
-                {view === 'demo-creator' && (
+                <div className={`w-full h-full ${view === 'demo-creator' ? 'block' : 'hidden'}`}>
                     <DemoVideoPage 
                         session={session}
                         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -234,8 +272,8 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                             onNavigate('/content-creator/demo-editor');
                         }}
                     />
-                )}
-                {view === 'demo-editor' && (
+                </div>
+                <div className={`w-full h-full ${view === 'demo-editor' ? 'block' : 'hidden'}`}>
                     <DemoEditor 
                         session={session}
                         projectId={activeDemoProjectId}
@@ -243,7 +281,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                         onBack={() => onNavigate('/content-creator/projects')}
                         onNavigate={onNavigate}
                     />
-                )}
+                </div>
             </main>
 
             {/* Global Pricing Overlay Gatekeeper */}

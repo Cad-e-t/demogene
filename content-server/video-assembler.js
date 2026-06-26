@@ -205,6 +205,7 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
             
             let afFilter = 'aresample=48000';
             if (hasAudioStream) {
+                afFilter += ',volume=0.15';
                 const tempo = sourceDuration / duration;
                 // atempo range is 0.5 to 2.0. We'll try to stay within it.
                 if (tempo >= 0.5 && tempo <= 2.0) {
@@ -268,7 +269,7 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
     await runFFmpeg([
         '-i', visualPath,
         '-i', audioPath,
-        '-filter_complex', '[1:a]loudnorm=I=-16:TP=-1.5:LRA=11[a]',
+        '-filter_complex', '[1:a]loudnorm=I=-16:TP=-1.5:LRA=11[vo];[0:a][vo]amix=inputs=2:duration=longest[mixed];[mixed]volume=2[a]',
         '-map', '0:v:0',
         '-map', '[a]',
         '-c:v', 'copy',
