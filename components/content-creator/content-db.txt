@@ -1,6 +1,26 @@
 
 
 -- Projects Table
+
+-- PROFILES TABLE (Credits & Payment Info)
+create table public.profiles (
+  id uuid not null,
+  credits numeric null,
+  dodo_customer_id text null,
+  billing_address jsonb null,
+  last_payment_currency text null,
+  card_last_four text null,
+  phone_number text null,
+  customer_email text null,
+  customer_name text null,
+  updated_at timestamp with time zone null,
+  used_free_trial boolean null default false,
+  constraint profiles_pkey primary key (id),
+  constraint profiles_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+
+
 create table public.content_projects (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users not null,
@@ -42,6 +62,17 @@ create table public.content_stories (
   video_url text,
   thumbnail_url text,
   status text default 'completed',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Credit Lot Table
+create table public.credit_lot (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  source text not null check (source in ('onetime', 'subscription', 'bonus')),
+  credits numeric not null check (credits >= 0),
+  status text not null default 'active' check (status in ('active', 'expired', 'finished')),
+  expires_at timestamp with time zone not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -136,6 +167,11 @@ create policy "Users can update own stories" on public.content_stories
 create policy "Users can delete own stories" on public.content_stories
     for delete using (auth.uid() = user_id);
 
+-- Credit Lot
+alter table public.credit_lot enable row level security;
+create policy "Users can view own credit lots" on public.credit_lot
+    for select using (auth.uid() = user_id);
+
 -- Creator Transactions
 alter table public.creator_transactions enable row level security;
 create policy "Users can view own creator transactions" on public.creator_transactions
@@ -188,6 +224,56 @@ CREATE POLICY "Users can delete their own demo projects"
 
 -- RPC Functions
 
+-- Function to get active credits (expires lots first)
+create or replace function get_active_credits(p_user_id uuid)
+returns numeric
+language plpgsql
+security definer
+as $$
+declare
+  v_credits numeric;
+begin
+  perform expire_credit_lots(p_user_id);
+  select coalesce(credits, 0) into v_credits from public.profiles where id = p_user_id;
+  return v_credits;
+end;
+$$;
+
+-- Function to expire credit lots
+create or replace function expire_credit_lots(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  v_lot record;
+  v_total_expired numeric := 0;
+begin
+  for v_lot in 
+    select id, credits 
+    from public.credit_lot 
+    where user_id = p_user_id and status = 'active' and expires_at <= now()
+    for update
+  loop
+    v_total_expired := v_total_expired + v_lot.credits;
+    
+    update public.credit_lot
+    set status = 'expired'
+    where id = v_lot.id;
+  end loop;
+
+  if v_total_expired > 0 then
+    update public.profiles
+    set credits = coalesce(credits, 0) - v_total_expired,
+        updated_at = now()
+    where id = p_user_id;
+
+    insert into public.creator_transactions (user_id, amount, type, description)
+    values (p_user_id, -v_total_expired, 'expiration', 'Credits expired');
+  end if;
+end;
+$$;
+
 -- Function to charge creator credits
 -- Deducts from public.profiles and logs to public.creator_transactions
 create or replace function charge_creator_credits(
@@ -199,11 +285,46 @@ returns void
 language plpgsql
 security definer
 as $$
+declare
+  v_remaining_amount numeric := p_amount;
+  v_lot record;
+  v_deduct numeric;
 begin
+  perform expire_credit_lots(p_user_id);
+
   update public.profiles
-  set credits = credits - p_amount,
+  set credits = coalesce(credits, 0) - p_amount,
       updated_at = now()
   where id = p_user_id;
+
+  for v_lot in 
+    select id, credits 
+    from public.credit_lot 
+    where user_id = p_user_id and status = 'active' 
+    order by created_at asc
+    for update
+  loop
+    if v_remaining_amount <= 0 then
+      exit;
+    end if;
+
+    if v_lot.credits <= v_remaining_amount then
+      v_deduct := v_lot.credits;
+      v_remaining_amount := v_remaining_amount - v_deduct;
+      
+      update public.credit_lot
+      set credits = 0,
+          status = 'finished'
+      where id = v_lot.id;
+    else
+      v_deduct := v_remaining_amount;
+      v_remaining_amount := 0;
+      
+      update public.credit_lot
+      set credits = credits - v_deduct
+      where id = v_lot.id;
+    end if;
+  end loop;
 
   insert into public.creator_transactions (user_id, amount, type, description)
   values (p_user_id, -p_amount, 'usage', p_description);
@@ -221,13 +342,98 @@ returns void
 language plpgsql
 security definer
 as $$
+declare
+  v_lot record;
+  v_refunded boolean := false;
 begin
   update public.profiles
-  set credits = credits + p_amount,
+  set credits = coalesce(credits, 0) + p_amount,
       updated_at = now()
   where id = p_user_id;
 
+  for v_lot in 
+    select id 
+    from public.credit_lot 
+    where user_id = p_user_id and status = 'active' 
+    order by created_at asc 
+    limit 1 
+    for update
+  loop
+    update public.credit_lot
+    set credits = credits + p_amount
+    where id = v_lot.id;
+    v_refunded := true;
+  end loop;
+
+  if not v_refunded then
+    for v_lot in 
+      select id 
+      from public.credit_lot 
+      where user_id = p_user_id and status = 'finished' 
+      order by created_at desc 
+      limit 1 
+      for update
+    loop
+      update public.credit_lot
+      set credits = credits + p_amount,
+          status = 'active'
+      where id = v_lot.id;
+      v_refunded := true;
+    end loop;
+  end if;
+
+  if not v_refunded then
+    insert into public.credit_lot (user_id, source, credits, status, expires_at)
+    values (p_user_id, 'onetime', p_amount, 'active', now() + interval '12 months');
+  end if;
+
   insert into public.creator_transactions (user_id, amount, type, description)
   values (p_user_id, p_amount, 'refund', p_description);
+end;
+$$;
+
+
+-- Function to grant creator credits
+create or replace function grant_credits_from_purchase(
+  p_user_id uuid,
+  p_credits_to_add numeric,
+  p_description text,
+  p_metadata jsonb
+)
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  v_current_credits numeric;
+  v_lot_credits numeric;
+begin
+  select coalesce(credits, 0) into v_current_credits from public.profiles where id = p_user_id;
+
+  v_lot_credits := p_credits_to_add;
+  if v_current_credits < 0 then
+    if (v_current_credits + p_credits_to_add) < 0 then
+      v_lot_credits := 0;
+    else
+      v_lot_credits := p_credits_to_add + v_current_credits;
+    end if;
+  end if;
+
+  update public.profiles
+  set credits = coalesce(credits, 0) + p_credits_to_add,
+      updated_at = now()
+  where id = p_user_id;
+
+  insert into public.credit_lot (user_id, source, credits, status, expires_at)
+  values (
+    p_user_id, 
+    coalesce(p_metadata->>'source', 'onetime'),
+    v_lot_credits, 
+    case when v_lot_credits = 0 then 'finished' else 'active' end, 
+    now() + interval '12 months'
+  );
+
+  insert into public.credit_transactions (user_id, amount, type, description, metadata)
+  values (p_user_id, p_credits_to_add, 'purchase', p_description, p_metadata);
 end;
 $$;

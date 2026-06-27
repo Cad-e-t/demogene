@@ -98,7 +98,7 @@ const TikTokIcon = ({ className }: { className?: string }) => (
 );
 
 const FAQS = [
-    { q: "Do credits expire?", a: "We currently offer a pay-as-you go service, so your credits are yours forever. They roll over indefinitely until you use them." },
+    { q: "Do credits expire?", a: "Yes, credits expire 12 months from the date of purchase." },
     { q: "Can I use the videos commercially?", a: "Yes. You have full commercial rights to all content you generate on the platform." },
     { q: "What happens if I run out of credits?", a: "You can purchase more credits at any time. We don't charge monthly subscriptions, so you only pay for what you use." },
     { q: "Is there a watermark?", a: "No. All paid credit tiers generate watermark-free videos." },
@@ -110,7 +110,7 @@ const FAQS = [
 export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, onNavigate?: (path: string) => void }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-    const [galleryStyles, setGalleryStyles] = useState([ 'Hoorror Story', 'Skeleton Videos', 'Animated Story']);
+    const [galleryStyles, setGalleryStyles] = useState(['Animated Story',  'Skeleton Videos', 'Hoorror Story']);
     const [mutedStates, setMutedStates] = useState<Record<string, boolean>>({});
 
     const handleVideoClick = (index: number) => {

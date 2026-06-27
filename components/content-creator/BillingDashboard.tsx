@@ -5,6 +5,7 @@ import { supabase } from '../../supabaseClient';
 
 export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any) => {
     const [credits, setCredits] = useState(0);
+    const [creditLots, setCreditLots] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
 
@@ -12,14 +13,26 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
         const fetchData = async () => {
             setLoading(true);
             try {
+                // Trigger expiration check
+                await supabase.rpc('expire_credit_lots', { p_user_id: session.user.id });
+
                 // Fetch Credits from unified profiles table
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('credits')
-                    .eq('id', session.user.id)
-                    .single();
+                const [profileRes, lotsRes] = await Promise.all([
+                    supabase
+                        .from('profiles')
+                        .select('credits')
+                        .eq('id', session.user.id)
+                        .single(),
+                    supabase
+                        .from('credit_lot')
+                        .select('*')
+                        .eq('user_id', session.user.id)
+                        .eq('status', 'active')
+                        .order('expires_at', { ascending: true })
+                ]);
                 
-                if (profile) setCredits(profile.credits || 0);
+                if (profileRes.data) setCredits(profileRes.data.credits || 0);
+                if (lotsRes.data) setCreditLots(lotsRes.data);
 
             } catch (e) {
                 console.error("Error fetching billing data", e);
@@ -30,6 +43,11 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
 
         fetchData();
     }, [session]);
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    };
 
     return (
         <div className="flex-1 h-full overflow-y-auto bg-black p-6 md:p-12">
@@ -71,6 +89,30 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                         Add Credits
                     </button>
                 </div>
+
+                {/* Active Credit Lots */}
+                {!loading && creditLots.length > 0 && (
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Active Credit Plans</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {creditLots.map((lot) => (
+                                <div key={lot.id} className="bg-zinc-900/50 rounded-2xl p-5 border border-white/5 flex flex-col gap-3 transition hover:bg-zinc-900">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider bg-black px-2 py-1 rounded-md">
+                                            {lot.source === 'onetime' ? 'One-time' : lot.source === 'subscription' ? 'Subscription' : 'Bonus'}
+                                        </span>
+                                        <span className="text-xs font-medium text-zinc-500">
+                                            Expires {formatDate(lot.expires_at)}
+                                        </span>
+                                    </div>
+                                    <div className="text-2xl font-black text-zinc-200">
+                                        {Math.round(lot.credits).toLocaleString()} <span className="text-sm text-zinc-500">Cr</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Pricing Details Modal */}

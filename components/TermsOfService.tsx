@@ -48,7 +48,7 @@ export const TermsOfService: React.FC<{ onNavigate: (path: string) => void }> = 
                             <section>
                                 <h2 className="text-2xl font-black tracking-tight uppercase mb-4 text-black">3. Credits and Payments</h2>
                                 <p>
-                                    Crappik operates on a pay-as-you-go credit system. Credits are purchased in packs and do not expire. 
+                                    Crappik operates on a pay-as-you-go credit system. Credits are purchased in packs and expire 12 months after the date of purchase. 
                                     <strong> Refunds:</strong> We offer refunds for unused credits within 30 days of purchase. Once credits have been used to generate content, they are non-refundable due to the high computational costs associated with AI generation.
                                 </p>
                             </section>

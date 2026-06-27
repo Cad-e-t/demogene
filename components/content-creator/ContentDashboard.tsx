@@ -215,6 +215,9 @@ export const ContentDashboard = ({
 
     const fetchInitialData = async () => {
       try {
+        // Trigger expiration check
+        await supabase.rpc('expire_credit_lots', { p_user_id: session.user.id });
+
         const [profileRes, configRes] = await Promise.all([
           supabase
             .from("profiles")

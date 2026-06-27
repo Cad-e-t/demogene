@@ -32,19 +32,6 @@ create table public.videos (
   analysis_result jsonb
 );
 
--- PROFILES TABLE (Credits & Payment Info)
-create table public.profiles (
-  id uuid references auth.users on delete cascade primary key,
-  credits numeric default 0,
-  dodo_customer_id text,
-  billing_address jsonb,
-  last_payment_currency text,
-  card_last_four text,
-  phone_number text,
-  customer_email text,
-  customer_name text,
-  updated_at timestamp with time zone
-);
 
 -- Credit Transactions Log (Optional but recommended)
 create table public.credit_transactions (
@@ -124,52 +111,9 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
-create or replace function grant_credits_from_purchase(
-  p_user_id uuid,
-  p_credits_to_add numeric,
-  p_description text,
-  p_metadata jsonb
-)
-returns void
-language plpgsql
-security definer
-as $$
-begin
-  update public.profiles
-  set credits = credits + p_credits_to_add,
-      updated_at = now()
-  where id = p_user_id;
 
-  insert into public.credit_transactions (user_id, amount, type, description, metadata)
-  values (p_user_id, p_credits_to_add, 'purchase', p_description, p_metadata);
-end;
-$$;
 
-create or replace function charge_credit(
-  p_user_id uuid
-)
-returns void
-language plpgsql
-security definer
-as $$
-declare
-  current_credits numeric;
-begin
-  select credits into current_credits from public.profiles where id = p_user_id;
-  
-  if current_credits is null or current_credits < 1 then
-    raise exception 'Insufficient credits';
-  end if;
 
-  update public.profiles
-  set credits = credits - 1,
-      updated_at = now()
-  where id = p_user_id;
-  
-  insert into public.credit_transactions (user_id, amount, type, description)
-  values (p_user_id, -1, 'usage', 'Video Generation');
-end;
-$$;
 
 -- AUTOMATIC CLEANUP (Requires pg_cron)
 -- Delete raw uploads from the videos table 7 days after creation

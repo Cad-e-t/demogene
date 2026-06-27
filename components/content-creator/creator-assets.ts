@@ -28,27 +28,27 @@ export const LANDING_PREVIEWS: Record<
   { src: string; aspectRatio: string }
 > = {
   "Immersive Long Forms ": {
-    src: "https://assets.productcam.site/image-styles/anime.mp4",
+    src: "https://assets.productcam.site/image-styles/anie.mp4",
     aspectRatio: "16:9",
   },
   "Hoorror Story": {
-    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
+    src: "https://assets.productcam.site/image-styles/cartoonorror.mp4",
     aspectRatio: "9:16",
   },
   "Animated Story": {
-    src: "https://assets.productcam.site/image-styles/GameCinematic.mp4",
+    src: "https://assets.productcam.site/image-styles/GameCinmatic.mp4",
     aspectRatio: "9:16",
   },
   "Skeleton Videos": {
-    src: "https://assets.productcam.site/image-styles/skeleton.mp4",
+    src: "https://assets.productcam.site/image-styles/skelton.mp4",
     aspectRatio: "9:16",
   },
   "Stickman Videos": {
-    src: "https://assets.productcam.site/image-styles/Stickman.mp4",
+    src: "https://assets.productcam.site/image-styles/Stikman.mp4",
     aspectRatio: "16:9",
   },
   Motivational: {
-    src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4",
+    src: "https://assets.productcam.site/image-styles/semirealisticcrtoon.mp4",
     aspectRatio: "16:9",
   },
 };

@@ -84,8 +84,8 @@ Your task is to:
   "segments": [
     {
       "segment_id": "Exact ID from script (e.g., 1).",
-      "image_prompt": "A highly detailed, comma-separated paragraph describing the exact first frame.",
-      "animation_prompt": "Animation of the image prompt scene, with complete actions, camera movements, and appropriate sound effects.",
+      "image_prompt": "A highly detailed, comma-separated paragraph describing the exact first frame from which the scene begins.",
+      "animation_prompt": "A concise prompt describing how the scene unfolds from that first frame, including subject actions, camera movement, environmental motion, and appropriate sound effects."
       "subjects": [
         {
           "id": "ID of the subject (e.g., 'SUBJ1').",
@@ -125,9 +125,9 @@ Image Prompt.
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder shot", "split-screen", in the image prompt is prohibited.
   - Format: A detailed, comma-separated paragraph aligning with the VISUAL
     IDENTITY.
-  - First Frame Snapshot: The image prompt describes the exact visual layout of
-    the very first frame of the shot. Detail the physical placement, position/posture,
-    and active engagement of the subjects at that specific starting millisecond. No baked-in motion blur or speed lines.
+  - First Frame Snapshot: The image prompt describes the exact visual layout of the 
+    very first frame of the shot. Detail the physical placement, position/posture, 
+    and state of the subjects at that specific starting millisecond. No baked-in motion blur or speed lines.  
   - Environment: Give full concrete description of location, surroundings, and lighting for every 
     single shot.
   - Composition: Clearly specify camera framing and perspective.
@@ -209,11 +209,11 @@ Your task is to:
 { "recurring_subjects": { "SUBJ1": { "base": "Complete immutable physical
 description.", "outfits": { "O1": "Detailed physical description of the primary
 outfit.", "O2": "Detailed description of a second outfit." } } }, "segments": [
-{ "segment_id": "Exact ID from script (e.g., 1).", "narration": "The exact script segment being visualized.", "image_prompt": "A highly
-detailed, comma-separated paragraph describing the exact first frame.",
-"animation_prompt": "Animation of the image prompt scene, with complete actions,
-camera movements, and appropriate sound effects.", "subjects": [ { "id": "ID of
-the subject (e.g., 'SUBJ1').", "outfit": "ID of the outfit (e.g., 'O1')." } ] }
+{ "segment_id": "Exact ID from script (e.g., 1).", "narration": "The exact script segment being visualized.", 
+"image_prompt": "A highly detailed, comma-separated paragraph describing the exact first frame from which the scene begins.",
+"animation_prompt": "A concise prompt describing how the scene unfolds from that first frame,
+including subject actions, camera movement, environmental motion, and appropriate sound effects.", 
+"subjects": [ { "id": "ID of the subject (e.g., 'SUBJ1').", "outfit": "ID of the outfit (e.g., 'O1')." } ] }
 ] }
 
 USER INPUT: ${userInput}
@@ -255,10 +255,9 @@ USER INPUT: ${userInput}
     shot", "split-screen", in the image prompt is prohibited.
   - Format: A detailed, comma-separated paragraph aligning with the VISUAL
     IDENTITY.
-  - First Frame Snapshot: The image prompt describes the exact visual layout of
-    the very first frame of the shot. Detail the physical placement,
-    position/posture, and active engagement of the subjects at that specific
-    starting millisecond. No baked-in motion blur or speed lines.
+ -  First Frame Snapshot: The image prompt describes the exact visual layout of the 
+    very first frame of the shot. Detail the physical placement, position/posture, 
+    and state of the subjects at that specific starting millisecond. No baked-in motion blur or speed lines.
   - Environment: Give full concrete description of location, surroundings, and
     lighting for every single shot.
   - Composition: Clearly specify camera framing and perspective.

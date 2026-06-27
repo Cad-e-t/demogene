@@ -74,7 +74,8 @@ export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onActi
                 color="text-white"
                 highlights={
                     <>
-                        <p className="text-sm font-bold text-zinc-400">700 Credits per Month</p>
+                        <p className="text-sm font-bold text-zinc-400">700 Credits</p>
+                        <p className="text-xs text-zinc-500 mt-1">Valid for 1 year</p>
                     </>
                 }
                 features={[
@@ -98,7 +99,8 @@ export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onActi
                 color="text-yellow-500"
                 highlights={
                     <>
-                        <p className="text-sm font-bold text-yellow-400 pt-1">1800 Credits per Month</p>
+                        <p className="text-sm font-bold text-yellow-400 pt-1">1800 Credits</p>
+                        <p className="text-xs text-zinc-500 mt-1">Valid for 1 year</p>
                     </>
                 }
                 features={[
@@ -120,7 +122,8 @@ export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onActi
                 color="text-purple-500"
                 highlights={
                     <>
-                        <p className="text-sm font-bold text-purple-400 pt-1">5500 Credits per Month</p>
+                        <p className="text-sm font-bold text-purple-400 pt-1">5500 Credits</p>
+                        <p className="text-xs text-zinc-500 mt-1">Valid for 1 year</p>
                     </>
                 }
                 features={[

@@ -70,8 +70,8 @@ const MAX_CONCURRENT_VIDEOS = 3; // Max parallel video generations (batch size)
 
 // --- Helper: Credits ---
 async function getCredits(userId) {
-    const { data } = await supabase.from('profiles').select('credits').eq('id', userId).single();
-    return data?.credits || 0;
+    const { data } = await supabase.rpc('get_active_credits', { p_user_id: userId });
+    return data || 0;
 }
 
 async function chargeUser(userId, amount, description) {
