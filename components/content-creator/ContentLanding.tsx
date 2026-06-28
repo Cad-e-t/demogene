@@ -98,13 +98,14 @@ const TikTokIcon = ({ className }: { className?: string }) => (
 );
 
 const FAQS = [
+    { q: "How do credits work?", a: "Credits are consumed based on the assets generated and the duration of your project. You only pay for what you use." },
     { q: "Do credits expire?", a: "Yes, credits expire 12 months from the date of purchase." },
     { q: "Can I use the videos commercially?", a: "Yes. You have full commercial rights to all content you generate on the platform." },
     { q: "What happens if I run out of credits?", a: "You can purchase more credits at any time. We don't charge monthly subscriptions, so you only pay for what you use." },
     { q: "Is there a watermark?", a: "No. All paid credit tiers generate watermark-free videos." },
-    { q: "Do we offer free trials?", a: "Since it costs us real computing power to generate each unique video, we don't offer a free trial at the moment. However, our entry-level pack is designed to be super affordable so you can test the waters without a big commitment!" },
+    { q: "Do we offer free trials?", a: "We do offer one free trial generation to test out the tool. Credits are required to continue creating." },
     { q: "Are my payments secure?", a: "Absolutely. We use Dodo Payments, a highly secure platform trusted by Stripe, to handle all transactions. Your sensitive payment info never even touches our servers." },
-    { q: "Can I get a refund?", a: "We want you to be happy! If you have unused credits and it's been less than 30 days since your purchase, just reach out and we'll happily process a refund for you." }
+    { q: "Can I get a refund?", a: "We currently don't offer refunds. All payments made are final." }
 ];
 
 export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, onNavigate?: (path: string) => void }) => {

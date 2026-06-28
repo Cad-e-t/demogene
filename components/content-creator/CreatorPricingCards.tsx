@@ -79,14 +79,16 @@ export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onActi
                     </>
                 }
                 features={[
-                    "Optimized for YouTube Shorts",
-                    "Instagram Reels & TikTok Compatibility",
-                    "Faceless Shorts",
-                    "10+ visual styles",
-                    "Library of 20+ voices",
-                    "Story-Driven Short Videos",
-                    "Facts-Based Video Shorts",
-                    "Subtitled Video Shorts"
+                    "YouTube Shorts",
+                    "YouTube Long Form Videos",
+                    "TikTok Shorts",
+                    "Multiple Styles",
+                    "Character consistency",
+                    "Video Effects",
+                    "20+ Voices",
+                    "Subtitles",
+                    "Full HD (1080p) Export"
+                   
                 ]}
                 buttonLabel={actionLabel}
                 onAction={() => onAction(STARTER_ID)}
@@ -104,13 +106,16 @@ export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onActi
                     </>
                 }
                 features={[
-                    "Optimized for YouTube Shorts",
-                    "Instagram Reels & TikTok Compatibility",
-                    "Faceless Shorts",
-                    "10+ visual styles",
-                    "Library of 20+ voices",
-                    "Story-Driven Short Videos",
-                    "Subtitled Video Shorts"
+                    "YouTube Shorts",
+                    "YouTube Long Form Videos",
+                    "TikTok Shorts",
+                    "Multiple Styles",
+                    "Character consistency",
+                    "Video Effects",
+                    "20+ Voices",
+                    "Subtitles",
+                    "Full HD (1080p) Export"
+                   
                 ]}
                 buttonLabel={actionLabel}
                 onAction={() => onAction(PRO_ID)}
@@ -127,14 +132,16 @@ export const CreatorPricingCards: React.FC<CreatorPricingCardsProps> = ({ onActi
                     </>
                 }
                 features={[
-                    "Optimized for YouTube Shorts",
-                    "Instagram Reels & TikTok Compatibility",
-                    "Faceless Shorts",
-                    "10+ visual styles",
-                    "Library of 20+ voices",
-                    "Story-Driven Short Videos",
-                    "Facts-Based Video Shorts",
-                    "Subtitled Video Shorts"
+                    "YouTube Shorts",
+                    "YouTube Long Form Videos",
+                    "TikTok Shorts",
+                    "Multiple Styles",
+                    "Character consistency",
+                    "Video Effects",
+                    "20+ Voices",
+                    "Subtitles",
+                    "Full HD (1080p) Export"
+                   
                 ]}
                 buttonLabel={actionLabel}
                 onAction={() => onAction(BUSINESS_ID)}

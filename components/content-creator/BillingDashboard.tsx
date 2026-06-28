@@ -150,12 +150,11 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                                         <span className="text-sm font-bold text-zinc-200">Subtitles Generation</span>
                                         <span className="text-sm font-black text-yellow-600">1 credit / minute <span className="text-xs font-medium text-zinc-500">(0.017/sec)</span></span>
                                     </div>
+                                    <div className="flex justify-between items-center p-3 bg-black rounded-xl border border-white/5">
+                                        <span className="text-sm font-bold text-zinc-200">AI Animation</span>
+                                        <span className="text-sm font-black text-yellow-600">5 credits / second <span className="text-xs font-medium text-zinc-500">(0.05/sec)</span></span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="mt-6 p-4 bg-yellow-600/10 border border-yellow-600/20 rounded-xl">
-                                <p className="text-sm font-bold text-yellow-600 text-center">
-                                    A min video cost approximately 28 - 44 credits
-                                </p>
                             </div>
                         </div>
                         <div className="p-6 border-t border-white/5 bg-black">
