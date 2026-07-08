@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Upload, Loader2, ArrowLeft, Trash2, Plus, Sparkles } from 'lucide-react';
 import { API_URL } from './api';
+import { supabase } from "../../supabaseClient";
 
 interface AvatarModalProps {
     isOpen: boolean;
@@ -38,10 +39,16 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({ isOpen, onClose, userI
     const fetchAvatars = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/avatars/${userId}`);
-            if (res.ok) {
-                const data = await res.json();
-                setAvatars(data.avatars || []);
+            const { data, error } = await supabase
+                .from('avatar')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+                
+            if (error) {
+                console.error("Failed to fetch avatars", error);
+            } else {
+                setAvatars(data || []);
             }
         } catch (e) {
             console.error("Failed to fetch avatars", e);
