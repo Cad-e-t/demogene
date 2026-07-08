@@ -7,7 +7,7 @@ export const STYLE_PREVIEWS: Record<string, string> = {
   Stickman: "https://assets.productcam.site/image-styles/stickman.png",
   Skeleton: "https://assets.productcam.site/image-styles/skeleton.png",
   Cartoon: "https://assets.productcam.site/image-styles/softcartoon.png",
-  Documentary: "https://assets.productcam.site/image-styles/documentary.png",
+  Documentary: "https://assets.productcam.site/image-styles/d0cumentary.png",
   Claymation: "https://assets.productcam.site/image-styles/claymation.png",
   Lego: "https://assets.productcam.site/image-styles/lego.png",
   "Ukiyo-e": "https://assets.productcam.site/image-styles/ukiyo-e.png",
@@ -28,27 +28,27 @@ export const LANDING_PREVIEWS: Record<
   { src: string; aspectRatio: string }
 > = {
   "Immersive Long Forms ": {
-    src: "https://assets.productcam.site/image-styles/anie.mp4",
+    src: "https://assets.productcam.site/image-styles/anime.mp4",
     aspectRatio: "16:9",
   },
   "Hoorror Story": {
-    src: "https://assets.productcam.site/image-styles/cartoonhrror.mp4",
+    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
     aspectRatio: "9:16",
   },
   "Animated Story": {
-    src: "https://assets.productcam.site/image-styles/GameCineatic.mp4",
+    src: "https://assets.productcam.site/image-styles/GameCinematic.mp4",
     aspectRatio: "9:16",
   },
   "Skeleton Videos": {
-    src: "https://assets.productcam.site/image-styles/skeeton.mp4",
+    src: "https://assets.productcam.site/image-styles/skeleton.mp4",
     aspectRatio: "9:16",
   },
   "Stickman Videos": {
-    src: "https://assets.productcam.site/image-styles/Sticman.mp4",
+    src: "https://assets.productcam.site/image-styles/Stickman.mp4",
     aspectRatio: "16:9",
   },
   Motivational: {
-    src: "https://assets.productcam.site/image-styles/semirealistccartoon.mp4",
+    src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4",
     aspectRatio: "16:9",
   },
 };
@@ -58,47 +58,47 @@ export const STYLE_TEMPLATES: Record<
   { src: string; aspectRatio: "9:16" | "16:9" }
 > = {
   Realistic: {
-    src: "https://assets.productcam.site/image-styles/realstic.mp4",
+    src: "https://assets.productcam.site/image-styles/realistic.mp4",
     aspectRatio: "9:16",
   },
   Anime: {
-    src: "https://assets.productcam.site/image-styles/anme.mp4",
+    src: "https://assets.productcam.site/image-styles/anime.mp4",
     aspectRatio: "16:9",
   },
   Creepy: {
-    src: "https://assets.productcam.site/image-styles/cartoohorror.mp4",
+    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
     aspectRatio: "9:16",
   },
   Game3D: {
-    src: "https://assets.productcam.site/image-styles/GameCineatic.mp4",
+    src: "https://assets.productcam.site/image-styles/GameCinematic.mp4",
     aspectRatio: "9:16",
   },
   Sketch: {
-    src: "https://assets.productcam.site/image-styles/sktch.mp4",
+    src: "https://assets.productcam.site/image-styles/sketch.mp4",
     aspectRatio: "16:9",
   },
   Stickman: {
-    src: "https://assets.productcam.site/image-styles/Sticman.mp4",
+    src: "https://assets.productcam.site/image-styles/Stickman.mp4",
     aspectRatio: "16:9",
   },
   Skeleton: {
-    src: "https://assets.productcam.site/image-styles/skeleon.mp4",
+    src: "https://assets.productcam.site/image-styles/skeleton.mp4",
     aspectRatio: "9:16",
   },
     Mannequin: {
-    src: "https://assets.productcam.site/image-styles/mannquin.mp4",
+    src: "https://assets.productcam.site/image-styles/mannequin.mp4",
     aspectRatio: "9:16",
   },
   Cartoon: {
-    src: "https://assets.productcam.site/image-styles/semirealisticartoon.mp4",
+    src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4",
     aspectRatio: "16:9",
   },
   "Ukiyo-e": {
-    src: "https://assets.productcam.site/image-styles/ukio-e.mp4",
+    src: "https://assets.productcam.site/image-styles/ukiyo-e.mp4",
     aspectRatio: "16:9",
   },
   Écorché: {
-    src: "https://assets.productcam.site/image-styles/ecorhe.mp4",
+    src: "https://assets.productcam.site/image-styles/ecorche.mp4",
     aspectRatio: "16:9",
   },
 };
