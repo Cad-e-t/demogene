@@ -28,27 +28,27 @@ export const LANDING_PREVIEWS: Record<
   { src: string; aspectRatio: string }
 > = {
   "Immersive Long Forms ": {
-    src: "https://assets.productcam.site/image-styles/anime.mp4",
+    src: "https://assets.productcam.site/image-styles/anie.mp4",
     aspectRatio: "16:9",
   },
   "Hoorror Story": {
-    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
+    src: "https://assets.productcam.site/image-styles/cartoonhrror.mp4",
     aspectRatio: "9:16",
   },
   "Animated Story": {
-    src: "https://assets.productcam.site/image-styles/GameCinematic.mp4",
+    src: "https://assets.productcam.site/image-styles/GameCineatic.mp4",
     aspectRatio: "9:16",
   },
   "Skeleton Videos": {
-    src: "https://assets.productcam.site/image-styles/skeleton.mp4",
+    src: "https://assets.productcam.site/image-styles/skeeton.mp4",
     aspectRatio: "9:16",
   },
   "Stickman Videos": {
-    src: "https://assets.productcam.site/image-styles/Stickman.mp4",
+    src: "https://assets.productcam.site/image-styles/Sticman.mp4",
     aspectRatio: "16:9",
   },
   Motivational: {
-    src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4",
+    src: "https://assets.productcam.site/image-styles/semirealistccartoon.mp4",
     aspectRatio: "16:9",
   },
 };
@@ -58,47 +58,47 @@ export const STYLE_TEMPLATES: Record<
   { src: string; aspectRatio: "9:16" | "16:9" }
 > = {
   Realistic: {
-    src: "https://assets.productcam.site/image-styles/realistic.mp4",
+    src: "https://assets.productcam.site/image-styles/realstic.mp4",
     aspectRatio: "9:16",
   },
   Anime: {
-    src: "https://assets.productcam.site/image-styles/anime.mp4",
+    src: "https://assets.productcam.site/image-styles/anme.mp4",
     aspectRatio: "16:9",
   },
   Creepy: {
-    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
+    src: "https://assets.productcam.site/image-styles/cartoohorror.mp4",
     aspectRatio: "9:16",
   },
   Game3D: {
-    src: "https://assets.productcam.site/image-styles/GameCinematic.mp4",
+    src: "https://assets.productcam.site/image-styles/GameCineatic.mp4",
     aspectRatio: "9:16",
   },
   Sketch: {
-    src: "https://assets.productcam.site/image-styles/sketch.mp4",
+    src: "https://assets.productcam.site/image-styles/sktch.mp4",
     aspectRatio: "16:9",
   },
   Stickman: {
-    src: "https://assets.productcam.site/image-styles/Stickman.mp4",
+    src: "https://assets.productcam.site/image-styles/Sticman.mp4",
     aspectRatio: "16:9",
   },
   Skeleton: {
-    src: "https://assets.productcam.site/image-styles/skeleton.mp4",
+    src: "https://assets.productcam.site/image-styles/skeleon.mp4",
     aspectRatio: "9:16",
   },
     Mannequin: {
-    src: "https://assets.productcam.site/image-styles/mannequin.mp4",
+    src: "https://assets.productcam.site/image-styles/mannquin.mp4",
     aspectRatio: "9:16",
   },
   Cartoon: {
-    src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4",
+    src: "https://assets.productcam.site/image-styles/semirealisticartoon.mp4",
     aspectRatio: "16:9",
   },
   "Ukiyo-e": {
-    src: "https://assets.productcam.site/image-styles/ukiyo-e.mp4",
+    src: "https://assets.productcam.site/image-styles/ukio-e.mp4",
     aspectRatio: "16:9",
   },
   Écorché: {
-    src: "https://assets.productcam.site/image-styles/ecorche.mp4",
+    src: "https://assets.productcam.site/image-styles/ecorhe.mp4",
     aspectRatio: "16:9",
   },
 };

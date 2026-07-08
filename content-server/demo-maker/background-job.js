@@ -133,11 +133,24 @@ export async function runDemoProcessing(jobData) {
 
             console.log('--- Transcribing Audio ---');
             const aaiClient = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
-            transcription = await aaiClient.transcripts.transcribe({
+            const transcriptRes = await aaiClient.transcripts.transcribe({
                 audio: audioPath,
                 speech_models: ["universal-3-pro", "universal-2"],
                 language_detection: true,
             });
+
+            let filteredWords = [];
+            if (transcriptRes.words) {
+                filteredWords = transcriptRes.words.map(w => ({
+                    text: w.text ? w.text.replace(/— |;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
+                    start: w.start,
+                    end: w.end
+                }));
+            }
+            transcription = { 
+                text: transcriptRes.text || '',
+                words: filteredWords 
+            };
 
             console.log('--- Aligning Segments ---');
             segmentDurations = alignSegmentsWithTranscription(segments, transcription, totalAudioDuration);
@@ -214,11 +227,24 @@ export async function runDemoAudioRegeneration({ projectId, segments, voiceId, u
 
         console.log('--- Transcribing Audio ---');
         const aaiClient = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
-        transcription = await aaiClient.transcripts.transcribe({
+        const transcriptRes = await aaiClient.transcripts.transcribe({
             audio: audioPath,
             speech_models: ["universal-3-pro", "universal-2"],
             language_detection: true,
         });
+
+        let filteredWords = [];
+        if (transcriptRes.words) {
+            filteredWords = transcriptRes.words.map(w => ({
+                text: w.text ? w.text.replace(/— |;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
+                start: w.start,
+                end: w.end
+            }));
+        }
+        transcription = { 
+            text: transcriptRes.text || '',
+            words: filteredWords 
+        };
 
         console.log('--- Aligning Segments ---');
         segmentDurations = alignSegmentsWithTranscription(segments, transcription, totalAudioDuration);

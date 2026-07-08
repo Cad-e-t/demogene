@@ -13,6 +13,7 @@ import {
   Volume2,
   VolumeX,
   X,
+  Plus,
 } from "lucide-react";
 import {
   generateSegments,
@@ -20,6 +21,7 @@ import {
   sanitizeErrorMsg,
 } from "./api";
 import { ContentEditor } from "./ContentEditor";
+import { AvatarModal } from "./AvatarModal";
 import {
   IMAGE_STYLES,
   EFFECT_PRESETS,
@@ -157,6 +159,9 @@ export const ContentDashboard = ({
   const [hoveredStyle, setHoveredStyle] = useState<string | null>(null);
   const [mutedStates, setMutedStates] = useState<Record<string, boolean>>({});
   const promptBoxRef = useRef<HTMLDivElement>(null);
+
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState<{ id: string; url: string } | null>(null);
 
   // Audio Preview State
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -483,6 +488,7 @@ export const ContentDashboard = ({
           narrationStyle,
           subtitles,
           voice.id,
+          selectedAvatar?.url
         );
       } else {
         res = await generateSegments(
@@ -494,6 +500,7 @@ export const ContentDashboard = ({
           narrationStyle,
           subtitles,
           voice.id,
+          selectedAvatar?.url
         );
       }
       console.log(
@@ -635,8 +642,8 @@ export const ContentDashboard = ({
             >
               {/* Text Area Section */}
               <div className="p-4 md:p-6 pb-2">
-                {style !== "Director" && (
-                  <div className="mb-3">
+                <div className="mb-3 flex items-center flex-wrap gap-2">
+                  {style !== "Director" && (
                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 text-xs font-bold uppercase tracking-wider border border-yellow-500/20">
                       Using {style} style template
                       <button
@@ -646,8 +653,20 @@ export const ContentDashboard = ({
                         <X className="w-3 h-3" />
                       </button>
                     </span>
-                  </div>
-                )}
+                  )}
+                  {selectedAvatar && (
+                    <span className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-bold uppercase tracking-wider border border-indigo-500/20">
+                      <img src={selectedAvatar.url} alt="Avatar" className="w-5 h-5 rounded-full object-cover" />
+                      With Avatar
+                      <button
+                        onClick={() => setSelectedAvatar(null)}
+                        className="hover:text-white transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                </div>
                 <textarea
                   ref={textareaRef}
                   className="w-full h-[250px] min-h-[250px] md:h-[150px] md:min-h-[150px] bg-transparent text-zinc-100 text-lg font-medium outline-none resize-none placeholder-zinc-500 leading-relaxed overflow-y-auto thin-scrollbar"
@@ -674,6 +693,14 @@ export const ContentDashboard = ({
                 <div className="flex items-center gap-1.5 flex-wrap pb-1">
                   {/* Config Buttons */}
                   <div className="flex items-center gap-1.5">
+                    {/* Avatar Button */}
+                    <button
+                      onClick={() => setIsAvatarModalOpen(true)}
+                      className="px-2 md:px-3 py-2 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1 md:gap-2 whitespace-nowrap bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span className="hidden md:inline">Avatar</span>
+                    </button>
                     {/* Ratio Button */}
                     <div className="relative">
                       <button
@@ -682,7 +709,7 @@ export const ContentDashboard = ({
                             configView === "aspect" ? "main" : "aspect",
                           )
                         }
-                        className={`config-control-button px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${configView === "aspect" ? "bg-yellow-500 text-black" : "bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"}`}
+                        className={`config-control-button px-2 md:px-3 py-2 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1 md:gap-2 whitespace-nowrap ${configView === "aspect" ? "bg-yellow-500 text-black" : "bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"}`}
                       >
                         {aspect === "9:16" ? (
                           <svg
@@ -736,7 +763,7 @@ export const ContentDashboard = ({
                             configView === "voice" ? "main" : "voice",
                           )
                         }
-                        className={`config-control-button px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${configView === "voice" ? "bg-yellow-500 text-black" : "bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"}`}
+                        className={`config-control-button px-2 md:px-3 py-2 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1 md:gap-2 whitespace-nowrap ${configView === "voice" ? "bg-yellow-500 text-black" : "bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"}`}
                       >
                         <svg
                           className="w-3.5 h-3.5"
@@ -1478,6 +1505,17 @@ export const ContentDashboard = ({
         /* Render Content */
         renderContent()
       )}
+
+      <AvatarModal
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+        userId={session?.user?.id}
+        onSelectAvatar={(avatar) => {
+            setSelectedAvatar(avatar);
+            setIsAvatarModalOpen(false);
+        }}
+        onShowPricing={() => setShowPricingModal(true)}
+      />
     </div>
   );
 };

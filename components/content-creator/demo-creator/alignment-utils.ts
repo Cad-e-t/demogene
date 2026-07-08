@@ -28,8 +28,8 @@ export function alignSegmentsWithTranscription(segments: any[], transcription: a
         // Clean segment words
         const segWordsRaw = (seg.narration || '').toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter((w: string) => w.length > 0);
         const segWords: string[] = [];
-        segWordsRaw.forEach((w: string) => {
-             segWords.push(w);
+        segWordsRaw.forEach((w: string) => { 
+            segWords.push(w);
         });
 
         if (segWords.length === 0) {
@@ -96,4 +96,100 @@ export function alignSegmentsWithTranscription(segments: any[], transcription: a
     }
 
     return result;
+}
+
+export function computeFilesData(segments: any[], transcription: any, hookStyles: any, globalHookStyle: any, totalAudioDuration: number) {
+    if (!transcription || !transcription.words || transcription.words.length === 0) {
+        return [];
+    }
+
+    // Clean transcription words
+    const tWords: any[] = [];
+    transcription.words.forEach((w: any) => {
+        let cleanText = w.text.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '');
+        const splitWords = cleanText.split(/\s+/).filter((x: string) => x.length > 0);
+        splitWords.forEach((sw: string) => {
+            tWords.push({ ...w, clean: sw });
+        });
+    });
+
+    if (tWords.length === 0) return [];
+
+    const filesData: any[] = [];
+    let tIndex = 0;
+    let lastEndTimeMs = 0;
+
+    for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        const segWordsRaw = (seg.narration || '').toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter((w: string) => w.length > 0);
+        
+        if (segWordsRaw.length === 0) {
+            continue;
+        }
+
+        let sIndex = 0;
+        let currentTIndex = tIndex;
+        let startWordIndex = currentTIndex; // Start of segment
+
+        while (sIndex < segWordsRaw.length && currentTIndex < tWords.length) {
+            const sWord = segWordsRaw[sIndex];
+            const tWord = tWords[currentTIndex].clean;
+
+            if (sWord === tWord) {
+                sIndex++;
+                currentTIndex++;
+            } else {
+                let found = false;
+                for (let lookahead = 1; lookahead <= 10; lookahead++) {
+                    if (currentTIndex + lookahead < tWords.length && tWords[currentTIndex + lookahead].clean === sWord) {
+                        currentTIndex += lookahead;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    for (let lookahead = 1; lookahead <= 10; lookahead++) {
+                        if (sIndex + lookahead < segWordsRaw.length && segWordsRaw[sIndex + lookahead] === tWord) {
+                            sIndex += lookahead;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (!found) {
+                    sIndex++;
+                    currentTIndex++;
+                }
+            }
+        }
+
+        let endWordIndex = currentTIndex > tIndex ? currentTIndex - 1 : currentTIndex;
+        endWordIndex = Math.min(endWordIndex, tWords.length - 1);
+        startWordIndex = Math.min(startWordIndex, tWords.length - 1);
+
+        let startTimeMs = tWords[startWordIndex]?.start || lastEndTimeMs;
+        let endTimeMs = tWords[endWordIndex]?.end || lastEndTimeMs;
+
+        if (i === segments.length - 1 && totalAudioDuration) {
+            endTimeMs = totalAudioDuration * 1000;
+        }
+
+        // Get the applied hook style for this segment
+        // hookStyles usually comes from project.hook_style or project.video_transform.hooks
+        // But activeHookIndex is checked via project.segments[i]?.hook_style || hookStyles[i]
+        const currentStyle = seg.hook_style || (hookStyles && hookStyles[i]) || globalHookStyle;
+        
+        if (currentStyle && currentStyle.style === 'media' && currentStyle.media) {
+            filesData.push({
+                file_url: currentStyle.media,
+                start: startTimeMs,
+                end: endTimeMs
+            });
+        }
+
+        lastEndTimeMs = endTimeMs;
+        tIndex = currentTIndex;
+    }
+
+    return filesData;
 }

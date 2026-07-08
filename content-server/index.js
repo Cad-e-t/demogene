@@ -17,6 +17,7 @@ import { AssemblyAI } from 'assemblyai';
 import numberToWords from 'number-to-words';
 
 import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics, saveHookAsset, getHookAssets, regenerateDemoAudio } from './demo-maker/controllers.js';
+import { generateAvatarUploadUrl, saveAvatar, getAvatars, deleteAvatar, generateAvatarImage } from './avatar-controllers.js';
 
 
 // --- Setup ---
@@ -456,13 +457,20 @@ async function processAssetsBackground(projectId, segments, voiceId, userId, isF
             if (transcript.status === 'error') {
                 throw new Error(`Transcription failed: ${transcript.error}`);
             }
-            transcription = transcript;
-            // Clean transcription: remove specific punctuations
-            if (transcription.words) {
-                transcription.words.forEach(w => {
-                    if (w.text) w.text = w.text.replace(/— |;|:|(?<!\d)[.,]|[.,](?!\d)/g, '');
-                });
+            
+            // Extract only the needed fields to save database space
+            let filteredWords = [];
+            if (transcript.words) {
+                filteredWords = transcript.words.map(w => ({
+                    text: w.text ? w.text.replace(/— |;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
+                    start: w.start,
+                    end: w.end
+                }));
             }
+            transcription = { 
+                text: transcript.text || '',
+                words: filteredWords 
+            };
         }
 
         // 5. Calculate Segment Durations
@@ -534,7 +542,19 @@ async function processImagesBackground(projectId, segments, aspectRatio, costPer
 
             try {
                 console.log(`[ContentServer] Generating image for segment ${seg.order_index} (Project: ${projectId})`);
-                const base64Img = await generateImage(seg.image_prompt, aspectRatio);
+                
+                let avatarImageBase64 = null;
+                if (seg.avatar_url) {
+                    try {
+                        const resp = await fetch(seg.avatar_url);
+                        const arrayBuf = await resp.arrayBuffer();
+                        avatarImageBase64 = Buffer.from(arrayBuf).toString('base64');
+                    } catch (e) {
+                        console.error(`Failed to fetch avatar image for segment ${seg.id}:`, e);
+                    }
+                }
+
+                const base64Img = await generateImage(seg.image_prompt, aspectRatio, avatarImageBase64);
                 
                 console.log(`[ContentServer] Uploading image for segment ${seg.order_index}`);
                 const buffer = Buffer.from(base64Img, 'base64');
@@ -591,7 +611,7 @@ async function processImagesBackground(projectId, segments, aspectRatio, costPer
 app.post('/generate-segments', async (req, res) => {
     let createdProjectId = null;
     try {
-        const { prompt, aspectRatio, style, effect, userId, narrationStyle, subtitles, voiceId } = req.body;
+        const { prompt, aspectRatio, style, effect, userId, narrationStyle, subtitles, voiceId, avatarUrl } = req.body;
         console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with subtitles ${subtitles}`);
         
         // 0. Pre-check Balance
@@ -621,7 +641,7 @@ app.post('/generate-segments', async (req, res) => {
 
         // 2. Generate Text Segments
         console.log(`[ContentServer] Generating text segments...`);
-        const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style);
+        const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', false, avatarUrl);
         console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
         // 3. Determine Cost & Charge
@@ -677,6 +697,7 @@ app.post('/generate-segments', async (req, res) => {
             image_prompt: s.image_prompt,
             animation_prompt: s.animation_prompt,
             image_url: null, // Placeholder, images come later
+            avatar_url: s.avatar_url || null,
             order_index: idx
         }));
 
@@ -731,7 +752,7 @@ app.post('/generate-segments', async (req, res) => {
 app.post('/generate-free-trial-segments', async (req, res) => {
     let createdProjectId = null;
     try {
-        const { prompt, aspectRatio, style, effect, userId, narrationStyle, subtitles, voiceId } = req.body;
+        const { prompt, aspectRatio, style, effect, userId, narrationStyle, subtitles, voiceId, avatarUrl } = req.body;
         console.log(`[ContentServer] Received free trial generate request: "${prompt.substring(0, 30)}..."`);
         
         // 1. Create Project
@@ -754,7 +775,7 @@ app.post('/generate-free-trial-segments', async (req, res) => {
 
         // 2. Generate Text Segments (Free Trial Mode uses normal prompt now, but we pass true)
         console.log(`[ContentServer] Generating text segments (Free Trial)...`);
-        const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', true);
+        const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', true, avatarUrl);
         console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
         // 3. Determine Cost & Charge
@@ -791,6 +812,7 @@ app.post('/generate-free-trial-segments', async (req, res) => {
             image_prompt: s.image_prompt,
             animation_prompt: s.animation_prompt,
             image_url: null,
+            avatar_url: s.avatar_url || null,
             order_index: idx
         }));
 
@@ -834,7 +856,7 @@ app.post('/regenerate-image', async (req, res) => {
     try {
         console.log(`[ContentServer] Regenerating image for segment ${segmentId}`);
 
-        // 0. Fetch Project
+        // 0. Fetch Project & Segment
         const { data: project, error: projError } = await supabase
             .from('content_projects')
             .select('user_id')
@@ -843,6 +865,12 @@ app.post('/regenerate-image', async (req, res) => {
         
         if (projError || !project) throw new Error("Project not found");
         userId = project.user_id;
+
+        const { data: segment } = await supabase
+            .from('content_segments')
+            .select('avatar_url')
+            .eq('id', segmentId)
+            .single();
 
         // 1. Calculate Cost & Charge
         const cost = COST_IMAGE_ULTRA;
@@ -858,8 +886,19 @@ app.post('/regenerate-image', async (req, res) => {
 
         await chargeUser(userId, cost, `Image Regeneration`);
 
-        // 2. Generate new image
-        const base64Img = await generateImage(imagePrompt, aspectRatio);
+        // 2. Fetch avatar if any and generate new image
+        let avatarImageBase64 = null;
+        if (segment && segment.avatar_url) {
+            try {
+                const resp = await fetch(segment.avatar_url);
+                const arrayBuf = await resp.arrayBuffer();
+                avatarImageBase64 = Buffer.from(arrayBuf).toString('base64');
+            } catch (e) {
+                console.error(`Failed to fetch avatar image for segment ${segmentId}:`, e);
+            }
+        }
+
+        const base64Img = await generateImage(imagePrompt, aspectRatio, avatarImageBase64);
         const buffer = Buffer.from(base64Img, 'base64');
 
         // 3. Determine New Key & Delete Old
@@ -1405,6 +1444,13 @@ app.post('/demo/save-hook-asset', saveHookAsset);
 app.get('/demo/hook-assets/:userId', getHookAssets);
 app.post('/demo/generate-hook-image', generateHookImage);
 app.post('/demo/delete-hook-asset', deleteHookAsset);
+
+// --- Avatar Routes ---
+app.post('/api/avatars/generate-upload-url', generateAvatarUploadUrl);
+app.post('/api/avatars/save', saveAvatar);
+app.get('/api/avatars/:userId', getAvatars);
+app.post('/api/avatars/generate', generateAvatarImage);
+app.delete('/api/avatars/:id', deleteAvatar);
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));

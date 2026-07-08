@@ -50,11 +50,23 @@ export async function updateSegmentImage(segmentId: string, newImageUrl: string,
     return await res.json();
 }
 
-export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: VoiceStyleConfig, subtitles: SubtitleConfiguration, voiceId: string, signal?: AbortSignal) {
+export async function updateSegmentAvatar(segmentId: string, avatarUrl: string | null) {
+    const { data, error } = await supabase
+        .from('content_segments')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', segmentId);
+
+    if (error) {
+        throw new Error(sanitizeErrorMsg(error, "Failed to update segment avatar. Please try again."));
+    }
+    return { success: true, avatarUrl };
+}
+
+export async function generateSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: VoiceStyleConfig, subtitles: SubtitleConfiguration, voiceId: string, avatarUrl?: string, signal?: AbortSignal) {
     const res = await fetch(`${API_URL}/generate-segments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, subtitles, voiceId }),
+        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, subtitles, voiceId, avatarUrl }),
         signal
     });
     
@@ -71,11 +83,11 @@ export async function generateSegments(prompt: string, aspect: string, style: st
     return await res.json();
 }
 
-export async function generateFreeTrialSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: VoiceStyleConfig, subtitles: SubtitleConfiguration, voiceId: string, signal?: AbortSignal) {
+export async function generateFreeTrialSegments(prompt: string, aspect: string, style: string, effect: string, userId: string, narrationStyle: VoiceStyleConfig, subtitles: SubtitleConfiguration, voiceId: string, avatarUrl?: string, signal?: AbortSignal) {
     const res = await fetch(`${API_URL}/generate-free-trial-segments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, subtitles, voiceId }),
+        body: JSON.stringify({ prompt, aspectRatio: aspect, style, effect, userId, narrationStyle, subtitles, voiceId, avatarUrl }),
         signal
     });
     

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, generateVideoSegment, animateAllSegments, sanitizeErrorMsg } from './api';
+import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, updateSegmentAvatar, generateVideoSegment, animateAllSegments, sanitizeErrorMsg } from './api';
 import { ContentVideoPlayer, EFFECT_TYPES, EFFECT_SEQUENCES } from './ContentVideoPlayer';
+import { AvatarModal } from './AvatarModal';
 import { supabase } from '../../supabaseClient';
 import { VOICES } from '../../constants';
 import { VOICE_SAMPLES } from '../../voiceSamples';
@@ -200,6 +201,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [imageEditModalId, setImageEditModalId] = useState<string | null>(null);
     const [imageEditTab, setImageEditTab] = useState<'regenerate' | 'edit' | 'upload'>('regenerate');
     
+    const [showAvatarModal, setShowAvatarModal] = useState(false);
+    const [avatarConfirmDeleteId, setAvatarConfirmDeleteId] = useState<string | null>(null);
+
     const [regeneratePrompt, setRegeneratePrompt] = useState('');
     const [editPrompt, setEditPrompt] = useState('');
     const [loadingImage, setLoadingImage] = useState(false);
@@ -312,6 +316,35 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         } else {
             setUploadingSegmentId(segmentId);
             setTimeout(() => fileInputRef.current?.click(), 0);
+        }
+    };
+
+    const handleSelectAvatar = async (avatar: { id: string, url: string }) => {
+        if (!imageEditModalId) return;
+        setLoadingImage(true);
+        try {
+            await updateSegmentAvatar(imageEditModalId, avatar.url);
+            setSegments(segments.map((s: any) => s.id === imageEditModalId ? { ...s, avatar_url: avatar.url } : s));
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update avatar");
+        } finally {
+            setLoadingImage(false);
+            setShowAvatarModal(false);
+        }
+    };
+
+    const handleDeleteAvatar = async (segmentId: string) => {
+        setLoadingImage(true);
+        try {
+            await updateSegmentAvatar(segmentId, null);
+            setSegments(segments.map((s: any) => s.id === segmentId ? { ...s, avatar_url: null } : s));
+        } catch (e) {
+            console.error(e);
+            alert("Failed to delete avatar");
+        } finally {
+            setLoadingImage(false);
+            setAvatarConfirmDeleteId(null);
         }
     };
 
@@ -1512,20 +1545,54 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             exit={{ opacity: 0, scale: 0.95 }}
                             className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
                         >
-                            {/* Left: Current Image */}
-                            <div className="md:w-1/2 bg-black flex items-center justify-center p-4 border-b md:border-b-0 md:border-r border-white/10">
-                                {(() => {
-                                    const seg = segments.find((s: any) => s.id === imageEditModalId);
-                                    return seg?.image_url ? (
-                                        seg.image_url.toLowerCase().includes('.mp4') ? (
-                                            <video src={seg.image_url} autoPlay loop muted playsInline className="max-w-full max-h-[40vh] md:max-h-[60vh] object-contain rounded-xl shadow-lg" />
+                            {/* Left: Current Image & Avatar */}
+                            <div className="md:w-1/2 bg-black flex flex-col items-center justify-center p-4 border-b md:border-b-0 md:border-r border-white/10 relative">
+                                <div className="flex-1 w-full flex items-center justify-center relative min-h-[30vh]">
+                                    {(() => {
+                                        const seg = segments.find((s: any) => s.id === imageEditModalId);
+                                        return seg?.image_url ? (
+                                            seg.image_url.toLowerCase().includes('.mp4') ? (
+                                                <video src={seg.image_url} autoPlay loop muted playsInline className="max-w-full max-h-[40vh] md:max-h-[50vh] object-contain rounded-xl shadow-lg" />
+                                            ) : (
+                                                <img src={seg.image_url} className="max-w-full max-h-[40vh] md:max-h-[50vh] object-contain rounded-xl shadow-lg" />
+                                            )
                                         ) : (
-                                            <img src={seg.image_url} className="max-w-full max-h-[40vh] md:max-h-[60vh] object-contain rounded-xl shadow-lg" />
-                                        )
-                                    ) : (
-                                        <div className="text-zinc-500 font-bold uppercase tracking-widest">No Image</div>
-                                    );
-                                })()}
+                                            <div className="text-zinc-500 font-bold uppercase tracking-widest">No Image</div>
+                                        );
+                                    })()}
+                                </div>
+
+                                {/* Avatar Section */}
+                                <div className="w-full mt-4 p-4 border border-white/10 rounded-xl bg-zinc-900/50 flex items-center justify-between shrink-0">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                                            {(() => {
+                                                const seg = segments.find((s: any) => s.id === imageEditModalId);
+                                                return seg?.avatar_url ? (
+                                                    <img src={seg.avatar_url} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                                );
+                                            })()}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-white">Segment Avatar</p>
+                                            <p className="text-xs text-zinc-400">
+                                                {segments.find((s: any) => s.id === imageEditModalId)?.avatar_url ? 'Avatar active' : 'No avatar selected'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => setShowAvatarModal(true)} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition text-white" title="Change Avatar">
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                        </button>
+                                        {segments.find((s: any) => s.id === imageEditModalId)?.avatar_url && (
+                                            <button onClick={() => setAvatarConfirmDeleteId(imageEditModalId)} className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition" title="Remove Avatar">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Right: Actions */}
@@ -1859,6 +1926,49 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                     </div>
                 </div>
             )}
+            {/* Avatar Selection Modal */}
+            <AvatarModal
+                isOpen={showAvatarModal}
+                onClose={() => setShowAvatarModal(false)}
+                userId={session.user.id}
+                onSelectAvatar={handleSelectAvatar}
+            />
+
+            {/* Avatar Delete Confirm Modal */}
+            <AnimatePresence>
+                {avatarConfirmDeleteId && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setAvatarConfirmDeleteId(null)}>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-zinc-900 border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h3 className="font-bold text-lg mb-2 text-white">Remove Avatar?</h3>
+                            <p className="text-sm text-zinc-400 mb-6">
+                                The avatar will no longer be included when this segment's image is regenerated.
+                            </p>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setAvatarConfirmDeleteId(null)}
+                                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteAvatar(avatarConfirmDeleteId)}
+                                    disabled={loadingImage}
+                                    className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition flex justify-center items-center gap-2 disabled:opacity-50"
+                                >
+                                    {loadingImage ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Remove"}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
         </div>
     );
 };

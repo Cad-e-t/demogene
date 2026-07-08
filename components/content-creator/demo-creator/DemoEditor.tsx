@@ -7,7 +7,7 @@ import { SubtitleConfigurationPanel } from '../SubtitleConfigurationPanel';
 import { DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from '../types';
 import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2, Edit2, CheckCheck, Mic } from 'lucide-react';
 import { HookStyleModal } from './HookStyleModal';
-import { alignSegmentsWithTranscription } from './alignment-utils';
+import { alignSegmentsWithTranscription, computeFilesData } from './alignment-utils';
 import { VOICES } from '../../../voiceConfig';
 import { VOICE_SAMPLES } from '../../../voiceSamples';
 
@@ -156,7 +156,20 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const updateProject = async (updates: any, skipHistory = false) => {
         if (!project) return;
         
-        const newState = { ...project, ...updates };
+        let finalUpdates = { ...updates };
+        const newState = { ...project, ...finalUpdates };
+        
+        if (updates.segments !== undefined || updates.hook_style !== undefined || updates.video_transform !== undefined || updates.transcription !== undefined) {
+            const filesData = computeFilesData(
+                newState.segments || [],
+                newState.transcription,
+                newState.video_transform?.hooks || {},
+                newState.hook_style,
+                newState.total_audio_duration
+            );
+            finalUpdates.files_data = filesData;
+            newState.files_data = filesData;
+        }
         
         if (!skipHistory) {
             if (updates.video_transform) {
@@ -185,7 +198,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
 
         const { error } = await supabase
             .from('demo_projects')
-            .update(updates)
+            .update(finalUpdates)
             .eq('id', project.id);
         
         if (error) console.error("Update failed:", error);

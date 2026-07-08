@@ -4,24 +4,25 @@ import {
     predefinedVisualIdentityBlocks,
     getNormalSegmentationPrompt,
     getCreatorSystemPrompt,
-    getDirectorSystemPrompt
+    getDirectorSystemPrompt,
+    getAvatarSystemPrompt
 } from "./prompt.js";
 
 const MODEL_NAME = "gemini-3.5-flash"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
 const SEGMENTATION_MODEL_NAME = "gemini-3.5-flash"; // Using flash for segmentation
-const GENERATE_IMAGE_MODEL = "imagen-4.0-generate-001";  
-const EDIT_IMAGE_MODEL = "gemini-2.5-flash-image"; //
+const GENERATE_IMAGE_MODEL = "gemini-3.1-flash-lite-image";  
+const EDIT_IMAGE_MODEL = "gemini-3.1-flash-lite-image"; //
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const VIDEO_MODEL = "veo-3.1-lite-generate-preview";
 
-export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced', isFreeTrial = false) {
+export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced', isFreeTrial = false, avatarUrl = null) {
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     let baseSegments = [];
     let segmentationResponse = null;
 
-    if (style !== 'Director') {
+    if (style !== 'Director' && !avatarUrl) {
         const segmentationSystemPrompt = getNormalSegmentationPrompt(prompt);
 
         console.log("--- GEMINI INPUT (Segmentation Step) ---");
@@ -54,9 +55,24 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
         ? "" 
         : predefinedVisualIdentityBlocks[style];
 
-    const systemPrompt = style === 'Director'
-        ? getDirectorSystemPrompt(prompt)
-        : getCreatorSystemPrompt(segmentedScript, visualIdentityBlock);
+    let systemPrompt;
+    if (avatarUrl) {
+        const finalInput = style === 'Director' 
+            ? prompt 
+            : `The VISUAL IDENTITY LOCK defines the mandatory global rendering style for all Image Prompts and the character design language. 
+Every Image Prompt MUST integrate the VISUAL IDENTITY LOCK as the final rendering layer of the scene. All character and environment descriptions must conform to the design and style constraints specified in VISUAL IDENTITY LOCK.
+
+VISUAL IDENTITY LOCK: ${visualIdentityBlock}
+
+VOICEOVER:
+
+${prompt}`;
+        systemPrompt = getAvatarSystemPrompt(finalInput);
+    } else {
+        systemPrompt = style === 'Director'
+            ? getDirectorSystemPrompt(prompt)
+            : getCreatorSystemPrompt(segmentedScript, visualIdentityBlock);
+    }
 
 
     console.log("--- GEMINI INPUT (generateStorySegments) ---");
@@ -89,30 +105,69 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
 
     for (const seg of (visualData.segments || [])) {
         const matchingBaseSeg = baseSegments.find(s => String(s.segment_id) === String(seg.segment_id));
-        const narration = style === 'Director' ? (seg.narration || "") : (matchingBaseSeg ? matchingBaseSeg.narration : "");
-
-        let fullSubjectsDescription = "";
-        if (seg.subjects && Array.isArray(seg.subjects)) {
-            for (const sub of seg.subjects) {
-                const mainSub = mainSubjects[sub.id];
-                if (mainSub) {
-                    const baseDesc = mainSub.base || "";
-                    const outfitDesc = (mainSub.outfits && sub.outfit) ? (mainSub.outfits[sub.outfit] || "") : "";
-                    const outfitSuffix = outfitDesc ? ` wearing ${outfitDesc}` : "";
-                    fullSubjectsDescription += `${sub.id}: "${baseDesc}${outfitSuffix}".\n`;
-                }
-            }
-        }
+        const narration = (style === 'Director' || avatarUrl) ? (seg.narration || "") : (matchingBaseSeg ? matchingBaseSeg.narration : "");
 
         let finalImagePrompt = seg.image_prompt || "";
-        if (fullSubjectsDescription) {
-            finalImagePrompt = `${fullSubjectsDescription}\n${seg.image_prompt}`;
+        let finalAnimationPrompt = seg.animation_prompt || "";
+        let segAvatarUrl = null;
+
+        if (seg.subjects && Array.isArray(seg.subjects)) {
+            for (const sub of seg.subjects) {
+                if (avatarUrl && sub.id === 'AVATAR') {
+                    const avatarData = visualData.avatar || {};
+                    const baseDesc = "character in the uploaded image";
+                    const outfitDesc = (avatarData.outfit && sub.outfit) ? (avatarData.outfit[sub.outfit] || "") : "";
+                    const outfitSuffix = outfitDesc ? ` wearing ${outfitDesc}` : "";
+                    const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
+                    const baseDescLower = baseDesc.toLowerCase();
+                    
+                    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const idRegex = new RegExp(`\\b${escapeRegExp(sub.id)}\\b`, 'gi');
+                    
+                    let matchCount = 0;
+                    finalImagePrompt = finalImagePrompt.replace(idRegex, () => {
+                        matchCount++;
+                        if (matchCount === 1) {
+                            return fullDesc;
+                        } else {
+                            return baseDescLower;
+                        }
+                    });
+                    
+                    segAvatarUrl = avatarUrl;
+                } else {
+                    const mainSub = mainSubjects[sub.id];
+                    if (mainSub) {
+                        const baseDescRaw = mainSub.base || "";
+                        const baseDesc = baseDescRaw.trim().replace(/\.$/, "");
+                        const outfitDesc = (mainSub.outfits && sub.outfit) ? (mainSub.outfits[sub.outfit] || "") : "";
+                        const outfitSuffix = outfitDesc ? ` wearing ${outfitDesc}` : "";
+                        const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
+                        
+                        const baseDescLower = baseDesc.toLowerCase();
+                        
+                        const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const idRegex = new RegExp(`\\b${escapeRegExp(sub.id)}\\b`, 'gi');
+                        
+                        let matchCount = 0;
+                        finalImagePrompt = finalImagePrompt.replace(idRegex, () => {
+                            matchCount++;
+                            if (matchCount === 1) {
+                                return fullDesc;
+                            } else {
+                                return baseDescLower;
+                            }
+                        });
+                    }
+                }
+            }
         }
 
         finalSegments.push({
             narration: narration,
             image_prompt: finalImagePrompt,
-            animation_prompt: seg.animation_prompt || ""
+            animation_prompt: finalAnimationPrompt,
+            ...(segAvatarUrl && { avatar_url: segAvatarUrl })
         });
     }
 
@@ -136,30 +191,38 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
     };
 }
 
-export async function generateImage(prompt, aspect) {
+export async function generateImage(prompt, aspect, avatarImageBase64 = null) {
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Convert aspect ratio string to simplified ratio for config if needed, 
-    // but nano-banana (gemini-2.5-flash-image) usually takes standard aspect ratios.
-    // However, the SDK documentation for generateContent with image models is simpler.
-    // We will use generateContent with text prompt to get an image.
-    
     const ar = aspect === '9:16' ? '9:16' : '16:9';
 
-    // Imagen Flow
-    const response = await ai.models.generateImages({
+    let input = prompt;
+    if (avatarImageBase64) {
+        input = [
+            { type: "text", text: prompt },
+            {
+                type: "image",
+                mime_type: "image/png", // PNG is a safe default for avatar images and general usage
+                data: avatarImageBase64
+            }
+        ];
+    }
+
+    const interaction = await ai.interactions.create({
         model: GENERATE_IMAGE_MODEL,
-        prompt: prompt,
-        config: {
-            numberOfImages: 1,
-            outputMimeType: 'image/jpeg',
-            aspectRatio: ar
-        }
+        input: input,
+        response_format: [
+            {
+                type: "image",
+                mime_type: "image/jpeg",
+                aspect_ratio: ar,
+            }
+        ],
     });
 
-    if (response.generatedImages && response.generatedImages.length > 0) {
-        return response.generatedImages[0].image.imageBytes;
+    if (interaction.output_image && interaction.output_image.data) {
+        return interaction.output_image.data;
     }
 
     throw new Error("No image data generated");
@@ -169,19 +232,27 @@ export async function editImage(originalImageBase64, editPrompt) {
      if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    const response = await ai.models.generateContent({
-        model: EDIT_IMAGE_MODEL, // Always use gemini-2.5-flash-image for editing
-        contents: {
-            parts: [
-                { inlineData: { mimeType: 'image/png', data: originalImageBase64 } },
-                { text: editPrompt }
-            ]
-        }
+    const input = [
+        { type: "text", text: editPrompt },
+        {
+            type: "image",
+            mime_type: "image/png",
+            data: originalImageBase64
+        },
+    ];
+
+    const interaction = await ai.interactions.create({
+        model: EDIT_IMAGE_MODEL,
+        input: input,
     });
 
-    for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-            return part.inlineData.data;
+    for (const step of interaction.steps) {
+        if (step.type === "model_output" && step.content) {
+            for (const contentBlock of step.content) {
+                if (contentBlock.type === "image") {
+                    return contentBlock.data;
+                }
+            }
         }
     }
     throw new Error("Failed to edit image");

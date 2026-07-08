@@ -118,13 +118,33 @@ CREATE TABLE demo_projects (
     video_url TEXT,
     subtitles JSONB,
     hook_style JSONB,
+    files_data JSONB,
     status TEXT DEFAULT 'draft',
     video_transform JSONB,
     background_type TEXT DEFAULT 'white'
 );
 
 
+-- Avatar Table
+create table public.avatar (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users not null,
+  url text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- RLS Policies
+
+-- Avatar RLS
+alter table public.avatar enable row level security;
+create policy "Users can view own avatars" on public.avatar
+    for select using (auth.uid() = user_id);
+create policy "Users can insert own avatars" on public.avatar
+    for insert with check (auth.uid() = user_id);
+create policy "Users can update own avatars" on public.avatar
+    for update using (auth.uid() = user_id);
+create policy "Users can delete own avatars" on public.avatar
+    for delete using (auth.uid() = user_id);
 
 -- Projects
 alter table public.content_projects enable row level security;
