@@ -361,7 +361,7 @@ async function processAssetsBackground(projectId, segments, voiceId, userId, isF
         for (const seg of segments) {
             const segLen = seg.narration.length;
             const addedLen = currentChars === 0 ? segLen : segLen + 1; // +1 for space between sentences
-            if (currentChars + addedLen > 3000) {
+            if (currentChars + addedLen > 1500) {
                 if (currentBatch.length > 0) batches.push(currentBatch.join(" "));
                 currentBatch = [seg.narration];
                 currentChars = segLen;

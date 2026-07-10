@@ -116,7 +116,21 @@ ${prompt}`;
                 if (avatarUrl && sub.id === 'AVATAR') {
                     const avatarData = visualData.avatar || {};
                     const baseDesc = "character in the uploaded image";
-                    const outfitDesc = (avatarData.outfit && sub.outfit) ? (avatarData.outfit[sub.outfit] || "") : "";
+                    let outfitDesc = "";
+                    if (avatarData.outfits && sub.outfit && sub.outfit_parts && Array.isArray(sub.outfit_parts)) {
+                        const outfitPartsObj = avatarData.outfits[sub.outfit];
+                        if (outfitPartsObj) {
+                            const parts = [];
+                            for (const part of sub.outfit_parts) {
+                                if (outfitPartsObj[part]) {
+                                    parts.push(outfitPartsObj[part]);
+                                }
+                            }
+                            if (parts.length > 0) {
+                                outfitDesc = parts.join(", ");
+                            }
+                        }
+                    }
                     const outfitSuffix = outfitDesc ? ` wearing ${outfitDesc}` : "";
                     const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
                     const baseDescLower = baseDesc.toLowerCase();
@@ -140,7 +154,23 @@ ${prompt}`;
                     if (mainSub) {
                         const baseDescRaw = mainSub.base || "";
                         const baseDesc = baseDescRaw.trim().replace(/\.$/, "");
-                        const outfitDesc = (mainSub.outfits && sub.outfit) ? (mainSub.outfits[sub.outfit] || "") : "";
+                        
+                        let outfitDesc = "";
+                        if (mainSub.outfits && sub.outfit && sub.outfit_parts && Array.isArray(sub.outfit_parts)) {
+                            const outfitPartsObj = mainSub.outfits[sub.outfit];
+                            if (outfitPartsObj) {
+                                const parts = [];
+                                for (const part of sub.outfit_parts) {
+                                    if (outfitPartsObj[part]) {
+                                        parts.push(outfitPartsObj[part]);
+                                    }
+                                }
+                                if (parts.length > 0) {
+                                    outfitDesc = parts.join(", ");
+                                }
+                            }
+                        }
+                        
                         const outfitSuffix = outfitDesc ? ` wearing ${outfitDesc}` : "";
                         const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
                         

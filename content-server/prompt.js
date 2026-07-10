@@ -34,15 +34,15 @@ export const predefinedVisualIdentityBlocks = {
     };
 
 export const getNormalSegmentationPrompt = (prompt) => `
-   Act as an expert Storyboard Artist for a documentary-style YouTube channel. I need you to segment my script into scenes for a faceless video.
+  Act as an expert Storyboard Artist for a documentary-style YouTube channel. I need you to segment my script into scenes for a faceless video.
 
-   CRITICAL SEGMENTING RULES:
-   
-   The 'Camera Cut' Rule (When to split): Create a new scene when 
-   1) The script introduces a new subject, a new idea, a new moment, a new situation, or a shift in emotion/action.
-   2) The physical OR virtual location changes.
-   3) The core activity of the subject changes: subject begins a fundamentally new task that requires a completely new visual setup.
-   Output strictly as a JSON array of objects. No markdown or explanation.
+SEGMENTING RULES (Apply unless user specifies otherwise):
+
+  - Break the narration into separate visual scenes. Each segment should show one clear moment that can naturally happen in one continuous shot.
+  - Create a new segment when the viewer would need to see a different shot because the action, focus, emotion, subject, environment, or stage of the event changes. 
+    Every segment must directly visualize all narration assigned to it. If any important action, event, or reaction cannot be clearly shown in the same shot, create a new segment.
+  - The goal is to create the sequence of shots a filmmaker would choose to make the video clear, engaging, and visually interesting.
+
 
 [
    {
@@ -68,29 +68,30 @@ Your task is to:
     subjects performing grounded, realistic physical actions in real-world
     environments. Convey all meaning through dramatic, real-world physical
     behavior and concrete events, strictly avoiding symbolic or metaphorical
-    visuals. Strictly follow the RECURRING SUBJECT RULES, IMAGE PROMPT RULES, and ANIMATION PROMPT RULES.
+    visuals. Strictly follow the RECURRING SUBJECT RULES, OUFIT RULES, IMAGE PROMPT RULES, and ANIMATION PROMPT RULES.
 4.  Output the results strictly in the following JSON format. No markdown formatting, preamble, or explanations.
 
 {
-  "recurring_subjects": {
-    "SUBJ1": {
-      "base": "Complete immutable physical description. Naturally phrased",
-      "outfits": {
-        "O1": "Detailed physical description of the primary outfit.",
-        "O2": "Detailed description of a second outfit."
-      }
-    }
+  "recurring_subjects": { 
+    "SUBJ1": { 
+      "base": "Complete immutable physical description. Naturally phrased.", 
+       "outfits": {
+        "O1": {
+         "upper": "description of upper-body clothing.",
+         "lower": "description of lower-body clothing.",
+         "footwear": "description of footwear.",
+         "accessories": "Visible accessories, if any."
+        }
+      } 
+    } 
   },
   "segments": [
     {
       "segment_id": "Exact ID from script (e.g., 1).",
       "image_prompt": "A highly detailed, comma-separated paragraph describing the exact first frame from which the scene begins.",
       "animation_prompt": "A concise prompt describing how the scene unfolds from that first frame, including subject actions, camera movement, environmental motion, and appropriate sound effects."
-      "subjects": [
-        {
-          "id": "ID of the subject (e.g., 'SUBJ1').",
-          "outfit": "ID of the outfit (e.g., 'O1')."
-        }
+      "subjects": [ 
+        { "id": "ID of the subject (e.g., 'AVATAR' or 'SUBJ1').", "outfit": "ID of the outfit (e.g., 'O1').", "outfit_parts": Visible parts of the outfit in the scene (e.g., ["upper", "lower", "footwear"]) } 
       ]
     }
   ]
@@ -113,9 +114,16 @@ Every Image Prompt MUST integrate the VISUAL IDENTITY LOCK as the final renderin
   - Relevance: Only define 'recurring_subjects' if the script features actual recurring subjects. If not leave the recurring_subjects object and the segment subjects arrays empty.
   - Base Descriptions: For humans or humanoid figures, the "base" description must include: gender and age range, followed by skin tone, hair color, and hair style (when present). Do not include clothing here.
   - Outfits: Outfits are strictly for humanoids or clothed entities. Leave the 'outfits' object empty for subjects that do not wear clothes (e.g., animals, vehicles, objects). Only generate subsequent outfits ('O2', etc.) if a change is required by the script.
-  - Tracking Subjects: List every recurring subject referenced in an 'image_prompt' under the image_prompt's segment's 'subjects' array, paired with their outfit ID (if applicable, defaulting to O1).
+  - Tracking Subjects: List every recurring subject referenced in an image_prompt under the segment's subjects array. For each subject, include its outfit ID (if applicable) and the outfit parts that should appear in that shot.
 
-3.  IMAGE PROMPT RULES
+3. OUTFIT RULES
+
+- Structure outfit into four parts: upper, lower, footwear, and accessories. Use an empty string for parts that do not exist.
+- Store complete-body garments that cannot be separated into upper and lower parts (e.g., jumpsuits, gowns, spacesuits) under upper, and leave lower empty.
+- Categorize headwear with upper, while accessories represent separate wearable items such as jewelry, watches, glasses, or bags.
+- Keep outfit descriptions concise but sufficiently detailed for consistent generation. 
+
+4.  IMAGE PROMPT RULES
 
   - Independence: Treat every prompt as an independent image prompt. Aside from
     recurring subjects, you must repeat the full description of other entities,
@@ -133,16 +141,16 @@ Every Image Prompt MUST integrate the VISUAL IDENTITY LOCK as the final renderin
   - Labels: Artificial text, words, or labels inside the image is prohibited.
   - Split screen prohibition: Use of split-screen shots is prohibited.
 
-4.  ANIMATION PROMPT RULES
+5.  ANIMATION PROMPT RULES
 
   - Action & Movement: Describe the continuous physical movement, actions, and camera mechanics that directly follow the first frame established in the Image Prompt.
-  - Subject Referencing: Never use IDs in the animation prompt. Reference subjects like a human director using their most recognizable characteristics and identifiers in the scene, such as their narrative role, outfit, distinguishing physical traits, or current action. So the video model can accurately recognize, target, and animate them.  
+  - Subject Referencing: Never use IDs in the animation prompt. Reference subjects like a human director using their narrative role + outfit or distinguishing physical traits. So the video model can accurately recognize, target, and animate them.
   - Motion: Keep it simple. One primary focus + one primary action + one camera move.
   - Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan left, push in, orbit, tracking shot, static).
   - Audio & SFX: Include appropriate sound effects or ambient audio when naturally justified by the scene (e.g., Audio: heavy footsteps, Audio: birds chirping). Use Audio: silence when no audio is needed.
   - Mute Dialogues:  Set Audio to "silence" and use mouth movements alone when animating dialogues.
 
-5.  SCENE CONCEPTUALIZATION:
+6.  SCENE CONCEPTUALIZATION:
 
   - Cinematic Realism: Frame scenes dramatically like a physical camera
     capturing reality. Force all abstract ideas into visible, concrete physical
@@ -157,7 +165,7 @@ Every Image Prompt MUST integrate the VISUAL IDENTITY LOCK as the final renderin
     Show the internal mechanics by framing shot from directly inside the object.
   - Group Dynamics: When a segment involves a collective subject (e.g., people, workers, flocks, swarms), depict their numbers correctly with multiple individuals or entities.
 
-6.  SAFETY
+7.  SAFETY
 
 Never depict:
 
@@ -200,32 +208,29 @@ Your task is to:
     subjects performing grounded, realistic physical actions in real-world
     environments. Convey all meaning through dramatic, real-world physical
     behavior and concrete events, avoiding symbolic or metaphorical visuals.
-    Strictly follow the RECURRING SUBJECT RULES, IMAGE PROMPT RULES, and ANIMATION PROMPT RULES below, deferring to the user's instructions only when they differ.
+    Strictly follow the RECURRING SUBJECT RULES, OUTFIT RULES, IMAGE PROMPT RULES,
+    and ANIMATION PROMPT RULES below, deferring to the user's instructions only when they differ.
 4.  Output the results strictly in the following JSON format. No markdown
     formatting, preamble, or explanations.
 
-{ "recurring_subjects": { "SUBJ1": { "base": "Complete immutable physical
-description. Naturally phrased.", "outfits": { "O1": "Detailed physical description of the primary
-outfit.", "O2": "Detailed description of a second outfit." } } }, "segments": [
+{ "recurring_subjects": { "SUBJ1": { "base": "Complete immutable physical description. Naturally phrased.", "outfits": {
+"O1": { "upper": "description of upper-body clothing.", "lower": "description of lower-body clothing.", 
+"footwear": "description of footwear.", "accessories": "Visible accessories, if any." }, "O2": { ... } } } }, "segments": [
 { "segment_id": "Exact ID from script (e.g., 1).", "narration": "The exact script segment being visualized.", 
 "image_prompt": "A highly detailed, comma-separated paragraph describing the exact first frame from which the scene begins.",
 "animation_prompt": "A concise prompt describing how the scene unfolds from that first frame,
 including subject actions, camera movement, environmental motion, and appropriate sound effects.", 
-"subjects": [ { "id": "ID of the subject (e.g., 'SUBJ1').", "outfit": "ID of the outfit (e.g., 'O1')." } ] }
-] }
+"subjects": [ { "id": "ID of the subject (e.g., 'AVATAR' or 'SUBJ1').", "outfit": "ID of the outfit (e.g., 'O1').", 
+"outfit_parts": Visible parts of the outfit in the scene (e.g., ["upper", "lower", "footwear"]) } ] }
 
 USER INPUT: ${userInput}
 
 1.  SEGMENTING RULES (Apply unless user specifies otherwise):
 
-    Create a new scene when:
-
-    1)  The script introduces a new subject, a new idea, a new moment, a new
-        situation, or a shift in emotion/action.
-    2)  The physical OR virtual location changes.
-    3)  The core activity of the subject changes: subject begins a fundamentally
-        new task that requires a completely new visual setup. Output strictly as
-        a JSON array of objects. No markdown or explanation.
+  - Break the narration into separate visual scenes. Each segment should show one clear moment that can naturally happen in one continuous shot.
+  - Create a new segment when the viewer would need to see a different shot because the action, focus, emotion, subject, environment, or stage of the event changes. 
+    Every segment must directly visualize all narration assigned to it. If any important action, event, or reaction cannot be clearly shown in the same shot, create a new segment.
+  - The goal is to create the sequence of shots a filmmaker would choose to make the video clear, engaging, and visually interesting.
 
 2.  RECURRING SUBJECT RULES
 
@@ -238,11 +243,18 @@ USER INPUT: ${userInput}
     'outfits' object empty for subjects that do not wear clothes (e.g., animals,
     vehicles, objects). Only generate subsequent outfits ('O2', etc.) if a
     change is required by the script.
-  - Tracking Subjects: List every recurring subject referenced in an
-    'image_prompt' under the image_prompt's segment's 'subjects' array, paired
-    with their outfit ID (if applicable, defaulting to O1).
+  - Tracking Subjects: List every recurring subject referenced in an image_prompt under the segment's subjects array. 
+  For each subject, include its outfit ID (if applicable) and the outfit parts that should appear in that shot.
 
-3.  IMAGE PROMPT RULES
+3. OUTFIT RULES
+
+  - Structure outfit into four parts: upper, lower, footwear, and accessories. Use an empty string for parts that do not exist.
+  - Store complete-body garments that cannot be separated into upper and lower parts (e.g., jumpsuits, gowns, spacesuits) under upper, and leave lower empty.
+  - Categorize headwear with upper, while accessories represent separate wearable items such as jewelry, watches, glasses, or bags.
+  - Keep outfit descriptions concise but sufficiently detailed for consistent generation.  
+
+
+4.  IMAGE PROMPT RULES
 
   - Independence: Treat every prompt as an independent image prompt. Aside from
     recurring subjects, you must repeat the full description of other entities,
@@ -264,14 +276,14 @@ USER INPUT: ${userInput}
   - Split screens: Never use split-screen shots unless explicitly dictated by
     the user's instructions.
 
-4.  ANIMATION PROMPT RULES
+5.  ANIMATION PROMPT RULES
 
   - Action & Movement: Describe the continuous physical movement, actions, and
     camera mechanics that directly follow the first frame established in the
     Image Prompt.
   - Subject Referencing: Never use IDs in the animation prompt. Reference subjects 
-    like a human director using their most recognizable characteristics and identifiers 
-    in the scene, such as their narrative role, outfit, distinguishing physical traits, or current action. So the video model can accurately recognize, target, and animate them.  
+    like a human director using their narrative role + outfit or distinguishing physical traits. 
+    So the video model can accurately recognize, target, and animate them.  
   - Motion: Keep it simple. One primary focus + one primary action + one camera move.
   - Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan
     left, push in, orbit, tracking shot, static).
@@ -281,7 +293,7 @@ USER INPUT: ${userInput}
   - Mute Dialogues: Set Audio to "silence" and use mouth movements alone when
     animating dialogues.
 
-5.  SCENE CONCEPTUALIZATION:
+6.  SCENE CONCEPTUALIZATION:
 
   - Cinematic Realism: Frame scenes dramatically like a physical camera
     capturing reality. Translate abstract ideas into visible, concrete physical
@@ -298,7 +310,7 @@ USER INPUT: ${userInput}
     workers, flocks, swarms), depict their numbers correctly with multiple
     individuals or entities.
 
-6.  SAFETY
+7.  SAFETY
 
 Never depict:
 
@@ -340,23 +352,31 @@ Your task is to:
     subjects performing grounded, realistic physical actions in real-world
     environments. Convey all meaning through dramatic, real-world physical
     behavior and concrete events, avoiding symbolic or metaphorical visuals.
-    Strictly follow the AVATAR RULES, RECURRING SUBJECT RULES, IMAGE PROMPT RULES, and ANIMATION PROMPT RULES below, deferring to the user's instructions only when they differ.
+    Strictly follow the AVATAR RULES, RECURRING SUBJECT RULES, OUTFIT RULES, IMAGE PROMPT RULES, and ANIMATION PROMPT RULES below, deferring to the user's instructions only when they differ.
 4.  Output the results strictly in the following JSON format. No markdown
     formatting, preamble, or explanations.
 
 {
   "avatar": {
-    "outfit": {
-        "O1": "Detailed physical description of the primary outfit.",
-        "O2": "Detailed description of a second outfit."
+     "outfits": {
+      "O1": {
+        "upper": "description of upper-body clothing.",
+        "lower": "description of lower-body clothing.",
+        "footwear": "description of footwear.",
+        "accessories": "Visible accessories, if any."
+      }
     }
   },
   "recurring_subjects": { 
     "SUBJ1": { 
       "base": "Complete immutable physical description. Naturally phrased.", 
-      "outfits": { 
-        "O1": "Detailed physical description of the primary outfit.", 
-        "O2": "Detailed description of a second outfit." 
+       "outfits": {
+        "O1": {
+         "upper": "description of upper-body clothing.",
+         "lower": "description of lower-body clothing.",
+         "footwear": "description of footwear.",
+         "accessories": "Visible accessories, if any."
+        }
       } 
     } 
   }, 
@@ -367,7 +387,7 @@ Your task is to:
       "image_prompt": "A highly detailed, comma-separated paragraph describing the exact first frame from which the scene begins.",
       "animation_prompt": "A concise prompt describing how the scene unfolds from that first frame, including subject actions, camera movement, environmental motion, and appropriate sound effects.", 
       "subjects": [ 
-        { "id": "ID of the subject (e.g., 'AVATAR' or 'SUBJ1').", "outfit": "ID of the outfit (e.g., 'O1')." } 
+        { "id": "ID of the subject (e.g., 'AVATAR' or 'SUBJ1').", "outfit": "ID of the outfit (e.g., 'O1').", "outfit_parts": Visible parts of the outfit in the scene (e.g., ["upper", "lower", "footwear"]) } 
       ] 
     }
   ] 
@@ -377,14 +397,10 @@ USER INPUT: ${userInput}
 
 1.  SEGMENTING RULES (Apply unless user specifies otherwise):
 
-    Create a new scene when:
-
-    1)  The script introduces a new subject, a new idea, a new moment, a new
-        situation, or a shift in emotion/action.
-    2)  The physical OR virtual location changes.
-    3)  The core activity of the subject changes: subject begins a fundamentally
-        new task that requires a completely new visual setup. Output strictly as
-        a JSON array of objects. No markdown or explanation.
+  - Break the narration into separate visual scenes. Each segment should show one clear moment that can naturally happen in one continuous shot.
+  - Create a new segment when the viewer would need to see a different shot because the action, focus, emotion, subject, environment, or stage of the event changes. 
+    Every segment must directly visualize all narration assigned to it. If any important action, event, or reaction cannot be clearly shown in the same shot, create a new segment.
+  - The goal is to create the sequence of shots a filmmaker would choose to make the video clear, engaging, and visually interesting.
 
 2.  AVATAR RULES:
 
@@ -393,7 +409,7 @@ USER INPUT: ${userInput}
   - Never generate a base description for the avatar. Treat its appearance as already defined.
   - Reference the avatar in image prompts strictly by the bare identifier AVATAR, exactly as recurring subjects are referenced by their IDs.
   - Outfits: Assume the avatar is human or humanoid. Generate a scene-appropriate default outfit (O1) for the avatar. Only generate additional outfits (O2, etc.) if a wardrobe change is required by the script.
-  - Tracking Avatar: Whenever the avatar is referenced in an image prompt, include a subject entry with ID AVATAR and its outfit ID in that segment's subjects array.
+  - Tracking Avatar: Whenever the avatar is referenced in an image prompt, include a subject entry with ID AVATAR and its outfit ID/outfit parts that should appear in that shot, in that segment's subjects array.
 
 3.  RECURRING SUBJECT RULES
 
@@ -406,11 +422,16 @@ USER INPUT: ${userInput}
     'outfits' object empty for subjects that do not wear clothes (e.g., animals,
     vehicles, objects). Only generate subsequent outfits ('O2', etc.) if a
     change is required by the script.
-  - Tracking Subjects: List every recurring subject referenced in an
-    'image_prompt' under the image_prompt's segment's 'subjects' array, paired
-    with their outfit ID (if applicable, defaulting to O1).
+  - Tracking Subjects: List every recurring subject referenced in an image_prompt under the segment's subjects array. For each subject, include its outfit ID and only the outfit parts that should appear in that shot.
 
-4.  IMAGE PROMPT RULES
+4. OUTFIT RULES
+
+- Structure outfit into four parts: upper, lower, footwear, and accessories. Use an empty string for parts that do not exist.
+- Store complete-body garments that cannot be separated into upper and lower parts (e.g., jumpsuits, gowns, spacesuits) under upper, and leave lower empty.
+- Categorize headwear with upper, while accessories represent separate wearable items such as jewelry, watches, glasses, or bags.
+- Keep outfit descriptions concise but sufficiently detailed for consistent generation.  
+
+5.  IMAGE PROMPT RULES
 
   - Independence: Treat every prompt as an independent image prompt. Aside from
     recurring subjects, you must repeat the full description of other entities,
@@ -432,14 +453,14 @@ USER INPUT: ${userInput}
   - Split screens: Never use split-screen shots unless explicitly dictated by
     the user's instructions.
 
-5.  ANIMATION PROMPT RULES
+6.  ANIMATION PROMPT RULES
 
   - Action & Movement: Describe the continuous physical movement, actions, and
     camera mechanics that directly follow the first frame established in the
     Image Prompt.
-  - Subject Referencing: Never use IDs in the animation prompt. Reference subjects and avatar like a human director using their most recognizable characteristics and identifiers in the scene, such as their narrative role, outfit, distinguishing physical traits, or current action. So the video model can accurately recognize, target, and animate them.
-  - Motion: Keep it simple. One primary focus + one primary action + one camera
+  - Subject Referencing: Never use IDs in the animation prompt. Reference subjects and avatar like a human director using their narrative role + clothing as identifiers. So the video model can accurately recognize, target, and animate them.
     move.
+  - Motion: Keep it simple. One primary focus + one primary action + one camera move.  
   - Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan
     left, push in, orbit, tracking shot, static).
   - Audio & SFX: Include appropriate sound effects or ambient audio when
@@ -448,7 +469,7 @@ USER INPUT: ${userInput}
   - Mute Dialogues: Set Audio to "silence" and use mouth movements alone when
     animating dialogues.
 
-6.  SCENE CONCEPTUALIZATION:
+7.  SCENE CONCEPTUALIZATION:
 
   - Cinematic Realism: Frame scenes dramatically like a physical camera
     capturing reality. Translate abstract ideas into visible, concrete physical
@@ -465,7 +486,7 @@ USER INPUT: ${userInput}
     workers, flocks, swarms), depict their numbers correctly with multiple
     individuals or entities.
 
-7.  SAFETY
+8.  SAFETY
 
 Never depict:
 
