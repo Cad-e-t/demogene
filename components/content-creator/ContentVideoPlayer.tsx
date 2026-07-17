@@ -29,7 +29,6 @@ export const EFFECT_TYPES = [
     { id: 'slide_up_right', name: 'Pan Up Right', description: 'Slide camera up and right' },
     { id: 'slide_down_left', name: 'Pan Down Left', description: 'Slide camera down and left' },
     { id: 'slide_down_right', name: 'Pan Down Right', description: 'Slide camera down and right' },
-    { id: 'handheld_walk', name: 'Handheld Walk', description: 'Natural walking motion' },
     { id: 'cinematic_drift', name: 'Cinematic Drift', description: 'Slow horizontal slider motion' },
     { id: 'doc_push', name: 'Documentary Push', description: 'Subtle cinematic push in' },
     { id: 'organic_float', name: 'Organic Float', description: 'Subtle breathing camera motion' },
@@ -39,7 +38,6 @@ export const EFFECT_TYPES = [
 export const EFFECT_SEQUENCES = {
     'none': ['none'],
     'cinematic': ['slow_zoom_in'],
-    'handheld_walk': ['handheld_walk'],
     'documentary': ['doc_push', 'cinematic_drift', 'none', 'doc_push'],
     'immersive': ['organic_float', 'dolly_reveal', 'organic_float'],
     'storyteller': ['dolly_reveal', 'doc_push', 'cinematic_drift'],
@@ -468,7 +466,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                     offsetY = (ih - ih_visible / scale) / 2;
                     break;
                 case 'slow_zoom_in':
-                    scale = 1.0 + (progress * 0.4);
+                    scale = 1.0 + (progress * 0.15);
                     offsetX = (iw - iw_visible / scale) / 2;
                     offsetY = (ih - ih_visible / scale) / 2;
                     break;
@@ -511,18 +509,6 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                     scale = 1.2;
                     offsetX = progress * (iw - iw_visible / scale);
                     offsetY = progress * (ih - ih_visible / scale);
-                    break;
-                case 'handheld_walk':
-                    const zoomProgress = Math.min(segmentTime / 0.8, 1);
-                    const easeOut = 1 - Math.pow(1 - zoomProgress, 2);
-                    scale = 1.6 - (easeOut * 0.5);
-                    const globalFrame = drawTime * 30;
-                    const driftFreq = 1 / 20; // Approx 4.2s period
-                    const driftX = (iw_visible / scale / 40) * Math.sin(globalFrame * driftFreq);
-                    const driftY = (ih_visible / scale / 50) * Math.cos(globalFrame * driftFreq);
-                    
-                    offsetX = (iw - iw_visible / scale) / 2 + driftX;
-                    offsetY = (ih - ih_visible / scale) / 2 + driftY;
                     break;
                 case 'cinematic_drift':
                     scale = 1.1;

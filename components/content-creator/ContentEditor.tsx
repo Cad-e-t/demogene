@@ -81,7 +81,7 @@ export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectTyp
                     offsetY = (ih - ih_visible / scale) / 2;
                     break;
                 case 'slow_zoom_in':
-                    scale = 1.0 + (progress * 0.4);
+                    scale = 1.0 + (progress * 0.15);
                     offsetX = (iw - iw_visible / scale) / 2;
                     offsetY = (ih - ih_visible / scale) / 2;
                     break;
@@ -124,17 +124,6 @@ export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectTyp
                     scale = 1.2;
                     offsetX = progress * (iw - iw_visible / scale);
                     offsetY = progress * (ih - ih_visible / scale);
-                    break;
-                case 'handheld_walk':
-                    const zoomProgress = Math.min(elapsed / 800, 1);
-                    const easeOut = 1 - Math.pow(1 - zoomProgress, 2); // quadratic ease out for a slightly more noticeable curve
-                    scale = 1.6 - (easeOut * 0.5); // Zooms out from 1.6 to 1.1
-                    const globalFrame = (elapsed / 1000) * 30;
-                    const driftFreq = 1 / 20;
-                    const driftX = (iw_visible / scale / 40) * Math.sin(globalFrame * driftFreq);
-                    const driftY = (ih_visible / scale / 50) * Math.cos(globalFrame * driftFreq);
-                    offsetX = (iw - iw_visible / scale) / 2 + driftX;
-                    offsetY = (ih - ih_visible / scale) / 2 + driftY;
                     break;
                 case 'cinematic_drift':
                     scale = 1.1;

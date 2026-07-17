@@ -68,7 +68,7 @@ function getFilterForEffect(effectType, width, height, frames, startFrame = 0, i
 
         case 'slow_zoom_in':
              // Cinematic: Continuous push-in.
-             return `zoompan=z='min(1.0+(on/${frames})*0.4,1.4)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${dParam}:s=${width}x${height}`;
+             return `zoompan=z='min(1.0+(on/${frames})*0.15,1.15)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${dParam}:s=${width}x${height}`;
 
         case 'cinematic_drift':
             return `zoompan=z='1.1':x='(on/${frames})*(iw-iw/zoom)':y='ih/2-(ih/zoom/2)':d=${dParam}:s=${width}x${height}`;
@@ -100,13 +100,6 @@ function getFilterForEffect(effectType, width, height, frames, startFrame = 0, i
         case 'slide_down_right':
             return `zoompan=z='1.2':x='(on/${frames})*(iw-iw/zoom)':y='(on/${frames})*(ih-ih/zoom)':d=${dParam}:s=${width}x${height}`;
 
-        case 'handheld_walk':
-            const globalFrame = `(on+${startFrame})`;
-            const driftX = `(iw/zoom/40)*sin(${globalFrame}/20)`;
-            const driftY = `(ih/zoom/50)*cos(${globalFrame}/20)`;
-            const easeOutZoom = `(1-pow(1-min(on,24)/24,2))`;
-            return `zoompan=z='1.6-0.5*${easeOutZoom}':x='iw/2-(iw/zoom/2)+${driftX}':y='ih/2-(ih/zoom/2)+${driftY}':d=${dParam}:s=${width}x${height}`;
-
         case 'none':
             return `scale=${width}x${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`;
 
@@ -119,7 +112,6 @@ function getFilterForEffect(effectType, width, height, frames, startFrame = 0, i
 const EFFECT_SEQUENCES = {
     'none': ['none'],
     'cinematic': ['slow_zoom_in'],
-    'handheld_walk': ['handheld_walk', 'slide_down', 'handheld_walk', 'zoom_out', 'handheld_walk' ],
     'documentary': ['doc_push', 'cinematic_drift', 'none', 'doc_push'],
     'immersive': ['organic_float', 'dolly_reveal', 'organic_float'],
     'storyteller': ['dolly_reveal', 'doc_push', 'cinematic_drift'],

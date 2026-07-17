@@ -115,8 +115,7 @@ export const IMAGE_STYLES = [
 ];
 
 export const EFFECT_PRESETS = [
-    { id: 'cinematic', name: 'Cinematic Pan', description: 'Slow, dramatic push-ins (Storytelling)' },
-    { id: 'handheld_walk', name: 'Handheld Walk', description: 'Natural walking camera motion (Vlog Style)' }
+    { id: 'cinematic', name: 'Cinematic Pan', description: 'Slow, dramatic push-ins (Storytelling)' }
 ];
 
 export const LONG_FORM_PRESETS = [
