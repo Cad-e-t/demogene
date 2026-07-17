@@ -568,7 +568,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         if (Array.isArray(parsedEffect)) return parsedEffect;
         
         // Migration: If it's a string, convert to sequence
-        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'immersive' : 'cinematic';
+        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'minimalist' : 'cinematic';
         const baseSequence = EFFECT_SEQUENCES[parsedEffect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey];
         // Expand to match segments if possible
         if (initialSegments?.length) {
@@ -600,7 +600,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         }
 
         if (typeof parsedEffect === 'string' && Object.keys(EFFECT_SEQUENCES).includes(parsedEffect)) {
-            const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'immersive' : 'cinematic';
+            const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'minimalist' : 'cinematic';
             const baseSequence = EFFECT_SEQUENCES[parsedEffect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey];
             const expanded = [];
             const targetLength = segments?.length || 5;
@@ -850,7 +850,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const handleEffectChange = async (newEffect: any) => {
-        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'immersive' : 'cinematic';
+        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'minimalist' : 'cinematic';
         const baseSequence = EFFECT_SEQUENCES[newEffect.id as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey];
         const expanded = [];
         for (let i = 0; i < segments.length; i++) {
@@ -861,7 +861,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const handleSegmentEffectChange = async (segmentIndex: number, effectType: string) => {
-        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'immersive' : 'cinematic';
+        const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'minimalist' : 'cinematic';
         const currentEffect = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey]);
         const newSequence = [...currentEffect];
         
@@ -1780,7 +1780,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 {EFFECT_TYPES.map((eff) => {
                                                     const idx = segments.findIndex((s: any) => s.id === animatingSegmentId);
-                                                    const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'immersive' : 'cinematic';
+                                                    const defaultSequenceKey = project.aspect_ratio === '16:9' ? 'minimalist' : 'cinematic';
                                                     const currentEffectArray = Array.isArray(effect) ? effect : (EFFECT_SEQUENCES[project.effect as keyof typeof EFFECT_SEQUENCES] || EFFECT_SEQUENCES[defaultSequenceKey]);
                                                     const isCurrent = currentEffectArray[idx % currentEffectArray.length] === eff.id;
 

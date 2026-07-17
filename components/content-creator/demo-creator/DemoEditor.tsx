@@ -82,12 +82,40 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
         }
     }, [project?.id, project?.segments?.length, !!project?.transcription?.words, project?.total_audio_duration]);
 
+    const checkAndConvertData = async (data: any) => {
+        let updated = false;
+        const FPS = 30;
+        const msToFrames = (ms: number) => Math.round((ms / 1000) * FPS);
+
+        let newTranscription = data.transcription;
+        if (newTranscription && newTranscription.words && newTranscription.unit !== 'frames') {
+            newTranscription = {
+                ...newTranscription,
+                unit: 'frames',
+                words: newTranscription.words.map((w: any) => ({
+                    ...w,
+                    start: w.start !== undefined ? msToFrames(w.start) : w.start,
+                    end: w.end !== undefined ? msToFrames(w.end) : w.end
+                }))
+            };
+            updated = true;
+        }
+
+        if (updated) {
+            await supabase.from('demo_projects').update({
+                transcription: newTranscription,
+            }).eq('id', data.id);
+            return { ...data, transcription: newTranscription };
+        }
+        return data;
+    };
+
     useEffect(() => {
         if (!projectId) return;
 
         const fetchProject = async () => {
             setLoading(true);
-            const { data, error } = await supabase
+            const { data: rawData, error } = await supabase
                 .from('demo_projects')
                 .select('*')
                 .eq('id', projectId)
@@ -96,6 +124,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             if (error) {
                 console.error("Error fetching project:", error);
             } else {
+                const data = await checkAndConvertData(rawData);
                 setProject(data);
                 setHistory([data]);
                 setHistoryIndex(0);
@@ -169,6 +198,37 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             );
             finalUpdates.files_data = filesData;
             newState.files_data = filesData;
+        }
+
+        const FPS = 30;
+        const msToFrames = (ms: number) => Math.round((ms / 1000) * FPS);
+
+        if (finalUpdates.files_data) {
+            finalUpdates.files_data = finalUpdates.files_data.map((file: any) => {
+                if (file.unit === 'frames') return file;
+                return {
+                    ...file,
+                    unit: 'frames',
+                    start: file.start !== undefined ? msToFrames(file.start) : file.start,
+                    end: file.end !== undefined ? msToFrames(file.end) : file.end
+                };
+            });
+            newState.files_data = finalUpdates.files_data;
+        }
+
+        if (finalUpdates.transcription && finalUpdates.transcription.words) {
+            if (finalUpdates.transcription.unit !== 'frames') {
+                finalUpdates.transcription = {
+                    ...finalUpdates.transcription,
+                    unit: 'frames',
+                    words: finalUpdates.transcription.words.map((w: any) => ({
+                        ...w,
+                        start: w.start !== undefined ? msToFrames(w.start) : w.start,
+                        end: w.end !== undefined ? msToFrames(w.end) : w.end
+                    }))
+                };
+            }
+            newState.transcription = finalUpdates.transcription;
         }
         
         if (!skipHistory) {
@@ -278,8 +338,9 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             await res.json();
             
             // Fetch updated project
-            const { data } = await supabase.from('demo_projects').select('*').eq('id', project.id).single();
-            if (data) {
+            const { data: rawData } = await supabase.from('demo_projects').select('*').eq('id', project.id).single();
+            if (rawData) {
+                const data = await checkAndConvertData(rawData);
                 setProject(data);
                 if (data.voice_id) {
                     const v = VOICES.find(v => v.id === data.voice_id);
@@ -455,9 +516,11 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                         <DemoVideoPlayer 
                             videoUrl={project.video_url}
                             audioUrl={project.voice_path}
+                            totalAudioDuration={project.total_audio_duration}
                             segments={project.segments || []}
                             segmentDurations={project.segment_durations || []}
                             transcription={project.transcription}
+                            filesData={project.files_data || []}
                             subtitleStyle={project.subtitles || DEFAULT_SUBTITLE_CONFIG}
                             hookStyle={project.hook_style}
                             aspectRatio={project.aspect_ratio || '16:9'}

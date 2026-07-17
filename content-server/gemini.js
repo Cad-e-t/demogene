@@ -59,14 +59,15 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
     if (avatarUrl) {
         const finalInput = style === 'Director' 
             ? prompt 
-            : `The VISUAL IDENTITY LOCK defines the mandatory global rendering style for all Image Prompts and the character design language. 
-Every Image Prompt MUST integrate the VISUAL IDENTITY LOCK as the final rendering layer of the scene. All character and environment descriptions must conform to the design and style constraints specified in VISUAL IDENTITY LOCK.
+            : `${prompt}
 
-VISUAL IDENTITY LOCK: ${visualIdentityBlock}
+VISUAL IDENTITY:
 
-VOICEOVER:
+The VISUAL IDENTITY LOCK defines the visual style for rendering and the character design language. 
+Both the 'style' field, and all character and environment descriptions must conform to the design and style constraints specified in VISUAL IDENTITY LOCK.
 
-${prompt}`;
+
+VISUAL IDENTITY LOCK: ${visualIdentityBlock}`;
         systemPrompt = getAvatarSystemPrompt(finalInput);
     } else {
         systemPrompt = style === 'Director'
@@ -107,7 +108,7 @@ ${prompt}`;
         const matchingBaseSeg = baseSegments.find(s => String(s.segment_id) === String(seg.segment_id));
         const narration = (style === 'Director' || avatarUrl) ? (seg.narration || "") : (matchingBaseSeg ? matchingBaseSeg.narration : "");
 
-        let finalImagePrompt = seg.image_prompt || "";
+        let finalImagePrompt = seg.scene_description || "";
         let finalAnimationPrompt = seg.animation_prompt || "";
         let segAvatarUrl = null;
 
@@ -131,7 +132,7 @@ ${prompt}`;
                             }
                         }
                     }
-                    const outfitSuffix = outfitDesc ? ` wearing ${outfitDesc}` : "";
+                    const outfitSuffix = outfitDesc ? ` (wearing ${outfitDesc})` : "";
                     const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
                     const baseDescLower = baseDesc.toLowerCase();
                     
@@ -171,7 +172,7 @@ ${prompt}`;
                             }
                         }
                         
-                        const outfitSuffix = outfitDesc ? ` wearing ${outfitDesc}` : "";
+                        const outfitSuffix = outfitDesc ? ` (wearing ${outfitDesc})` : "";
                         const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
                         
                         const baseDescLower = baseDesc.toLowerCase();
@@ -193,9 +194,30 @@ ${prompt}`;
             }
         }
 
+        let locationStr = "";
+        if (seg.location) {
+            let loc = seg.location;
+            if (visualData.recurring_locations && visualData.recurring_locations[loc] && visualData.recurring_locations[loc].description) {
+                loc = visualData.recurring_locations[loc].description;
+            }
+            loc = loc.trim().toLowerCase();
+            if (loc.endsWith('.')) {
+                loc = loc.slice(0, -1);
+            }
+            locationStr = loc;
+        }
+
+        if (locationStr) {
+            finalImagePrompt += ` Set environment: ${locationStr}.`;
+        }
+
+        if (visualData.style) {
+            finalImagePrompt += `  ${visualData.style}`;
+        }
+
         finalSegments.push({
             narration: narration,
-            image_prompt: finalImagePrompt,
+            image_prompt: finalImagePrompt.trim(),
             animation_prompt: finalAnimationPrompt,
             ...(segAvatarUrl && { avatar_url: segAvatarUrl })
         });

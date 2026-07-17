@@ -1,8 +1,9 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Upload, Loader2, ArrowLeft } from "lucide-react";
+import { X, Upload, Loader2, ArrowLeft, Trash2 } from "lucide-react";
 import { API_URL } from "../api";
 import { EFFECT_TYPES } from "../ContentVideoPlayer";
+import { supabase } from "../../../supabaseClient";
 
 const DEMO_EFFECT_TYPES = [
     ...EFFECT_TYPES,
@@ -41,11 +42,14 @@ export const HookStyleModal: React.FC<HookStyleModalProps> = ({
   const fetchHookAssets = async () => {
     setIsLoadingAssets(true);
     try {
-      const res = await fetch(`${API_URL}/demo/hook-assets/${userId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setHookAssets(data);
-      }
+      const { data, error } = await supabase
+        .from('uploads')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      setHookAssets(data || []);
     } catch (e) {
       console.error("Failed to fetch hook assets", e);
     } finally {
@@ -76,16 +80,13 @@ export const HookStyleModal: React.FC<HookStyleModalProps> = ({
         body: file,
       });
 
-      // Save to hook assets table
-      await fetch(`${API_URL}/demo/save-hook-asset`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          url: publicUrl,
-          type: file.type.startsWith("image/") ? "image" : "video",
-        }),
+      // Save to uploads table
+      const { error: dbError } = await supabase.from('uploads').insert({
+        user_id: userId,
+        url: publicUrl,
       });
+
+      if (dbError) throw dbError;
 
       await fetchHookAssets();
 
@@ -109,6 +110,45 @@ export const HookStyleModal: React.FC<HookStyleModalProps> = ({
     }
   };
 
+  const handleDeleteAsset = async (asset: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this asset from your uploads?")) {
+      return;
+    }
+
+    try {
+      // 1. Delete from database
+      const { error: dbError } = await supabase
+        .from('uploads')
+        .delete()
+        .eq('id', asset.id);
+
+      if (dbError) throw dbError;
+
+      // 2. Delete from storage (server call)
+      await fetch(`${API_URL}/demo/delete-hook-asset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: asset.url }),
+      });
+
+      // 3. Refresh list
+      await fetchHookAssets();
+
+      // 4. Clear current selection if deleted asset was selected
+      if (currentStyle?.media === asset.url) {
+        await onUpdateStyle({
+          style: "none",
+          media: null,
+          animation: "none",
+        });
+      }
+    } catch (error: any) {
+      console.error("Failed to delete asset:", error);
+      alert("Failed to delete asset: " + error.message);
+    }
+  };
+
   const handleSelectExistingAsset = async (asset: any) => {
     await onUpdateStyle({
       style: "media",
@@ -116,8 +156,7 @@ export const HookStyleModal: React.FC<HookStyleModalProps> = ({
       animation: "none",
     });
     if (
-      asset.type === "image" ||
-      asset.url.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+      !asset.url.match(/\.(mp4|webm|mov)$/i)
     ) {
       setShowAnimationScreen(true);
     }
@@ -131,6 +170,7 @@ export const HookStyleModal: React.FC<HookStyleModalProps> = ({
     currentStyle?.style === "media" &&
     currentStyle?.media &&
     !currentStyle.media.match(/\.(mp4|webm|mov)$/i);
+
 
   return (
     <AnimatePresence>
@@ -268,6 +308,22 @@ export const HookStyleModal: React.FC<HookStyleModalProps> = ({
                     />
                   </div>
                 ))}
+              {currentStyle?.media && (
+                <button
+                  onClick={async () => {
+                    await onUpdateStyle({
+                      style: "none",
+                      media: null,
+                      animation: "none",
+                    });
+                  }}
+                  className="absolute top-4 right-4 z-20 bg-red-600/90 hover:bg-red-700 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold shadow-lg transition-colors border border-red-500/20"
+                  title="Clear media for this segment"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Clear Media
+                </button>
+              )}
               <div className="relative z-10 text-center p-4">
                 <h1 className="text-3xl font-bold text-white drop-shadow-lg">
                   Hook Text Here
@@ -378,27 +434,34 @@ export const HookStyleModal: React.FC<HookStyleModalProps> = ({
                         </h3>
                         <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
                           {hookAssets.map((asset) => (
-                            <button
-                              key={asset.id}
-                              onClick={() => handleSelectExistingAsset(asset)}
-                              className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${currentStyle?.media === asset.url ? "border-yellow-500" : "border-transparent hover:border-white/50"}`}
-                            >
-                              {asset.type === "video" ||
-                              asset.url.match(/\.(mp4|webm|mov)$/i) ? (
-                                <video
-                                  src={asset.url}
-                                  className="w-full h-full object-cover"
-                                  preload="metadata"
-                                />
-                              ) : (
-                                <img
-                                  src={asset.url}
-                                  className="w-full h-full object-cover"
-                                  alt="Asset"
-                                  loading="lazy"
-                                />
-                              )}
-                            </button>
+                            <div key={asset.id} className="relative group aspect-square">
+                              <button
+                                onClick={() => handleSelectExistingAsset(asset)}
+                                className={`w-full h-full rounded-lg overflow-hidden border-2 transition-all ${currentStyle?.media === asset.url ? "border-yellow-500" : "border-transparent hover:border-white/50"}`}
+                              >
+                                {asset.url.match(/\.(mp4|webm|mov)$/i) ? (
+                                  <video
+                                    src={asset.url}
+                                    className="w-full h-full object-cover"
+                                    preload="metadata"
+                                  />
+                                ) : (
+                                  <img
+                                    src={asset.url}
+                                    className="w-full h-full object-cover"
+                                    alt="Asset"
+                                    loading="lazy"
+                                  />
+                                )}
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteAsset(asset, e)}
+                                className="absolute top-1 right-1 p-1 bg-red-600/95 hover:bg-red-700 text-white rounded-md shadow-md opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity z-10"
+                                title="Delete Asset"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
                           ))}
                         </div>
                       </div>

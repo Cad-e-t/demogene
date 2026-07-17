@@ -122,7 +122,7 @@ export const ContentDashboard = ({
       }
     } else if (aspect === "16:9") {
       if (!LONG_FORM_PRESETS.find(e => e.id === effect.id)) {
-        setEffect(LONG_FORM_PRESETS.find(p => p.id === 'immersive') || LONG_FORM_PRESETS[0]);
+        setEffect(LONG_FORM_PRESETS.find(p => p.id === 'minimalist') || LONG_FORM_PRESETS[0]);
       }
     }
   }, [aspect, effect.id]);

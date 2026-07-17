@@ -120,9 +120,6 @@ export const EFFECT_PRESETS = [
 ];
 
 export const LONG_FORM_PRESETS = [
-    { id: 'documentary', name: 'Documentary', description: 'Subtle pushes and slow drifts (Professional)' },
-    { id: 'immersive', name: 'Immersive', description: 'Organic floating and slow reveals (Cinematic)' },
-    { id: 'storyteller', name: 'Storyteller', description: 'Slow dolly moves and breathing camera (Engaging)' },
     { id: 'minimalist', name: 'Minimalist', description: 'Static frames with very subtle motion (Clean)' }
 ];
 
@@ -164,6 +161,8 @@ export const VOICE_PACES = [
 export const VOICE_ACCENTS = [
     { id: 'american', name: 'American (Gen)', prompt: 'American (Gen)' },
     { id: 'british', name: 'British', prompt: 'British' },
+    { id: 'australian (neutral)', name: 'Australian', prompt: 'Australian' },
+    { id: 'canadian', name: 'Canadian', prompt: 'Canadian' },
      { id: 'arabic', name: 'Arabic', prompt: 'Arabic' },
     { id: 'indian', name: 'Indian', prompt: 'Indian' },
     { id: 'irish', name: 'Irish', prompt: 'Irish' },

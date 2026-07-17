@@ -20,7 +20,7 @@ export function alignSegmentsWithTranscription(segments: any[], transcription: a
 
     const result: number[] = [];
     let tIndex = 0;
-    let lastEndTimeMs = 0;
+    let lastEndTimeFrames = 0;
 
     for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
@@ -78,20 +78,18 @@ export function alignSegmentsWithTranscription(segments: any[], transcription: a
         endWordIndex = Math.min(endWordIndex, tWords.length - 1);
         
         // Fix: Use the transcription word's end time.
-        // If sIndex reached the end, currentTIndex might have advanced PAST the matching word.
-        // wait, when sWord === tWord, we did currentTIndex++.
-        // So the actual last matched word is at currentTIndex - 1.
-        // Which is what `endWordIndex` is doing!
-        let endTimeMs = tWords[endWordIndex]?.end || lastEndTimeMs;
+        let endFrame = tWords[endWordIndex]?.end || lastEndTimeFrames;
         
         if (i === segments.length - 1 && totalAudioDuration) {
-            endTimeMs = totalAudioDuration * 1000;
+            // Assuming totalAudioDuration is still in seconds, convert to frames
+            endFrame = totalAudioDuration * 30; // Assuming 30 FPS
         }
 
-        const durationSec = (endTimeMs - lastEndTimeMs) / 1000;
+        const durationFrames = endFrame - lastEndTimeFrames;
+        const durationSec = durationFrames / 30;
         result.push(Math.max(0, durationSec));
         
-        lastEndTimeMs = endTimeMs;
+        lastEndTimeFrames = endFrame;
         tIndex = currentTIndex;
     }
 
@@ -117,7 +115,7 @@ export function computeFilesData(segments: any[], transcription: any, hookStyles
 
     const filesData: any[] = [];
     let tIndex = 0;
-    let lastEndTimeMs = 0;
+    let lastEndTimeFrames = 0;
 
     for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
@@ -167,11 +165,11 @@ export function computeFilesData(segments: any[], transcription: any, hookStyles
         endWordIndex = Math.min(endWordIndex, tWords.length - 1);
         startWordIndex = Math.min(startWordIndex, tWords.length - 1);
 
-        let startTimeMs = tWords[startWordIndex]?.start || lastEndTimeMs;
-        let endTimeMs = tWords[endWordIndex]?.end || lastEndTimeMs;
+        let startTimeFrames = tWords[startWordIndex]?.start || lastEndTimeFrames;
+        let endTimeFrames = tWords[endWordIndex]?.end || lastEndTimeFrames;
 
         if (i === segments.length - 1 && totalAudioDuration) {
-            endTimeMs = totalAudioDuration * 1000;
+            endTimeFrames = totalAudioDuration * 30; // Assuming 30 FPS
         }
 
         // Get the applied hook style for this segment
@@ -182,12 +180,13 @@ export function computeFilesData(segments: any[], transcription: any, hookStyles
         if (currentStyle && currentStyle.style === 'media' && currentStyle.media) {
             filesData.push({
                 file_url: currentStyle.media,
-                start: startTimeMs,
-                end: endTimeMs
+                start: startTimeFrames,
+                end: endTimeFrames,
+                unit: 'frames'
             });
         }
 
-        lastEndTimeMs = endTimeMs;
+        lastEndTimeFrames = endTimeFrames;
         tIndex = currentTIndex;
     }
 
