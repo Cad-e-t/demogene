@@ -342,7 +342,8 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled, 
                 fps,
                 width,
                 height,
-                durationInFrames
+                durationInFrames,
+                highlightedWords: project.subtitles
             }
         });
 
@@ -365,7 +366,8 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled, 
                 fps,
                 width,
                 height,
-                durationInFrames
+                durationInFrames,
+                highlightedWords: project.subtitles
             }
         });
 

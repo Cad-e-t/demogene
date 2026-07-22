@@ -31,6 +31,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     transcription,
     filesData = [],
     aspectRatio,
+    subtitleStyle,
     isPlaying,
     onPlayPause,
     currentTime,
@@ -42,7 +43,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     const width = aspectRatio === '9:16' ? 1080 : 1920;
     const height = aspectRatio === '9:16' ? 1920 : 1080;
 
-    const [audioDurationFrames, setAudioDurationFrames] = useState<number>(300);
+    const [audioDurationFrames, setAudioDurationFrames] = useState<number | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -61,23 +62,27 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     }, [audioUrl, fps]);
 
     const durationInFrames = useMemo(() => {
+        if (audioUrl && audioDurationFrames !== null) {
+            return audioDurationFrames;
+        }
         if (totalAudioDuration && totalAudioDuration > 0) {
             return Math.max(Math.round(totalAudioDuration * fps), 30);
-        }
-        if (audioUrl && audioDurationFrames > 300) {
-            return audioDurationFrames;
         }
         if (transcription && transcription.words && transcription.words.length > 0) {
             const lastWord = transcription.words[transcription.words.length - 1];
             return Math.max(lastWord.end + 30, 30);
         }
         return 300; 
-    }, [totalAudioDuration, audioUrl, audioDurationFrames, transcription]);
+     }, [totalAudioDuration, audioUrl, audioDurationFrames, transcription]);
 
     useEffect(() => {
         if (playerRef.current) {
             if (isPlaying) {
-                playerRef.current.play();
+                try {
+                    playerRef.current.play();
+                } catch (e) {
+                    console.warn('Play interrupted', e);
+                }
             } else {
                 playerRef.current.pause();
             }
@@ -106,7 +111,8 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                         fps,
                         width,
                         height,
-                        durationInFrames
+                        durationInFrames,
+                        highlightedWords: subtitleStyle
                     }}
                     durationInFrames={durationInFrames}
                     fps={fps}

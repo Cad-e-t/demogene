@@ -49,24 +49,27 @@ export function alignSegmentsWithTranscription(segments: any[], transcription: a
                 currentTIndex++;
             } else {
                 let found = false;
-                for (let lookahead = 1; lookahead <= 10; lookahead++) {
-                    if (currentTIndex + lookahead < tWords.length && tWords[currentTIndex + lookahead].clean === sWord) {
-                        currentTIndex += lookahead;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    for (let lookahead = 1; lookahead <= 10; lookahead++) {
-                        if (sIndex + lookahead < segWords.length && segWords[sIndex + lookahead] === tWord) {
-                            sIndex += lookahead;
-                            found = true;
-                            break;
+                let bestMatch = { sSkip: 100, tSkip: 100 };
+                
+                // Joint lookahead to find the closest match
+                for (let k = 0; k <= 8; k++) {
+                    for (let j = 0; j <= 8; j++) {
+                        if (k === 0 && j === 0) continue;
+                        if (sIndex + k < segWords.length && currentTIndex + j < tWords.length) {
+                            if (segWords[sIndex + k] === tWords[currentTIndex + j].clean) {
+                                if (k + j < bestMatch.sSkip + bestMatch.tSkip) {
+                                    bestMatch = { sSkip: k, tSkip: j };
+                                    found = true;
+                                }
+                            }
                         }
                     }
                 }
-                
-                if (!found) {
+
+                if (found) {
+                    sIndex += bestMatch.sSkip;
+                    currentTIndex += bestMatch.tSkip;
+                } else {
                     // advance both if mismatched completely
                     sIndex++;
                     currentTIndex++;
@@ -79,15 +82,16 @@ export function alignSegmentsWithTranscription(segments: any[], transcription: a
         
         // Fix: Use the transcription word's end time.
         let endFrame = tWords[endWordIndex]?.end || lastEndTimeFrames;
+        endFrame = Math.max(endFrame, lastEndTimeFrames); // Prevent backwards time
         
         if (i === segments.length - 1 && totalAudioDuration) {
             // Assuming totalAudioDuration is still in seconds, convert to frames
-            endFrame = totalAudioDuration * 30; // Assuming 30 FPS
+            endFrame = Math.max(totalAudioDuration * 30, lastEndTimeFrames); // Assuming 30 FPS
         }
 
         const durationFrames = endFrame - lastEndTimeFrames;
         const durationSec = durationFrames / 30;
-        result.push(Math.max(0, durationSec));
+        result.push(durationSec);
         
         lastEndTimeFrames = endFrame;
         tIndex = currentTIndex;
@@ -96,7 +100,36 @@ export function alignSegmentsWithTranscription(segments: any[], transcription: a
     return result;
 }
 
-export function computeFilesData(segments: any[], transcription: any, hookStyles: any, globalHookStyle: any, totalAudioDuration: number) {
+export function computeFilesData(segments: any[], transcription: any, hookStyles: any, globalHookStyle: any, totalAudioDuration: number, segmentDurations?: number[]) {
+    if (!segments || segments.length === 0) return [];
+
+    // If segmentDurations is provided and matches segments length, bypass transcription entirely!
+    if (segmentDurations && segmentDurations.length === segments.length) {
+        const filesData: any[] = [];
+        let accumulatedFrames = 0;
+        
+        for (let i = 0; i < segments.length; i++) {
+            const seg = segments[i];
+            const durationFrames = Math.round(segmentDurations[i] * 30);
+            const startFrames = accumulatedFrames;
+            const endFrames = startFrames + durationFrames;
+            
+            const currentStyle = seg.hook_style || (hookStyles && hookStyles[i]) || globalHookStyle;
+            if (currentStyle && currentStyle.style === 'media' && currentStyle.media) {
+                filesData.push({
+                    file_url: currentStyle.media,
+                    start: startFrames,
+                    end: endFrames,
+                    unit: 'frames',
+                    segmentIndex: i,
+                    segmentId: seg.id || null
+                });
+            }
+            accumulatedFrames = endFrames;
+        }
+        return filesData;
+    }
+
     if (!transcription || !transcription.words || transcription.words.length === 0) {
         return [];
     }
@@ -138,23 +171,27 @@ export function computeFilesData(segments: any[], transcription: any, hookStyles
                 currentTIndex++;
             } else {
                 let found = false;
-                for (let lookahead = 1; lookahead <= 10; lookahead++) {
-                    if (currentTIndex + lookahead < tWords.length && tWords[currentTIndex + lookahead].clean === sWord) {
-                        currentTIndex += lookahead;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    for (let lookahead = 1; lookahead <= 10; lookahead++) {
-                        if (sIndex + lookahead < segWordsRaw.length && segWordsRaw[sIndex + lookahead] === tWord) {
-                            sIndex += lookahead;
-                            found = true;
-                            break;
+                let bestMatch = { sSkip: 100, tSkip: 100 };
+                
+                // Joint lookahead to find the closest match
+                for (let k = 0; k <= 8; k++) {
+                    for (let j = 0; j <= 8; j++) {
+                        if (k === 0 && j === 0) continue;
+                        if (sIndex + k < segWordsRaw.length && currentTIndex + j < tWords.length) {
+                            if (segWordsRaw[sIndex + k] === tWords[currentTIndex + j].clean) {
+                                if (k + j < bestMatch.sSkip + bestMatch.tSkip) {
+                                    bestMatch = { sSkip: k, tSkip: j };
+                                    found = true;
+                                }
+                            }
                         }
                     }
                 }
-                if (!found) {
+
+                if (found) {
+                    sIndex += bestMatch.sSkip;
+                    currentTIndex += bestMatch.tSkip;
+                } else {
                     sIndex++;
                     currentTIndex++;
                 }
@@ -165,11 +202,12 @@ export function computeFilesData(segments: any[], transcription: any, hookStyles
         endWordIndex = Math.min(endWordIndex, tWords.length - 1);
         startWordIndex = Math.min(startWordIndex, tWords.length - 1);
 
-        let startTimeFrames = tWords[startWordIndex]?.start || lastEndTimeFrames;
+        let startTimeFrames = lastEndTimeFrames;
         let endTimeFrames = tWords[endWordIndex]?.end || lastEndTimeFrames;
+        endTimeFrames = Math.max(endTimeFrames, startTimeFrames); // Prevent backwards time
 
         if (i === segments.length - 1 && totalAudioDuration) {
-            endTimeFrames = totalAudioDuration * 30; // Assuming 30 FPS
+            endTimeFrames = Math.max(totalAudioDuration * 30, startTimeFrames); // Assuming 30 FPS
         }
 
         // Get the applied hook style for this segment
@@ -182,7 +220,9 @@ export function computeFilesData(segments: any[], transcription: any, hookStyles
                 file_url: currentStyle.media,
                 start: startTimeFrames,
                 end: endTimeFrames,
-                unit: 'frames'
+                unit: 'frames',
+                segmentIndex: i,
+                segmentId: seg.id || null
             });
         }
 

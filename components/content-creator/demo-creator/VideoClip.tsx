@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react"; 
-import { OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring, delayRender, continueRender, Easing } from "remotion"; 
+import React, { useEffect, useState } from "react"; 
+import { Video, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring, delayRender, continueRender } from "remotion"; 
 import { getVideoMetadata } from "@remotion/media-utils"; 
 import { theme } from "./theme";
 
@@ -20,17 +20,6 @@ const EDGE_MARGIN_RATIO = 0.1;
 const fitWithinBounds = (naturalWidth: number, naturalHeight: number, maxWidth: number, maxHeight: number) => { 
   const scale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight); 
   return { width: naturalWidth * scale, height: naturalHeight * scale }; 
-};
-
-// Cache buster logic intact
-const bypassCache = (url: string, callerId: string) => {
-  try {
-    const parsedUrl = new URL(url);
-    parsedUrl.searchParams.set("corsBypass", callerId); 
-    return parsedUrl.toString();
-  } catch (e) {
-    return url;
-  }
 };
 
 interface InnerClipProps {
@@ -74,7 +63,7 @@ const InnerClip: React.FC<InnerClipProps> = ({
   return ( 
     <div style={{ position: "absolute", top: "50%", left: "50%", transform: `translate(-50%, -50%) scale(${scale})`, opacity: finalOpacity, width, height }}> 
       <div style={{ position: "absolute", inset: 0, borderRadius: radius, overflow: "hidden" }}> 
-        <OffthreadVideo
+        <Video
           src={src}
           muted={muted}
           startFrom={0}
@@ -109,73 +98,73 @@ const SingleVideoClip: React.FC<SingleVideoClipProps> = ({ src, startFrame, endF
   const [handle] = useState(() => delayRender(`Fetching video metadata for ${src}`)); 
   const [metadata, setMetadata] = useState<{ duration: number; width: number; height: number } | null>(null);
 
-  const metaUrl = useMemo(() => bypassCache(src, "meta-call"), [src]);
-
-  // IMPORTANT FIX: do NOT cache-bust playback URL
-  const videoUrl = useMemo(() => src, [src]);
-
   useEffect(() => { 
     let cancelled = false;
 
-    const preload = async () => {
+    const loadMetadata = async () => {
       try {
-        const meta = await getVideoMetadata(metaUrl);
-        if (!cancelled) {
+        const meta = await getVideoMetadata(src);
+        if (!cancelled && meta && meta.durationInSeconds && !isNaN(meta.durationInSeconds) && meta.durationInSeconds > 0) {
           setMetadata({
             duration: meta.durationInSeconds,
-            width: meta.width,
-            height: meta.height,
+            width: meta.width || 1080,
+            height: meta.height || 1080,
           });
           continueRender(handle);
+          return;
         }
       } catch (err) {
-        console.error("Failed to fetch video metadata via @remotion/media-utils", err);
-        // Fallback to standard HTML video element
-        try {
-          const video = document.createElement("video");
-          video.src = metaUrl; // Use metaUrl here just in case
-          video.preload = "metadata";
+        console.warn("getVideoMetadata failed, trying HTML5 video element fallback", err);
+      }
 
-          await new Promise<void>((resolve, reject) => {
-            video.onloadedmetadata = () => resolve();
-            video.onerror = () => reject(new Error("Video failed to load metadata"));
-          });
+      try {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.src = src;
 
-          if (!cancelled) {
+        await new Promise<void>((resolve, reject) => {
+          video.onloadedmetadata = () => resolve();
+          video.onerror = (e) => reject(e || new Error("Video failed to load metadata"));
+        });
+
+        if (!cancelled) {
+          if (video.duration && video.duration !== Infinity && !isNaN(video.duration)) {
             setMetadata({
-              duration: video.duration || 10,
+              duration: video.duration,
               width: video.videoWidth || 1080,
               height: video.videoHeight || 1080,
             });
             continueRender(handle);
-          }
-        } catch (fallbackErr) {
-          console.error("Fallback video metadata load failed", fallbackErr);
-          if (!cancelled) {
-            setMetadata({
-              duration: 10,
-              width: 1080,
-              height: 1080,
-            });
-            continueRender(handle);
+            return;
           }
         }
+      } catch (fallbackErr) {
+        console.warn("HTML5 video metadata load failed, using fallback defaults", fallbackErr);
+      }
+
+      if (!cancelled) {
+        setMetadata({
+          duration: 10,
+          width: 1080,
+          height: 1080,
+        });
+        continueRender(handle);
       }
     };
 
-    preload();
+    loadMetadata();
 
     return () => {
       cancelled = true;
     };
-  }, [metaUrl, videoUrl, handle]);
+  }, [src, handle]);
 
   if (metadata === null) return null; 
 
   return (
     <Sequence from={startFrame} durationInFrames={duration} layout="none">
       <InnerClip
-        src={videoUrl}
+        src={src}
         duration={duration}
         metadata={metadata}
         fps={fps}

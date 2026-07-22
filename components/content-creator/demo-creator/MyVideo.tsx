@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { AbsoluteFill, Audio } from 'remotion';
+import { AbsoluteFill, Audio, useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';
 import { BackgroundFX } from './BackgroundFX';
 import { ImageFrame } from './ImageFrame';
 import { Avatar } from './Avatar';
@@ -7,7 +7,7 @@ import { VideoClip } from './VideoClip';
 import { AI } from './AI';
 import { SmartCaptions } from './SmartCaptions';
 
-export interface MyVideoProps {
+export type MyVideoProps = {
   audioUrl: string | null;
   filesData: any[];
   transcription: any;
@@ -15,6 +15,7 @@ export interface MyVideoProps {
   width: number;
   height: number;
   durationInFrames: number;
+  highlightedWords?: any;
 }
 
 const PhoneMockup: React.FC<{children: React.ReactNode, width: number, height: number}> = ({ children, width, height }) => {
@@ -90,6 +91,122 @@ const PhoneMockup: React.FC<{children: React.ReactNode, width: number, height: n
   );
 };
 
+const MIN_GAP_FRAMES = 20; // Match with SmartCaptions.tsx
+
+const PhoneMockupWrapper: React.FC<{
+  children: React.ReactNode;
+  width: number;
+  height: number;
+  filesData: any[];
+  transcription: any;
+}> = ({ children, width, height, filesData, transcription }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const validGaps = useMemo(() => {
+    if (!filesData || filesData.length === 0) return [{ start: 0, end: Infinity }];
+    
+    const intervals = filesData.map((f: any) => ({ start: f.start || 0, end: f.end || 0 }));
+    intervals.sort((a, b) => a.start - b.start);
+    
+    const merged: {start: number, end: number}[] = [];
+    for (const curr of intervals) {
+      if (merged.length === 0) {
+        merged.push({ ...curr });
+      } else {
+        const last = merged[merged.length - 1];
+        if (curr.start <= last.end) {
+          last.end = Math.max(last.end, curr.end);
+        } else {
+          merged.push({ ...curr });
+        }
+      }
+    }
+    
+    const gapsList: {start: number, end: number}[] = [];
+    if (merged[0].start > 0) {
+      gapsList.push({ start: 0, end: merged[0].start });
+    }
+    for (let i = 0; i < merged.length - 1; i++) {
+      gapsList.push({ start: merged[i].end, end: merged[i + 1].start });
+    }
+    gapsList.push({ start: merged[merged.length - 1].end, end: Infinity });
+    
+    return gapsList.filter(g => {
+      if (!transcription || !transcription.words) return g.end - g.start >= MIN_GAP_FRAMES;
+      
+      const wordsInGap = transcription.words.filter((w: any) => w.start >= g.start && w.start < g.end);
+      return wordsInGap.length >= 2;
+    });
+  }, [filesData, transcription]);
+
+  const bRollClips = useMemo(() => {
+    return filesData.filter((f: any) => {
+       const url = (f.file_url || f.url || '').toLowerCase();
+       return url.includes('b-roll');
+    });
+  }, [filesData]);
+
+  const mockupSegments = useMemo(() => {
+    const points = new Set<number>([0, Infinity]);
+    
+    validGaps.forEach(g => {
+      points.add(g.start);
+      points.add(g.end);
+    });
+    
+    bRollClips.forEach(c => {
+      points.add(c.start || 0);
+      points.add(c.end || 0);
+    });
+    
+    const sortedPoints = Array.from(points).sort((a, b) => a - b);
+    
+    const segments = [];
+    for (let i = 0; i < sortedPoints.length - 1; i++) {
+      const start = sortedPoints[i];
+      const end = sortedPoints[i + 1];
+      if (start === end) continue;
+      
+      const mid = start + 0.1;
+      const isBigCap = validGaps.some(g => mid >= g.start && mid < g.end);
+      const isBRoll = bRollClips.some(c => mid >= (c.start || 0) && mid <= (c.end || 0));
+      
+      if (!isBigCap && !isBRoll) {
+        segments.push({ start, end });
+      }
+    }
+    return segments;
+  }, [validGaps, bRollClips]);
+
+  const currentMockupSegment = mockupSegments.find(s => frame >= s.start && frame < s.end);
+  const showPhoneMockup = !!currentMockupSegment;
+
+  if (!showPhoneMockup || !currentMockupSegment) {
+    return <AbsoluteFill>{children}</AbsoluteFill>;
+  }
+
+  const slideIn = spring({
+    frame: frame - currentMockupSegment.start,
+    fps,
+    config: {
+      damping: 12,
+      stiffness: 150,
+      mass: 0.5,
+    }
+  });
+
+  const translateX = interpolate(slideIn, [0, 1], [width, 0]);
+
+  return (
+    <AbsoluteFill style={{ transform: `translateX(${translateX}px)` }}>
+      <PhoneMockup width={width} height={height}>
+        {children}
+      </PhoneMockup>
+    </AbsoluteFill>
+  );
+};
+
 export const MyVideo: React.FC<MyVideoProps> = ({ 
   audioUrl, 
   filesData, 
@@ -97,7 +214,8 @@ export const MyVideo: React.FC<MyVideoProps> = ({
   fps, 
   width, 
   height, 
-  durationInFrames 
+  durationInFrames,
+  highlightedWords
 }) => {
   
   const visualClips = useMemo(() => {
@@ -134,7 +252,7 @@ export const MyVideo: React.FC<MyVideoProps> = ({
         durationInFrames={durationInFrames} 
       />
       
-      <SmartCaptions filesData={filesData} transcription={transcription} fps={fps} width={width} height={height} />
+      <SmartCaptions filesData={filesData} transcription={transcription} fps={fps} width={width} height={height} highlightedWords={highlightedWords} />
       <VideoClip visualClips={visualClips} />
       <ImageFrame visualClips={visualClips} />
       <Avatar visualClips={visualClips} />
@@ -146,9 +264,9 @@ export const MyVideo: React.FC<MyVideoProps> = ({
       <BackgroundFX />
       
       {isPortrait ? (
-        <PhoneMockup width={width} height={height}>
+        <PhoneMockupWrapper width={width} height={height} filesData={filesData} transcription={transcription}>
           {content}
-        </PhoneMockup>
+        </PhoneMockupWrapper>
       ) : (
         content
       )}

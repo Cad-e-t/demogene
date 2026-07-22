@@ -2,20 +2,21 @@ import React, { useMemo } from 'react';
 import { useCurrentFrame, AbsoluteFill } from 'remotion';
 import { theme } from './theme';
 
-export interface SmartCaptionsProps {
+export type SmartCaptionsProps = {
   filesData: any[]; // Used to determine when visual media is playing
   transcription: any;
   fps: number;
   width?: number;
   height?: number;
+  highlightedWords?: any;
 }
 
-const MIN_GAP_FRAMES = 45; // 1.5 seconds at 30fps
+const MIN_GAP_FRAMES = 20; // 1.5 seconds at 30fps
 
-export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcription, fps, width, height }) => {
+export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcription, fps, width, height, highlightedWords }) => {
   const frame = useCurrentFrame();
 
-  // 1. Calculate valid empty gaps (duration >= MIN_GAP_FRAMES)
+  // 1. Calculate valid empty gaps (contains >= 2 spoken words)
   const validGaps = useMemo(() => {
     if (!filesData || filesData.length === 0) return [{ start: 0, end: Infinity }];
     
@@ -45,8 +46,13 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
     }
     gapsList.push({ start: merged[merged.length - 1].end, end: Infinity });
     
-    return gapsList.filter(g => g.end - g.start >= MIN_GAP_FRAMES);
-  }, [filesData]);
+    return gapsList.filter(g => {
+      if (!transcription || !transcription.words) return g.end - g.start >= MIN_GAP_FRAMES;
+      
+      const wordsInGap = transcription.words.filter((w: any) => w.start >= g.start && w.start < g.end);
+      return wordsInGap.length >= 2;
+    });
+  }, [filesData, transcription]);
 
   // 2. Check if current frame falls within a valid gap
   const currentGap = validGaps.find(g => frame >= g.start && frame < g.end);
@@ -111,6 +117,19 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
   }
 
   const renderWordText = (text: string) => {
+    const cleanText = text.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const isHighlighted = Array.isArray(highlightedWords) && highlightedWords.some((w: string) => 
+        w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === cleanText && cleanText.length > 0
+    );
+
+    if (isHighlighted) {
+      return (
+        <span style={{ color: '#34C759' }}>
+          {text}
+        </span>
+      );
+    }
+
     const chars = Array.from(text);
     const hasDigits = /[0-9]/.test(text);
     const hasDollar = text.includes('$');
@@ -134,7 +153,7 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
 
       let color = '#FFFFFF';
       if (isDigit || isCommaOrDecimalInNumber) {
-        color = '#FF3B30'; // elegant red
+        color = '#26cc4a'; // elegant red
       } else if (isCurrency) {
         color = '#34C759'; // elegant green
       }
@@ -170,7 +189,7 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
         width: '100%',
       };
 
-  const fontSize = isBigCaptionMode ? (isPortrait ? 140 : 55) : 65;
+  const fontSize = isBigCaptionMode ? (isPortrait ? 140 : 55) : 75;
   const textShadow = isBigCaptionMode && isPortrait ? `
     -5px -5px 0 #000000,  
      5px -5px 0 #000000,
@@ -182,15 +201,23 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
      0px  5px 0 #000000,
      0px  16px 32px rgba(0,0,0,0.8)
   ` : `
-    -6px -6px 0 #000000,  
-     6px -6px 0 #000000,
-    -6px  6px 0 #000000,
-     6px  6px 0 #000000,
-    -6px  0px 0 #000000,
-     6px  0px 0 #000000,
-     0px -6px 0 #000000,
-     0px  6px 0 #000000,
-     0px  12px 24px rgba(0,0,0,0.8)
+    -12px -12px 0 #000000,  
+     12px -12px 0 #000000,
+    -12px  12px 0 #000000,
+     12px  12px 0 #000000,
+    -12px  0px 0 #000000,
+     12px  0px 0 #000000,
+     0px -12px 0 #000000,
+     0px  12px 0 #000000,
+    -8px -8px 0 #000000,  
+     8px -8px 0 #000000,
+    -8px  8px 0 #000000,
+     8px  8px 0 #000000,
+    -8px  0px 0 #000000,
+     8px  0px 0 #000000,
+     0px -8px 0 #000000,
+     0px  8px 0 #000000,
+     0px  20px 40px rgba(0,0,0,0.8)
   `;
 
   return (
@@ -200,7 +227,6 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
         .smart-caption-text {
           font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           font-weight: 700;
-          letter-spacing: -0.03em;
         }
       `}} />
       <div style={containerStyle}>
@@ -208,7 +234,7 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
           className="smart-caption-text"
           style={{
             fontSize: fontSize,
-            letterSpacing: isPortrait ? '-0.05em' : '-0.03em',
+            letterSpacing: isBigCaptionMode ? (isPortrait ? '-0.05em' : '-0.03em') : '0.07em',
             color: '#FFFFFF',
             textAlign: 'center',
             textTransform: 'uppercase',

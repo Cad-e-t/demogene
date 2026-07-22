@@ -38,20 +38,18 @@ export const getNormalSegmentationPrompt = (prompt) => `
 
 SEGMENTING RULES:
 
-A new segment MUST be created whenever ANY of the following changes:
+  Segment the narration into individual cinematic shots. Each segment should visualize one primary visual moment or idea in the script.
+ 
+  Create a new segment whenever the narration introduces:
+  - A new subject, object, environment, or visual detail that deserves focus
+  - A new idea
+  - A new physical action, or interaction
+  - A reaction or consequence
+  - A reveal or change in perspective
+  - A different camera composition needed to clearly show the moment
 
- - Primary action
- - Subject or character focus
- - Location
- - Time
- - Camera perspective
- - New information is revealed through an observable event
- - Emotional state is expressed through visible behavior
- - A new object becomes the focus
+  IMPORTANT: A segment should not span more than one sentence. If a sentence contains multiple moments, ideas, action, emotion that could be shown through separate camera shots, split them into separate segments.
 
-Prefer over-segmentation to under-segmentation.
-If one sentence contains three observable events, split it into three segments.
-Never keep multiple independent visual moments together simply because they occur in the same sentence.
 
 [
    {
@@ -130,16 +128,11 @@ Both the 'style' field, and all character and environment descriptions must conf
 
 3.  RECURRING LOCATION RULES
 
-  - Relevance: Only define recurring_locations when multiple segments occur in
-    the same physical location or environment. Otherwise leave the
-    recurring_locations object empty.
-  - Description: Write one concise sentence describing the location's permanent
-    appearance and environment, including its layout, architecture, materials, 
-    lighting style, color palette, and overall atmosphere.
-  - Tracking Locations: If a segment takes place inside a recurring location,
-    include its location ID in the segment's "location" field. If the location
-    appears only once, leave "location" empty and fully describe the environment
-    inside the segment's scene_description.
+  - Relevance: Only define recurring_locations when multiple segments occur in the same physical location or environment. Otherwise leave the recurring_locations object empty.
+  - Description: Write one concise sentence describing the location's permanent appearance and environment, including its layout, architecture, materials, lighting style, color palette, and overall atmosphere.
+  - Tracking Locations (important): If a segment takes place inside a recurring location, include its location ID in the segment's "location" field. If the location appears only once, leave "location" empty and fully describe the environment inside the segment's scene_description.
+  - Never reference a location ID (e.g., "LOC1") inside the scene_description. Location IDs belong only in the segment's "location" field.
+
 
 4.  OUTFIT RULES
 
@@ -168,8 +161,8 @@ Both the 'style' field, and all character and environment descriptions must conf
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder
     shot", "split-screen", in the scene description is prohibited.
   - First Frame Snapshot: The scene description details the exact visual layout
-    of the very first frame of the shot. Detail the physical placement,
-    position/posture, and state of the subjects at that specific starting
+    of the very first frame of the shot. It MUST detail the physical placement,
+    position, and state of the subjects at that specific starting
     millisecond. No baked-in motion blur or speed lines.
   - Environment: If the location appears only once, fully describe the visible environment 
     and lighting within the shot. If a recurring location ID is used for the segment, 
@@ -268,7 +261,7 @@ USER INPUT: ${userInput}
 
 1.  SEGMENTING RULES (Must apply unless user specifies otherwise):
 
-  Segment the narration into individual cinematic shots. Each segment should visualize one primary visual moment or idea in the script. Every independently visualizable element in the narration should receive its own segment.
+  Segment the narration into individual cinematic shots. Each segment should visualize one primary visual moment or idea in the script.
  
   Create a new segment whenever the narration introduces:
   - A new subject, object, environment, or visual detail that deserves focus
@@ -278,7 +271,7 @@ USER INPUT: ${userInput}
   - A reveal or change in perspective
   - A different camera composition needed to clearly show the moment
 
-  IMPORTANT: Prioritize cinematic coverage over efficiency. If a sentence contains multiple things, ideas, action, emotion that could be shown through separate camera shots, split them into separate segments.
+  IMPORTANT: A segment should not span more than one sentence. If a sentence contains multiple moments, ideas, action, emotion that could be shown through separate camera shots, split them into separate segments.
 
 2.  RECURRING SUBJECT RULES
 
@@ -303,10 +296,12 @@ USER INPUT: ${userInput}
   - Description: Write one concise sentence describing the location's permanent
     appearance and environment, including its layout, architecture, materials, 
     lighting style, color palette, and overall atmosphere.
-  - Tracking Locations: If a segment takes place inside a recurring location,
+  - Tracking Locations (important): If a segment takes place inside a recurring location,
     include its location ID in the segment's "location" field. If the location
     appears only once, leave "location" empty and fully describe the environment
     inside the segment's scene_description.
+  - Never reference a location ID (e.g., "LOC1") inside the scene_description. Location IDs belong only in the segment's "location" field.
+
 
 
 4.  OUTFIT RULES
@@ -330,8 +325,8 @@ USER INPUT: ${userInput}
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder
     shot", "split-screen", in the scene description is prohibited.
   - First Frame Snapshot: The scene description details the exact visual layout
-    of the very first frame of the shot. Detail the physical placement,
-    position/posture, and state of the subjects at that specific starting
+    of the very first frame of the shot. It MUST detail the physical placement,
+    position, and state of the subjects at that specific starting
     millisecond. No baked-in motion blur or speed lines.
   - Environment: If the location appears only once, fully describe the visible environment 
     and lighting within the shot. If a recurring location ID is used for the segment, 
@@ -454,7 +449,7 @@ USER INPUT: ${userInput}
 
 1.  SEGMENTING RULES (Must apply unless user specifies otherwise):
 
-  Segment the narration into individual cinematic shots. Each segment should visualize one primary visual moment or idea in the script. Every independently visualizable element in the narration should receive its own segment.
+  Segment the narration into individual cinematic shots. Each segment should visualize one primary visual moment or idea in the script.
  
   Create a new segment whenever the narration introduces:
   - A new subject, object, environment, or visual detail that deserves focus
@@ -464,8 +459,8 @@ USER INPUT: ${userInput}
   - A reveal or change in perspective
   - A different camera composition needed to clearly show the moment
 
-  IMPORTANT: Prioritize cinematic coverage over efficiency. If a sentence contains multiple things, ideas, action, emotion that could be shown through separate camera shots, split them into separate segments.
-  
+  IMPORTANT: A segment should not span more than one sentence. If a sentence contains multiple moments, ideas, action, emotion that could be shown through separate camera shots, split them into separate segments.
+
 2.  AVATAR RULES:
 
   - An avatar is available for this video. Treat AVATAR as an existing recurring
@@ -508,6 +503,7 @@ USER INPUT: ${userInput}
     include its outfit ID and only the outfit parts that should appear in that
     shot.
 
+
 4.  RECURRING LOCATION RULES
 
   - Relevance: Only define recurring_locations when multiple segments occur in
@@ -516,10 +512,11 @@ USER INPUT: ${userInput}
   - Description: Write one concise sentence describing the location's permanent
     appearance and environment, including its layout, architecture, materials, 
     lighting style, color palette, and overall atmosphere.
-  - Tracking Locations: If a segment takes place inside a recurring location,
+  - Tracking Locations (important): If a segment takes place inside a recurring location,
     include its location ID in the segment's "location" field. If the location
     appears only once, leave "location" empty and fully describe the environment
     inside the segment's scene_description.
+  - Never reference a location ID (e.g., "LOC1") inside the scene_description. Location IDs belong only in the segment's "location" field.
 
 5.  OUTFIT RULES
 
@@ -549,8 +546,8 @@ USER INPUT: ${userInput}
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder
     shot", "split-screen", in the scene description is prohibited.
   - First Frame Snapshot: The scene description details the exact visual layout
-    of the very first frame of the shot. Detail the physical placement,
-    position/posture, and state of the subjects at that specific starting
+    of the very first frame of the shot. It MUST detail the physical placement,
+    position, and state of the subjects at that specific starting
     millisecond. No baked-in motion blur or speed lines.
   - Environment: If the location appears only once, fully describe the visible environment 
     and lighting within the shot. If a recurring location ID is used for the segment, 

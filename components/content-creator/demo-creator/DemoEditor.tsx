@@ -3,7 +3,6 @@ import { supabase } from '../../../supabaseClient';
 import { DemoVideoPlayer } from './DemoVideoPlayer';
 import { API_URL, sanitizeErrorMsg } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
-import { SubtitleConfigurationPanel } from '../SubtitleConfigurationPanel';
 import { DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from '../types';
 import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2, Edit2, CheckCheck, Mic } from 'lucide-react';
 import { HookStyleModal } from './HookStyleModal';
@@ -28,8 +27,6 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const [activeModule, setActiveModule] = useState<string | null>(null);
     const [showHookStyleModal, setShowHookStyleModal] = useState(false);
     const [activeHookIndex, setActiveHookIndex] = useState<number | null>(null);
-    const [subtitleView, setSubtitleView] = useState<'summary' | 'edit' | 'transcription'>('summary');
-    const [subtitleState, setSubtitleState] = useState<'enabled' | 'disabled'>('enabled');
     const [motionGraphicsEnabled, setMotionGraphicsEnabled] = useState(false);
     const [isGeneratingMotionGraphics, setIsGeneratingMotionGraphics] = useState(false);
     
@@ -128,9 +125,6 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                 setProject(data);
                 setHistory([data]);
                 setHistoryIndex(0);
-                if (data.subtitle_state) {
-                    setSubtitleState(data.subtitle_state);
-                }
                 if (data.voice_id) {
                     const v = VOICES.find(v => v.id === data.voice_id);
                     if (v) setVoice(v);
@@ -188,13 +182,14 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
         let finalUpdates = { ...updates };
         const newState = { ...project, ...finalUpdates };
         
-        if (updates.segments !== undefined || updates.hook_style !== undefined || updates.video_transform !== undefined || updates.transcription !== undefined) {
+        if (updates.segments !== undefined || updates.hook_style !== undefined || updates.video_transform !== undefined || updates.transcription !== undefined || updates.segment_durations !== undefined) {
             const filesData = computeFilesData(
                 newState.segments || [],
                 newState.transcription,
                 newState.video_transform?.hooks || {},
                 newState.hook_style,
-                newState.total_audio_duration
+                newState.total_audio_duration,
+                newState.segment_durations
             );
             finalUpdates.files_data = filesData;
             newState.files_data = filesData;
@@ -275,10 +270,6 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             video_transform: state.video_transform
         };
         
-        if (updates.subtitle_state) {
-            setSubtitleState(updates.subtitle_state);
-        }
-        
         await updateProject(updates, true);
     };
 
@@ -296,17 +287,6 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             setHistoryIndex(newIndex);
             applyHistoryState(history[newIndex]);
         }
-    };
-
-    const handleSubtitleStateToggle = () => {
-        const newState = subtitleState === 'enabled' ? 'disabled' : 'enabled';
-        setSubtitleState(newState);
-        updateProject({ subtitle_state: newState });
-    };
-
-    const handleSubtitleUpdate = (updates: Partial<SubtitleConfiguration>) => {
-        const newConfig = { ...(project.subtitles || DEFAULT_SUBTITLE_CONFIG), ...updates };
-        updateProject({ subtitles: newConfig });
     };
 
     const handleTranscriptionUpdate = (newTranscription: any) => {
@@ -927,20 +907,45 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                             </div>
 
                                             {!motionGraphicsEnabled && (
-                                                <>
-                                                    <h2 className="text-lg font-bold mt-8">Standard Subtitles</h2>
-                                                    <SubtitleConfigurationPanel
-                                                        subtitles={project.subtitles || DEFAULT_SUBTITLE_CONFIG}
-                                                        subtitleState={subtitleState}
-                                                        subtitleView={subtitleView}
-                                                        setSubtitleView={setSubtitleView}
-                                                        handleSubtitleStateToggle={handleSubtitleStateToggle}
-                                                        handleSubtitleUpdate={handleSubtitleUpdate}
-                                                        transcription={project.transcription}
-                                                        currentTime={currentTime}
-                                                        handleTranscriptionUpdate={handleTranscriptionUpdate}
-                                                    />
-                                                </>
+                                                <div className="space-y-4 mt-8">
+                                                    <h2 className="text-lg font-bold">Highlighted Words</h2>
+                                                    <p className="text-xs text-zinc-400">Type a word and press enter to add it. These words will be colored green in the subtitles.</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <input 
+                                                            type="text"
+                                                            className="flex-1 bg-black/50 border border-white/10 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-white/30 text-white"
+                                                            placeholder="Type a word..."
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    const val = e.currentTarget.value.trim();
+                                                                    if (val) {
+                                                                        const current = Array.isArray(project.subtitles) ? project.subtitles : [];
+                                                                        if (!current.includes(val)) {
+                                                                            updateProject({ subtitles: [...current, val] });
+                                                                        }
+                                                                        e.currentTarget.value = '';
+                                                                    }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {(Array.isArray(project.subtitles) ? project.subtitles : []).map((word: string, idx: number) => (
+                                                            <div key={idx} className="flex items-center gap-2 bg-[#34C759]/20 border border-[#34C759]/30 text-[#34C759] px-3 py-1 rounded-full text-xs">
+                                                                <span>{word}</span>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const current = Array.isArray(project.subtitles) ? project.subtitles : [];
+                                                                        updateProject({ subtitles: current.filter(w => w !== word) });
+                                                                    }}
+                                                                    className="hover:text-white transition-colors"
+                                                                >
+                                                                    &times;
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             )}
                                         </div>
                                     )}
