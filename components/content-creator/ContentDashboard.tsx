@@ -504,8 +504,8 @@ export const ContentDashboard = ({
         );
       }
       console.log(
-        "[ContentDashboard] Text segments received:",
-        res.segments.length,
+        "[ContentDashboard] Project generation started:",
+        res.projectId
       );
 
       setProject({
@@ -517,9 +517,9 @@ export const ContentDashboard = ({
         image_style: style,
         narration_style: narrationStyle,
         subtitles: subtitles,
-        status: "generating",
+        status: res.status || "generating",
       });
-      setSegments(res.segments);
+      setSegments([]); // Initialize empty segments, they will stream in
       // We transition immediately to editor even if images are null
     } catch (e: any) {
       console.error("[ContentDashboard] Generation failed", e);
@@ -555,7 +555,7 @@ export const ContentDashboard = ({
 
   // If project is loaded, show Editor
   const renderContent = () => {
-    if (project && segments.length > 0) {
+    if (project) {
       return (
         <ContentEditor
           session={session}

@@ -60,9 +60,9 @@ const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
 const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
-const COST_PER_THOUSAND_TOKENS = 1;
-const COST_PER_THOUSAND_INPUT_TOKENS = 0.15;
-const FLASH_COST_THOUSAND_INPUT_TOKENS = 0.15;
+const COST_PER_THOUSAND_TOKENS = 1.2;
+const COST_PER_THOUSAND_INPUT_TOKENS = 0.2;
+const FLASH_COST_THOUSAND_INPUT_TOKENS = 0.2;
 const FLASH_COST_THOUSAND_OUTPUT_TOKENS = 0.9;
 const MAX_ANALYSIS_COST = 20;
 const MIN_BALANCE = 4; // Minimum credits required to start
@@ -632,111 +632,117 @@ app.post('/generate-segments', async (req, res) => {
             narration_style: narrationStyle, // Save style to DB
             subtitles: subtitles || 'none', // Save subtitles to DB
             voice_id: voiceId || 'Charon', // Save voice to DB
-            status: 'draft'
+            status: 'generating' // Changed from draft to generating to indicate background work
         }).select().single();
         
         if (error) throw error;
         createdProjectId = project.id;
         console.log(`[ContentServer] Project created: ${project.id}`);
 
-        // 2. Generate Text Segments
-        console.log(`[ContentServer] Generating text segments...`);
-        const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', false, avatarUrl);
-        console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
+        // Return immediately with generating status
+        res.status(202).json({ projectId: project.id, status: 'generating' });
 
-        // 3. Determine Cost & Charge
-        const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;
-        const flashOutputTokens = usageMetadata?.flashUsage?.candidatesTokenCount || 0;
-        
-        const proInputTokens = usageMetadata?.proUsage?.promptTokenCount || 0;
-        const proOutputTokens = usageMetadata?.proUsage?.candidatesTokenCount || 0;
-        
-        const flashCost = (flashInputTokens / 1000) * FLASH_COST_THOUSAND_INPUT_TOKENS + (flashOutputTokens / 1000) * FLASH_COST_THOUSAND_OUTPUT_TOKENS;
-        const proCost = (proInputTokens / 1000) * COST_PER_THOUSAND_INPUT_TOKENS + (proOutputTokens / 1000) * COST_PER_THOUSAND_TOKENS;
-        
-        let analysisCost = flashCost + proCost;
+        // --- BACKGROUND PROCESSING ---
+        (async () => {
+            try {
+                // 2. Generate Text Segments
+                console.log(`[ContentServer] Generating text segments...`);
+                const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', false, avatarUrl);
+                console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
-        let isCapped = false;
-        if (analysisCost > MAX_ANALYSIS_COST) {
-            analysisCost = MAX_ANALYSIS_COST;
-            isCapped = true;
-        }
+                // 2.5 Save Text Segments to DB (Image NULL) immediately
+                const segmentsToInsert = segmentsData.map((s, idx) => ({
+                    project_id: project.id,
+                    narration: s.narration,
+                    image_prompt: s.image_prompt,
+                    animation_prompt: s.animation_prompt,
+                    image_url: null, // Placeholder, images come later
+                    avatar_url: s.avatar_url || null,
+                    order_index: idx
+                }));
 
-        const costPerImage = COST_IMAGE_ULTRA;
-        const totalCost = (segmentsData.length * costPerImage) + analysisCost;
+                const { data: insertedSegments, error: segError } = await supabase
+                    .from('content_segments')
+                    .insert(segmentsToInsert)
+                    .select();
 
-        console.log(`[Billing] Analysis Tokens - Flash In/Out: ${flashInputTokens}/${flashOutputTokens}, Pro In/Out: ${proInputTokens}/${proOutputTokens}`);
-        console.log(`[Billing] Calculated Analysis Cost: ${analysisCost.toFixed(4)} credits (Capped: ${isCapped})`);
-        console.log(`[Billing] Total Potential Cost: ${totalCost.toFixed(2)} credits`);
+                if (segError) throw segError;
+                console.log(`[ContentServer] Segments saved to DB. Evaluating costs...`);
 
-        // Check balance again before charging
-        const currentBalance = await getCredits(userId);
-        
-        let finalSegmentsData = segmentsData;
-        let maxImages = segmentsData.length;
-        let creditsLow = false;
+                // 3. Determine Cost & Charge
+                const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;
+                const flashOutputTokens = usageMetadata?.flashUsage?.candidatesTokenCount || 0;
+                
+                const proInputTokens = usageMetadata?.proUsage?.promptTokenCount || 0;
+                const proOutputTokens = usageMetadata?.proUsage?.candidatesTokenCount || 0;
+                
+                const flashCost = (flashInputTokens / 1000) * FLASH_COST_THOUSAND_INPUT_TOKENS + (flashOutputTokens / 1000) * FLASH_COST_THOUSAND_OUTPUT_TOKENS;
+                const proCost = (proInputTokens / 1000) * COST_PER_THOUSAND_INPUT_TOKENS + (proOutputTokens / 1000) * COST_PER_THOUSAND_TOKENS;
+                
+                let analysisCost = flashCost + proCost;
 
-        if (currentBalance < totalCost) {
-            creditsLow = true;
-            const availableForImages = currentBalance - analysisCost;
-            maxImages = Math.floor(Math.max(0, availableForImages) / costPerImage);
-            
-            finalSegmentsData = segmentsData.slice(0, maxImages);
-        }
+                let isCapped = false;
+                if (analysisCost > MAX_ANALYSIS_COST) {
+                    analysisCost = MAX_ANALYSIS_COST;
+                    isCapped = true;
+                }
 
-        const finalTotalCost = (finalSegmentsData.length * costPerImage) + analysisCost;
-        console.log(`[Billing] Final Total Charged: ${finalTotalCost.toFixed(2)} credits (Images: ${finalSegmentsData.length}, Analysis: ${analysisCost.toFixed(2)})`);
+                const costPerImage = COST_IMAGE_ULTRA;
+                const totalCost = (segmentsData.length * costPerImage) + analysisCost;
 
-        await chargeUser(userId, finalTotalCost, `Image Gen Batch - ${finalSegmentsData.length} images + AI Analysis`);
+                console.log(`[Billing] Analysis Tokens - Flash In/Out: ${flashInputTokens}/${flashOutputTokens}, Pro In/Out: ${proInputTokens}/${proOutputTokens}`);
+                console.log(`[Billing] Calculated Analysis Cost: ${analysisCost.toFixed(4)} credits (Capped: ${isCapped})`);
+                console.log(`[Billing] Total Potential Cost: ${totalCost.toFixed(2)} credits`);
 
-        // 4. Save Text Segments to DB (Image NULL)
-        // We save ALL segments to avoid waste, even if we don't generate images for all
-        const segmentsToInsert = segmentsData.map((s, idx) => ({
-            project_id: project.id,
-            narration: s.narration,
-            image_prompt: s.image_prompt,
-            animation_prompt: s.animation_prompt,
-            image_url: null, // Placeholder, images come later
-            avatar_url: s.avatar_url || null,
-            order_index: idx
-        }));
+                // Check balance again before charging
+                const currentBalance = await getCredits(userId);
+                
+                let finalSegmentsData = segmentsData;
+                let maxImages = segmentsData.length;
+                let creditsLow = false;
 
-        const { data: insertedSegments, error: segError } = await supabase
-            .from('content_segments')
-            .insert(segmentsToInsert)
-            .select();
+                if (currentBalance < totalCost) {
+                    creditsLow = true;
+                    const availableForImages = currentBalance - analysisCost;
+                    maxImages = Math.floor(Math.max(0, availableForImages) / costPerImage);
+                    
+                    finalSegmentsData = segmentsData.slice(0, maxImages);
+                }
 
-        if (segError) throw segError;
-        console.log(`[ContentServer] Segments saved to DB. Triggering background tasks.`);
+                // If user doesn't even have enough for analysis, fail early
+                if (currentBalance < analysisCost) {
+                    console.log(`[ContentServer] Insufficient credits for analysis, failing project ${project.id}`);
+                    await supabase.from('content_projects').update({ status: 'failed' }).eq('id', project.id);
+                    return;
+                }
 
-        // 5. Set status to generating
-        await supabase.from('content_projects').update({ 
-            status: 'generating',
-            render_status: creditsLow ? 'failed' : 'generating'
-        }).eq('id', project.id);
+                const finalTotalCost = (finalSegmentsData.length * costPerImage) + analysisCost;
+                console.log(`[Billing] Final Total Charged: ${finalTotalCost.toFixed(2)} credits (Images: ${finalSegmentsData.length}, Analysis: ${analysisCost.toFixed(2)})`);
 
-        // 6. Trigger Background Image Gen (Pass cost for refunds)
-        // Only process the segments we actually charged for
-        const segmentsToProcess = insertedSegments.slice(0, maxImages);
-        processImagesBackground(project.id, segmentsToProcess, aspectRatio, costPerImage, userId);
+                await chargeUser(userId, finalTotalCost, `Image Gen Batch - ${finalSegmentsData.length} images + AI Analysis`);
 
-        // 7. Trigger Background Asset Gen (Audio/Subtitles) - ONLY if NOT creditsLow
-        if (!creditsLow) {
-            processAssetsBackground(project.id, insertedSegments, voiceId, userId).catch(e => {
-                console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
-            });
-        }
+                // 5. Update status to rendering
+                await supabase.from('content_projects').update({ 
+                    status: 'rendering', // Used by UI to show image/voice rendering states
+                    render_status: creditsLow ? 'failed' : 'generating'
+                }).eq('id', project.id);
 
-        // 8. Return Response
-        if (creditsLow) {
-            return res.status(402).json({ 
-                error: "Credits low, top up to continue.",
-                projectId: project.id, 
-                segments: insertedSegments 
-            });
-        }
+                // 6. Trigger Background Image Gen
+                const segmentsToProcess = insertedSegments.slice(0, maxImages);
+                processImagesBackground(project.id, segmentsToProcess, aspectRatio, costPerImage, userId);
 
-        res.json({ projectId: project.id, segments: insertedSegments });
+                // 7. Trigger Background Asset Gen (Audio/Subtitles)
+                if (!creditsLow) {
+                    processAssetsBackground(project.id, insertedSegments, voiceId, userId).catch(e => {
+                        console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
+                    });
+                }
+
+            } catch (backgroundError) {
+                console.error("[ContentServer] Error in background generation:", backgroundError);
+                await supabase.from('content_projects').update({ status: 'failed' }).eq('id', project.id);
+            }
+        })();
 
     } catch (e) {
         console.error("[ContentServer] Error in generate-segments:", e);
@@ -766,77 +772,86 @@ app.post('/generate-free-trial-segments', async (req, res) => {
             narration_style: narrationStyle,
             subtitles: subtitles || 'none',
             voice_id: voiceId || 'Charon',
-            status: 'draft'
+            status: 'generating' // Changed to generating immediately
         }).select().single();
         
         if (error) throw error;
         createdProjectId = project.id;
         console.log(`[ContentServer] Project created: ${project.id}`);
 
-        // 2. Generate Text Segments (Free Trial Mode uses normal prompt now, but we pass true)
-        console.log(`[ContentServer] Generating text segments (Free Trial)...`);
-        const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', true, avatarUrl);
-        console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
+        // Return immediately with generating status
+        res.status(202).json({ projectId: project.id, status: 'generating' });
 
-        // 3. Determine Cost & Charge
-        const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;
-        const flashOutputTokens = usageMetadata?.flashUsage?.candidatesTokenCount || 0;
-        
-        const proInputTokens = usageMetadata?.proUsage?.promptTokenCount || 0;
-        const proOutputTokens = usageMetadata?.proUsage?.candidatesTokenCount || 0;
-        
-        const flashCost = (flashInputTokens / 1000) * FLASH_COST_THOUSAND_INPUT_TOKENS + (flashOutputTokens / 1000) * FLASH_COST_THOUSAND_OUTPUT_TOKENS;
-        const proCost = (proInputTokens / 1000) * COST_PER_THOUSAND_INPUT_TOKENS + (proOutputTokens / 1000) * COST_PER_THOUSAND_TOKENS;
-        
-        let analysisCost = flashCost + proCost;
+        // --- BACKGROUND PROCESSING ---
+        (async () => {
+            try {
+                // 2. Generate Text Segments (Free Trial Mode uses normal prompt now, but we pass true)
+                console.log(`[ContentServer] Generating text segments (Free Trial)...`);
+                const { segments: segmentsData, usageMetadata } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', true, avatarUrl);
+                console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
-        if (analysisCost > MAX_ANALYSIS_COST) {
-            analysisCost = MAX_ANALYSIS_COST;
-        }
+                // 2.5 Save Text Segments to DB immediately
+                const segmentsToInsert = segmentsData.map((s, idx) => ({
+                    project_id: project.id,
+                    narration: s.narration,
+                    image_prompt: s.image_prompt,
+                    animation_prompt: s.animation_prompt,
+                    image_url: null,
+                    avatar_url: s.avatar_url || null,
+                    order_index: idx
+                }));
 
-        const costPerImage = COST_IMAGE_ULTRA;
-        
-        // Only 8 segments max can be processed when isFreeTrial is true
-        const processedSegmentsCount = Math.min(segmentsData.length, 8);
-        const totalCost = (processedSegmentsCount * costPerImage) + analysisCost;
+                const { data: insertedSegments, error: segError } = await supabase
+                    .from('content_segments')
+                    .insert(segmentsToInsert)
+                    .select();
 
-        console.log(`[Billing] Free Trial - Project creation complete. Setting user credits to 0.`);
-        
-        // Mark user as having used free trial and reset credits to 0
-        await supabase.from('profiles').update({ used_free_trial: true, credits: 0 }).eq('id', userId);
+                if (segError) throw segError;
 
-        // 4. Save Text Segments to DB
-        const segmentsToInsert = segmentsData.map((s, idx) => ({
-            project_id: project.id,
-            narration: s.narration,
-            image_prompt: s.image_prompt,
-            animation_prompt: s.animation_prompt,
-            image_url: null,
-            avatar_url: s.avatar_url || null,
-            order_index: idx
-        }));
+                // 3. Determine Cost & Charge
+                const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;
+                const flashOutputTokens = usageMetadata?.flashUsage?.candidatesTokenCount || 0;
+                
+                const proInputTokens = usageMetadata?.proUsage?.promptTokenCount || 0;
+                const proOutputTokens = usageMetadata?.proUsage?.candidatesTokenCount || 0;
+                
+                const flashCost = (flashInputTokens / 1000) * FLASH_COST_THOUSAND_INPUT_TOKENS + (flashOutputTokens / 1000) * FLASH_COST_THOUSAND_OUTPUT_TOKENS;
+                const proCost = (proInputTokens / 1000) * COST_PER_THOUSAND_INPUT_TOKENS + (proOutputTokens / 1000) * COST_PER_THOUSAND_TOKENS;
+                
+                let analysisCost = flashCost + proCost;
 
-        const { data: insertedSegments, error: segError } = await supabase
-            .from('content_segments')
-            .insert(segmentsToInsert)
-            .select();
+                if (analysisCost > MAX_ANALYSIS_COST) {
+                    analysisCost = MAX_ANALYSIS_COST;
+                }
 
-        if (segError) throw segError;
+                const costPerImage = COST_IMAGE_ULTRA;
+                
+                // Only 8 segments max can be processed when isFreeTrial is true
+                const processedSegmentsCount = Math.min(segmentsData.length, 8);
+                const totalCost = (processedSegmentsCount * costPerImage) + analysisCost;
 
-        // 5. Set status to generating
-        await supabase.from('content_projects').update({ status: 'generating', render_status: 'generating' }).eq('id', project.id);
+                console.log(`[Billing] Free Trial - Project creation complete. Setting user credits to 0.`);
+                
+                // Mark user as having used free trial and reset credits to 0
+                await supabase.from('profiles').update({ used_free_trial: true, credits: 0 }).eq('id', userId);
 
-        // 6. Trigger Background Image Gen
-        const segmentsToProcess = insertedSegments.slice(0, 8);
-        processImagesBackground(project.id, segmentsToProcess, aspectRatio, costPerImage, userId, true);
+                // 5. Update status to rendering
+                await supabase.from('content_projects').update({ status: 'rendering', render_status: 'generating' }).eq('id', project.id);
 
-        // 7. Trigger Background Asset Gen
-        processAssetsBackground(project.id, segmentsToProcess, voiceId, userId, true).catch(e => {
-            console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
-        });
+                // 6. Trigger Background Image Gen
+                const segmentsToProcess = insertedSegments.slice(0, 8);
+                processImagesBackground(project.id, segmentsToProcess, aspectRatio, costPerImage, userId, true);
 
-        // 8. Return Response
-        res.json({ projectId: project.id, segments: insertedSegments });
+                // 7. Trigger Background Asset Gen
+                processAssetsBackground(project.id, segmentsToProcess, voiceId, userId, true).catch(e => {
+                    console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
+                });
+
+            } catch (backgroundError) {
+                console.error("[ContentServer] Error in free trial background generation:", backgroundError);
+                await supabase.from('content_projects').update({ status: 'failed' }).eq('id', project.id);
+            }
+        })();
 
     } catch (e) {
         console.error("[ContentServer] Error in generate-free-trial-segments:", e);

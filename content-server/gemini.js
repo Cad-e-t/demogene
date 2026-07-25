@@ -8,7 +8,7 @@ import {
     getAvatarSystemPrompt
 } from "./prompt.js";
 
-const MODEL_NAME = "gemini-3.5-flash"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
+const MODEL_NAME = "gemini-3.1-pro-preview"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
 const SEGMENTATION_MODEL_NAME = "gemini-3.5-flash"; // Using flash for segmentation
 const GENERATE_IMAGE_MODEL = "gemini-3.1-flash-lite-image";  
 const EDIT_IMAGE_MODEL = "gemini-3.1-flash-lite-image"; //
@@ -85,7 +85,7 @@ VISUAL IDENTITY LOCK: ${visualIdentityBlock}`;
         contents: systemPrompt,
         config: {
             responseMimeType: "application/json",
-            thinkingConfig: { thinkingLevel: "HIGH" }
+            thinkingConfig: { thinkingLevel: "medium" }
         }
     });
 
@@ -194,6 +194,72 @@ VISUAL IDENTITY LOCK: ${visualIdentityBlock}`;
             }
         }
 
+        // Fallback for missing subjects in seg.subjects
+        const escapeRegExpFallback = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        if (avatarUrl) {
+            const idRegex = new RegExp(`\\bAVATAR\\b`, 'gi');
+            if (idRegex.test(finalImagePrompt)) {
+                const avatarData = visualData.avatar || {};
+                const baseDesc = "character in the uploaded image";
+                let outfitDesc = "";
+                
+                if (avatarData.outfits) {
+                    const outfitKeys = Object.keys(avatarData.outfits);
+                    if (outfitKeys.length > 0) {
+                        const firstOutfitObj = avatarData.outfits[outfitKeys[0]];
+                        if (firstOutfitObj) {
+                            const parts = Object.values(firstOutfitObj);
+                            if (parts.length > 0) {
+                                outfitDesc = parts.join(", ");
+                            }
+                        }
+                    }
+                }
+                const outfitSuffix = outfitDesc ? ` (wearing ${outfitDesc})` : "";
+                const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
+                const baseDescLower = baseDesc.toLowerCase();
+
+                let matchCount = 0;
+                finalImagePrompt = finalImagePrompt.replace(idRegex, () => {
+                    matchCount++;
+                    return matchCount === 1 ? fullDesc : baseDescLower;
+                });
+                segAvatarUrl = avatarUrl;
+            }
+        }
+
+        for (const [subId, mainSub] of Object.entries(mainSubjects)) {
+            const idRegex = new RegExp(`\\b${escapeRegExpFallback(subId)}\\b`, 'gi');
+            if (idRegex.test(finalImagePrompt)) {
+                const baseDescRaw = mainSub.base || "";
+                const baseDesc = baseDescRaw.trim().replace(/\.$/, "");
+                
+                let outfitDesc = "";
+                if (mainSub.outfits) {
+                    const outfitKeys = Object.keys(mainSub.outfits);
+                    if (outfitKeys.length > 0) {
+                        const firstOutfitObj = mainSub.outfits[outfitKeys[0]];
+                        if (firstOutfitObj) {
+                            const parts = Object.values(firstOutfitObj);
+                            if (parts.length > 0) {
+                                outfitDesc = parts.join(", ");
+                            }
+                        }
+                    }
+                }
+                const outfitSuffix = outfitDesc ? ` (wearing ${outfitDesc})` : "";
+                const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
+                const baseDescLower = baseDesc.toLowerCase();
+
+                let matchCount = 0;
+                finalImagePrompt = finalImagePrompt.replace(idRegex, () => {
+                    matchCount++;
+                    return matchCount === 1 ? fullDesc : baseDescLower;
+                });
+            }
+        }
+
         let locationStr = "";
         if (seg.location) {
             let loc = seg.location;
@@ -208,7 +274,7 @@ VISUAL IDENTITY LOCK: ${visualIdentityBlock}`;
         }
 
         if (locationStr) {
-            finalImagePrompt += ` Set environment: ${locationStr}.`;
+            finalImagePrompt += `  Set environment, show only the parts that naturally fit into the current shot: ${locationStr}.`;
         }
 
         if (visualData.style) {

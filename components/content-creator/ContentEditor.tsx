@@ -221,6 +221,18 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [showAnimateAllMenu, setShowAnimateAllMenu] = useState(false);
     const [showAnimateMenu, setShowAnimateMenu] = useState(false);
+
+    const [generatingTextIndex, setGeneratingTextIndex] = useState(0);
+    const thinkingTexts = ['Thinking...', 'Building the scenes...', 'Crafting the story...'];
+
+    useEffect(() => {
+        if (localProject.status === 'generating') {
+            const interval = setInterval(() => {
+                setGeneratingTextIndex((prev) => (prev + 1) % thinkingTexts.length);
+            }, 2000);
+            return () => clearInterval(interval);
+        }
+    }, [localProject.status]);
     const [notification, setNotification] = useState<{ message: string, type: 'error' | 'success' } | null>(null);
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [showExportUpgradeModal, setShowExportUpgradeModal] = useState(false);
@@ -693,20 +705,30 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         return () => { supabase.removeChannel(channel); };
     }, [project.id, audioUrl]);
 
-    // 3. Subscribe to Segment Changes (Existing)
+    // 3. Subscribe to Segment Changes
     useEffect(() => {
         console.log(`[ContentEditor] Subscribing to segment updates for project ${project.id}`);
         const channel = supabase.channel(`project-segments-${project.id}`)
             .on('postgres_changes', { 
-                event: 'UPDATE', 
+                event: '*', 
                 schema: 'public', 
                 table: 'content_segments',
                 filter: `project_id=eq.${project.id}`
             }, (payload) => {
                 console.log("[ContentEditor] Received segment update", payload);
-                setSegments((prev: any[]) => prev.map(s => 
-                    s.id === payload.new.id ? { ...s, image_url: payload.new.image_url } : s
-                ));
+                if (payload.eventType === 'INSERT') {
+                    setSegments((prev: any[]) => {
+                        const exists = prev.find(s => s.id === payload.new.id);
+                        if (exists) return prev;
+                        return [...prev, payload.new].sort((a, b) => a.order_index - b.order_index);
+                    });
+                } else if (payload.eventType === 'UPDATE') {
+                    setSegments((prev: any[]) => prev.map(s => 
+                        s.id === payload.new.id ? { ...s, ...payload.new } : s
+                    ));
+                } else if (payload.eventType === 'DELETE') {
+                    setSegments((prev: any[]) => prev.filter(s => s.id !== payload.old.id));
+                }
             })
             .subscribe();
 
@@ -1403,11 +1425,15 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
                     )}
                     <div className={`flex-1 flex items-center justify-center p-4 md:p-8 min-h-0 w-full relative transition-all duration-300 ${isMobileConfigOpen ? 'scale-90 md:scale-100' : 'scale-100'}`}>
-                        {(!audioUrl || segmentDurations.length === 0 || localProject.render_status === 'Animating') ? (
+                        {(!audioUrl || segmentDurations.length === 0 || localProject.render_status === 'Animating' || ['generating', 'rendering', 'rendering_voice'].includes(localProject.status)) ? (
                             <div className="flex flex-col items-center gap-4">
                                 <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                <div className="text-sm font-bold text-zinc-400 uppercase tracking-widest animate-pulse">
-                                    {localProject.render_status === 'Animating' ? 'Animating Videos...' : 'Preparing Preview...'}
+                                <div className="text-sm font-bold text-zinc-400 uppercase tracking-widest animate-pulse text-center">
+                                    {localProject.render_status === 'Animating' ? 'Animating Videos...' : 
+                                     localProject.status === 'generating' ? thinkingTexts[generatingTextIndex] :
+                                     localProject.status === 'rendering' ? 'Rendering Images...' :
+                                     localProject.status === 'rendering_voice' ? 'Rendering Voice...' :
+                                     'Preparing Preview...'}
                                 </div>
                             </div>
                         ) : (
