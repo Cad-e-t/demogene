@@ -21,15 +21,19 @@ export type MyVideoProps = {
 const PhoneMockup: React.FC<{children: React.ReactNode, width: number, height: number}> = ({ children, width, height }) => {
   const scale = 0.82;
   const bezelWidth = 36;
-  const notchWidth = width * scale * 0.4;
+  
+  // Force 9:16 aspect ratio based on height
+  const phoneHeight = height * scale;
+  const phoneWidth = phoneHeight * (9 / 16);
+  const notchWidth = phoneWidth * 0.4;
   
   return (
     <div style={{
       position: 'absolute',
       top: '50%',
       left: '50%',
-      width: width * scale,
-      height: height * scale,
+      width: phoneWidth,
+      height: phoneHeight,
       transform: 'translate(-50%, -50%)',
       borderRadius: '65px',
       border: `${bezelWidth}px solid #111`,
@@ -78,11 +82,11 @@ const PhoneMockup: React.FC<{children: React.ReactNode, width: number, height: n
       <div style={{
         position: 'absolute',
         top: 0,
-        left: 0,
+        left: '50%',
         width: width,
         height: height,
-        transform: `scale(${scale})`,
-        transformOrigin: 'top left',
+        transform: `translate(-50%, 0) scale(${scale})`,
+        transformOrigin: 'top center',
         backgroundColor: 'transparent',
       }}>
         {children}

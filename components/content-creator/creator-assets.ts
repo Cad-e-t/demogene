@@ -7,7 +7,7 @@ export const STYLE_PREVIEWS: Record<string, string> = {
   Stickman: "https://assets.productcam.site/image-styles/stickman.png",
   Skeleton: "https://assets.productcam.site/image-styles/skeleton.png",
   Cartoon: "https://assets.productcam.site/image-styles/softcartoon.png",
-  Documentary: "https://assets.productcam.site/image-styles/documentary.png",
+  Documentary: "https://assets.productcam.site/image-styles/d0cumentary.png",
   Claymation: "https://assets.productcam.site/image-styles/claymation.png",
   Lego: "https://assets.productcam.site/image-styles/lego.png",
   "Ukiyo-e": "https://assets.productcam.site/image-styles/ukiyo-e.png",

@@ -190,9 +190,22 @@ export const ContentStories = ({ session, onToggleSidebar, isActive }: any) => {
                                  <div className={`${aspectClass} bg-black flex flex-col items-center justify-center p-6 text-center relative overflow-hidden`}>
                                     {s.thumbnail_url && <img src={s.thumbnail_url} className="absolute inset-0 w-full h-full object-cover opacity-20" />}
                                     <div className="w-10 h-10 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mb-4 relative z-10"></div>
-                                    <span className="text-white font-bold relative z-10 animate-pulse uppercase tracking-widest text-sm">
-                                        {s.status === 'rendering' ? 'Rendering...' : 'Generating...'}
+                                    <span className="text-white font-bold relative z-10 uppercase tracking-widest text-sm mb-2">
+                                        {s.status === 'rendering' ? (s.export_stage || 'Rendering...') : 'Generating...'}
                                     </span>
+                                    {s.status === 'rendering' && s.export_progress !== undefined && s.export_progress !== null && (
+                                        <div className="w-3/4 max-w-[200px] h-1.5 bg-zinc-800 rounded-full overflow-hidden relative z-10 mt-2 shadow-inner">
+                                            <div 
+                                                className="h-full bg-yellow-500 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(234,179,8,0.5)]" 
+                                                style={{ width: `${Math.max(2, s.export_progress)}%` }}
+                                            />
+                                        </div>
+                                    )}
+                                    {s.status === 'rendering' && s.export_progress !== undefined && s.export_progress !== null && (
+                                        <span className="text-zinc-400 text-xs mt-2 relative z-10 font-mono font-medium">
+                                            {s.export_progress}%
+                                        </span>
+                                    )}
                                  </div>
                             )}
                             

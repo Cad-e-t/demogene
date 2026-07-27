@@ -77,6 +77,8 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
     const grainCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const activeSegmentRef = useRef<number>(-1);
 
+    const lastReportedTimeRef = useRef(-1);
+
     useEffect(() => {
         currentTimeRef.current = currentTime;
         if (!isPlaying) visualTimeRef.current = currentTime;
@@ -95,7 +97,6 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
 
     const onPlayPauseRef = useRef(onPlayPause);
     const isPlayingRef = useRef(isPlaying);
-
     useEffect(() => {
         onPlayPauseRef.current = onPlayPause;
         isPlayingRef.current = isPlaying;
@@ -108,9 +109,9 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         audioRef.current = audio;
         
         audio.addEventListener('timeupdate', () => {
+            lastReportedTimeRef.current = audio.currentTime;
             onTimeUpdate(audio.currentTime);
         });
-
         audio.addEventListener('ended', () => {
             // Only toggle if we are currently playing to avoid double-toggles
             if (isPlayingRef.current) {
@@ -145,8 +146,12 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
 
     // 3. Sync Time (Seek)
     useEffect(() => {
-        if (audioRef.current && Math.abs(audioRef.current.currentTime - currentTime) > 0.1) {
-            audioRef.current.currentTime = currentTime;
+        // Prevent echo/stutter: Only seek if the incoming currentTime differs from the time we last reported.
+        // This means the user manually sought the video (e.g. by clicking a segment).
+        if (audioRef.current && Math.abs(lastReportedTimeRef.current - currentTime) > 0.001) {
+            if (Math.abs(audioRef.current.currentTime - currentTime) > 0.1) {
+                audioRef.current.currentTime = currentTime;
+            }
         }
     }, [currentTime]);
 
@@ -362,9 +367,13 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
         const isReady = med && (isVideo ? med.readyState >= 1 : (med as HTMLImageElement).complete);
 
         // Pre-manage all videos
+        const processedVideos = new Set();
         media.forEach((m, idx) => {
             if (m instanceof HTMLVideoElement && m.duration) {
-                if (idx !== currentSegmentIndex) {
+                if (processedVideos.has(m)) return;
+                processedVideos.add(m);
+
+                if (m !== med) {
                     // Pause if playing
                     if (!m.paused) m.pause();
                     // Pre-seek to prepare for playback

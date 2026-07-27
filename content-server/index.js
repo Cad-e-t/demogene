@@ -1385,9 +1385,16 @@ app.post('/export-video', async (req, res) => {
                         await downloadUrlToFile(segments[i].image_url, path.join(workDir, `img_${i}.png`));
                     }
                 }
+                
+                const onProgress = async ({ stage, progress }) => {
+                    await supabase.from('content_stories').update({
+                        export_stage: stage,
+                        export_progress: progress
+                    }).eq('id', story.id);
+                };
 
                 // Assemble
-                const assembledPath = await assembleVideo(segments, audioPath, project.segment_durations, workDir, project.aspect_ratio, project.effect, quality || '1080p');
+                const assembledPath = await assembleVideo(segments, audioPath, project.segment_durations, workDir, project.aspect_ratio, project.effect, quality || '1080p', onProgress);
                 let finalPath = assembledPath;
 
         // 4. Generate/Burn Subtitles

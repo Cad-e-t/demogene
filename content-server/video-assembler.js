@@ -118,7 +118,7 @@ const EFFECT_SEQUENCES = {
     'minimalist': ['none', 'doc_push', 'none']
 };
 
-export async function assembleVideo(segments, audioPath, audioDurations, workDir, aspectRatio, effectPreset, quality = '1080p') {
+export async function assembleVideo(segments, audioPath, audioDurations, workDir, aspectRatio, effectPreset, quality = '1080p', onProgress) {
     // 1. Create video clips from images with zoom effect
     const clipPaths = [];
     
@@ -153,15 +153,28 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
     const sequence = Array.isArray(parsedEffect) ? parsedEffect : EFFECT_SEQUENCES[defaultSequenceKey];
 
     let currentStartFrame = 0;
+    let accumulatedTime = 0;
+    const audioClips = []; // Store extracted native audio clips
     for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
-        const duration = audioDurations[i] || 3; // Fallback duration
+        const originalDuration = audioDurations[i] || 3; // Fallback duration
+        
+        // Exact frame calculation to prevent A/V drift over multiple clips
+        const nextAccumulatedTime = accumulatedTime + originalDuration;
+        const startFrame = Math.round(accumulatedTime * 30);
+        const endFrame = Math.round(nextAccumulatedTime * 30);
+        const exactFrames = endFrame - startFrame;
+        const duration = exactFrames / 30; // Truncated to exact frames
+        const startTimeMs = Math.round(accumulatedTime * 1000);
+        
+        accumulatedTime = nextAccumulatedTime;
+
         const imagePath = path.join(workDir, `img_${i}.png`);
-        const clipPath = path.join(workDir, `clip_${i}.mp4`);
+        const clipPath = path.join(workDir, `clip_${i}.ts`);
         
         const isVideo = seg.image_url && seg.image_url.toLowerCase().endsWith('.mp4');
 
-        const frames = Math.ceil(duration * 30) + 10; // +10 buffer
+        const frames = exactFrames + 10; // +10 buffer
         
         // Determine effect for this segment
         const effectType = sequence[i % sequence.length];
@@ -182,41 +195,37 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         let setptsFilter = '';
         let inputArgs = [];
         let mapArgs = [];
+        let hasAudioStream = false;
+        let afFilter = '';
 
         if (isVideo) {
             // Speed manipulation mapping to the segment duration 
             // Using (PTS-STARTPTS) is CRITICAL to prevent massive sync gaps/drifts during concat
             const sourceDuration = await getVideoDuration(imagePath);
-            const hasAudioStream = await hasAudio(imagePath);
+            hasAudioStream = await hasAudio(imagePath);
             
             setptsFilter = `setpts=(${duration}/${Math.max(0.1, sourceDuration)})*(PTS-STARTPTS),`;
             
-            // If video has no audio, we add silent audio source to maintain stream consistency for concat
-            let audioInputArgs = hasAudioStream ? [] : ['-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000'];
-            inputArgs = ['-i', imagePath, ...audioInputArgs];
+            inputArgs = ['-i', imagePath];
             
-            let afFilter = 'aresample=48000';
             if (hasAudioStream) {
-                afFilter += ',volume=0.15';
+                afFilter = 'aresample=48000,volume=0.15';
                 const tempo = sourceDuration / duration;
-                // atempo range is 0.5 to 2.0. We'll try to stay within it.
                 if (tempo >= 0.5 && tempo <= 2.0) {
                     afFilter += `,atempo=${tempo}`;
                 } else if (tempo < 0.5) {
-                    // Extremely slow: multiple atempo filters
                     afFilter += `,atempo=0.5,atempo=${tempo/0.5}`;
                 } else {
-                    // Extremely fast: multiple atempo filters
                     afFilter += `,atempo=2.0,atempo=${tempo/2.0}`;
                 }
             }
 
             filter = `${setptsFilter}${fpsFilter},${inputScale},${effectFilter},setsar=1,${vignetteFilter}`;
-            mapArgs = hasAudioStream ? ['-map', '0:v:0', '-map', '0:a:0', '-af', afFilter] : ['-map', '0:v:0', '-map', '1:a:0', '-af', afFilter];
+            mapArgs = ['-map', '0:v:0'];
         } else {
-            inputArgs = ['-loop', '1', '-i', imagePath, '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000'];
+            inputArgs = ['-loop', '1', '-i', imagePath];
             filter = `${inputScale},${effectFilter},${fpsFilter},setsar=1,${vignetteFilter}`;
-            mapArgs = ['-map', '0:v:0', '-map', '1:a:0', '-af', 'aresample=48000'];
+            mapArgs = ['-map', '0:v:0'];
         }
 
         await runFFmpeg([
@@ -227,10 +236,9 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
             '-crf', '18', // Optimal High Quality balance (prevents file bloat)
             '-preset', 'fast',
             '-tune', 'film', // Better texture retention
-            '-c:a', 'aac',
-            '-ac', '2',
-            '-ar', '48000',
+            '-an', // NO AUDIO in the video clip
             '-t', duration.toString(), 
+            '-frames:v', exactFrames.toString(),
             '-r', '30', // Explicitly force 30fps container frame rate
             '-video_track_timescale', '90000', // Unify timebases for clean concat
             '-pix_fmt', 'yuv420p',
@@ -238,10 +246,33 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         ]);
         
         clipPaths.push(clipPath);
-        currentStartFrame += Math.round(duration * 30);
+
+        if (isVideo && hasAudioStream) {
+            const audioClipPath = path.join(workDir, `audio_${i}.wav`);
+            await runFFmpeg([
+                '-i', imagePath,
+                '-vn',
+                '-map', '0:a:0',
+                '-af', afFilter,
+                '-c:a', 'pcm_s16le',
+                '-ar', '48000',
+                '-ac', '2',
+                '-t', duration.toString(),
+                '-y', audioClipPath
+            ]);
+            audioClips.push({ path: audioClipPath, startTimeMs });
+        }
+
+        currentStartFrame += exactFrames;
+        
+        if (onProgress) {
+            // Allocate 70% of total progress to creating clips
+            const progress = Math.round(((i + 1) / segments.length) * 70);
+            onProgress({ stage: 'Processing video clips...', progress });
+        }
     }
 
-    // 2. Concatenate Clips
+    // 2. Concatenate Video Clips (Visual Only)
     const listPath = path.join(workDir, 'files.txt');
     const fileContent = clipPaths.map(p => `file '${p}'`).join('\n');
     fs.writeFileSync(listPath, fileContent);
@@ -251,25 +282,60 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         '-f', 'concat', '-safe', '0', '-i', listPath,
         '-c', 'copy', '-y', visualPath
     ]);
+    
+    if (onProgress) {
+        onProgress({ stage: 'Stitching video together...', progress: 85 });
+    }
 
     // 3. Merge with Audio and Normalize Loudness
     const finalPath = path.join(workDir, `final_${uuidv4()}.mp4`);
     
-    // Mix native audio (visualPath) with voiceover (audioPath)
-    // Reduce volume of native audio to act as background noise
-    // Using duration=longest and -shortest ensures the voiceover never cuts out early
-    await runFFmpeg([
+    // Mix native audio (if any) with voiceover (audioPath)
+    let mixArgs = [
         '-i', visualPath,
-        '-i', audioPath,
-        '-filter_complex', '[1:a]loudnorm=I=-16:TP=-1.5:LRA=11[vo];[0:a][vo]amix=inputs=2:duration=longest[mixed];[mixed]volume=2[a]',
+        '-i', audioPath
+    ];
+    
+    let filterComplex = '';
+    const numMixInputs = 1 + audioClips.length; // 1 for voiceover, plus native clips
+    
+    // Normalize voiceover first
+    filterComplex += `[1:a]loudnorm=I=-16:TP=-1.5:LRA=11[vo];`;
+    
+    let mixSources = '[vo]';
+    
+    audioClips.forEach((ac, idx) => {
+        const inputIdx = idx + 2; // offset by 2 (0=video, 1=vo)
+        mixArgs.push('-i', ac.path);
+        
+        // adelay filter requires delays for all channels
+        const delayStr = `${ac.startTimeMs}|${ac.startTimeMs}`;
+        filterComplex += `[${inputIdx}:a]adelay=${delayStr}[a${inputIdx}];`;
+        mixSources += `[a${inputIdx}]`;
+    });
+    
+    if (audioClips.length > 0) {
+        // duration=first ensures the mixed audio matches voiceover length
+        filterComplex += `${mixSources}amix=inputs=${numMixInputs}:duration=first:dropout_transition=0[mixed];[mixed]volume=2[aout]`;
+    } else {
+        filterComplex += `[vo]volume=2[aout]`;
+    }
+
+    await runFFmpeg([
+        ...mixArgs,
+        '-filter_complex', filterComplex,
         '-map', '0:v:0',
-        '-map', '[a]',
+        '-map', '[aout]',
         '-c:v', 'copy',
         '-c:a', 'aac', 
         '-b:a', '192k',
         '-shortest',
         '-y', finalPath
     ]);
+    
+    if (onProgress) {
+        onProgress({ stage: 'Adding final touches...', progress: 100 });
+    }
 
     return finalPath;
 }
