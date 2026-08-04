@@ -24,110 +24,122 @@ export function alignSegmentsWithTranscription(segments, transcription, totalAud
         splitWords.forEach(sw => {
             tWords.push({
                 ...w,
-                clean: sw
+                clean: sw,
+                segmentIndex: -1
             });
         });
     });
 
     console.log(`[Alignment] Normalized ${tWords.length} transcription words.`);
-
     if (tWords.length === 0) return null;
 
-    const result = [];
-    let tIndex = 0;
-    let lastEndTimeMs = 0;
-
+    // 2. Build global script words array
+    const scriptWords = [];
     for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
-        console.log(`\n[Alignment] Processing Segment ${i + 1}: "${seg.narration.substring(0, 30)}..."`);
-        
-        // Clean segment words (remove punctuation, lowercase, convert numbers)
         const segWordsRaw = seg.narration.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 0);
-        const segWords = [];
+        
         segWordsRaw.forEach(w => {
             if (/^\d+$/.test(w)) {
                 try {
                     const converted = numberToWords.toWords(parseInt(w, 10)).replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '');
-                    converted.split(/\s+/).filter(x => x.length > 0).forEach(sw => segWords.push(sw));
+                    converted.split(/\s+/).filter(x => x.length > 0).forEach(sw => {
+                        scriptWords.push({ clean: sw, segmentIndex: i });
+                    });
                 } catch (e) {
-                    segWords.push(w);
+                    scriptWords.push({ clean: w, segmentIndex: i });
                 }
             } else {
-                segWords.push(w);
+                scriptWords.push({ clean: w, segmentIndex: i });
             }
         });
+    }
 
-        console.log(`[Alignment] Segment ${i + 1} normalized words: ${segWords.length}`);
+    console.log(`[Alignment] Global normalized script words: ${scriptWords.length}`);
 
-        if (segWords.length === 0) {
-            console.log(`[Alignment] Segment ${i + 1} has no words. Duration: 0s`);
-            result.push(0);
-            continue;
-        }
+    // 3. Global alignment with lookahead window
+    let sIndex = 0;
+    let tIndex = 0;
 
-        let sIndex = 0;
-        let currentTIndex = tIndex;
+    while (sIndex < scriptWords.length && tIndex < tWords.length) {
+        const sWord = scriptWords[sIndex].clean;
+        const tWord = tWords[tIndex].clean;
 
-        // Two-pointer approach with lookahead for fuzzy matching
-        while (sIndex < segWords.length && currentTIndex < tWords.length) {
-            const sWord = segWords[sIndex];
-            const tWord = tWords[currentTIndex].clean;
+        if (sWord === tWord) {
+            tWords[tIndex].segmentIndex = scriptWords[sIndex].segmentIndex;
+            sIndex++;
+            tIndex++;
+        } else {
+            let bestMatch = null;
+            let minDistance = 999;
+            const WINDOW = 15;
 
-            if (sWord === tWord) {
-                console.log(`[Alignment] Matched: "${sWord}"`);
-                sIndex++;
-                currentTIndex++;
-            } else {
-                let found = false;
-                // Lookahead in transcription (e.g. TTS expanded "100" to "one hundred")
-                for (let lookahead = 1; lookahead <= 5; lookahead++) {
-                    if (currentTIndex + lookahead < tWords.length && tWords[currentTIndex + lookahead].clean === sWord) {
-                        console.log(`[Alignment] Lookahead matched transcription word "${sWord}" at offset +${lookahead}`);
-                        currentTIndex += lookahead; // Advance to the match
-                        found = true;
-                        break;
-                    }
+            for (let i = 1; i <= WINDOW; i++) {
+                // look ahead in tWords
+                if (tIndex + i < tWords.length && tWords[tIndex + i].clean === sWord) {
+                    if (i < minDistance) { minDistance = i; bestMatch = { sStep: 0, tStep: i }; }
                 }
-                if (!found) {
-                    // Lookahead in segment (e.g. TTS skipped a word)
-                    for (let lookahead = 1; lookahead <= 5; lookahead++) {
-                        if (sIndex + lookahead < segWords.length && segWords[sIndex + lookahead] === tWord) {
-                            console.log(`[Alignment] Lookahead matched segment word "${tWord}" at offset +${lookahead}`);
-                            sIndex += lookahead; // Advance to the match
-                            found = true;
-                            break;
-                        }
-                    }
+                // look ahead in scriptWords
+                if (sIndex + i < scriptWords.length && scriptWords[sIndex + i].clean === tWord) {
+                    if (i < minDistance) { minDistance = i; bestMatch = { sStep: i, tStep: 0 }; }
                 }
-
-                if (!found) {
-                    // Force advance both if completely lost
-                    console.log(`[Alignment] Mismatch at sWord="${sWord}", tWord="${tWord}". Forcing advance.`);
-                    sIndex++;
-                    currentTIndex++;
+                // look ahead in both
+                if (sIndex + i < scriptWords.length && tIndex + i < tWords.length && scriptWords[sIndex + i].clean === tWords[tIndex + i].clean) {
+                    if (i < minDistance) { minDistance = i; bestMatch = { sStep: i, tStep: i }; }
                 }
             }
-        }
 
-        // The end of this segment is the word we just passed
-        let endWordIndex = currentTIndex > tIndex ? currentTIndex - 1 : currentTIndex;
-        endWordIndex = Math.min(endWordIndex, tWords.length - 1);
-        
-        let endTimeMs = tWords[endWordIndex].end;
-        
-        // If this is the last segment, ensure it captures the very end of the audio
-        if (i === segments.length - 1) {
-            endTimeMs = totalAudioDuration * 1000;
-            console.log(`[Alignment] Final segment. Forcing end time to total audio duration: ${endTimeMs}ms`);
+            if (bestMatch) {
+                if (bestMatch.tStep > 0) {
+                   for (let j = 0; j < bestMatch.tStep; j++) {
+                       tWords[tIndex + j].segmentIndex = scriptWords[sIndex].segmentIndex;
+                   }
+                }
+                sIndex += bestMatch.sStep;
+                tIndex += bestMatch.tStep;
+            } else {
+                // Force advance both
+                tWords[tIndex].segmentIndex = scriptWords[sIndex].segmentIndex;
+                sIndex++;
+                tIndex++;
+            }
         }
+    }
 
-        const durationSec = (endTimeMs - lastEndTimeMs) / 1000;
-        console.log(`[Alignment] Segment ${i + 1} mapped to transcription words [${tIndex} ... ${endWordIndex}]. Duration: ${durationSec}s`);
+    // 4. Calculate durations
+    const result = new Array(segments.length).fill(0);
+    let lastValidSegmentIndex = -1;
+    for (let i = segments.length - 1; i >= 0; i--) {
+        if (tWords.some(tw => tw.segmentIndex === i)) {
+            lastValidSegmentIndex = i;
+            break;
+        }
+    }
+
+    let lastEndTimeMs = 0;
+
+    for (let i = 0; i < segments.length; i++) {
+        const mappedTWords = tWords.filter(tw => tw.segmentIndex === i);
         
-        result.push(Math.max(0, durationSec)); // Ensure no negative durations
-        
-        lastEndTimeMs = endTimeMs;
-        tIndex = currentTIndex;
+        if (mappedTWords.length > 0) {
+            let endTimeMs = mappedTWords[mappedTWords.length - 1].end;
+            
+            if (i === lastValidSegmentIndex) {
+                endTimeMs = totalAudioDuration * 1000;
+            }
+            
+            if (endTimeMs < lastEndTimeMs) {
+                endTimeMs = lastEndTimeMs;
+            }
+            
+            const durationSec = (endTimeMs - lastEndTimeMs) / 1000;
+            result[i] = durationSec;
+            lastEndTimeMs = endTimeMs;
+            console.log(`[Alignment] Segment ${i + 1} duration: ${durationSec}s`);
+        } else {
+            console.log(`[Alignment] Segment ${i + 1} completely skipped by TTS. Duration: 0s`);
+            result[i] = 0;
+        }
     }
 
     console.log(`[Alignment] Final Segment Durations: ${JSON.stringify(result)}`);

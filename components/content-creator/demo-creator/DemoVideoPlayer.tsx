@@ -21,13 +21,14 @@ interface DemoVideoPlayerProps {
     videoTransform?: any;
     onVideoTransformChange?: (transform: any) => void;
     backgroundType: string;
-    scriptBreakdown?: any[];
-    motionGraphicsEnabled?: boolean;
+    demoSegments?: any[];
 }
 
 export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     audioUrl,
     totalAudioDuration,
+    segments = [],
+    segmentDurations,
     transcription,
     filesData = [],
     aspectRatio,
@@ -35,7 +36,7 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
     isPlaying,
     onPlayPause,
     currentTime,
-    onTimeUpdate
+    onTimeUpdate,
 }) => {
     const playerRef = useRef<PlayerRef>(null);
     const fps = 30;
@@ -112,7 +113,9 @@ export const DemoVideoPlayer: React.FC<DemoVideoPlayerProps> = ({
                         width,
                         height,
                         durationInFrames,
-                        highlightedWords: subtitleStyle
+                        highlightedWords: subtitleStyle,
+                        demoSegments: segments,
+                        segmentDurations
                     }}
                     durationInFrames={durationInFrames}
                     fps={fps}

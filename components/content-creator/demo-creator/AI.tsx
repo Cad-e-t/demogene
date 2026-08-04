@@ -10,7 +10,7 @@ export interface AIProps {
   durationInFrames: number;
 }
 
-export const AI: React.FC<AIProps> = ({ filesData, transcription, fps, width, height, durationInFrames }) => {
+export const AI = ({ filesData, transcription, fps, width, height, durationInFrames }: AIProps) => {
   return (
     <AbsoluteFill>
       {/* AI Generated Motion Graphics go here */}

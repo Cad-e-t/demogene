@@ -100,36 +100,8 @@ export function alignSegmentsWithTranscription(segments: any[], transcription: a
     return result;
 }
 
-export function computeFilesData(segments: any[], transcription: any, hookStyles: any, globalHookStyle: any, totalAudioDuration: number, segmentDurations?: number[]) {
+export function computeSegmentFrames(segments: any[], transcription: any, totalAudioDuration?: number) {
     if (!segments || segments.length === 0) return [];
-
-    // If segmentDurations is provided and matches segments length, bypass transcription entirely!
-    if (segmentDurations && segmentDurations.length === segments.length) {
-        const filesData: any[] = [];
-        let accumulatedFrames = 0;
-        
-        for (let i = 0; i < segments.length; i++) {
-            const seg = segments[i];
-            const durationFrames = Math.round(segmentDurations[i] * 30);
-            const startFrames = accumulatedFrames;
-            const endFrames = startFrames + durationFrames;
-            
-            const currentStyle = seg.hook_style || (hookStyles && hookStyles[i]) || globalHookStyle;
-            if (currentStyle && currentStyle.style === 'media' && currentStyle.media) {
-                filesData.push({
-                    file_url: currentStyle.media,
-                    start: startFrames,
-                    end: endFrames,
-                    unit: 'frames',
-                    segmentIndex: i,
-                    segmentId: seg.id || null
-                });
-            }
-            accumulatedFrames = endFrames;
-        }
-        return filesData;
-    }
-
     if (!transcription || !transcription.words || transcription.words.length === 0) {
         return [];
     }
@@ -146,7 +118,7 @@ export function computeFilesData(segments: any[], transcription: any, hookStyles
 
     if (tWords.length === 0) return [];
 
-    const filesData: any[] = [];
+    const result: { start: number, end: number, segmentIndex: number }[] = [];
     let tIndex = 0;
     let lastEndTimeFrames = 0;
 
@@ -155,12 +127,13 @@ export function computeFilesData(segments: any[], transcription: any, hookStyles
         const segWordsRaw = (seg.narration || '').toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter((w: string) => w.length > 0);
         
         if (segWordsRaw.length === 0) {
+            result.push({ start: lastEndTimeFrames, end: lastEndTimeFrames, segmentIndex: i });
             continue;
         }
 
         let sIndex = 0;
         let currentTIndex = tIndex;
-        let startWordIndex = currentTIndex; // Start of segment
+        let startWordIndex = currentTIndex;
 
         while (sIndex < segWordsRaw.length && currentTIndex < tWords.length) {
             const sWord = segWordsRaw[sIndex];
@@ -173,7 +146,6 @@ export function computeFilesData(segments: any[], transcription: any, hookStyles
                 let found = false;
                 let bestMatch = { sSkip: 100, tSkip: 100 };
                 
-                // Joint lookahead to find the closest match
                 for (let k = 0; k <= 8; k++) {
                     for (let j = 0; j <= 8; j++) {
                         if (k === 0 && j === 0) continue;
@@ -200,34 +172,75 @@ export function computeFilesData(segments: any[], transcription: any, hookStyles
 
         let endWordIndex = currentTIndex > tIndex ? currentTIndex - 1 : currentTIndex;
         endWordIndex = Math.min(endWordIndex, tWords.length - 1);
-        startWordIndex = Math.min(startWordIndex, tWords.length - 1);
 
         let startTimeFrames = lastEndTimeFrames;
         let endTimeFrames = tWords[endWordIndex]?.end || lastEndTimeFrames;
-        endTimeFrames = Math.max(endTimeFrames, startTimeFrames); // Prevent backwards time
+        endTimeFrames = Math.max(endTimeFrames, startTimeFrames);
 
         if (i === segments.length - 1 && totalAudioDuration) {
-            endTimeFrames = Math.max(totalAudioDuration * 30, startTimeFrames); // Assuming 30 FPS
+            endTimeFrames = Math.max(totalAudioDuration * 30, startTimeFrames);
         }
 
-        // Get the applied hook style for this segment
-        // hookStyles usually comes from project.hook_style or project.video_transform.hooks
-        // But activeHookIndex is checked via project.segments[i]?.hook_style || hookStyles[i]
-        const currentStyle = seg.hook_style || (hookStyles && hookStyles[i]) || globalHookStyle;
+        result.push({
+            start: startTimeFrames,
+            end: endTimeFrames,
+            segmentIndex: i
+        });
+
+        lastEndTimeFrames = endTimeFrames;
+        tIndex = currentTIndex;
+    }
+
+    return result;
+}
+
+export function computeFilesData(segments: any[], transcription: any, hookStyles: any, globalHookStyle: any, totalAudioDuration: number, segmentDurations?: number[]) {
+    if (!segments || segments.length === 0) return [];
+
+    const segmentFrames = computeSegmentFrames(segments, transcription, totalAudioDuration);
+    const filesData: any[] = [];
+    
+    // If transcription isn't available or couldn't parse, fallback to durations
+    if (segmentFrames.length === 0 && segmentDurations && segmentDurations.length === segments.length) {
+        let accumulatedSeconds = 0;
+        for (let i = 0; i < segments.length; i++) {
+            const seg = segments[i];
+            const startFrames = Math.round(accumulatedSeconds * 30);
+            accumulatedSeconds += (segmentDurations[i] || 0);
+            const endFrames = Math.round(accumulatedSeconds * 30);
+            
+            const currentStyle = seg.hook_style || (hookStyles && hookStyles[i]) || globalHookStyle;
+            if (currentStyle && currentStyle.style === 'media' && currentStyle.media) {
+                filesData.push({
+                    file_url: currentStyle.media,
+                    start: startFrames,
+                    end: endFrames,
+                    unit: 'frames',
+                    segmentIndex: i,
+                    segmentId: seg.id || null
+                });
+            }
+        }
+        return filesData;
+    }
+
+    for (let i = 0; i < segments.length; i++) {
+        if (!segmentFrames[i]) continue;
         
+        const seg = segments[i];
+        const { start, end } = segmentFrames[i];
+        
+        const currentStyle = seg.hook_style || (hookStyles && hookStyles[i]) || globalHookStyle;
         if (currentStyle && currentStyle.style === 'media' && currentStyle.media) {
             filesData.push({
                 file_url: currentStyle.media,
-                start: startTimeFrames,
-                end: endTimeFrames,
+                start: start,
+                end: end,
                 unit: 'frames',
                 segmentIndex: i,
                 segmentId: seg.id || null
             });
         }
-
-        lastEndTimeFrames = endTimeFrames;
-        tIndex = currentTIndex;
     }
 
     return filesData;

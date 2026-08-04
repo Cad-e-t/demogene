@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useCurrentFrame, AbsoluteFill } from 'remotion';
 import { theme } from './theme';
+import { computeSegmentFrames } from './alignment-utils';
 
 export type SmartCaptionsProps = {
   filesData: any[]; // Used to determine when visual media is playing
@@ -9,11 +10,22 @@ export type SmartCaptionsProps = {
   width?: number;
   height?: number;
   highlightedWords?: any;
+  demoSegments?: any[];
+  segmentDurations?: number[];
 }
 
 const MIN_GAP_FRAMES = 20; // 1.5 seconds at 30fps
 
-export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcription, fps, width, height, highlightedWords }) => {
+export const SmartCaptions = ({ 
+  filesData, 
+  transcription, 
+  fps, 
+  width, 
+  height, 
+  highlightedWords,
+  demoSegments,
+  segmentDurations
+}: SmartCaptionsProps) => {
   const frame = useCurrentFrame();
 
   // 1. Calculate valid empty gaps (contains >= 2 spoken words)
@@ -57,10 +69,66 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
   // 2. Check if current frame falls within a valid gap
   const currentGap = validGaps.find(g => frame >= g.start && frame < g.end);
   const isPortrait = width && height ? width < height : true;
-  const isBigCaptionMode = !!currentGap;
+  
+  let activeMediaInterval: { start: number, end: number } | null = null;
 
-  if (!isBigCaptionMode && !isPortrait) {
-      return null;
+  if (!isPortrait) {
+    const activeManualMedia = filesData.find((f: any) => {
+      const cleanUrl = (f.file_url || f.url || '').split('?')[0].split('#')[0].toLowerCase();
+      const fileName = cleanUrl.split('/').pop() || '';
+      const isMedia = /\.(jpg|jpeg|png|gif|webp|svg|mp4|mov|webm|avi|mkv|wmv)$/.test(fileName) && !fileName.includes('avatar');
+      const isVideoOrImage = isMedia || f.type === 'video' || f.type === 'image';
+      return isVideoOrImage && frame >= (f.start || 0) && frame < (f.end || 0);
+    });
+
+    let activeSegmentImage: { start: number, end: number } | null = null;
+    if (!activeManualMedia) {
+      const sorted = [...(demoSegments || [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+      
+      const segmentFrames = computeSegmentFrames(sorted, transcription);
+      
+      if (segmentFrames.length > 0) {
+        for (let idx = 0; idx < segmentFrames.length; idx++) {
+          const seg = sorted[idx];
+          const { start, end } = segmentFrames[idx];
+
+          if (frame >= start && frame < end) {
+            if (seg && seg.image_url) {
+              activeSegmentImage = { start, end };
+            }
+            break;
+          }
+        }
+      } else {
+        let accumulatedSeconds = 0;
+        const totalSegments = Math.max(sorted.length, (segmentDurations || []).length);
+        for (let idx = 0; idx < totalSegments; idx++) {
+          const seg = sorted.find(s => s.order_index === idx) || sorted[idx];
+          const durationSeconds = segmentDurations?.[idx] || 0;
+          const start = Math.round(accumulatedSeconds * 30);
+          accumulatedSeconds += durationSeconds;
+          const end = Math.round(accumulatedSeconds * 30);
+
+          if (frame >= start && frame < end) {
+            if (seg && seg.image_url) {
+              activeSegmentImage = { start, end };
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    const activeMedia = activeManualMedia || activeSegmentImage;
+
+    if (!activeMedia) {
+      return null; // For 16:9, caption only visible when media is on screen
+    }
+
+    activeMediaInterval = {
+      start: activeMedia.start || 0,
+      end: activeMedia.end || 0
+    };
   }
 
   if (!transcription || !transcription.words) {
@@ -68,13 +136,17 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
   }
 
   // 3. Filter words
-  const wordsToSearch = isBigCaptionMode 
-    ? transcription.words.filter((w: any) => w.start >= currentGap.start && w.start < currentGap.end)
-    : transcription.words.filter((w: any) => {
-        // Only show subtitle if the word is relatively close to the frame so it doesn't linger forever
-        // but it's simpler to just filter out words that fall in a gap, or just use all words.
-        return true;
-      });
+  let wordsToSearch = transcription.words;
+  if (!isPortrait) {
+      if (activeMediaInterval) {
+          wordsToSearch = transcription.words.filter((w: any) => w.start >= activeMediaInterval.start && w.start < activeMediaInterval.end);
+      } else {
+          return null;
+      }
+  } else {
+      // In 9:16, we search all words up to current frame + buffer
+      wordsToSearch = transcription.words.filter((w: any) => w.start <= frame + 30);
+  }
 
   if (wordsToSearch.length === 0) {
       return null;
@@ -96,18 +168,17 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
   
   const activeWord = wordsToSearch[activeIdx];
   // Don't show subtitle if the word ended more than 15 frames ago
-  if (!isBigCaptionMode && activeWord.end && frame > activeWord.end + 15) {
-      return null;
-  }
-
+  // Since it's always in big mode, we don't apply the 15-frame rule so it doesn't blink out between words rapidly, 
+  // but let's apply it if it's too long ago? Actually it shouldn't matter since the next word will replace it.
+  
   // 5. Dynamic word limits based on aspect ratio
-  const maxWords = isPortrait ? 1 : 5;
+  const maxWords = 4;
 
   const chunkIdx = Math.floor(activeIdx / maxWords);
   const startIndex = chunkIdx * maxWords;
   const currentWords = wordsToSearch.slice(startIndex, startIndex + maxWords);
 
-  // Calculate dynamic scale pop for the active word in portrait mode
+  // Calculate dynamic scale pop for the active word (only in portrait mode)
   let scale = 1;
   if (isPortrait && activeWord) {
     const popProgress = (frame - (activeWord.start || 0)) / 5;
@@ -166,62 +237,45 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
     });
   };
 
-  const containerStyle: React.CSSProperties = isBigCaptionMode 
-    ? {
+  const containerStyle: React.CSSProperties = {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: '40px',
-        maxWidth: '85%',
-      }
-    : {
+        padding: !isPortrait ? '12px' : '40px',
+        maxWidth: !isPortrait ? '90%' : '85%',
         position: 'absolute',
-        bottom: '28%',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '20px',
-        maxWidth: '85%',
-        width: '100%',
-      };
+        bottom: !isPortrait ? '5%' : '15%'
+  };
 
-  const fontSize = isBigCaptionMode ? (isPortrait ? 140 : 55) : 75;
-  const textShadow = isBigCaptionMode && isPortrait ? `
-    -5px -5px 0 #000000,  
-     5px -5px 0 #000000,
-    -5px  5px 0 #000000,
-     5px  5px 0 #000000,
-    -5px  0px 0 #000000,
-     5px  0px 0 #000000,
-     0px -5px 0 #000000,
-     0px  5px 0 #000000,
-     0px  16px 32px rgba(0,0,0,0.8)
-  ` : `
-    -12px -12px 0 #000000,  
-     12px -12px 0 #000000,
-    -12px  12px 0 #000000,
-     12px  12px 0 #000000,
-    -12px  0px 0 #000000,
-     12px  0px 0 #000000,
-     0px -12px 0 #000000,
-     0px  12px 0 #000000,
-    -8px -8px 0 #000000,  
-     8px -8px 0 #000000,
-    -8px  8px 0 #000000,
-     8px  8px 0 #000000,
-    -8px  0px 0 #000000,
-     8px  0px 0 #000000,
-     0px -8px 0 #000000,
-     0px  8px 0 #000000,
-     0px  20px 40px rgba(0,0,0,0.8)
-  `;
+  const fontSize = !isPortrait ? 24 : 80;
+  
+  const textShadow = !isPortrait
+    ? `
+      -1.5px -1.5px 0 #000000,  
+       1.5px -1.5px 0 #000000,
+      -1.5px  1.5px 0 #000000,
+       1.5px  1.5px 0 #000000,
+      -1.5px  0px 0 #000000,
+       1.5px  0px 0 #000000,
+       0px -1.5px 0 #000000,
+       0px  1.5px 0 #000000,
+       0px  4px 8px rgba(0,0,0,0.8)
+    `
+    : `
+      -3px -3px 0 #000000,  
+       3px -3px 0 #000000,
+      -3px  3px 0 #000000,
+       3px  3px 0 #000000,
+      -3px  0px 0 #000000,
+       3px  0px 0 #000000,
+       0px -3px 0 #000000,
+       0px  3px 0 #000000,
+       0px  8px 16px rgba(0,0,0,0.8)
+    `;
 
   return (
-    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', zIndex: 10, pointerEvents: 'none' }}>
+    <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', zIndex: 10, pointerEvents: 'none' }}>
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap');
         .smart-caption-text {
@@ -234,14 +288,14 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
           className="smart-caption-text"
           style={{
             fontSize: fontSize,
-            letterSpacing: isBigCaptionMode ? (isPortrait ? '-0.05em' : '-0.03em') : '0.07em',
+            letterSpacing: !isPortrait ? '-0.02em' : '-0.05em',
             color: '#FFFFFF',
             textAlign: 'center',
-            textTransform: 'uppercase',
+            textTransform: !isPortrait ? 'none' : 'uppercase',
             textShadow: textShadow,
             wordBreak: 'break-word',
             whiteSpace: 'normal',
-            lineHeight: isPortrait ? '1.1' : '1.4',
+            lineHeight: !isPortrait ? '1.2' : '1.1',
           }}
         >
           {currentWords.map((w: any, idx: number) => {
@@ -251,8 +305,8 @@ export const SmartCaptions: React.FC<SmartCaptionsProps> = ({ filesData, transcr
                 key={globalIdx}
                 style={{
                   display: 'inline-block',
-                  margin: isPortrait ? '0 12px' : '0 8px',
-                  transform: isPortrait ? `scale(${scale})` : 'none',
+                  margin: !isPortrait ? '0 5px' : '0 12px',
+                  transform: `scale(${scale})`,
                 }}
               >
                 {renderWordText(w.text)}

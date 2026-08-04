@@ -126,6 +126,18 @@ CREATE TABLE demo_projects (
     background_type TEXT DEFAULT 'white'
 );
 
+CREATE TABLE public.demo_segments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID REFERENCES public.demo_projects(id) ON DELETE CASCADE NOT NULL,
+    narration TEXT,
+    image_prompt TEXT,
+    animation_prompt TEXT,
+    image_url TEXT,
+    avatar_url TEXT,
+    order_index INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
 
 -- Avatar Table
 create table public.avatar (
@@ -242,6 +254,30 @@ CREATE POLICY "Users can update their own demo projects"
 CREATE POLICY "Users can delete their own demo projects"
     ON demo_projects FOR DELETE
     USING (auth.uid() = user_id);
+
+
+-- demo_segments RLS
+ALTER TABLE public.demo_segments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own demo segments" ON public.demo_segments
+    FOR SELECT USING (
+      EXISTS (SELECT 1 FROM public.demo_projects WHERE id = demo_segments.project_id AND user_id = auth.uid())
+    );
+
+CREATE POLICY "Users can insert own demo segments" ON public.demo_segments
+    FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM public.demo_projects WHERE id = demo_segments.project_id AND user_id = auth.uid())
+    );
+
+CREATE POLICY "Users can update own demo segments" ON public.demo_segments
+    FOR UPDATE USING (
+      EXISTS (SELECT 1 FROM public.demo_projects WHERE id = demo_segments.project_id AND user_id = auth.uid())
+    );
+
+CREATE POLICY "Users can delete own demo segments" ON public.demo_segments
+    FOR DELETE USING (
+      EXISTS (SELECT 1 FROM public.demo_projects WHERE id = demo_segments.project_id AND user_id = auth.uid())
+    );
 
 
 -- RPC Functions

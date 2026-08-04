@@ -2,8 +2,8 @@ export const theme = {
   colors: {
     bg: "#08080a",       // near-black base
     bgDeep: "#000000",   // pure black for vignette edges
-    yellow: "#F4C430",   // primary accent — highlights, glows
-    yellowBright: "#FFE066", // hotter yellow for glow cores
+    yellow: "#ffffff",   // primary accent — highlights, glows
+    yellowBright: "#ffffff", // hotter yellow for glow cores
     white: "#F5F3EE",    // off-white for body captions (not pure white — reads more cinematic)
   },
   font: {

@@ -169,15 +169,15 @@ export const regenerateDemoAudio = async (req, res) => {
 export const processVideo = async (req, res) => {
   try {
     // Note: videoId here refers to the SOURCE video uploaded by the user
-    let { videoId, sections, voiceId, userId, aspectRatio } = req.body;
+    let { videoId, sections, voiceId, userId, aspectRatio, prompt } = req.body;
     
     if (!userId) {
         return res.status(401).json({ error: 'Unauthorized: Missing User ID' });
     }
     
-    const bodyText = sections?.find(s => s.type === 'body')?.text || '';
-    if (!videoId && bodyText) {
-        return res.status(400).json({ error: 'Missing videoId' });
+    const userPrompt = prompt || sections?.find(s => s.type === 'body')?.text || '';
+    if (!userPrompt) {
+        return res.status(400).json({ error: 'Missing prompt or script' });
     }
 
     // 1. Charge Credit Immediately (Prevents Race Condition)
@@ -190,7 +190,7 @@ export const processVideo = async (req, res) => {
 
     // 2. Fetch Source Video Details if videoId is provided
     let sourceVideoUrl = null;
-    let sourceTitle = 'Hook Only Video';
+    let sourceTitle = userPrompt.slice(0, 30).trim() || 'AI Story Video';
     
     if (videoId) {
         const { data: sourceVideo, error: sourceError } = await supabase
@@ -252,6 +252,7 @@ export const processVideo = async (req, res) => {
     runDemoProcessing({
         projectId: newVideoId,
         sourceVideoUrl: sourceVideoUrl,
+        prompt: userPrompt,
         sections,
         voiceId,
         userId

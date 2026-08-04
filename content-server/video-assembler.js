@@ -172,7 +172,8 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         const imagePath = path.join(workDir, `img_${i}.png`);
         const clipPath = path.join(workDir, `clip_${i}.ts`);
         
-        const isVideo = seg.image_url && seg.image_url.toLowerCase().endsWith('.mp4');
+        const hasImage = fs.existsSync(imagePath);
+        const isVideo = hasImage && seg.image_url && seg.image_url.toLowerCase().endsWith('.mp4');
 
         const frames = exactFrames + 10; // +10 buffer
         
@@ -198,7 +199,11 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         let hasAudioStream = false;
         let afFilter = '';
 
-        if (isVideo) {
+        if (!hasImage) {
+            inputArgs = ['-f', 'lavfi', '-i', `color=c=black:s=${width}x${height}:r=30:d=${duration}`];
+            filter = `setsar=1`; 
+            mapArgs = ['-map', '0:v:0'];
+        } else if (isVideo) {
             // Speed manipulation mapping to the segment duration 
             // Using (PTS-STARTPTS) is CRITICAL to prevent massive sync gaps/drifts during concat
             const sourceDuration = await getVideoDuration(imagePath);

@@ -6,12 +6,12 @@ import { execSync } from 'child_process';
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { AssemblyAI } from 'assemblyai';
 
-import { analyzeVideo, generateVoiceover } from './gemini.js';
-import { preprocessVideo, calculateAudioLineDurations, PREPROCESS_FLAGS } from './video-processor.js';
+import { generateVoiceover } from './gemini.js';
+import { calculateAudioLineDurations } from './video-processor.js';
 import { supabase } from './supabase.js';
-import { getVideoAnalysisPrompt } from './prompts.js';
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from '../storage.js';
-import { downloadFile, getDurationValue, parseTime, cleanup, alignSegmentsWithTranscription } from './utils.js';
+import { getDurationValue, parseTime, cleanup, alignSegmentsWithTranscription } from './utils.js';
+import { generateStorySegments } from '../gemini.js';
 
 const TEMP_DIR = os.tmpdir();
 
@@ -25,7 +25,7 @@ function getKeyFromUrl(url) {
 }
 
 export async function runDemoProcessing(jobData) {
-    const { projectId, sourceVideoUrl, sections, voiceId, userId } = jobData;
+    const { projectId, sourceVideoUrl, sections, voiceId, userId, prompt } = jobData;
     const filesToDelete = [];
 
     console.log(`[Demo Processing] Starting for Project: ${projectId}`);
@@ -35,72 +35,83 @@ export async function runDemoProcessing(jobData) {
         let transcription = null;
         let segmentDurations = [];
         let audioUrl = null;
-        let analysis = null;
 
-        const bodyText = sections?.find(s => s.type === 'body')?.text || '';
-        const hookCount = sections?.filter(s => s.type === 'hook' && s.text.trim()).length || 0;
+        const userPrompt = prompt || sections?.find(s => s.type === 'body')?.text || '';
 
-        if (sourceVideoUrl && bodyText) {
-            // 1. Download the raw file
-            const inputExt = '.mp4';
-            const localInputPath = path.join(TEMP_DIR, `raw_${uuidv4()}${inputExt}`);
-            filesToDelete.push(localInputPath);
-
-            console.log(`Downloading video from ${sourceVideoUrl}...`);
-            await downloadFile(sourceVideoUrl, localInputPath);
-
-            const effectiveDuration = getDurationValue(localInputPath);
-
-            // 2. AI Input File (Low Quality/Size for Cost Efficiency)
-            const aiInputPath = path.join(TEMP_DIR, `ai_input_${uuidv4()}.mp4`);
-            filesToDelete.push(aiInputPath);
-            await preprocessVideo(localInputPath, null, null, null, aiInputPath, PREPROCESS_FLAGS);
-
-            // Use AI File for Analysis
-            const cleanFileBuffer = fs.readFileSync(aiInputPath);
-            const cleanFileBase64 = cleanFileBuffer.toString('base64');
-            
-            console.log('--- Analyzing Video with Gemini ---');
-            const prompt = getVideoAnalysisPrompt(bodyText, effectiveDuration);
-            analysis = await analyzeVideo(cleanFileBase64, 'video/mp4', prompt); 
-            console.log('Analysis complete.');
+        if (!userPrompt) {
+            throw new Error("Missing prompt or script for AI segment generation");
         }
 
-        const hasScript = analysis && analysis.script && analysis.script.script_lines && analysis.script.script_lines.length > 0;
+        let aspect = '16:9';
+        try {
+            const { data: proj } = await supabase
+                .from('demo_projects')
+                .select('aspect_ratio')
+                .eq('id', projectId)
+                .single();
+            if (proj && proj.aspect_ratio) {
+                aspect = proj.aspect_ratio;
+            }
+        } catch (e) {
+            console.error("Failed to get aspect ratio for segment generation:", e);
+        }
 
-        if (hasScript || hookCount > 0) {
-            console.log('--- Generating Voiceover ---');
-            
-            // Prepare segments list sequentially based on sections array
-            if (sections) {
-                sections.forEach((sec, idx) => {
-                    if (sec.type === 'hook' && sec.text.trim()) {
-                        segments.push({
-                            id: sec.id || `hook-${idx}`,
-                            narration: sec.text.trim(),
-                            isHook: true,
-                            video_start: "00:00.000",
-                            video_end: "00:00.000",
-                            hook_style: { style: 'media' }
-                        });
-                    } else if (sec.type === 'body' && hasScript) {
-                        analysis.script.script_lines.forEach(line => {
-                            if (line.narration && line.narration.trim()) {
-                                const videoSegment = analysis.segments[line.segment_index] || {};
-                                segments.push({ 
-                                    narration: line.narration.trim(), 
-                                    isHook: false, 
-                                    video_start: videoSegment.start_time || "00:00.000",
-                                    video_end: videoSegment.end_time || "00:00.000",
-                                    ...line 
-                                });
-                            }
-                        });
-                    }
-                });
+        let avatarUrl = null;
+        try {
+            const { data: avatarData } = await supabase
+                .from('avatar')
+                .select('url')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if (avatarData && avatarData.length > 0) {
+                avatarUrl = avatarData[0].url;
+            }
+        } catch (e) {
+            console.error("Failed to query user avatars:", e);
+        }
+
+        console.log('--- Generating AI Story Segments for Demo ---');
+        const result = await generateStorySegments(userPrompt, aspect, 'Cinematic', 'Balanced', false, avatarUrl);
+        const aiSegmentsData = result?.segments || [];
+        console.log(`Generated ${aiSegmentsData.length} AI segments.`);
+
+        if (aiSegmentsData.length > 0) {
+            const segmentsToInsert = aiSegmentsData.map((s, idx) => ({
+                project_id: projectId,
+                narration: s.narration || "",
+                image_prompt: s.image_prompt || s.narration || "AI Scene Prompt",
+                animation_prompt: s.animation_prompt || 'Balanced',
+                image_url: null,
+                avatar_url: s.avatar_url || avatarUrl || null,
+                order_index: idx
+            }));
+
+            try {
+                const { error: insertSegError } = await supabase
+                    .from('demo_segments')
+                    .insert(segmentsToInsert);
+                if (insertSegError) throw insertSegError;
+                console.log("Successfully stored demo_segments in DB from generateStorySegments.");
+            } catch (err) {
+                console.error("Failed to insert demo_segments:", err);
             }
 
-            const fullScript = segments.map(s => s.narration).join(" ");
+            // Populate the segments list for the voiceover and timeline
+            segments = aiSegmentsData.map((s, idx) => ({
+                narration: s.narration || "",
+                isHook: true,
+                video_start: "00:00.000",
+                video_end: "00:00.000",
+                image_prompt: s.image_prompt || s.narration || "AI Scene Prompt",
+                animation_prompt: s.animation_prompt || 'Balanced',
+                avatar_url: s.avatar_url || avatarUrl || null,
+                order_index: idx
+            }));
+        }
+
+        if (segments.length > 0) {
+            console.log('--- Generating Voiceover ---');
             
             const { audioBuffer } = await generateVoiceover(segments, voiceId, "Read aloud in a calm, deliberate tone with brisk continuous delivery");
             
@@ -303,6 +314,25 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled, 
 
         const audioUrl = project.voice_path;
         const filesData = project.files_data || [];
+        
+        let demoSegments = [];
+        const { data: dbSegments } = await supabase.from('demo_segments')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('order_index', { ascending: true });
+        
+        if (dbSegments && dbSegments.length > 0) {
+            demoSegments = dbSegments.map(s => ({
+                ...s,
+                image_url: s.image_url ? s.image_url.replace(/ /g, '%20') : null
+            }));
+        } else {
+            demoSegments = (project.segments || []).map(s => ({
+                ...s,
+                image_url: s.image_url ? s.image_url.replace(/ /g, '%20') : null
+            }));
+        }
+
         const transcription = project.transcription;
 
         const is480p = exportQuality === '480p';
@@ -343,7 +373,9 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled, 
                 width,
                 height,
                 durationInFrames,
-                highlightedWords: project.subtitles
+                highlightedWords: project.subtitles,
+                demoSegments,
+                segmentDurations: project.segment_durations
             }
         });
 
@@ -367,7 +399,9 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled, 
                 width,
                 height,
                 durationInFrames,
-                highlightedWords: project.subtitles
+                highlightedWords: project.subtitles,
+                demoSegments,
+                segmentDurations: project.segment_durations
             }
         });
 

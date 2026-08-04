@@ -9,6 +9,8 @@ interface SingleImageFrameProps {
   caption?: string; 
   maxWidth?: number; 
   maxHeight?: number; 
+  isSegmentImage?: boolean;
+  filesData?: any[];
 }
 
 const INTRO_FRAMES = 6;
@@ -19,15 +21,15 @@ const fitWithinBounds = (naturalWidth: number, naturalHeight: number, maxWidth: 
   return { width: naturalWidth * scale, height: naturalHeight * scale }; 
 };
 
-const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ src, startFrame, endFrame, caption, maxWidth, maxHeight }) => { 
+const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ src, startFrame, endFrame, caption, maxWidth, maxHeight, isSegmentImage, filesData }) => { 
   const frame = useCurrentFrame(); 
   const { fps, width: compWidth, height: compHeight } = useVideoConfig();
 
   // Fall back to the composition size minus the edge margin, so this adapts to any aspect ratio 
   const edgeMargin = Math.min(compWidth, compHeight) * EDGE_MARGIN_RATIO;
   const isPortrait = compWidth < compHeight;
-  const boundsWidth = isPortrait ? compWidth : maxWidth ?? compWidth - edgeMargin * 2; 
-  const boundsHeight = isPortrait ? compHeight : maxHeight ?? compHeight - edgeMargin * 2;
+  const boundsWidth = isSegmentImage || isPortrait ? compWidth : maxWidth ?? compWidth - edgeMargin * 2; 
+  const boundsHeight = isSegmentImage || isPortrait ? compHeight : maxHeight ?? compHeight - edgeMargin * 2;
 
   const [handle] = useState(() => delayRender(`Fetching image metadata for ${src}`)); 
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -54,14 +56,25 @@ const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ src, startFrame, en
   // Only visible for the image's own window — hard cut, no outro animation 
   if (local < 0 || local > duration) return null;
 
-  const { width, height } = fitWithinBounds(dimensions.width, dimensions.height, boundsWidth, boundsHeight);
-  const isPortraitSize = boundsWidth <= boundsHeight;
+  if (isSegmentImage && filesData) {
+    const manualActive = filesData.some((f: any) => {
+      return frame >= (f.start || 0) && frame < (f.end || 0);
+    });
+    if (manualActive) return null;
+  }
+
+  const { width, height } = isSegmentImage 
+    ? { width: compWidth, height: compHeight } 
+    : fitWithinBounds(dimensions.width, dimensions.height, boundsWidth, boundsHeight);
+  const isPortraitSize = isSegmentImage || boundsWidth <= boundsHeight;
   const radius = isPortraitSize ? 0 : 20;
 
   // --- basic intro: quick fade in --- 
   const finalOpacity = interpolate(local, [0, INTRO_FRAMES], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
-  const scale = 1;
+  const scale = isSegmentImage 
+    ? interpolate(local, [0, duration], [1, 1.1], { extrapolateRight: "clamp" })
+    : 1;
 
   return ( 
     <div style={{ position: "absolute", top: "50%", left: "50%", transform: `translate(-50%, -50%) scale(${scale})`, opacity: finalOpacity, width, height }}> 
@@ -78,7 +91,7 @@ const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ src, startFrame, en
 };
 
 // Wrapper Component 
-export const ImageFrame: React.FC<{ visualClips: any[] }> = ({ visualClips }) => {
+export const ImageFrame: React.FC<{ visualClips: any[], filesData?: any[] }> = ({ visualClips, filesData }) => {
   const imageClips = visualClips.filter(clip => clip.type === 'image');
   
   return (
@@ -89,6 +102,8 @@ export const ImageFrame: React.FC<{ visualClips: any[] }> = ({ visualClips }) =>
           src={clip.file_url || clip.url} 
           startFrame={clip.start} 
           endFrame={clip.end} 
+          isSegmentImage={clip.isSegmentImage}
+          filesData={filesData}
         />
       ))}
     </>

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../supabaseClient';
 import { DemoVideoPlayer } from './DemoVideoPlayer';
-import { API_URL, sanitizeErrorMsg } from '../api';
+import { API_URL, sanitizeErrorMsg, generateUploadUrl, updateSegmentImage } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
 import { DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from '../types';
-import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2, Edit2, CheckCheck, Mic } from 'lucide-react';
+import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2, Edit2, CheckCheck, Mic, Sparkles, Upload, Image, Trash2 } from 'lucide-react';
 import { HookStyleModal } from './HookStyleModal';
 import { alignSegmentsWithTranscription, computeFilesData } from './alignment-utils';
 import { VOICES } from '../../../voiceConfig';
@@ -27,14 +27,67 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const [activeModule, setActiveModule] = useState<string | null>(null);
     const [showHookStyleModal, setShowHookStyleModal] = useState(false);
     const [activeHookIndex, setActiveHookIndex] = useState<number | null>(null);
-    const [motionGraphicsEnabled, setMotionGraphicsEnabled] = useState(false);
-    const [isGeneratingMotionGraphics, setIsGeneratingMotionGraphics] = useState(false);
     
     const [showExportMenu, setShowExportMenu] = useState(false);
     
     // Editor States for Frame Segments
     const [isEditingFrames, setIsEditingFrames] = useState(false);
     const [editingSegments, setEditingSegments] = useState<any[]>([]);
+
+    // AI segments state from demo_segments table
+    const [demoSegments, setDemoSegments] = useState<any[]>([]);
+    const [loadingImageId, setLoadingImageId] = useState<string | null>(null);
+    const segmentFileInputRef = useRef<HTMLInputElement | null>(null);
+    const [uploadingSegmentId, setUploadingSegmentId] = useState<string | null>(null);
+
+    const handleSegmentFileChange = async (e: React.ChangeEvent<HTMLInputElement>, segmentId: string) => {
+        const file = e.target.files?.[0];
+        if (!file || !segmentId) return;
+
+        try {
+            setLoadingImageId(segmentId);
+            const segment = demoSegments.find((s: any) => s.id === segmentId);
+            const oldUrl = segment?.image_url || '';
+            
+            const { signedUrl, publicUrl } = await generateUploadUrl(project.id, segmentId, file.name, file.type);
+
+            const uploadRes = await fetch(signedUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': file.type },
+                body: file
+            });
+            
+            if (!uploadRes.ok) throw new Error("Failed to upload image. Please try again.");
+
+            await updateSegmentImage(segmentId, publicUrl, oldUrl, 'demo_segments');
+            
+            setDemoSegments((prev: any[]) => prev.map(s => s.id === segmentId ? { ...s, image_url: publicUrl } : s));
+        } catch (err: any) {
+            console.error("Segment image upload failed", err);
+            setErrorMessage(sanitizeErrorMsg(err, "Failed to upload image. Please try again."));
+        } finally {
+            setLoadingImageId(null);
+            setUploadingSegmentId(null);
+            if (segmentFileInputRef.current) segmentFileInputRef.current.value = '';
+        }
+    };
+
+    const handleRemoveSegmentImage = async (segmentId: string) => {
+        try {
+            setLoadingImageId(segmentId);
+            const segment = demoSegments.find((s: any) => s.id === segmentId);
+            const oldUrl = segment?.image_url || '';
+            
+            await updateSegmentImage(segmentId, '', oldUrl, 'demo_segments');
+            
+            setDemoSegments((prev: any[]) => prev.map(s => s.id === segmentId ? { ...s, image_url: null } : s));
+        } catch (err: any) {
+            console.error("Remove segment image failed", err);
+            setErrorMessage(sanitizeErrorMsg(err, "Failed to remove image. Please try again."));
+        } finally {
+            setLoadingImageId(null);
+        }
+    };
 
     const [narrationView, setNarrationView] = useState<'summary' | 'edit_script'>('summary');
     const [narrationSection, setNarrationSection] = useState<'voice' | 'style' | null>(null);
@@ -168,6 +221,53 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
 
                     return updated;
                 });
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [projectId]);
+
+    useEffect(() => {
+        if (!projectId) return;
+
+        const fetchDemoSegments = async () => {
+            const { data, error } = await supabase
+                .from('demo_segments')
+                .select('*')
+                .eq('project_id', projectId)
+                .order('order_index', { ascending: true });
+            
+            if (!error && data) {
+                setDemoSegments(data);
+            } else if (error) {
+                console.error("Error fetching demo segments:", error);
+            }
+        };
+
+        fetchDemoSegments();
+
+        const channel = supabase.channel(`demo_segments_${projectId}`)
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'demo_segments',
+                filter: `project_id=eq.${projectId}`
+            }, (payload) => {
+                if (payload.eventType === 'INSERT') {
+                    setDemoSegments((prev) => {
+                        const exists = prev.find(s => s.id === payload.new.id);
+                        if (exists) return prev;
+                        return [...prev, payload.new].sort((a, b) => a.order_index - b.order_index);
+                    });
+                } else if (payload.eventType === 'UPDATE') {
+                    setDemoSegments((prev) => prev.map(s => 
+                        s.id === payload.new.id ? { ...s, ...payload.new } : s
+                    ));
+                } else if (payload.eventType === 'DELETE') {
+                    setDemoSegments((prev) => prev.filter(s => s.id !== payload.old.id));
+                }
             })
             .subscribe();
 
@@ -368,7 +468,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             const res = await fetch(`${API_URL}/demo/export`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectId: project.id, userId: session.user.id, motionGraphicsEnabled, exportQuality })
+                body: JSON.stringify({ projectId: project.id, userId: session.user.id, exportQuality })
             });
             if (!res.ok) {
                 const data = await res.json();
@@ -405,6 +505,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
 
     const MODULES = [
         { id: 'frames', icon: Layers, label: 'Frames' },
+        { id: 'segments', icon: Sparkles, label: 'AI Scenes' },
         { id: 'audio', icon: Mic, label: 'Audio' },
         { id: 'subtitles', icon: Type, label: 'Subtitles' },
         { id: 'background', icon: Palette, label: 'Background' },
@@ -497,7 +598,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                             videoUrl={project.video_url}
                             audioUrl={project.voice_path}
                             totalAudioDuration={project.total_audio_duration}
-                            segments={project.segments || []}
+                            segments={demoSegments}
                             segmentDurations={project.segment_durations || []}
                             transcription={project.transcription}
                             filesData={project.files_data || []}
@@ -513,8 +614,6 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                 updateProject({ video_transform: transform });
                             }}
                             backgroundType={project.background_type || 'white'}
-                            scriptBreakdown={project.script_breakdown}
-                            motionGraphicsEnabled={motionGraphicsEnabled}
                         />
                     )}
                 </div>
@@ -543,7 +642,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                             // Save logic
                                                             const newSegments = editingSegments.map((seg: any) => {
                                                                 const { _duration, _originalIndex, ...rest } = seg;
-                                                                return rest;
+                                                                return { ...rest, isHook: true };
                                                             });
                                                             
                                                             let newDurations = alignSegmentsWithTranscription(newSegments, project.transcription, project.total_audio_duration);
@@ -557,7 +656,8 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                             
                                                             editingSegments.forEach((seg: any, newIndex: number) => {
                                                                 if (seg._originalIndex !== undefined) {
-                                                                    if (seg.isHook) {
+                                                                    const isSegHook = seg.isHook !== undefined ? seg.isHook : true;
+                                                                    if (isSegHook) {
                                                                         if (oldTransform.hooks && oldTransform.hooks[seg._originalIndex]) {
                                                                             newHooks[newIndex] = oldTransform.hooks[seg._originalIndex];
                                                                         }
@@ -582,6 +682,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                             // Enter edit mode
                                                             setEditingSegments((project.segments || []).map((seg: any, i: number) => ({
                                                                 ...seg,
+                                                                isHook: true,
                                                                 _duration: project.segment_durations?.[i] || 0,
                                                                 _originalIndex: i
                                                             })));
@@ -598,7 +699,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                             {isEditingFrames && (
                                                 <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                                                     <p className="text-[11px] text-blue-300 leading-relaxed">
-                                                        <strong className="text-blue-200">Editor Mode:</strong> Place cursor and press <kbd className="bg-blue-500/20 px-1 py-0.5 rounded border border-blue-500/30">Ctrl+Enter</kbd> to split a hook segment. Delete the line between hooks to merge them. Non-hook segments cannot be edited.
+                                                        <strong className="text-blue-200">Editor Mode:</strong> Place cursor and press <kbd className="bg-blue-500/20 px-1 py-0.5 rounded border border-blue-500/30">Ctrl+Enter</kbd> to split a segment. Delete the line between segments to merge them.
                                                     </p>
                                                 </div>
                                             )}
@@ -618,8 +719,8 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                         }
                                                     }
 
-                                                    if (isEditingFrames && seg.isHook) {
-                                                        const isNextHook = i < editingSegments.length - 1 && editingSegments[i+1].isHook;
+                                                    if (isEditingFrames) {
+                                                        const isNextHook = i < editingSegments.length - 1;
                                                         return (
                                                             <div key={i} className="mb-2">
                                                                 <div className="p-4 rounded-xl border bg-zinc-900 border-yellow-500/30 focus-within:border-yellow-500/70 transition-colors shadow-inner">
@@ -661,7 +762,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                                             if (e.key === 'Backspace') {
                                                                                 if (e.currentTarget.selectionStart === 0 && e.currentTarget.selectionEnd === 0) {
                                                                                     e.preventDefault();
-                                                                                    if (i > 0 && editingSegments[i - 1].isHook) {
+                                                                                    if (i > 0) {
                                                                                         const prev = editingSegments[i - 1];
                                                                                         const newSeg = { ...prev, narration: prev.narration + ' ' + seg.narration, _duration: prev._duration + seg._duration };
                                                                                         const newSegments = [...editingSegments];
@@ -710,11 +811,11 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                             }}
                                                         >
                                                             <div className="flex items-center justify-between mb-2">
-                                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${seg.isHook ? 'text-purple-400' : 'text-zinc-500'}`}>
-                                                                    {seg.isHook ? 'Hook' : `Segment ${i}`}
+                                                                <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400">
+                                                                    Hook {i + 1}
                                                                 </span>
                                                                 <div className="flex items-center gap-2">
-                                                                    {seg.isHook && !isEditingFrames && (
+                                                                    {!isEditingFrames && (
                                                                         <button 
                                                                             onClick={(e) => { 
                                                                                 e.stopPropagation(); 
@@ -738,6 +839,133 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                     );
                                                 })}
                                             </div>
+                                        </div>
+                                    )}
+
+                                    {activeModule === 'segments' && (
+                                        <div className="space-y-6">
+                                            <div>
+                                                <h2 className="text-lg font-bold">AI Scenes</h2>
+                                                <p className="text-xs text-zinc-500 mt-1">
+                                                    Review AI-generated scene prompts and upload your own custom visual assets for each segment.
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                {demoSegments.length === 0 ? (
+                                                    <div className="text-center py-8 border border-dashed border-white/10 rounded-xl bg-zinc-800/20">
+                                                        <Sparkles className="w-8 h-8 mx-auto text-zinc-600 mb-2 animate-pulse" />
+                                                        <p className="text-sm font-medium text-zinc-400">No AI Scenes found.</p>
+                                                        <p className="text-[11px] text-zinc-500 mt-1 max-w-[200px] mx-auto">
+                                                            Segments will be created automatically when you generate a script.
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    demoSegments.map((seg, idx) => {
+                                                        const isUploadingThis = uploadingSegmentId === seg.id;
+                                                        const isLoadingThis = loadingImageId === seg.id;
+                                                        
+                                                        return (
+                                                            <div 
+                                                                key={seg.id}
+                                                                className="p-4 rounded-xl border border-white/5 bg-zinc-800/40 space-y-3"
+                                                            >
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest">
+                                                                        Scene {idx + 1}
+                                                                    </span>
+                                                                </div>
+
+                                                                <p className="text-xs text-zinc-300 leading-relaxed italic">
+                                                                    "{seg.narration}"
+                                                                </p>
+
+                                                                {seg.image_prompt && (
+                                                                    <div className="bg-zinc-950/40 p-2.5 rounded-lg border border-white/5 space-y-1">
+                                                                        <div className="text-[8px] font-bold text-zinc-500 uppercase">Image Prompt</div>
+                                                                        <p className="text-[10px] text-zinc-400 leading-normal">{seg.image_prompt}</p>
+                                                                    </div>
+                                                                )}
+
+                                                                {seg.animation_prompt && (
+                                                                    <div className="bg-zinc-950/40 p-2.5 rounded-lg border border-white/5 space-y-1">
+                                                                        <div className="text-[8px] font-bold text-zinc-500 uppercase">Animation Prompt</div>
+                                                                        <p className="text-[10px] text-zinc-400 leading-normal">{seg.animation_prompt}</p>
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="space-y-2 pt-1">
+                                                                    <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Visual Asset</label>
+                                                                    {seg.image_url ? (
+                                                                        <div className="relative group rounded-lg overflow-hidden border border-white/10 aspect-video bg-black flex items-center justify-center">
+                                                                            <img 
+                                                                                src={seg.image_url} 
+                                                                                className="w-full h-full object-cover" 
+                                                                                referrerPolicy="no-referrer"
+                                                                            />
+                                                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setUploadingSegmentId(seg.id);
+                                                                                        setTimeout(() => segmentFileInputRef.current?.click(), 0);
+                                                                                    }}
+                                                                                    className="px-3 py-1.5 bg-zinc-900 text-white rounded-md text-[10px] font-bold border border-white/10 hover:bg-zinc-800 transition flex items-center gap-1.5 shadow-md"
+                                                                                >
+                                                                                    <Upload className="w-3 h-3" /> Replace
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => handleRemoveSegmentImage(seg.id)}
+                                                                                    disabled={isLoadingThis}
+                                                                                    className="px-3 py-1.5 bg-red-950/80 text-red-300 rounded-md text-[10px] font-bold border border-red-500/20 hover:bg-red-900 transition flex items-center gap-1.5 shadow-md disabled:opacity-50"
+                                                                                >
+                                                                                    <Trash2 className="w-3 h-3" /> Remove
+                                                                                </button>
+                                                                            </div>
+                                                                            {isLoadingThis && (
+                                                                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                                                                    <div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div 
+                                                                            onClick={() => {
+                                                                                if (isLoadingThis) return;
+                                                                                setUploadingSegmentId(seg.id);
+                                                                                setTimeout(() => segmentFileInputRef.current?.click(), 0);
+                                                                            }}
+                                                                            className="border border-dashed border-white/10 hover:border-yellow-500/50 bg-zinc-900/50 hover:bg-zinc-900/80 rounded-lg p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 aspect-video relative"
+                                                                        >
+                                                                            {isLoadingThis ? (
+                                                                                <div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <Image className="w-5 h-5 text-zinc-500" />
+                                                                                    <span className="text-[10px] font-bold text-zinc-400">Upload Visual Asset</span>
+                                                                                    <span className="text-[8px] text-zinc-600">Drag & drop or click</span>
+                                                                                </>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+
+                                            {/* Hidden File Input */}
+                                            <input 
+                                                type="file"
+                                                ref={segmentFileInputRef}
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={(e) => {
+                                                    if (uploadingSegmentId) {
+                                                        handleSegmentFileChange(e, uploadingSegmentId);
+                                                    }
+                                                }}
+                                            />
                                         </div>
                                     )}
 
@@ -847,69 +1075,9 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
 
                                     {activeModule === 'subtitles' && (
                                         <div className="space-y-8">
-                                            <div className="bg-zinc-900 border border-white/10 rounded-xl p-4 space-y-4">
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <h2 className="text-lg font-bold">Motion Graphics</h2>
-                                                        <p className="text-xs text-zinc-400">AI-driven animations for text emphasis.</p>
-                                                    </div>
-                                                    <button
-                                                        onClick={async () => {
-                                                            if (!motionGraphicsEnabled) {
-                                                                if (!project.script_breakdown) {
-                                                                    setIsGeneratingMotionGraphics(true);
-                                                                    try {
-                                                                        const res = await fetch(`${API_URL}/demo/generate-motion-graphics`, {
-                                                                            method: 'POST',
-                                                                            headers: { 'Content-Type': 'application/json' },
-                                                                            body: JSON.stringify({ projectId: project.id })
-                                                                        });
-                                                                        if (!res.ok) throw new Error('Failed to generate script breakdown.');
-                                                                        const data = await res.json();
-                                                                        updateProject({ script_breakdown: data.scriptBreakdown });
-                                                                        setMotionGraphicsEnabled(true);
-                                                                    } catch (e: any) {
-                                                                        console.error(e);
-                                                                        alert(sanitizeErrorMsg(e, "Failed to generate script breakdown. Please try again."));
-                                                                    } finally {
-                                                                        setIsGeneratingMotionGraphics(false);
-                                                                    }
-                                                                } else {
-                                                                    setMotionGraphicsEnabled(true);
-                                                                }
-                                                            } else {
-                                                                setMotionGraphicsEnabled(false);
-                                                            }
-                                                        }}
-                                                        disabled={isGeneratingMotionGraphics}
-                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                                            motionGraphicsEnabled ? 'bg-yellow-500' : 'bg-zinc-700'
-                                                        } ${isGeneratingMotionGraphics ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                    >
-                                                        <span
-                                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                                                motionGraphicsEnabled ? 'translate-x-6' : 'translate-x-1'
-                                                            }`}
-                                                        />
-                                                    </button>
-                                                </div>
-                                                {isGeneratingMotionGraphics && (
-                                                    <div className="text-xs text-yellow-500 animate-pulse flex items-center gap-2">
-                                                        <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-                                                        Generating animations using LLM...
-                                                    </div>
-                                                )}
-                                                {motionGraphicsEnabled && (
-                                                    <div className="text-xs text-zinc-400 bg-black/50 p-3 rounded-lg border border-white/5">
-                                                        Traditional subtitles are disabled while Motion Graphics are active.
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {!motionGraphicsEnabled && (
-                                                <div className="space-y-4 mt-8">
-                                                    <h2 className="text-lg font-bold">Highlighted Words</h2>
-                                                    <p className="text-xs text-zinc-400">Type a word and press enter to add it. These words will be colored green in the subtitles.</p>
+                                            <div className="space-y-4 mt-8">
+                                                <h2 className="text-lg font-bold">Highlighted Words</h2>
+                                                <p className="text-xs text-zinc-400">Type a word and press enter to add it. These words will be colored green in the subtitles.</p>
                                                     <div className="flex items-center gap-2">
                                                         <input 
                                                             type="text"
@@ -946,7 +1114,6 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                         ))}
                                                     </div>
                                                 </div>
-                                            )}
                                         </div>
                                     )}
 

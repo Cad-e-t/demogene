@@ -79,11 +79,7 @@ const Grain: React.FC = () => {
 
 export const BackgroundFX: React.FC = () => {
   return (
-    <AbsoluteFill style={{ background: "radial-gradient(circle at 50% 50%, #302e92 0%, #373d96 100%)" }}>
-      <LightSweep />
-      <Vignette />
-      <Grain />
-    </AbsoluteFill>
+    <AbsoluteFill style={{ backgroundColor: "#000000" }} />
   );
 };
 

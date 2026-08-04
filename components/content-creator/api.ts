@@ -37,11 +37,11 @@ export async function generateUploadUrl(projectId: string, segmentId: string, fi
     return await res.json();
 }
 
-export async function updateSegmentImage(segmentId: string, newImageUrl: string, oldImageUrl: string) {
+export async function updateSegmentImage(segmentId: string, newImageUrl: string, oldImageUrl: string, table?: string) {
     const res = await fetch(`${API_URL}/update-segment-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ segmentId, newImageUrl, oldImageUrl })
+        body: JSON.stringify({ segmentId, newImageUrl, oldImageUrl, table })
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
