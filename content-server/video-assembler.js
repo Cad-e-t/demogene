@@ -119,9 +119,6 @@ const EFFECT_SEQUENCES = {
 };
 
 export async function assembleVideo(segments, audioPath, audioDurations, workDir, aspectRatio, effectPreset, quality = '1080p', onProgress) {
-    // 1. Create video clips from images with zoom effect
-    const clipPaths = [];
-    
     // Set resolution based on quality
     let width, height;
     if (quality === '720p') {
@@ -152,12 +149,20 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
     const defaultSequenceKey = aspectRatio === '16:9' ? 'documentary' : 'cinematic';
     const sequence = Array.isArray(parsedEffect) ? parsedEffect : EFFECT_SEQUENCES[defaultSequenceKey];
 
+    // Pre-calculate segments data
+    const segmentData = [];
     let currentStartFrame = 0;
     let accumulatedTime = 0;
     const audioClips = []; // Store extracted native audio clips
+    
     for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
-        const originalDuration = audioDurations[i] || 3; // Fallback duration
+        const originalDuration = audioDurations[i] !== undefined ? audioDurations[i] : 3; // Fallback duration
+
+        if (originalDuration === 0) {
+            console.log(`[Video Assembler] Skipping segment ${i} because its duration is 0.`);
+            continue;
+        }
         
         // Exact frame calculation to prevent A/V drift over multiple clips
         const nextAccumulatedTime = accumulatedTime + originalDuration;
@@ -167,126 +172,177 @@ export async function assembleVideo(segments, audioPath, audioDurations, workDir
         const duration = exactFrames / 30; // Truncated to exact frames
         const startTimeMs = Math.round(accumulatedTime * 1000);
         
+        segmentData.push({
+            i, seg, exactFrames, duration, startTimeMs, currentStartFrame
+        });
+        
         accumulatedTime = nextAccumulatedTime;
+        currentStartFrame += exactFrames;
+    }
 
-        const imagePath = path.join(workDir, `img_${i}.png`);
-        const clipPath = path.join(workDir, `clip_${i}.ts`);
-        
-        const hasImage = fs.existsSync(imagePath);
-        const isVideo = hasImage && seg.image_url && seg.image_url.toLowerCase().endsWith('.mp4');
+    // 1. Create video clips from images in batches
+    const BATCH_SIZE = 25;
+    const intermediateBatchPaths = [];
+    let completedCount = 0;
 
-        const frames = exactFrames + 10; // +10 buffer
-        
-        // Determine effect for this segment
-        const effectType = sequence[i % sequence.length];
-        
-        let filter = "";
-        
-        // Pre-scale input image to avoid massive scaling in zoompan if image is huge
-        // We'll scale to 2x target resolution to keep quality during zoom
-        const inputScale = `scale=${width*2}:-1`; 
-        
-        const effectFilter = getFilterForEffect(effectType, width, height, frames, currentStartFrame, isVideo);
-        
-        // Standardize fps
-        const fpsFilter = `fps=30`;
+    for (let batchIdx = 0; batchIdx < segmentData.length; batchIdx += BATCH_SIZE) {
+        const batch = segmentData.slice(batchIdx, batchIdx + BATCH_SIZE);
+        const batchClipPaths = [];
 
-        const vignetteFilter = `split[base][vignetted];[vignetted]vignette=angle='PI/10':x0=w/2:y0=h/2[vignetted];[vignetted][base]blend=all_opacity=0.1`;
-        
-        let setptsFilter = '';
-        let inputArgs = [];
-        let mapArgs = [];
-        let hasAudioStream = false;
-        let afFilter = '';
-
-        if (!hasImage) {
-            inputArgs = ['-f', 'lavfi', '-i', `color=c=black:s=${width}x${height}:r=30:d=${duration}`];
-            filter = `setsar=1`; 
-            mapArgs = ['-map', '0:v:0'];
-        } else if (isVideo) {
-            // Speed manipulation mapping to the segment duration 
-            // Using (PTS-STARTPTS) is CRITICAL to prevent massive sync gaps/drifts during concat
-            const sourceDuration = await getVideoDuration(imagePath);
-            hasAudioStream = await hasAudio(imagePath);
+        for (const data of batch) {
+            const { i, seg, exactFrames, duration, startTimeMs, currentStartFrame: segStartFrame } = data;
             
-            setptsFilter = `setpts=(${duration}/${Math.max(0.1, sourceDuration)})*(PTS-STARTPTS),`;
+            const imagePath = path.join(workDir, `img_${i}.png`);
+            const clipPath = path.join(workDir, `clip_${i}.ts`);
             
-            inputArgs = ['-i', imagePath];
+            const hasImage = fs.existsSync(imagePath);
+            const isVideo = hasImage && seg.image_url && seg.image_url.toLowerCase().endsWith('.mp4');
+
+            const frames = exactFrames + 10; // +10 buffer
             
-            if (hasAudioStream) {
-                afFilter = 'aresample=48000,volume=0.15';
-                const tempo = sourceDuration / duration;
-                if (tempo >= 0.5 && tempo <= 2.0) {
-                    afFilter += `,atempo=${tempo}`;
-                } else if (tempo < 0.5) {
-                    afFilter += `,atempo=0.5,atempo=${tempo/0.5}`;
-                } else {
-                    afFilter += `,atempo=2.0,atempo=${tempo/2.0}`;
+            // Determine effect for this segment
+            const effectType = sequence[i % sequence.length];
+            
+            let filter = "";
+            
+            // Pre-scale input image to avoid massive scaling in zoompan if image is huge
+            // We'll scale to 2x target resolution to keep quality during zoom
+            const inputScale = `scale=${width*2}:-1`; 
+            
+            const effectFilter = getFilterForEffect(effectType, width, height, frames, segStartFrame, isVideo);
+            
+            // Standardize fps
+            const fpsFilter = `fps=30`;
+            const vignetteFilter = `split[base][vignetted];[vignetted]vignette=angle='PI/10':x0=w/2:y0=h/2[vignetted];[vignetted][base]blend=all_opacity=0.1`;
+            
+            let setptsFilter = '';
+            let inputArgs = [];
+            let mapArgs = [];
+            let hasAudioStream = false;
+            let afFilter = '';
+
+            if (!hasImage) {
+                inputArgs = ['-f', 'lavfi', '-i', `color=c=black:s=${width}x${height}:r=30:d=${duration}`];
+                filter = `setsar=1`; 
+                mapArgs = ['-map', '0:v:0'];
+            } else if (isVideo) {
+                // Speed manipulation mapping to the segment duration 
+                // Using (PTS-STARTPTS) is CRITICAL to prevent massive sync gaps/drifts during concat
+                const sourceDuration = await getVideoDuration(imagePath);
+                hasAudioStream = await hasAudio(imagePath);
+                
+                setptsFilter = `setpts=(${duration}/${Math.max(0.1, sourceDuration)})*(PTS-STARTPTS),`;
+                
+                inputArgs = ['-i', imagePath];
+                
+                if (hasAudioStream) {
+                    afFilter = 'aresample=48000,volume=0.15';
+                    const tempo = sourceDuration / duration;
+                    if (tempo >= 0.5 && tempo <= 2.0) {
+                        afFilter += `,atempo=${tempo}`;
+                    } else if (tempo < 0.5) {
+                        afFilter += `,atempo=0.5,atempo=${tempo/0.5}`;
+                    } else {
+                        afFilter += `,atempo=2.0,atempo=${tempo/2.0}`;
+                    }
                 }
+
+                filter = `${setptsFilter}${fpsFilter},${inputScale},${effectFilter},setsar=1,${vignetteFilter}`;
+                mapArgs = ['-map', '0:v:0'];
+            } else {
+                inputArgs = ['-loop', '1', '-i', imagePath];
+                filter = `${inputScale},${effectFilter},${fpsFilter},setsar=1,${vignetteFilter}`;
+                mapArgs = ['-map', '0:v:0'];
             }
 
-            filter = `${setptsFilter}${fpsFilter},${inputScale},${effectFilter},setsar=1,${vignetteFilter}`;
-            mapArgs = ['-map', '0:v:0'];
-        } else {
-            inputArgs = ['-loop', '1', '-i', imagePath];
-            filter = `${inputScale},${effectFilter},${fpsFilter},setsar=1,${vignetteFilter}`;
-            mapArgs = ['-map', '0:v:0'];
+            await runFFmpeg([
+                ...inputArgs,
+                '-vf', filter,
+                ...mapArgs,
+                '-c:v', 'libx264', 
+                '-crf', '18', // Optimal High Quality balance (prevents file bloat)
+                '-preset', 'fast',
+                '-tune', 'film', // Better texture retention
+                '-an', // NO AUDIO in the video clip
+                '-t', duration.toString(), 
+                '-frames:v', exactFrames.toString(),
+                '-r', '30', // Explicitly force 30fps container frame rate
+                '-video_track_timescale', '90000', // Unify timebases for clean concat
+                '-pix_fmt', 'yuv420p',
+                '-y', clipPath
+            ]);
+            
+            batchClipPaths.push(clipPath);
+
+            if (isVideo && hasAudioStream) {
+                const audioClipPath = path.join(workDir, `audio_${i}.wav`);
+                await runFFmpeg([
+                    '-i', imagePath,
+                    '-vn',
+                    '-map', '0:a:0',
+                    '-af', afFilter,
+                    '-c:a', 'pcm_s16le',
+                    '-ar', '48000',
+                    '-ac', '2',
+                    '-t', duration.toString(),
+                    '-y', audioClipPath
+                ]);
+                audioClips.push({ path: audioClipPath, startTimeMs });
+            }
+
+            completedCount++;
+            if (onProgress) {
+                // Allocate 70% of total progress to creating clips
+                const progress = Math.round((completedCount / segments.length) * 70);
+                onProgress({ stage: `Processing video clips (${completedCount}/${segments.length})...`, progress });
+            }
         }
 
+        // Concatenate this batch to save disk space & memory
+        const batchListPath = path.join(workDir, `batch_${batchIdx}_files.txt`);
+        const fileContent = batchClipPaths.map(p => `file '${p}'`).join('\n');
+        fs.writeFileSync(batchListPath, fileContent);
+        
+        const batchOutputPath = path.join(workDir, `batch_out_${batchIdx}.ts`);
         await runFFmpeg([
-            ...inputArgs,
-            '-vf', filter,
-            ...mapArgs,
-            '-c:v', 'libx264', 
-            '-crf', '18', // Optimal High Quality balance (prevents file bloat)
-            '-preset', 'fast',
-            '-tune', 'film', // Better texture retention
-            '-an', // NO AUDIO in the video clip
-            '-t', duration.toString(), 
-            '-frames:v', exactFrames.toString(),
-            '-r', '30', // Explicitly force 30fps container frame rate
-            '-video_track_timescale', '90000', // Unify timebases for clean concat
-            '-pix_fmt', 'yuv420p',
-            '-y', clipPath
+            '-f', 'concat', '-safe', '0', '-i', batchListPath,
+            '-c', 'copy', '-y', batchOutputPath
         ]);
         
-        clipPaths.push(clipPath);
+        intermediateBatchPaths.push(batchOutputPath);
 
-        if (isVideo && hasAudioStream) {
-            const audioClipPath = path.join(workDir, `audio_${i}.wav`);
-            await runFFmpeg([
-                '-i', imagePath,
-                '-vn',
-                '-map', '0:a:0',
-                '-af', afFilter,
-                '-c:a', 'pcm_s16le',
-                '-ar', '48000',
-                '-ac', '2',
-                '-t', duration.toString(),
-                '-y', audioClipPath
-            ]);
-            audioClips.push({ path: audioClipPath, startTimeMs });
+        // CLEANUP: Remove individual clips and source images to free tmpfs (RAM)
+        for (const p of batchClipPaths) {
+            if (fs.existsSync(p)) fs.unlinkSync(p);
         }
-
-        currentStartFrame += exactFrames;
+        if (fs.existsSync(batchListPath)) fs.unlinkSync(batchListPath);
         
-        if (onProgress) {
-            // Allocate 70% of total progress to creating clips
-            const progress = Math.round(((i + 1) / segments.length) * 70);
-            onProgress({ stage: 'Processing video clips...', progress });
+        for (const data of batch) {
+            const imgP = path.join(workDir, `img_${data.i}.png`);
+            if (fs.existsSync(imgP)) fs.unlinkSync(imgP);
         }
     }
 
-    // 2. Concatenate Video Clips (Visual Only)
-    const listPath = path.join(workDir, 'files.txt');
-    const fileContent = clipPaths.map(p => `file '${p}'`).join('\n');
-    fs.writeFileSync(listPath, fileContent);
-    
+    // 2. Concatenate Intermediate Batches (Visual Only)
+    if (onProgress) {
+        onProgress({ stage: 'Stitching intermediate batches...', progress: 75 });
+    }
+
+    const finalVisualListPath = path.join(workDir, 'final_batches.txt');
+    const finalVisualContent = intermediateBatchPaths.map(p => `file '${p}'`).join('\n');
+    fs.writeFileSync(finalVisualListPath, finalVisualContent);
+
     const visualPath = path.join(workDir, 'visual_no_audio.mp4');
     await runFFmpeg([
-        '-f', 'concat', '-safe', '0', '-i', listPath,
+        '-f', 'concat', '-safe', '0', '-i', finalVisualListPath,
         '-c', 'copy', '-y', visualPath
     ]);
+
+    // Clean up intermediate batches
+    for (const p of intermediateBatchPaths) {
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
+    if (fs.existsSync(finalVisualListPath)) fs.unlinkSync(finalVisualListPath);
     
     if (onProgress) {
         onProgress({ stage: 'Stitching video together...', progress: 85 });

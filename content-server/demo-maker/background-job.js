@@ -153,7 +153,7 @@ export async function runDemoProcessing(jobData) {
             let filteredWords = [];
             if (transcriptRes.words) {
                 filteredWords = transcriptRes.words.map(w => ({
-                    text: w.text ? w.text.replace(/— |;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
+                    text: w.text ? w.text.replace(/[-\u2013\u2014]/g, ' ').replace(/;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
                     start: w.start,
                     end: w.end
                 }));
@@ -247,7 +247,7 @@ export async function runDemoAudioRegeneration({ projectId, segments, voiceId, u
         let filteredWords = [];
         if (transcriptRes.words) {
             filteredWords = transcriptRes.words.map(w => ({
-                text: w.text ? w.text.replace(/— |;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
+                text: w.text ? w.text.replace(/[-\u2013\u2014]/g, ' ').replace(/;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
                 start: w.start,
                 end: w.end
             }));

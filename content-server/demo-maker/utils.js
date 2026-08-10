@@ -14,10 +14,10 @@ export function alignSegmentsWithTranscription(segments, transcription, totalAud
     // 1. Clean transcription words (remove punctuation, lowercase, convert numbers)
     const tWords = [];
     transcription.words.forEach(w => {
-        let cleanText = w.text.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '');
+        let cleanText = w.text.toLowerCase().replace(/[-\u2013\u2014]/g, ' ').replace(/[^a-z0-9\s]/g, '');
         if (/^\d+$/.test(cleanText)) {
             try {
-                cleanText = numberToWords.toWords(parseInt(cleanText, 10)).replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '');
+                cleanText = numberToWords.toWords(parseInt(cleanText, 10)).replace(/[-\u2013\u2014]/g, ' ').replace(/[^a-z0-9\s]/g, '');
             } catch (e) {}
         }
         const splitWords = cleanText.split(/\s+/).filter(x => x.length > 0);
@@ -37,12 +37,12 @@ export function alignSegmentsWithTranscription(segments, transcription, totalAud
     const scriptWords = [];
     for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
-        const segWordsRaw = seg.narration.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 0);
+        const segWordsRaw = seg.narration.toLowerCase().replace(/[-\u2013\u2014]/g, ' ').replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 0);
         
         segWordsRaw.forEach(w => {
             if (/^\d+$/.test(w)) {
                 try {
-                    const converted = numberToWords.toWords(parseInt(w, 10)).replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '');
+                    const converted = numberToWords.toWords(parseInt(w, 10)).replace(/[-\u2013\u2014]/g, ' ').replace(/[^a-z0-9\s]/g, '');
                     converted.split(/\s+/).filter(x => x.length > 0).forEach(sw => {
                         scriptWords.push({ clean: sw, segmentIndex: i });
                     });

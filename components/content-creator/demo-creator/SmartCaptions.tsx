@@ -70,6 +70,18 @@ export const SmartCaptions = ({
   const currentGap = validGaps.find(g => frame >= g.start && frame < g.end);
   const isPortrait = width && height ? width < height : true;
   
+  const stickerShadowWidth = !isPortrait ? 8 : 16;
+  const stickerShadows = useMemo(() => {
+    let shadows = [];
+    for (let angle = 0; angle < 360; angle += 3) {
+      const x = (Math.cos((angle * Math.PI) / 180) * stickerShadowWidth).toFixed(2);
+      const y = (Math.sin((angle * Math.PI) / 180) * stickerShadowWidth).toFixed(2);
+      shadows.push(`${x}px ${y}px 0px #000000`);
+    }
+    shadows.push(`0px 10px 20px rgba(0,0,0,0.8)`);
+    return shadows.join(', ');
+  }, [stickerShadowWidth, isPortrait]);
+  
   let activeMediaInterval: { start: number, end: number } | null = null;
 
   if (!isPortrait) {
@@ -172,7 +184,7 @@ export const SmartCaptions = ({
   // but let's apply it if it's too long ago? Actually it shouldn't matter since the next word will replace it.
   
   // 5. Dynamic word limits based on aspect ratio
-  const maxWords = 4;
+  const maxWords = isPortrait ? 1 : 4;
 
   const chunkIdx = Math.floor(activeIdx / maxWords);
   const startIndex = chunkIdx * maxWords;
@@ -183,7 +195,7 @@ export const SmartCaptions = ({
   if (isPortrait && activeWord) {
     const popProgress = (frame - (activeWord.start || 0)) / 5;
     if (popProgress >= 0 && popProgress <= 1) {
-      scale = 1 + 0.25 * Math.sin(popProgress * Math.PI);
+      scale = 1 + 0.15 * Math.sin(popProgress * Math.PI);
     }
   }
 
@@ -213,7 +225,7 @@ export const SmartCaptions = ({
       );
     }
 
-    return chars.map((char: string, index: number) => {
+    return chars.map((char, index) => {
       const isDigit = /[0-9]/.test(char);
       const isCurrency = /[$€£¥₩₹]/.test(char);
       
@@ -222,7 +234,7 @@ export const SmartCaptions = ({
         isCommaOrDecimalInNumber = true;
       }
 
-      let color = '#FFFFFF';
+      let color = isPortrait ? '#FFDE00' : '#FFFFFF';
       if (isDigit || isCommaOrDecimalInNumber) {
         color = '#26cc4a'; // elegant red
       } else if (isCurrency) {
@@ -242,77 +254,105 @@ export const SmartCaptions = ({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: !isPortrait ? '12px' : '40px',
+        padding: !isPortrait ? '12px' : '20px',
         maxWidth: !isPortrait ? '90%' : '85%',
         position: 'absolute',
-        bottom: !isPortrait ? '5%' : '15%'
+        bottom: !isPortrait ? '5%' : '40%'
   };
 
-  const fontSize = !isPortrait ? 24 : 80;
+  const fontSize = !isPortrait ? 39 : 48;
   
   const textShadow = !isPortrait
     ? `
-      -1.5px -1.5px 0 #000000,  
+      -1.5px -1.5px 0 #000000, 
        1.5px -1.5px 0 #000000,
-      -1.5px  1.5px 0 #000000,
+      -1.5px  1.5px 0 #000000, 
        1.5px  1.5px 0 #000000,
-      -1.5px  0px 0 #000000,
-       1.5px  0px 0 #000000,
-       0px -1.5px 0 #000000,
-       0px  1.5px 0 #000000,
+      -1.5px  0px 0 #000000, 
+       1.5px  0px 0 #000000, 
+       0px -1.5px 0 #000000, 
+       0px  1.5px 0 #000000, 
        0px  4px 8px rgba(0,0,0,0.8)
     `
     : `
-      -3px -3px 0 #000000,  
-       3px -3px 0 #000000,
-      -3px  3px 0 #000000,
-       3px  3px 0 #000000,
-      -3px  0px 0 #000000,
-       3px  0px 0 #000000,
-       0px -3px 0 #000000,
-       0px  3px 0 #000000,
-       0px  8px 16px rgba(0,0,0,0.8)
+      -2.5px -2.5px 0 #000000, 
+       2.5px -2.5px 0 #000000,
+      -2.5px  2.5px 0 #000000, 
+       2.5px  2.5px 0 #000000,
+      -2.5px  0px 0 #000000, 
+       2.5px  0px 0 #000000, 
+       0px -2.5px 0 #000000, 
+       0px  2.5px 0 #000000, 
+       0px  4px 8px rgba(0,0,0,0.8)
     `;
+
+  const renderedWords = currentWords.map((w: any, idx: number) => {
+    const globalIdx = startIndex + idx;
+    return (
+      <span
+        key={globalIdx}
+        style={{
+          display: 'inline-block',
+          margin: !isPortrait ? '0 5px' : '0 12px',
+          transform: `scale(${scale})`,
+        }}
+      >
+        {renderWordText(w.text)}
+      </span>
+    );
+  });
 
   return (
     <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', zIndex: 10, pointerEvents: 'none' }}>
       <style dangerouslySetInnerHTML={{__html: `
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap');
         .smart-caption-text {
-          font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          font-weight: 700;
+          font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-weight: 900;
         }
       `}} />
       <div style={containerStyle}>
-        <div
-          className="smart-caption-text"
-          style={{
-            fontSize: fontSize,
-            letterSpacing: !isPortrait ? '-0.02em' : '-0.05em',
-            color: '#FFFFFF',
-            textAlign: 'center',
-            textTransform: !isPortrait ? 'none' : 'uppercase',
-            textShadow: textShadow,
-            wordBreak: 'break-word',
-            whiteSpace: 'normal',
-            lineHeight: !isPortrait ? '1.2' : '1.1',
-          }}
-        >
-          {currentWords.map((w: any, idx: number) => {
-            const globalIdx = startIndex + idx;
-            return (
-              <span
-                key={globalIdx}
-                style={{
-                  display: 'inline-block',
-                  margin: !isPortrait ? '0 5px' : '0 12px',
-                  transform: `scale(${scale})`,
-                }}
-              >
-                {renderWordText(w.text)}
-              </span>
-            );
-          })}
+        <div style={{ display: 'grid' }}>
+          {/* Background thick stroke for the "sticker" effect */}
+          <div
+            className="smart-caption-text"
+            style={{
+              gridArea: '1 / 1',
+              fontSize: fontSize,
+              letterSpacing: !isPortrait ? '-0.02em' : '-0.05em',
+              color: '#000000',
+              textAlign: 'center',
+              WebkitTextStroke: !isPortrait ? '14px #000000' : '32px #000000',
+              textTransform: !isPortrait ? 'none' : 'uppercase',
+              textShadow: stickerShadows,
+              wordBreak: 'break-word',
+              whiteSpace: 'normal',
+              lineHeight: !isPortrait ? '0.5' : '1.1',
+              zIndex: 1,
+            }}
+          >
+            {renderedWords}
+          </div>
+          
+          {/* Foreground text */}
+          <div
+            className="smart-caption-text"
+            style={{
+              gridArea: '1 / 1',
+              fontSize: fontSize,
+              letterSpacing: !isPortrait ? '-0.02em' : '-0.05em',
+              color: '#FFFFFF',
+              textAlign: 'center',
+              textTransform: !isPortrait ? 'none' : 'uppercase',
+              textShadow: textShadow,
+              wordBreak: 'break-word',
+              whiteSpace: 'normal',
+              lineHeight: !isPortrait ? '0.5' : '1.1',
+              zIndex: 2,
+            }}
+          >
+            {renderedWords}
+          </div>
         </div>
       </div>
     </AbsoluteFill>

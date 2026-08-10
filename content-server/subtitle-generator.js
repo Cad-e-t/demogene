@@ -330,7 +330,7 @@ export async function generateSubtitles(transcription, config, aspectRatio) {
 
         // Clean transcription: remove specific punctuations
         words.forEach(w => {
-            if (w.text) w.text = w.text.replace(/— |;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') 
+            if (w.text) w.text = w.text.replace(/[-\u2013\u2014]/g, ' ').replace(/;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') 
         });
 
         // Generate Content

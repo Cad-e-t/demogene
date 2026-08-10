@@ -23,6 +23,9 @@ import { generateAvatarUploadUrl, saveAvatar, getAvatars, deleteAvatar, generate
 // --- Setup ---
 const app = express();
 app.use(express.json());
+if (process.env.LOCAL === 'true') {
+    app.use('/exports', express.static(path.join(process.cwd(), 'exports')));
+}
 
 // --- MIDDLEWARE ---
 const allowedOrigins = new Set([
@@ -112,10 +115,10 @@ function alignSegmentsWithTranscription(segments, transcription, totalAudioDurat
     // 1. Clean transcription words (remove punctuation, lowercase, convert numbers)
     const tWords = [];
     transcription.words.forEach(w => {
-        let cleanText = w.text.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '');
+        let cleanText = w.text.toLowerCase().replace(/[-\u2013\u2014]/g, ' ').replace(/[^a-z0-9\s]/g, '');
         if (/^\d+$/.test(cleanText)) {
             try {
-                cleanText = numberToWords.toWords(parseInt(cleanText, 10)).replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '');
+                cleanText = numberToWords.toWords(parseInt(cleanText, 10)).replace(/[-\u2013\u2014]/g, ' ').replace(/[^a-z0-9\s]/g, '');
             } catch (e) {}
         }
         const splitWords = cleanText.split(/\s+/).filter(x => x.length > 0);
@@ -135,12 +138,12 @@ function alignSegmentsWithTranscription(segments, transcription, totalAudioDurat
     const scriptWords = [];
     for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
-        const segWordsRaw = seg.narration.toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 0);
+        const segWordsRaw = seg.narration.toLowerCase().replace(/[-\u2013\u2014]/g, ' ').replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 0);
         
         segWordsRaw.forEach(w => {
             if (/^\d+$/.test(w)) {
                 try {
-                    const converted = numberToWords.toWords(parseInt(w, 10)).replace(/-/g, ' ').replace(/[^a-z0-9\s]/g, '');
+                    const converted = numberToWords.toWords(parseInt(w, 10)).replace(/[-\u2013\u2014]/g, ' ').replace(/[^a-z0-9\s]/g, '');
                     converted.split(/\s+/).filter(x => x.length > 0).forEach(sw => {
                         scriptWords.push({ clean: sw, segmentIndex: i });
                     });
@@ -399,11 +402,6 @@ async function processAssetsBackground(projectId, segments, voiceId, userId, isF
         };
 
         console.log(`[ContentServer] Processing audio in ${batches.length} chunks...`);
-        
-        // --- TTS DEBUG LOGGING SETUP ---
-        const debugDir = path.join(process.cwd(), 'debug_tts_logs', projectId);
-        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
-        // -------------------------------
 
         await pMap(batches, async (batchText, index) => {
             let chunkBuffer;
@@ -417,13 +415,6 @@ async function processAssetsBackground(projectId, segments, voiceId, userId, isF
             const mp3Path = path.join(workDir, `chunk_${index}.mp3`);
             fs.writeFileSync(pcmPath, chunkBuffer);
             execSync(`ffmpeg -f s16le -ar 24000 -ac 1 -i "${pcmPath}" -y "${mp3Path}"`, { stdio: 'ignore' });
-            
-            // --- TTS DEBUG LOGGING ---
-            const debugTextPath = path.join(debugDir, `chunk_${index}.txt`);
-            const debugAudioPath = path.join(debugDir, `chunk_${index}.mp3`);
-            fs.writeFileSync(debugTextPath, batchText);
-            fs.copyFileSync(mp3Path, debugAudioPath);
-            // -------------------------
             
             chunkAudioPaths[index] = mp3Path;
         }, 2); // 2 parallel requests
@@ -488,7 +479,7 @@ async function processAssetsBackground(projectId, segments, voiceId, userId, isF
             let filteredWords = [];
             if (transcript.words) {
                 filteredWords = transcript.words.map(w => ({
-                    text: w.text ? w.text.replace(/— |;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
+                    text: w.text ? w.text.replace(/[-\u2013\u2014]/g, ' ').replace(/;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
                     start: w.start,
                     end: w.end
                 }));
@@ -766,7 +757,7 @@ app.post('/generate-segments', async (req, res) => {
 
             } catch (backgroundError) {
                 console.error("[ContentServer] Error in background generation:", backgroundError);
-                await supabase.from('content_projects').update({ status: 'failed' }).eq('id', project.id);
+                await supabase.from('content_projects').delete().eq('id', project.id);
             }
         })();
 
@@ -875,7 +866,7 @@ app.post('/generate-free-trial-segments', async (req, res) => {
 
             } catch (backgroundError) {
                 console.error("[ContentServer] Error in free trial background generation:", backgroundError);
-                await supabase.from('content_projects').update({ status: 'failed' }).eq('id', project.id);
+                await supabase.from('content_projects').delete().eq('id', project.id);
             }
         })();
 
@@ -1448,18 +1439,29 @@ app.post('/export-video', async (req, res) => {
                     }
                 }
 
-                // Upload
-                const finalBuffer = fs.readFileSync(finalPath);
-                const finalKey = `content/stories/${uuidv4()}.mp4`;
-                await withRetry(async () => {
-                    await s3.send(new PutObjectCommand({
-                        Bucket: R2_BUCKET,
-                        Key: finalKey,
-                        Body: finalBuffer,
-                        ContentType: 'video/mp4'
-                    }));
-                });
-                const videoUrl = `${R2_PUBLIC_URL}/${finalKey}`;
+                let videoUrl;
+                if (process.env.LOCAL === 'true') {
+                    // Store locally
+                    const exportsDir = path.join(process.cwd(), 'exports');
+                    if (!fs.existsSync(exportsDir)) fs.mkdirSync(exportsDir, { recursive: true });
+                    const finalFileName = `${uuidv4()}.mp4`;
+                    const localFinalPath = path.join(exportsDir, finalFileName);
+                    fs.copyFileSync(finalPath, localFinalPath);
+                    videoUrl = `/exports/${finalFileName}`;
+                } else {
+                    // Upload
+                    const finalBuffer = fs.readFileSync(finalPath);
+                    const finalKey = `content/stories/${uuidv4()}.mp4`;
+                    await withRetry(async () => {
+                        await s3.send(new PutObjectCommand({
+                            Bucket: R2_BUCKET,
+                            Key: finalKey,
+                            Body: finalBuffer,
+                            ContentType: 'video/mp4'
+                        }));
+                    });
+                    videoUrl = `${R2_PUBLIC_URL}/${finalKey}`;
+                }
 
                 // Update Story
                 await supabase.from('content_stories').update({
