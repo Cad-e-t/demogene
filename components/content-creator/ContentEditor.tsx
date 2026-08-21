@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, updateSegmentAvatar, generateVideoSegment, animateAllSegments, sanitizeErrorMsg } from './api';
+import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, updateSegmentAvatar, generateVideoSegment, animateAllSegments, generateDescription, sanitizeErrorMsg } from './api';
 import { ContentVideoPlayer, EFFECT_TYPES, EFFECT_SEQUENCES } from './ContentVideoPlayer';
 import { AvatarModal } from './AvatarModal';
 import { supabase } from '../../supabaseClient';
@@ -239,9 +239,17 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [lastStatus, setLastStatus] = useState<string | null>(project.status);
     const [lastRenderStatus, setLastRenderStatus] = useState<string | null>(project.render_status);
 
+    // YouTube Metadata States
+    const [showMetadataModal, setShowMetadataModal] = useState(false);
+    const [metadataTitle, setMetadataTitle] = useState('');
+    const [metadataDescription, setMetadataDescription] = useState(project.description || '');
+    const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+    const [isSavingMetadata, setIsSavingMetadata] = useState(false);
+    const [copiedDescription, setCopiedDescription] = useState(false);
+
     useEffect(() => {
         let interval: any;
-        if (isGeneratingAssets || loadingImage || submitting) {
+        if (isGeneratingAssets || loadingImage || submitting || isGeneratingDescription) {
             interval = setInterval(() => {
                 setTimer(prev => prev + 1);
             }, 1000);
@@ -249,7 +257,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             setTimer(0);
         }
         return () => clearInterval(interval);
-    }, [isGeneratingAssets, loadingImage, submitting]);
+    }, [isGeneratingAssets, loadingImage, submitting, isGeneratingDescription]);
 
     // Fetch latest project details on mount
     useEffect(() => {
@@ -260,6 +268,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 setAudioUrl(data.voice_file_path);
                 setTranscription(data.transcription);
                 setSegmentDurations(data.segment_durations || []);
+                if (data.description) setMetadataDescription(data.description);
                 if (data.subtitles) {
                     setSubtitles(data.subtitles as SubtitleConfiguration);
                 }
@@ -267,6 +276,80 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         };
         fetchProject();
     }, [project.id]);
+
+    const handleGenerateDescription = async () => {
+        if (!metadataTitle.trim()) {
+            setNotification({
+                message: "Please enter a video title first.",
+                type: 'error'
+            });
+            setTimeout(() => setNotification(null), 4000);
+            return;
+        }
+        setIsGeneratingDescription(true);
+        try {
+            const res = await generateDescription(project.id, metadataTitle.trim(), session.user.id);
+            if (res.description) {
+                setMetadataDescription(res.description);
+                setLocalProject((prev: any) => ({ ...prev, description: res.description, title: metadataTitle.trim() }));
+                setNotification({
+                    message: "YouTube description generated successfully!",
+                    type: 'success'
+                });
+                setTimeout(() => setNotification(null), 4000);
+            }
+        } catch (e: any) {
+            console.error("Generate description failed", e);
+            const friendlyError = sanitizeErrorMsg(e, "Failed to generate YouTube description. Please try again.");
+            if (friendlyError.includes("Insufficient credits") || friendlyError.includes("credit")) {
+                setShowPricingModal(true);
+            } else {
+                setNotification({
+                    message: friendlyError,
+                    type: 'error'
+                });
+                setTimeout(() => setNotification(null), 6000);
+            }
+        } finally {
+            setIsGeneratingDescription(false);
+        }
+    };
+
+    const handleSaveMetadata = async () => {
+        setIsSavingMetadata(true);
+        try {
+            const { error } = await supabase
+                .from('content_projects')
+                .update({
+                    title: metadataTitle.trim(),
+                    description: metadataDescription
+                })
+                .eq('id', project.id);
+            if (error) throw error;
+            setLocalProject((prev: any) => ({ ...prev, title: metadataTitle.trim(), description: metadataDescription }));
+            setNotification({
+                message: "Metadata saved successfully!",
+                type: 'success'
+            });
+            setTimeout(() => setNotification(null), 3000);
+        } catch (e) {
+            console.error("Failed to save metadata", e);
+            setNotification({
+                message: "Failed to save metadata",
+                type: 'error'
+            });
+            setTimeout(() => setNotification(null), 4000);
+        } finally {
+            setIsSavingMetadata(false);
+        }
+    };
+
+    const handleCopyDescription = () => {
+        if (!metadataDescription) return;
+        navigator.clipboard.writeText(metadataDescription);
+        setCopiedDescription(true);
+        setTimeout(() => setCopiedDescription(false), 2000);
+    };
 
     // Generate Assets if missing
     useEffect(() => {
@@ -1381,13 +1464,22 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 <button onClick={onBack} className="text-zinc-400 hover:text-white text-sm font-bold flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-black transition-colors">
                     ← Back
                 </button>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     {isGeneratingAssets && (
                         <div className="flex items-center gap-2 text-[10px] text-yellow-600 font-bold animate-pulse bg-yellow-900/20 px-3 py-1 rounded-full border border-yellow-900/30">
                             <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
                             GENERATING ASSETS... {timer}s
                         </div>
                     )}
+                    <button
+                        onClick={() => setShowMetadataModal(true)}
+                        className="px-3.5 py-1.5 text-xs font-bold rounded-lg transition border border-white/10 hover:border-white/20 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 hover:text-white flex items-center gap-1.5 shadow-sm"
+                    >
+                        <svg className="w-3.5 h-3.5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Metadata
+                    </button>
                     <div className="relative">
                         <button 
                             onClick={showExportMenu ? () => setShowExportMenu(false) : () => setShowExportMenu(true)}
@@ -1978,6 +2070,157 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 >
                                     {loadingImage ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Remove"}
                                 </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* YouTube Metadata & Description Modal */}
+            <AnimatePresence>
+                {showMetadataModal && (
+                    <div 
+                        className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+                        onClick={() => setShowMetadataModal(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                            transition={{ duration: 0.18, ease: "easeOut" }}
+                            className="bg-[#121214] border border-white/10 p-6 md:p-8 rounded-[28px] w-full max-w-2xl shadow-2xl relative flex flex-col max-h-[90vh] overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Modal Header */}
+                            <div className="flex items-start justify-between pb-5 border-b border-white/10 shrink-0">
+                                <div>
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-xl font-bold text-white tracking-tight">YouTube Metadata</h3>
+                                    </div>
+                                    <p className="text-xs text-zinc-400 mt-1.5 ml-10">
+                                        Generate an engaging, SEO-optimized description with timestamps and hashtags.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setShowMetadataModal(false)}
+                                    className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="py-5 space-y-5 overflow-y-auto pr-1">
+                                {/* Title Input Section */}
+                                <div>
+                                    <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">
+                                        Video Title <span className="text-red-500 font-bold">*</span>
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={metadataTitle}
+                                            onChange={(e) => setMetadataTitle(e.target.value)}
+                                            placeholder="Enter your video title (e.g. 10 Secrets of Deep Space)..."
+                                            className="flex-1 bg-black/60 border border-white/10 focus:border-yellow-500/60 focus:ring-1 focus:ring-yellow-500/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 outline-none transition"
+                                        />
+                                        <button
+                                            onClick={handleGenerateDescription}
+                                            disabled={isGeneratingDescription || !metadataTitle.trim()}
+                                            className="px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-bold rounded-xl transition flex items-center gap-2 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-yellow-500/10"
+                                        >
+                                            {isGeneratingDescription ? (
+                                                <>
+                                                    <div className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                                    <span>Generating...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M7.5 5.6L10 0l2.5 5.6L18 8l-5.5 2.4L10 16l-2.5-5.6L2 8l5.5-2.4zm12 9.4L21 12l1.5 3 3 1.5-3 1.5-1.5 3-1.5-3-3-1.5 3-1.5zm-14 2L7 14l1.5 3 3 1.5-3 1.5-1.5 3-1.5-3-3-1.5 3-1.5z" />
+                                                    </svg>
+                                                    <span>Generate</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Description Display / Edit Area */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+                                            Description Output
+                                        </label>
+                                        {metadataDescription && (
+                                            <button
+                                                onClick={handleCopyDescription}
+                                                className="text-xs font-medium text-zinc-400 hover:text-white flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition"
+                                            >
+                                                {copiedDescription ? (
+                                                    <>
+                                                        <svg className="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                        <span className="text-green-400">Copied!</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                        </svg>
+                                                        <span>Copy</span>
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="relative">
+                                        <textarea
+                                            rows={11}
+                                            value={metadataDescription}
+                                            onChange={(e) => setMetadataDescription(e.target.value)}
+                                            placeholder="Generated YouTube description with timestamps, keywords, and hashtags will appear here..."
+                                            className="w-full bg-black/60 border border-white/10 focus:border-yellow-500/60 focus:ring-1 focus:ring-yellow-500/30 rounded-2xl p-4 text-xs md:text-sm text-zinc-200 placeholder:text-zinc-600 outline-none transition leading-relaxed resize-none font-mono"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="pt-4 border-t border-white/10 flex items-center justify-between shrink-0">
+                                <div className="text-[11px] text-zinc-500">
+                                    {metadataDescription ? `${metadataDescription.length} characters` : ''}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setShowMetadataModal(false)}
+                                        className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white rounded-xl hover:bg-white/5 transition"
+                                    >
+                                        Close
+                                    </button>
+                                    <button
+                                        onClick={handleSaveMetadata}
+                                        disabled={isSavingMetadata}
+                                        className="px-5 py-2 text-xs font-bold text-white bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                        {isSavingMetadata ? (
+                                            <>
+                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                <span>Saving...</span>
+                                            </>
+                                        ) : (
+                                            <span>Save Changes</span>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     </div>

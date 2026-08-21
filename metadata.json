@@ -1,5 +1,8 @@
 {
   "name": "Crappik",
   "description": "Create viral videos for YouTube, TikTok, and Instagram automatically.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

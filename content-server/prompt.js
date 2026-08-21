@@ -15,22 +15,22 @@ export const STYLE_OPENINGS = {
 };
 
 export const predefinedVisualIdentityBlocks = {
-        'Game3D': 'Clean 3D simulation render visual style. Characters are depicted with smooth, slightly plastic textures and subsurface scattering. Scene is rendered with bright studio lighting, crisp depth of field, Blender Cycles shading to achieve a striking, slightly uncanny visual style.',
-        'Creepy': `2D cartoon horror visual style with bold lines, exaggerated characters with large unsettling eyes (wide whites and dot pupils), muted night-time colors, simple distorted environments, and dim high-contrast lighting that creates an eerie, haunted tone.`,
+        'Game3D': 'Rendering Style: Clean 3D simulation style, bright studio lighting, crisp depth of field, Blender Cycles shading. Character Design: Characters are smooth, slightly plastic textures and subsurface scattering. ',
+        'Creepy': `Rendering Style: 2D cartoon horror style, bold lines, muted night-time colors, simple distorted environments, and dim high-contrast lighting that creates an eerie, haunted tone. Character Design: Exaggerated characters with large unsettling eyes (wide whites and dot pupils).`,
         'Realistic': `Photorealistic style depiction. Natural lighting only with soft shadows. Real-world textures, colors, and materials.`,
-        'Stickman': `Flat 2D cartoon style using clean shapes and minimal detail. Characters are 2D stick figures with thin single black lines for limbs and body, and a circular, skin-toned face. They retain distinct permanent features (e.g., hair-style, eyes, facial hair). The environment is 2D with natural coloring.`,
-        'Anime': `2D anime-style depiction with clean, consistent line art. Colors are applied as flat or softly shaded fills with a consistent palette. Characters, objects, and environments are rendered in a cohesive anime style across all scenes.`,
-        'Sketch': `Hand-drawn pencil sketch style depiction. All characters, objects, and environments are drawn using visible pencil lines and light sketch strokes. Lines vary slightly in thickness with a natural hand-drawn feel. Minimal use of soft grayscale shading. No color, no solid fills or rendering.`,
-        'Documentary': `Black and white photojournalistic style. No color — only stark greys, deep blacks, and blown highlights. Compositions are candid and unposed with visible grain, harsh natural lighting, and slight motion blur. Gritty and immediate, never polished or staged.`,
+        'Stickman': `Rendering Style: Flat 2D cartoon style, clean shapes and minimal detail, natural coloring. Character Design: All Characters are 2D stick figures. They retain distinct permanent features (e.g., hair-style, eyes, facial hair.)`,
+        'Anime': `Rendering Style: 2D anime-style depiction, clean, consistent line art. Characters, objects, and environments are rendered in a cohesive anime style across all scenes.`,
+        'Sketch': `Rendering Style: Hand-drawn pencil sketch, light sketch strokes, natural hand-drawn feel, minimal soft grayscale shading. No color, no solid fills`,
+        'Documentary': `Black and white photojournalistic style, stark greys, deep blacks, blown highlights, visible grain, harsh natural lighting, gritty and immediate.`,
         'Exaggerated2D': `Exaggerated 2D cartoon style with bold outlines and dynamic shapes. Characters use extreme squash and stretch, oversized facial features and amplified expressions. Colors are vibrant and high-contrast with simple shading. Environments are slightly distorted to match the character energy.`,
         'Ukiyo-e': `Traditional Japanese woodblock print style. Bold outlines, flat color fills, and zero shading define the look. Compositions feature stylized natural motifs — waves, clouds, foliage — with a decorative, hand-carved flatness.`,
-        'Claymation': `Stop-motion clay visual style. All subjects appear hand-sculpted — rounded, chunky, and visibly textured with soft imperfections. Surfaces are matte, lighting warm and studio-cast. Nothing is digitally smooth or sharp-edged.`,
-        'Cartoon': `2D cartoon style depiction. Lighting is soft and cinematic with gentle shading and depth. Composition and framing are grounded and cinematic.`,
-        'Skeleton': `Cinematic, photo-realistic style scene. The main character(s) is a clean, naturally proportioned skeleton with articulated jaw and real human eyes — typically one, but when a scene compares or contrasts two distinct individuals, both are rendered as skeletons. They move realistically and retain distinct permanent features (e.g. hair-style, eye-color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. All other characters and settings are completely photo-realistic.`,
-        'Bobblehead': `Cinematic, photo-realistic style scene. All characters are stylized bobbleheads with realistically proportioned human body, but feature a disproportionately massive, oversized head with highly expressive and slightly exaggerated facial features. They move realistically and retain distinct permanent features (e.g., hair-style, etc), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
-        'Mannequin': `Cinematic, photo-realistic style scene. All characters are stylized 3D mannequins rendered in a modern corporate aesthetic, with smooth matte surfaces and simplified human proportions. They move realistically and retain distinct permanent features (e.g., hairstyle and natural skin tone), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
-        'Écorché':  `Cinematic, photo-realistic style scene. Characters are rendered as écorchés. Each character is a flayed anatomical model: entirely devoid of skin on any exposed body parts (like faces, necks, and hands), revealing highly detailed, photo-realistic red muscle fibers and white tendons, yet retaining a proportionate facial structure with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
-        'Lego': `LEGO style scene. All subjects are constructed from interlocking plastic bricks — blocky, rigid, and featuring visible studs and seams. Their wardrobe is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. Surfaces are glossy, lighting bright and studio-cast with miniature depth-of-field.`
+        'Claymation': `Stop-motion clay  style. All subjects appear hand-sculpted — rounded, chunky, and visibly textured with soft imperfections. Surfaces are matte, lighting warm and studio-cast.`,
+        'Cartoon': `2D cartoon style depiction, soft, cinematic, gentle shading and depth.`,
+        'Skeleton': `Cinematic, photo-realistic. The main character(s) is a clean, naturally proportioned skeleton with articulated jaw and real human eyes — typically one, but when a scene compares or contrasts two distinct individuals, both are rendered as skeletons. They move realistically and retain distinct permanent features (e.g. hair-style, eye-color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. All other characters and settings are completely photo-realistic.`,
+        'Bobblehead': `Cinematic, photo-realistic. Character Design: All characters are stylized bobbleheads with realistically proportioned human body, but feature a disproportionately massive, oversized head with highly expressive and slightly exaggerated facial features. They move realistically and retain distinct permanent features (e.g., hair-style, etc), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
+        'Mannequin': `Cinematic, photo-realistic. Character Design: All characters are stylized 3D mannequins rendered in a modern corporate aesthetic, with smooth matte surfaces and simplified human proportions. They move realistically and retain distinct permanent features (e.g., hairstyle and natural skin tone), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
+        'Écorché':  `Cinematic, photo-realistic. Character Design: Characters are écorchés. Each character is a flayed anatomical model: entirely devoid of skin on any exposed body parts (like faces, necks, and hands), revealing highly detailed, photo-realistic red muscle fibers and white tendons, yet retaining a proportionate facial structure with natural human eyes. They move realistically and retain distinct permanent features (e.g., hair-style and eye color), and must always wear an outfit. Their wardrobe and physical presentation is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context.`,
+        'Lego': `LEGO style scene. Character Design: All subjects are constructed from interlocking plastic bricks — blocky, rigid, and featuring visible studs and seams. Their wardrobe is adaptable — changing to fit the specific scene or remaining consistent depending on the narrative context. Surfaces are glossy, lighting bright and studio-cast with miniature depth-of-field.`
     };
 
 export const getNormalSegmentationPrompt = (prompt) => `
@@ -115,9 +115,8 @@ VISUAL IDENTITY: ${visualIdentityBlock}
 
 1.  VISUAL IDENTITY LOCK
 
-The VISUAL IDENTITY LOCK defines the visual style for rendering and the character design language. 
-Both the 'style' field, and all character and environment descriptions must conform to the design and style constraints specified in VISUAL IDENTITY LOCK.
-
+The VISUAL IDENTITY LOCK defines the rendering style and the character design language. 
+The 'style' field must conform to the rendering style, and all character descriptions to the character design constraints as specified in VISUAL IDENTITY LOCK.
 
 2. RECURRING SUBJECT RULES
 
@@ -131,7 +130,7 @@ Both the 'style' field, and all character and environment descriptions must conf
   - Relevance: Only define recurring_locations when multiple segments occur in the same physical location or environment. Otherwise leave the recurring_locations object empty.
   - Description: Write one concise sentence describing the location's permanent appearance and environment, including its layout, architecture, materials, lighting style, color palette, and overall atmosphere.
   - Tracking Locations (important): If a segment takes place inside a recurring location, include its location ID in the segment's "location" field. If the location appears only once, leave "location" empty and fully describe the environment inside the segment's scene_description.
-  - Never reference a location ID (e.g., "LOC1") inside the scene_description. Location IDs belong only in the segment's "location" field.
+  - Location ID (e.g., "LOC1") should never appear inside the scene_description. It belongs only in the segment's "location" field.
 
 
 4.  OUTFIT RULES
@@ -155,15 +154,15 @@ Both the 'style' field, and all character and environment descriptions must conf
   - Independence: Treat every prompt as an independent scene description. Aside
     from recurring subjects, you must repeat the full description of other
     entities, objects and environments every time they appear.
+  - First Frame Snapshot: The scene description details the exact visual layout
+    of the very first frame of the shot. All scene descriptions MUST detail the physical placement,
+    position, posture, and state of the subjects at that specific starting
+    millisecond. No baked-in motion blur or speed lines.   
   - Subject Handling: Reference recurring subjects STRICTLY by their bare ID (e.g., 'SUBJ1 walking...'). NEVER
     describe them, or use their base/physical description or outfits description
     inside the scene description.
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder
     shot", "split-screen", in the scene description is prohibited.
-  - First Frame Snapshot: The scene description details the exact visual layout
-    of the very first frame of the shot. It MUST detail the physical placement,
-    position, and state of the subjects at that specific starting
-    millisecond. No baked-in motion blur or speed lines.
   - Environment: If the location appears only once, fully describe the visible environment 
     and lighting within the shot. If a recurring location ID is used for the segment, 
     do not repeat permanent location details inside the scene description.  
@@ -300,7 +299,7 @@ USER INPUT: ${userInput}
     include its location ID in the segment's "location" field. If the location
     appears only once, leave "location" empty and fully describe the environment
     inside the segment's scene_description.
-  - Never reference a location ID (e.g., "LOC1") inside the scene_description. Location IDs belong only in the segment's "location" field.
+  - Location ID (e.g., "LOC1") should never appear inside the scene_description. It belongs only in the segment's "location" field.
 
 
 
@@ -318,16 +317,16 @@ USER INPUT: ${userInput}
   - Independence: Treat every prompt as an independent scene description. Aside
     from recurring subjects, you must repeat the full description of other
     entities, objects and environments every time they appear.
+  - First Frame Snapshot: The scene description details the exact visual layout
+    of the very first frame of the shot. All scene descriptions MUST detail the physical placement,
+    position, posture, and state of the subjects at that specific starting
+    millisecond. No baked-in motion blur or speed lines.   
   - Subject Handling: Reference recurring subjects STRICTLY by
     their bare ID (e.g., 'SUBJ1 walking...'). NEVER
     describe them, or use their base/physical description or outfits description
     inside the scene description.
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder
     shot", "split-screen", in the scene description is prohibited.
-  - First Frame Snapshot: The scene description details the exact visual layout
-    of the very first frame of the shot. It MUST detail the physical placement,
-    position, and state of the subjects at that specific starting
-    millisecond. No baked-in motion blur or speed lines.
   - Environment: If the location appears only once, fully describe the visible environment 
     and lighting within the shot. If a recurring location ID is used for the segment, 
     do not repeat permanent location details inside the scene description.  
@@ -451,6 +450,8 @@ USER INPUT: ${userInput}
 
   Segment the narration into individual cinematic shots. Each segment should visualize one primary visual moment or idea in the script.
  
+  IMPORTANT: A segment should never span more than one sentence. If a sentence contains multiple moments, ideas, action, emotion that could be shown through separate camera shots, split them into separate segments.
+
   Create a new segment whenever the narration introduces:
   - A new subject, object, environment, or visual detail that deserves focus
   - A new idea
@@ -459,8 +460,7 @@ USER INPUT: ${userInput}
   - A reveal or change in perspective
   - A different camera composition needed to clearly show the moment
 
-  IMPORTANT: A segment should not span more than one sentence. If a sentence contains multiple moments, ideas, action, emotion that could be shown through separate camera shots, split them into separate segments.
-
+  
 2.  AVATAR RULES:
 
   - An avatar is available for this video. Treat AVATAR as an existing recurring
@@ -516,7 +516,7 @@ USER INPUT: ${userInput}
     include its location ID in the segment's "location" field. If the location
     appears only once, leave "location" empty and fully describe the environment
     inside the segment's scene_description.
-  - Never reference a location ID (e.g., "LOC1") inside the scene_description. Location IDs belong only in the segment's "location" field.
+  - Location ID (e.g., "LOC1") should never appear inside the scene_description. It belongs only in the segment's "location" field.
 
 5.  OUTFIT RULES
 
@@ -539,16 +539,16 @@ USER INPUT: ${userInput}
   - Independence: Treat every prompt as an independent scene description. Aside
     from recurring subjects, you must repeat the full description of other
     entities, objects and environments every time they appear.
+   - First Frame Snapshot: The scene description details the exact visual layout
+    of the very first frame of the shot. All scene descriptions MUST detail the physical placement,
+    position, posture, and state of the subjects at that specific starting
+    millisecond. No baked-in motion blur or speed lines.  
   - Subject Handling: Reference recurring subjects and the avatar STRICTLY by
     their bare ID (e.g., 'AVATAR sitting in a...' or 'SUBJ1 walking...'). NEVER
     describe them, or use their base/physical description or outfits description
     inside the scene description.
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder
     shot", "split-screen", in the scene description is prohibited.
-  - First Frame Snapshot: The scene description details the exact visual layout
-    of the very first frame of the shot. It MUST detail the physical placement,
-    position, and state of the subjects at that specific starting
-    millisecond. No baked-in motion blur or speed lines.
   - Environment: If the location appears only once, fully describe the visible environment 
     and lighting within the shot. If a recurring location ID is used for the segment, 
     do not repeat permanent location details inside the scene description.  
@@ -617,3 +617,22 @@ Preserve narrative meaning without graphic depiction.
 Return ONLY a raw, valid JSON object matching the exact structure provided in
 Task 4. No markdown, no preamble, no explanation.
 `;
+
+export const getYouTubeDescriptionPrompt = (videoTitle) => `Create a YouTube description for the video using the information provided below.
+
+**Video Title:**
+${videoTitle}
+
+Requirements:
+
+* Naturally include the most relevant keywords from the **video title and content** near the beginning of the description without keyword stuffing.
+* Make the opening 1–2 sentences clear, compelling, and directly relevant to the video's topic.
+* Keep the description readable, straightforward, and concise.
+* Briefly explain what viewers will learn, discover, or experience in the video.
+* Add a **Timestamps** section with clear, useful timestamps for the video's major sections or important moments. Base timestamps on the actual video/script structure; do not invent sections that aren't present.
+* End with a small set of highly relevant hashtags.
+* Do not use unnecessary filler, excessive emojis, or awkward SEO phrasing.
+* Do not repeat the video title unnecessarily.
+* Do not include an explanation or commentary about your choices.
+
+Return **only the completed YouTube description**.`;

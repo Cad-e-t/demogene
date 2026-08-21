@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-import { generateStorySegments, generateImage, editImage, generateFullVoiceover, generateGeminiVideo } from './gemini.js';
+import { generateStorySegments, generateImage, editImage, generateFullVoiceover, generateGeminiVideo, generateDescription } from './gemini.js';
 import { generateVideo } from './replicate.js';
 import { assembleVideo } from './video-assembler.js';
 import { generateSubtitles, burnSubtitles } from './subtitle-generator.js';
@@ -63,10 +63,10 @@ const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
 const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
-const COST_PER_THOUSAND_TOKENS = 0.9;
+const COST_PER_THOUSAND_TOKENS = 0.75;
 const COST_PER_THOUSAND_INPUT_TOKENS = 0.15;
 const FLASH_COST_THOUSAND_INPUT_TOKENS = 0.15;
-const FLASH_COST_THOUSAND_OUTPUT_TOKENS = 0.9;
+const FLASH_COST_THOUSAND_OUTPUT_TOKENS = 0.75;
 const MAX_ANALYSIS_COST = 30;
 const MIN_BALANCE = 4; // Minimum credits required to start
 const MAX_CONCURRENT_IMAGES = 2; // Max parallel image generations to avoid rate limits
@@ -724,13 +724,6 @@ app.post('/generate-segments', async (req, res) => {
                     maxImages = Math.floor(Math.max(0, availableForImages) / costPerImage);
                     
                     finalSegmentsData = segmentsData.slice(0, maxImages);
-                }
-
-                // If user doesn't even have enough for analysis, fail early
-                if (currentBalance < analysisCost) {
-                    console.log(`[ContentServer] Insufficient credits for analysis, failing project ${project.id}`);
-                    await supabase.from('content_projects').update({ status: 'failed' }).eq('id', project.id);
-                    return;
                 }
 
                 const finalTotalCost = (finalSegmentsData.length * costPerImage) + analysisCost;
@@ -1479,6 +1472,103 @@ app.post('/export-video', async (req, res) => {
 
     } catch (e) {
         console.error("Export Request Failed", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Generate YouTube Description
+app.post('/generate-description', async (req, res) => {
+    try {
+        const { projectId, videoTitle, userId } = req.body;
+        if (!projectId) {
+            return res.status(400).json({ error: "Missing projectId" });
+        }
+
+        console.log(`[ContentServer] Generating YouTube description for project ${projectId}`);
+
+        // 1. Fetch Project
+        const { data: project, error: projError } = await supabase
+            .from('content_projects')
+            .select('*')
+            .eq('id', projectId)
+            .single();
+
+        if (projError || !project) {
+            return res.status(404).json({ error: "Project not found" });
+        }
+
+        if (!project.voice_file_path) {
+            return res.status(400).json({ error: "Voiceover is not yet generated." });
+        }
+
+        const effectiveUserId = userId || project.user_id;
+
+        // 0. Balance Check
+        const balance = await getCredits(effectiveUserId);
+        if (balance < MIN_BALANCE) {
+            return res.status(402).json({ error: "Insufficient credits for this request." });
+        }
+
+        // Fetch segments to assemble script fallback
+        const { data: segments } = await supabase
+            .from('content_segments')
+            .select('narration, order_index')
+            .eq('project_id', projectId)
+            .order('order_index', { ascending: true });
+
+        const scriptContent = segments && segments.length > 0
+            ? segments.map((s, idx) => `Segment ${idx + 1}: ${s.narration}`).join('\n')
+            : null;
+
+        const effectiveTitle = videoTitle || project.title || "Untitled Video";
+
+        // 2. Call generateDescription
+        const { description, usageMetadata } = await generateDescription(
+            effectiveTitle,
+            project.voice_file_path,
+            scriptContent
+        );
+
+        // 3. Billing Calculation
+        const promptTokens = usageMetadata?.promptTokenCount || 0;
+        const candidatesTokens = usageMetadata?.candidatesTokenCount || 0;
+
+        let cost = (promptTokens / 1000) * FLASH_COST_THOUSAND_INPUT_TOKENS +
+                   (candidatesTokens / 1000) * FLASH_COST_THOUSAND_OUTPUT_TOKENS;
+
+        if (cost > MAX_ANALYSIS_COST) {
+            cost = MAX_ANALYSIS_COST;
+        }
+        cost = Number(cost.toFixed(4));
+
+        console.log(`[Billing] Description Generation Tokens - In: ${promptTokens}, Out: ${candidatesTokens}, Cost: ${cost} credits`);
+
+        // Charge user
+        if (effectiveUserId && cost > 0) {
+            await chargeUser(effectiveUserId, cost, "YouTube Description Generation");
+        }
+
+        // 4. Save to Database
+        const { error: updateError } = await supabase
+            .from('content_projects')
+            .update({ description })
+            .eq('id', projectId);
+
+        if (updateError) {
+            console.error("[ContentServer] Failed to save description to DB:", updateError);
+            throw updateError;
+        }
+
+        console.log(`[ContentServer] Description successfully generated and saved for project ${projectId}`);
+
+        res.json({
+            success: true,
+            description,
+            cost,
+            usageMetadata
+        });
+    } catch (e) {
+        console.error("[ContentServer] Generate description failed:", e);
         res.status(500).json({ error: e.message });
     }
 });

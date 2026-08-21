@@ -1,4 +1,5 @@
 
+import fs from 'fs';
 import { GoogleGenAI, Modality } from "@google/genai";
 
 
@@ -7,10 +8,11 @@ import {
     getNormalSegmentationPrompt,
     getCreatorSystemPrompt,
     getDirectorSystemPrompt,
-    getAvatarSystemPrompt
+    getAvatarSystemPrompt,
+    getYouTubeDescriptionPrompt
 } from "./prompt.js";
 
-const MODEL_NAME = "gemini-3.1-pro-preview"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
+const MODEL_NAME = "gemini-3.6-flash"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
 const SEGMENTATION_MODEL_NAME = "gemini-3.5-flash"; // Using flash for segmentation
 const GENERATE_IMAGE_MODEL = "gemini-3.1-flash-lite-image";  
 const EDIT_IMAGE_MODEL = "gemini-3.1-flash-lite-image"; //
@@ -63,10 +65,10 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
             ? prompt 
             : `${prompt}
 
-VISUAL IDENTITY:
+VISUAL IDENTITY LOCK
 
-The VISUAL IDENTITY LOCK defines the visual style for rendering and the character design language. 
-Both the 'style' field, and all character and environment descriptions must conform to the design and style constraints specified in VISUAL IDENTITY LOCK.
+The VISUAL IDENTITY LOCK defines the rendering style and the character design language. 
+The 'style' field must conform to the rendering style, and all character descriptions to the character design constraints as specified in VISUAL IDENTITY LOCK.
 
 
 VISUAL IDENTITY LOCK: ${visualIdentityBlock}`;
@@ -477,5 +479,83 @@ export async function generateGeminiVideo(imageUrl, animationPrompt, aspectRatio
     
     return await videoResponse.arrayBuffer();
 }
+
+export async function generateDescription(videoTitle, voiceFilePath = null, scriptContent = null) {
+    if (!process.env.API_KEY) throw new Error("API Key missing");
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    let promptText = getYouTubeDescriptionPrompt(videoTitle);
+    let contents = promptText;
+
+    if (voiceFilePath) {
+        try {
+            let base64Audio = null;
+            let mimeType = 'audio/mp3';
+
+            if (voiceFilePath.startsWith('http://') || voiceFilePath.startsWith('https://')) {
+                const audioResp = await fetch(voiceFilePath);
+                if (audioResp.ok) {
+                    const arrayBuffer = await audioResp.arrayBuffer();
+                    base64Audio = Buffer.from(arrayBuffer).toString('base64');
+                    const contentType = audioResp.headers.get('content-type');
+                    if (contentType) mimeType = contentType;
+                }
+            } else if (fs.existsSync(voiceFilePath)) {
+                const buffer = fs.readFileSync(voiceFilePath);
+                base64Audio = buffer.toString('base64');
+            }
+
+            if (base64Audio) {
+                contents = [
+                    {
+                        inlineData: {
+                            mimeType: mimeType || 'audio/mp3',
+                            data: base64Audio
+                        }
+                    },
+                    {
+                        text: promptText
+                    }
+                ];
+            } else {
+                if (scriptContent) {
+                    contents = `${promptText}\n\n**Video Content / Script:**\n${scriptContent}`;
+                }
+            }
+        } catch (err) {
+            console.warn("[gemini.js] Failed to load voiceover audio for description generation, falling back to text:", err);
+            if (scriptContent) {
+                contents = `${promptText}\n\n**Video Content / Script:**\n${scriptContent}`;
+            }
+        }
+    } else if (scriptContent) {
+        contents = `${promptText}\n\n**Video Content / Script:**\n${scriptContent}`;
+    }
+
+    console.log("--- GEMINI INPUT (generateDescription) ---");
+    console.log(`Video Title: ${videoTitle}`);
+    console.log("------------------------------------------");
+
+    const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: contents,
+    });
+
+    console.log("--- GEMINI RESPONSE (generateDescription) ---");
+    console.log(response.text);
+    console.log("---------------------------------------------");
+
+    const promptTokens = response.usageMetadata?.promptTokenCount || 0;
+    const candidatesTokens = response.usageMetadata?.candidatesTokenCount || 0;
+
+    return {
+        description: response.text?.trim() || "",
+        usageMetadata: {
+            promptTokenCount: promptTokens,
+            candidatesTokenCount: candidatesTokens
+        }
+    };
+}
+
 
 

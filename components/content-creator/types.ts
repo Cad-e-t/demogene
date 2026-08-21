@@ -78,6 +78,7 @@ export interface VoiceStyleConfig {
 export interface ContentProject {
     id: string;
     title: string;
+    description?: string | null;
     aspect_ratio: '9:16' | '16:9';
     image_style: string;
     voice_id: string;

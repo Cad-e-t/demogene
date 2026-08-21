@@ -25,6 +25,7 @@ create table public.content_projects (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users not null,
   title text,
+  description text,
   aspect_ratio text check (aspect_ratio in ('9:16', '16:9')),
   image_style text,
   picture_quality text default 'Ultra',

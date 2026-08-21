@@ -209,3 +209,16 @@ export async function animateAllSegments(projectId: string, userId: string, mode
     }
     return await res.json();
 }
+
+export async function generateDescription(projectId: string, videoTitle: string, userId: string) {
+    const res = await fetch(`${API_URL}/generate-description`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, videoTitle, userId })
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(sanitizeErrorMsg(err.error, "Failed to generate YouTube description. Please try again."));
+    }
+    return await res.json();
+}
