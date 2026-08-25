@@ -15,8 +15,6 @@ interface SingleVideoClipProps {
 
 const INTRO_FRAMES = 12;
 
-const EDGE_MARGIN_RATIO = 0.1;
-
 const fitWithinBounds = (naturalWidth: number, naturalHeight: number, maxWidth: number, maxHeight: number) => { 
   const scale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight); 
   return { width: naturalWidth * scale, height: naturalHeight * scale }; 
@@ -72,10 +70,6 @@ const InnerClip: React.FC<InnerClipProps> = ({
         />
       </div>
 
-      {!isPortrait && (
-        <div style={{ position: "absolute", inset: 0, borderRadius: radius, boxShadow: `0 0 24px 4px ${theme.colors.yellow}66, 0 0 0 1px ${theme.colors.yellow}aa`, pointerEvents: "none" }} /> 
-      )}
-
       {caption && ( 
         <div style={{ position: "absolute", bottom: -44, left: 0, fontFamily: theme.font.family, fontWeight: 600, fontSize: 26, color: theme.colors.yellow, opacity: finalOpacity }}> 
           {caption}  
@@ -88,10 +82,8 @@ const InnerClip: React.FC<InnerClipProps> = ({
 const SingleVideoClip: React.FC<SingleVideoClipProps> = ({ src, startFrame, endFrame, caption, muted = true, maxWidth, maxHeight }) => { 
   const { fps, width: compWidth, height: compHeight } = useVideoConfig();
 
-  const edgeMargin = Math.min(compWidth, compHeight) * EDGE_MARGIN_RATIO;
-  const isPortrait = compWidth < compHeight;
-  const boundsWidth = isPortrait ? compWidth : maxWidth ?? compWidth - edgeMargin * 2; 
-  const boundsHeight = isPortrait ? compHeight : maxHeight ?? compHeight - edgeMargin * 2;
+  const boundsWidth = maxWidth ?? compWidth; 
+  const boundsHeight = maxHeight ?? compHeight;
 
   const duration = endFrame - startFrame;
 

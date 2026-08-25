@@ -31,8 +31,8 @@ export const LANDING_PREVIEWS: Record<
     src: "https://assets.productcam.site/image-styles/anime.mp4",
     aspectRatio: "16:9",
   },
-  "Hoorror Story": {
-    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
+  "Science Short": {
+    src: "https://assets.productcam.site/image-styles/realistic.mp4",
     aspectRatio: "9:16",
   },
   "Animated Story": {
@@ -47,8 +47,8 @@ export const LANDING_PREVIEWS: Record<
     src: "https://assets.productcam.site/image-styles/Stickman.mp4",
     aspectRatio: "16:9",
   },
-  Motivational: {
-    src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4",
+  "Discipline": {
+    src: "https://assets.productcam.site/image-styles/ukiyo-e.mp4",
     aspectRatio: "16:9",
   },
 };

@@ -14,8 +14,6 @@ interface SingleImageFrameProps {
 }
 
 const INTRO_FRAMES = 6;
-const EDGE_MARGIN_RATIO = 0.1;
-
 const fitWithinBounds = (naturalWidth: number, naturalHeight: number, maxWidth: number, maxHeight: number) => { 
   const scale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight); 
   return { width: naturalWidth * scale, height: naturalHeight * scale }; 
@@ -25,11 +23,9 @@ const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ src, startFrame, en
   const frame = useCurrentFrame(); 
   const { fps, width: compWidth, height: compHeight } = useVideoConfig();
 
-  // Fall back to the composition size minus the edge margin, so this adapts to any aspect ratio 
-  const edgeMargin = Math.min(compWidth, compHeight) * EDGE_MARGIN_RATIO;
-  const isPortrait = compWidth < compHeight;
-  const boundsWidth = isSegmentImage || isPortrait ? compWidth : maxWidth ?? compWidth - edgeMargin * 2; 
-  const boundsHeight = isSegmentImage || isPortrait ? compHeight : maxHeight ?? compHeight - edgeMargin * 2;
+  // Fall back to the composition size so this adapts to any aspect ratio 
+  const boundsWidth = maxWidth ?? compWidth; 
+  const boundsHeight = maxHeight ?? compHeight;
 
   const [handle] = useState(() => delayRender(`Fetching image metadata for ${src}`)); 
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);

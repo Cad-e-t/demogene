@@ -69,7 +69,7 @@ export const SmartCaptions = ({
   // 2. Check if current frame falls within a valid gap
   const currentGap = validGaps.find(g => frame >= g.start && frame < g.end);
   const isPortrait = width && height ? width < height : true;
-  
+
   const stickerShadowWidth = !isPortrait ? 8 : 16;
   const stickerShadows = useMemo(() => {
     let shadows = [];
@@ -82,6 +82,10 @@ export const SmartCaptions = ({
     return shadows.join(', ');
   }, [stickerShadowWidth, isPortrait]);
   
+  if (!isPortrait) {
+    return null;
+  }
+
   let activeMediaInterval: { start: number, end: number } | null = null;
 
   if (!isPortrait) {
