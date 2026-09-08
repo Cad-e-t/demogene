@@ -25,10 +25,13 @@ export const sanitizeErrorMsg = (error: any, fallback: string) => {
 };
 
 export async function generateUploadUrl(projectId: string, segmentId: string, filename: string, contentType: string) {
+    const rawExt = filename.includes('.') ? filename.split('.').pop() || '' : '';
+    const cleanExt = (rawExt || contentType.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'png';
+    const cleanFilename = `asset_${Date.now()}.${cleanExt}`;
     const res = await fetch(`${API_URL}/generate-upload-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, segmentId, filename, contentType })
+        body: JSON.stringify({ projectId, segmentId, filename: cleanFilename, contentType })
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -219,6 +222,19 @@ export async function generateDescription(projectId: string, videoTitle: string,
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(sanitizeErrorMsg(err.error, "Failed to generate YouTube description. Please try again."));
+    }
+    return await res.json();
+}
+
+export async function retryProject(projectId: string, userId: string) {
+    const res = await fetch(`${API_URL}/retry-project`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, userId })
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(sanitizeErrorMsg(err.error, "Retry failed. Please try again."));
     }
     return await res.json();
 }

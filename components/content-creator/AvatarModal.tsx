@@ -79,12 +79,16 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({ isOpen, onClose, userI
 
         setIsUploading(true);
         try {
-            // 1. Get upload URL
+            // 1. Get upload URL with sanitized/renamed filename (no spaces or gaps)
+            const rawExt = file.name.includes('.') ? file.name.split('.').pop() || '' : '';
+            const cleanExt = (rawExt || file.type.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'png';
+            const cleanFileName = `avatar_${Date.now()}.${cleanExt}`;
+
             const res = await fetch(`${API_URL}/api/avatars/generate-upload-url`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    fileName: file.name,
+                    fileName: cleanFileName,
                     fileType: file.type
                 })
             });

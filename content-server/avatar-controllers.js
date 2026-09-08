@@ -12,7 +12,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 function getKeyFromUrl(url) {
     if (!url) return null;
     const parts = url.split('.com/');
-    return parts.length > 1 ? parts[1] : null;
+    return parts.length > 1 ? decodeURIComponent(parts[1]) : null;
 }
 
 export const generateAvatarUploadUrl = async (req, res) => {
@@ -20,7 +20,10 @@ export const generateAvatarUploadUrl = async (req, res) => {
     const { fileName, fileType } = req.body;
     if (!fileName || !fileType) return res.status(400).json({ error: 'Missing fileName or fileType' });
 
-    const key = `avatars/${uuidv4()}_${fileName}`;
+    // Rename file to a sanitized UUID key to ensure no spaces, gaps, or special characters
+    const rawExt = fileName.includes('.') ? fileName.split('.').pop() : '';
+    const cleanExt = (rawExt || fileType.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'png';
+    const key = `avatars/${uuidv4()}.${cleanExt}`;
     
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET,
@@ -40,8 +43,11 @@ export const generateAvatarUploadUrl = async (req, res) => {
 
 export const saveAvatar = async (req, res) => {
     try {
-        const { userId, url } = req.body;
+        let { userId, url } = req.body;
         if (!userId || !url) return res.status(400).json({ error: 'Missing userId or url' });
+
+        // Ensure url has no gaps/whitespace
+        url = url.trim().replace(/\s+/g, '%20');
 
         const { data, error } = await supabase
             .from('avatar')

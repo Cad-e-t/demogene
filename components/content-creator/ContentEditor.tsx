@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, updateSegmentAvatar, generateVideoSegment, animateAllSegments, generateDescription, sanitizeErrorMsg } from './api';
+import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, updateSegmentAvatar, generateVideoSegment, animateAllSegments, generateDescription, retryProject, sanitizeErrorMsg } from './api';
 import { ContentVideoPlayer, EFFECT_TYPES, EFFECT_SEQUENCES } from './ContentVideoPlayer';
 import { AvatarModal } from './AvatarModal';
 import { supabase } from '../../supabaseClient';
@@ -190,6 +190,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [imageEditModalId, setImageEditModalId] = useState<string | null>(null);
     const [imageEditTab, setImageEditTab] = useState<'regenerate' | 'edit' | 'upload'>('regenerate');
     
+    const [projectCharacters, setProjectCharacters] = useState<any[]>([]);
+    const [lightboxChar, setLightboxChar] = useState<{ imageUrl: string | null; name: string; outfit?: string; desc?: string } | null>(null);
+
     const [showAvatarModal, setShowAvatarModal] = useState(false);
     const [avatarConfirmDeleteId, setAvatarConfirmDeleteId] = useState<string | null>(null);
 
@@ -246,6 +249,37 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
     const [isSavingMetadata, setIsSavingMetadata] = useState(false);
     const [copiedDescription, setCopiedDescription] = useState(false);
+    const [isRetrying, setIsRetrying] = useState(false);
+
+    const handleRetryProject = async () => {
+        if (isRetrying) return;
+        setIsRetrying(true);
+        try {
+            const userId = session?.user?.id || project.user_id;
+            setLocalProject((prev: any) => ({ ...prev, status: 'generating', render_status: 'generating' }));
+            await retryProject(project.id, userId);
+            setNotification({
+                message: "Retry initiated. Generating missing scenes and assets...",
+                type: "success"
+            });
+            setTimeout(() => setNotification(null), 5000);
+        } catch (err: any) {
+            console.error("Retry failed:", err);
+            setLocalProject((prev: any) => ({ ...prev, status: 'draft', render_status: 'failed' }));
+            const msg = err?.message || "Failed to retry generation.";
+            if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('balance') || msg.toLowerCase().includes('insufficient')) {
+                setShowPricingModal(true);
+            } else {
+                setNotification({
+                    message: msg,
+                    type: "error"
+                });
+                setTimeout(() => setNotification(null), 6000);
+            }
+        } finally {
+            setIsRetrying(false);
+        }
+    };
 
     useEffect(() => {
         let interval: any;
@@ -276,6 +310,32 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         };
         fetchProject();
     }, [project.id]);
+
+    // Fetch project characters for segment character references
+    useEffect(() => {
+        if (!project?.id) return;
+        const fetchCharacters = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('content_characters')
+                    .select('*')
+                    .eq('project_id', project.id);
+                if (!error && data) {
+                    setProjectCharacters(data);
+                }
+            } catch (err) {
+                console.error("Error fetching project characters:", err);
+            }
+        };
+        fetchCharacters();
+    }, [project?.id, imageEditModalId]);
+
+    // Reset character lightbox when modal closes
+    useEffect(() => {
+        if (!imageEditModalId) {
+            setLightboxChar(null);
+        }
+    }, [imageEditModalId]);
 
     const handleGenerateDescription = async () => {
         if (!metadataTitle.trim()) {
@@ -752,11 +812,16 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         if (currentSegments) {
                             const failedCount = currentSegments.filter(s => !s.image_url).length;
                             if (failedCount > 0) {
-                                setNotification({
-                                    message: `${failedCount} image generation failed, credits refunded. Try regenerating the images.`,
-                                    type: 'error'
-                                });
-                                setTimeout(() => setNotification(null), 6000);
+                                const { data: profile } = await supabase.from('profiles').select('credits').eq('id', project.user_id).single();
+                                if (profile && profile.credits < failedCount * 4) {
+                                    setShowPricingModal(true);
+                                } else {
+                                    setNotification({
+                                        message: `${failedCount} image generation failed, credits refunded. Try regenerating the images.`,
+                                        type: 'error'
+                                    });
+                                    setTimeout(() => setNotification(null), 6000);
+                                }
                             }
                         }
                     }, 1000);
@@ -764,11 +829,18 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
                 // Check for audio generation failures
                 if (oldRenderStatus === 'generating' && payload.new.render_status === 'failed') {
-                    setNotification({
-                        message: `Audio generation failed, credits refunded. Try regenerating the audio.`,
-                        type: 'error'
-                    });
-                    setTimeout(() => setNotification(null), 6000);
+                    (async () => {
+                        const { data: profile } = await supabase.from('profiles').select('credits').eq('id', project.user_id).single();
+                        if (profile && profile.credits < 5) {
+                            setShowPricingModal(true);
+                        } else {
+                            setNotification({
+                                message: `Audio generation failed, credits refunded. Try regenerating the audio.`,
+                                type: 'error'
+                            });
+                            setTimeout(() => setNotification(null), 6000);
+                        }
+                    })();
                 }
                 
                 // Auto-load assets when they appear in the DB
@@ -1501,6 +1573,33 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 </div>
             </div>
 
+            {/* Retry Bar: Displays when project status is draft */}
+            {localProject.status === 'draft' && (
+                <div className="bg-gradient-to-r from-red-950/40 via-zinc-900 to-zinc-900 border-b border-red-500/30 px-6 py-2.5 flex items-center justify-between shrink-0 z-30 animate-in fade-in slide-in-from-top-1">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse shrink-0" />
+                        <span className="text-xs md:text-sm font-medium text-zinc-300">
+                            Generation incomplete. Some scenes or assets could not be generated.
+                        </span>
+                    </div>
+                    <button
+                        onClick={handleRetryProject}
+                        disabled={isRetrying}
+                        className="px-3.5 py-1.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center gap-2 shrink-0 cursor-pointer"
+                    >
+                        <svg
+                            className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>{isRetrying ? 'Retrying...' : 'Retry Generation'}</span>
+                    </button>
+                </div>
+            )}
+
             {/* Main Content Area */}
             <div className="flex-1 flex overflow-hidden relative">
                 
@@ -1517,7 +1616,31 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         </div>
                     )}
                     <div className={`flex-1 flex items-center justify-center p-4 md:p-8 min-h-0 w-full relative transition-all duration-300 ${isMobileConfigOpen ? 'scale-90 md:scale-100' : 'scale-100'}`}>
-                        {(!audioUrl || segmentDurations.length === 0 || localProject.render_status === 'Animating' || ['generating', 'rendering', 'rendering_voice'].includes(localProject.status)) ? (
+                        {localProject.status === 'draft' && (!audioUrl || segmentDurations.length === 0) ? (
+                            <div className="flex flex-col items-center gap-4 text-center max-w-sm px-4">
+                                <div className="w-14 h-14 rounded-2xl bg-zinc-800/80 border border-white/10 flex items-center justify-center text-zinc-400">
+                                    <svg className="w-7 h-7 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-white font-bold text-base mb-1">Generation Interrupted</h3>
+                                    <p className="text-zinc-400 text-xs leading-relaxed">
+                                        This project stopped generating before all assets were completed. Click retry above or below to finish generating.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={handleRetryProject}
+                                    disabled={isRetrying}
+                                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
+                                >
+                                    <svg className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    <span>{isRetrying ? 'Retrying Generation...' : 'Retry Generation'}</span>
+                                </button>
+                            </div>
+                        ) : (!audioUrl || segmentDurations.length === 0 || localProject.render_status === 'Animating' || ['generating', 'rendering', 'rendering_voice'].includes(localProject.status)) ? (
                             <div className="flex flex-col items-center gap-4">
                                 <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
                                 <div className="text-sm font-bold text-zinc-400 uppercase tracking-widest animate-pulse text-center">
@@ -1652,8 +1775,8 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             exit={{ opacity: 0, scale: 0.95 }}
                             className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
                         >
-                            {/* Left: Current Image & Avatar */}
-                            <div className="md:w-1/2 bg-black flex flex-col items-center justify-center p-4 border-b md:border-b-0 md:border-r border-white/10 relative">
+                            {/* Left: Current Image & Characters */}
+                            <div className="md:w-1/2 bg-black flex flex-col items-center justify-between p-4 border-b md:border-b-0 md:border-r border-white/10 relative overflow-y-auto max-h-[85vh] md:max-h-[80vh]">
                                 <div className="flex-1 w-full flex items-center justify-center relative min-h-[30vh]">
                                     {(() => {
                                         const seg = segments.find((s: any) => s.id === imageEditModalId);
@@ -1669,37 +1792,130 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     })()}
                                 </div>
 
-                                {/* Avatar Section */}
-                                <div className="w-full mt-4 p-4 border border-white/10 rounded-xl bg-zinc-900/50 flex items-center justify-between shrink-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                                            {(() => {
-                                                const seg = segments.find((s: any) => s.id === imageEditModalId);
-                                                return seg?.avatar_url ? (
-                                                    <img src={seg.avatar_url} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                                );
-                                            })()}
+                                {/* Segment Characters Section */}
+                                {(() => {
+                                    const seg = segments.find((s: any) => s.id === imageEditModalId);
+                                    if (!seg) return null;
+
+                                    let rawChars: any[] = [];
+                                    if (Array.isArray(seg.characters)) {
+                                        rawChars = seg.characters;
+                                    } else if (typeof seg.characters === 'string') {
+                                        try {
+                                            const parsed = JSON.parse(seg.characters);
+                                            if (Array.isArray(parsed)) rawChars = parsed;
+                                        } catch (e) {
+                                            rawChars = [];
+                                        }
+                                    }
+
+                                    const resolvedChars = rawChars.map((item: any, idx: number) => {
+                                        const charId = typeof item === 'string' ? item : (item.character_id || item.id || `char_${idx + 1}`);
+                                        const outfitId = typeof item === 'object' && item.outfit_id ? item.outfit_id : '';
+                                        
+                                        const matched = projectCharacters.find((pc: any) => 
+                                            pc.character_id === charId && (!outfitId || pc.outfit_id === outfitId)
+                                        ) || projectCharacters.find((pc: any) => pc.character_id === charId);
+
+                                        let imgUrl = item.image_url || matched?.image_url || null;
+                                        if (!imgUrl && (charId === 'AVATAR' || charId.toLowerCase() === 'avatar')) {
+                                            imgUrl = seg.avatar_url || project?.avatar_url || null;
+                                        }
+
+                                        let name = item.name || '';
+                                        if (!name) {
+                                            if (charId === 'AVATAR' || charId.toLowerCase() === 'avatar') {
+                                                name = 'Avatar';
+                                            } else {
+                                                const cleaned = charId.replace(/^character_?/i, 'Character ').replace(/[-_]/g, ' ');
+                                                name = cleaned.replace(/\b\w/g, (c: string) => c.toUpperCase());
+                                            }
+                                        }
+
+                                        const outfit = outfitId ? outfitId.replace(/[-_]/g, ' ').replace(/\boutfit\s*/i, 'Outfit ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : '';
+                                        const desc = matched?.full_desc || item.full_desc || item.desc || '';
+                                        const key = `${charId}_${outfitId}_${idx}`;
+
+                                        return {
+                                            key,
+                                            charId,
+                                            outfitId,
+                                            name,
+                                            outfit,
+                                            desc,
+                                            imageUrl: imgUrl,
+                                            index: item.index !== undefined ? item.index : idx + 1
+                                        };
+                                    });
+
+                                    if (resolvedChars.length === 0) {
+                                        return (
+                                            <div className="w-full mt-4 p-3.5 border border-white/10 rounded-2xl bg-zinc-900/60 flex items-center justify-between shrink-0">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-xl bg-zinc-800/80 border border-white/10 flex items-center justify-center text-zinc-500 shrink-0">
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-semibold text-white">Segment Characters</p>
+                                                        <p className="text-[11px] text-zinc-400">No characters assigned to this segment</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="w-full mt-4 p-3.5 border border-white/10 rounded-2xl bg-zinc-900/70 backdrop-blur-sm flex flex-col gap-2.5 shrink-0 transition-all">
+                                            {/* Header */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                    <span className="text-xs font-semibold text-white tracking-wide">Segment Characters</span>
+                                                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-zinc-300 border border-white/10 font-mono">
+                                                        {resolvedChars.length}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[11px] text-zinc-500">
+                                                    Click icon to view
+                                                </span>
+                                            </div>
+
+                                            {/* Small expandable icons row */}
+                                            <div className="flex items-center gap-2.5 flex-wrap">
+                                                {resolvedChars.map((char) => (
+                                                    <button
+                                                        key={char.key}
+                                                        type="button"
+                                                        onClick={() => setLightboxChar(char)}
+                                                        title={`${char.name}${char.outfit ? ` (${char.outfit})` : ''} - Click to view full image`}
+                                                        className="w-10 h-10 rounded-xl overflow-hidden relative group transition-all duration-200 shrink-0 border border-white/15 hover:border-white/40 hover:scale-105 bg-zinc-800 cursor-pointer"
+                                                    >
+                                                        {char.imageUrl ? (
+                                                            <img 
+                                                                src={char.imageUrl} 
+                                                                alt={char.name} 
+                                                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400">
+                                                                {char.name.charAt(0)}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Small view icon overlay on hover */}
+                                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <svg className="w-3.5 h-3.5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+                                                            </svg>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-white">Segment Avatar</p>
-                                            <p className="text-xs text-zinc-400">
-                                                {segments.find((s: any) => s.id === imageEditModalId)?.avatar_url ? 'Avatar active' : 'No avatar selected'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => setShowAvatarModal(true)} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition text-white" title="Change Avatar">
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                                        </button>
-                                        {segments.find((s: any) => s.id === imageEditModalId)?.avatar_url && (
-                                            <button onClick={() => setAvatarConfirmDeleteId(imageEditModalId)} className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition" title="Remove Avatar">
-                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Right: Actions */}
@@ -1798,6 +2014,58 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     )}
                                 </div>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Character Lightbox Modal */}
+            <AnimatePresence>
+                {lightboxChar && (
+                    <div 
+                        className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
+                        onClick={() => setLightboxChar(null)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative max-w-sm sm:max-w-md w-full bg-zinc-900 border border-white/15 rounded-3xl overflow-hidden shadow-2xl p-5 flex flex-col items-center"
+                        >
+                            <div className="w-full flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+                                <div>
+                                    <h4 className="text-sm font-bold text-white">{lightboxChar.name}</h4>
+                                    {lightboxChar.outfit && (
+                                        <p className="text-xs text-zinc-400 font-mono mt-0.5">{lightboxChar.outfit}</p>
+                                    )}
+                                </div>
+                                <button 
+                                    type="button"
+                                    onClick={() => setLightboxChar(null)}
+                                    className="p-1.5 hover:bg-white/10 rounded-xl text-zinc-400 hover:text-white transition"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            {lightboxChar.imageUrl ? (
+                                <img 
+                                    src={lightboxChar.imageUrl} 
+                                    alt={lightboxChar.name} 
+                                    className="max-h-[60vh] w-auto object-contain rounded-2xl border border-white/10 shadow-lg"
+                                />
+                            ) : (
+                                <div className="w-full h-48 flex items-center justify-center text-zinc-500 text-sm">
+                                    No image available
+                                </div>
+                            )}
+                            {lightboxChar.desc && (
+                                <p className="text-xs text-zinc-400 mt-3 text-center line-clamp-3 leading-relaxed">
+                                    {lightboxChar.desc}
+                                </p>
+                            )}
                         </motion.div>
                     </div>
                 )}

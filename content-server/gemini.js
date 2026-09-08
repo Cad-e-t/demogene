@@ -4,79 +4,43 @@ import { GoogleGenAI, Modality } from "@google/genai";
 
 
 import {
-    predefinedVisualIdentityBlocks,
-    getNormalSegmentationPrompt,
-    getCreatorSystemPrompt,
     getDirectorSystemPrompt,
     getAvatarSystemPrompt,
     getYouTubeDescriptionPrompt
 } from "./prompt.js";
 
 const MODEL_NAME = "gemini-3.6-flash"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
-const SEGMENTATION_MODEL_NAME = "gemini-3.5-flash"; // Using flash for segmentation
 const GENERATE_IMAGE_MODEL = "gemini-3.1-flash-lite-image";  
 const EDIT_IMAGE_MODEL = "gemini-3.1-flash-lite-image"; //
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const VIDEO_MODEL = "veo-3.1-lite-generate-preview";
 
-export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced', isFreeTrial = false, avatarUrl = null) {
+export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced', isFreeTrial = false, rawAvatarUrl = null) {
+    const avatarUrl = rawAvatarUrl ? rawAvatarUrl.trim().replace(/\s+/g, '%20') : null;
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    let baseSegments = [];
-    let segmentationResponse = null;
-
-    if (style !== 'Director' && !avatarUrl) {
-        const segmentationSystemPrompt = getNormalSegmentationPrompt(prompt);
-
-        console.log("--- GEMINI INPUT (Segmentation Step) ---");
-        console.log(segmentationSystemPrompt);
-        console.log("-------------------------------------------");
-
-        segmentationResponse = await ai.models.generateContent({
-            model: SEGMENTATION_MODEL_NAME,
-            contents: segmentationSystemPrompt,
-            config: {
-                responseMimeType: "application/json"
-            }
-        });
-
-        console.log("--- GEMINI RESPONSE (Segmentation Step) ---");
-        console.log(segmentationResponse.text);
-        console.log("----------------------------------------------");
-
-        try {
-            baseSegments = JSON.parse(segmentationResponse.text);
-        } catch (e) {
-            console.error("Failed to parse Gemini segmentation response", segmentationResponse.text);
-            throw new Error("AI Generation failed to produce valid JSON for segmentation");
-        }
-    }
-
-    const segmentedScript = JSON.stringify(baseSegments, null, 2);
-
-    const visualIdentityBlock = style === 'Director' 
+    const isDirector = style === 'Director' || !style || !style.trim();
+    const visualIdentityBlock = isDirector 
         ? "" 
-        : predefinedVisualIdentityBlocks[style];
+        : style;
+
+    const finalInput = isDirector 
+        ? prompt 
+        : `${prompt}
+
+VISUAL GUIDELINE
+
+The 'style' field must conform to the rendering style, and all character descriptions to the character design constraints as specified in the VISUAL IDENTITY below.
+
+
+VISUAL IDENTITY: ${visualIdentityBlock}`;
 
     let systemPrompt;
     if (avatarUrl) {
-        const finalInput = style === 'Director' 
-            ? prompt 
-            : `${prompt}
-
-VISUAL IDENTITY LOCK
-
-The VISUAL IDENTITY LOCK defines the rendering style and the character design language. 
-The 'style' field must conform to the rendering style, and all character descriptions to the character design constraints as specified in VISUAL IDENTITY LOCK.
-
-
-VISUAL IDENTITY LOCK: ${visualIdentityBlock}`;
         systemPrompt = getAvatarSystemPrompt(finalInput);
     } else {
-        systemPrompt = style === 'Director'
-            ? getDirectorSystemPrompt(prompt)
-            : getCreatorSystemPrompt(segmentedScript, visualIdentityBlock);
+        systemPrompt = getDirectorSystemPrompt(finalInput);
     }
 
 
@@ -109,158 +73,63 @@ VISUAL IDENTITY LOCK: ${visualIdentityBlock}`;
     const mainSubjects = visualData.recurring_subjects || {};
 
     for (const seg of (visualData.segments || [])) {
-        const matchingBaseSeg = baseSegments.find(s => String(s.segment_id) === String(seg.segment_id));
-        const narration = (style === 'Director' || avatarUrl) ? (seg.narration || "") : (matchingBaseSeg ? matchingBaseSeg.narration : "");
+        const narration = seg.narration || "";
 
         let finalImagePrompt = seg.scene_description || "";
         let finalAnimationPrompt = seg.animation_prompt || "";
         let segAvatarUrl = null;
+        let segCharacters = [];
+        let charIndex = 1;
 
-        if (seg.subjects && Array.isArray(seg.subjects)) {
-            for (const sub of seg.subjects) {
-                if (avatarUrl && sub.id === 'AVATAR') {
-                    const avatarData = visualData.avatar || {};
-                    const baseDesc = "character in the uploaded image";
-                    let outfitDesc = "";
-                    if (avatarData.outfits && sub.outfit && sub.outfit_parts && Array.isArray(sub.outfit_parts)) {
-                        const outfitPartsObj = avatarData.outfits[sub.outfit];
-                        if (outfitPartsObj) {
-                            const parts = [];
-                            for (const part of sub.outfit_parts) {
-                                if (outfitPartsObj[part]) {
-                                    parts.push(outfitPartsObj[part]);
-                                }
-                            }
-                            if (parts.length > 0) {
-                                outfitDesc = parts.join(", ");
-                            }
-                        }
-                    }
-                    const outfitSuffix = outfitDesc ? ` (wearing ${outfitDesc})` : "";
-                    const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
-                    const baseDescLower = baseDesc.toLowerCase();
-                    
-                    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const idRegex = new RegExp(`\\b${escapeRegExp(sub.id)}\\b`, 'gi');
-                    
-                    let matchCount = 0;
-                    finalImagePrompt = finalImagePrompt.replace(idRegex, () => {
-                        matchCount++;
-                        if (matchCount === 1) {
-                            return fullDesc;
-                        } else {
-                            return baseDescLower;
-                        }
-                    });
-                    
-                    segAvatarUrl = avatarUrl;
-                } else {
-                    const mainSub = mainSubjects[sub.id];
-                    if (mainSub) {
-                        const baseDescRaw = mainSub.base || "";
-                        const baseDesc = baseDescRaw.trim().replace(/\.$/, "");
-                        
-                        let outfitDesc = "";
-                        if (mainSub.outfits && sub.outfit && sub.outfit_parts && Array.isArray(sub.outfit_parts)) {
-                            const outfitPartsObj = mainSub.outfits[sub.outfit];
-                            if (outfitPartsObj) {
-                                const parts = [];
-                                for (const part of sub.outfit_parts) {
-                                    if (outfitPartsObj[part]) {
-                                        parts.push(outfitPartsObj[part]);
-                                    }
-                                }
-                                if (parts.length > 0) {
-                                    outfitDesc = parts.join(", ");
-                                }
-                            }
-                        }
-                        
-                        const outfitSuffix = outfitDesc ? ` (wearing ${outfitDesc})` : "";
-                        const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
-                        
-                        const baseDescLower = baseDesc.toLowerCase();
-                        
-                        const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        const idRegex = new RegExp(`\\b${escapeRegExp(sub.id)}\\b`, 'gi');
-                        
-                        let matchCount = 0;
-                        finalImagePrompt = finalImagePrompt.replace(idRegex, () => {
-                            matchCount++;
-                            if (matchCount === 1) {
-                                return fullDesc;
-                            } else {
-                                return baseDescLower;
-                            }
-                        });
-                    }
-                }
-            }
-        }
-
-        // Fallback for missing subjects in seg.subjects
-        const escapeRegExpFallback = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
         if (avatarUrl) {
             const idRegex = new RegExp(`\\bAVATAR\\b`, 'gi');
             if (idRegex.test(finalImagePrompt)) {
-                const avatarData = visualData.avatar || {};
-                const baseDesc = "character in the uploaded image";
-                let outfitDesc = "";
-                
-                if (avatarData.outfits) {
-                    const outfitKeys = Object.keys(avatarData.outfits);
-                    if (outfitKeys.length > 0) {
-                        const firstOutfitObj = avatarData.outfits[outfitKeys[0]];
-                        if (firstOutfitObj) {
-                            const parts = Object.values(firstOutfitObj);
-                            if (parts.length > 0) {
-                                outfitDesc = parts.join(", ");
-                            }
-                        }
+                let chosenOutfit = null;
+                if (seg.subjects && Array.isArray(seg.subjects)) {
+                    const subObj = seg.subjects.find(s => s.id === 'AVATAR');
+                    if (subObj && subObj.outfit) {
+                        chosenOutfit = subObj.outfit;
                     }
                 }
-                const outfitSuffix = outfitDesc ? ` (wearing ${outfitDesc})` : "";
-                const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
-                const baseDescLower = baseDesc.toLowerCase();
-
-                let matchCount = 0;
-                finalImagePrompt = finalImagePrompt.replace(idRegex, () => {
-                    matchCount++;
-                    return matchCount === 1 ? fullDesc : baseDescLower;
-                });
-                segAvatarUrl = avatarUrl;
+                if (!chosenOutfit) {
+                    const avatarData = visualData.avatar || {};
+                    if (avatarData.outfits) {
+                        const keys = Object.keys(avatarData.outfits);
+                        if (keys.length > 0) chosenOutfit = keys[0];
+                    }
+                }
+                if (chosenOutfit) {
+                    segCharacters.push({ character_id: 'AVATAR', outfit_id: chosenOutfit, index: charIndex });
+                    finalImagePrompt = finalImagePrompt.replace(idRegex, `character in image ${charIndex}`);
+                    charIndex++;
+                    segAvatarUrl = avatarUrl;
+                }
             }
         }
 
         for (const [subId, mainSub] of Object.entries(mainSubjects)) {
-            const idRegex = new RegExp(`\\b${escapeRegExpFallback(subId)}\\b`, 'gi');
+            const idRegex = new RegExp(`\\b${escapeRegExp(subId)}\\b`, 'gi');
             if (idRegex.test(finalImagePrompt)) {
-                const baseDescRaw = mainSub.base || "";
-                const baseDesc = baseDescRaw.trim().replace(/\.$/, "");
-                
-                let outfitDesc = "";
-                if (mainSub.outfits) {
-                    const outfitKeys = Object.keys(mainSub.outfits);
-                    if (outfitKeys.length > 0) {
-                        const firstOutfitObj = mainSub.outfits[outfitKeys[0]];
-                        if (firstOutfitObj) {
-                            const parts = Object.values(firstOutfitObj);
-                            if (parts.length > 0) {
-                                outfitDesc = parts.join(", ");
-                            }
-                        }
+                let chosenOutfit = null;
+                if (seg.subjects && Array.isArray(seg.subjects)) {
+                    const subObj = seg.subjects.find(s => s.id === subId);
+                    if (subObj && subObj.outfit) {
+                        chosenOutfit = subObj.outfit;
                     }
                 }
-                const outfitSuffix = outfitDesc ? ` (wearing ${outfitDesc})` : "";
-                const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
-                const baseDescLower = baseDesc.toLowerCase();
-
-                let matchCount = 0;
-                finalImagePrompt = finalImagePrompt.replace(idRegex, () => {
-                    matchCount++;
-                    return matchCount === 1 ? fullDesc : baseDescLower;
-                });
+                if (!chosenOutfit) {
+                    if (mainSub.outfits) {
+                        const keys = Object.keys(mainSub.outfits);
+                        if (keys.length > 0) chosenOutfit = keys[0];
+                    }
+                }
+                if (chosenOutfit) {
+                    segCharacters.push({ character_id: subId, outfit_id: chosenOutfit, index: charIndex });
+                    finalImagePrompt = finalImagePrompt.replace(idRegex, `character in image ${charIndex}`);
+                    charIndex++;
+                }
             }
         }
 
@@ -289,17 +158,19 @@ VISUAL IDENTITY LOCK: ${visualIdentityBlock}`;
             narration: narration,
             image_prompt: finalImagePrompt.trim(),
             animation_prompt: finalAnimationPrompt,
+            characters: segCharacters,
             ...(segAvatarUrl && { avatar_url: segAvatarUrl })
         });
     }
 
-    const inputTokens1 = segmentationResponse?.usageMetadata?.promptTokenCount || 0;
-    const outputTokens1 = segmentationResponse?.usageMetadata?.candidatesTokenCount || 0;
+    const inputTokens1 = 0;
+    const outputTokens1 = 0;
     const inputTokens2 = response.usageMetadata?.promptTokenCount || 0;
     const outputTokens2 = response.usageMetadata?.candidatesTokenCount || 0;
 
     return {
         segments: finalSegments,
+        rawVisualData: visualData,
         usageMetadata: {
             flashUsage: {
                 promptTokenCount: inputTokens1,
@@ -313,22 +184,99 @@ VISUAL IDENTITY LOCK: ${visualIdentityBlock}`;
     };
 }
 
-export async function generateImage(prompt, aspect, avatarImageBase64 = null) {
+export async function generateCharacterImagesData(visualData, style, rawAvatarUrl) {
+    const avatarUrl = rawAvatarUrl ? rawAvatarUrl.trim().replace(/\s+/g, '%20') : null;
+    const characters = [];
+
+    const mainSubjects = visualData.recurring_subjects || {};
+    for (const [subId, mainSub] of Object.entries(mainSubjects)) {
+        const baseDescRaw = mainSub.base || "";
+        const baseDesc = baseDescRaw.trim().replace(/\.$/, "");
+        
+        if (mainSub.outfits) {
+            for (const [outfitId, outfitObj] of Object.entries(mainSub.outfits)) {
+                let outfitDesc = "";
+                const parts = Object.values(outfitObj);
+                if (parts.length > 0) {
+                    outfitDesc = parts.join(", ");
+                }
+                const outfitSuffix = outfitDesc ? ` (wearing ${outfitDesc})` : "";
+                const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
+                
+                const promptSkeleton = `Full body shot, pure white background, neutral expression. ${fullDesc}, ${style}.`;
+                characters.push({
+                    character_id: subId,
+                    outfit_id: outfitId,
+                    full_desc: fullDesc,
+                    promptSkeleton: promptSkeleton,
+                    isGenerated: true
+                });
+            }
+        }
+    }
+
+    if (avatarUrl && visualData.avatar && visualData.avatar.outfits) {
+        let avatarImageBase64 = null;
+        try {
+            const resp = await fetch(avatarUrl);
+            const arrayBuf = await resp.arrayBuffer();
+            avatarImageBase64 = Buffer.from(arrayBuf).toString('base64');
+        } catch (e) {
+            console.error("Failed to fetch avatar image for character generation:", e);
+        }
+
+        const baseDesc = "character in the uploaded image";
+        for (const [outfitId, outfitObj] of Object.entries(visualData.avatar.outfits)) {
+            let outfitDesc = "";
+            const parts = Object.values(outfitObj);
+            if (parts.length > 0) {
+                outfitDesc = parts.join(", ");
+            }
+            const outfitSuffix = outfitDesc ? ` (wearing ${outfitDesc})` : "";
+            const fullDesc = `${baseDesc}${outfitSuffix}`.toLowerCase();
+
+            const promptSkeleton = `Full body shot, pure white background, neutral expression. ${fullDesc}, ${style}.`;
+            characters.push({
+                character_id: 'AVATAR',
+                outfit_id: outfitId,
+                full_desc: fullDesc,
+                promptSkeleton: promptSkeleton,
+                referenceImageBase64: avatarImageBase64,
+                isGenerated: true
+            });
+        }
+    }
+    
+    return characters;
+}
+
+export async function generateImage(prompt, aspect, referenceImages = null) {
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const ar = aspect === '9:16' ? '9:16' : '16:9';
 
     let input = prompt;
-    if (avatarImageBase64) {
-        input = [
-            { type: "text", text: prompt },
-            {
-                type: "image",
-                mime_type: "image/png", // PNG is a safe default for avatar images and general usage
-                data: avatarImageBase64
+    if (referenceImages) {
+        let imageArray = Array.isArray(referenceImages) ? referenceImages : [referenceImages];
+        if (imageArray.length > 0) {
+            input = [
+                { type: "text", text: prompt }
+            ];
+            for (const base64Data of imageArray) {
+                if (base64Data) {
+                    input.push({
+                        type: "image",
+                        mime_type: "image/png",
+                        data: base64Data
+                    });
+                }
             }
-        ];
+            if (input.length === 1) {
+                // If no valid images were added, fallback to simple text prompt
+                input = prompt;
+            }
+        }
     }
 
     const interaction = await ai.interactions.create({

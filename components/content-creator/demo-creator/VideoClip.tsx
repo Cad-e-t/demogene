@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react"; 
-import { Video, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring, delayRender, continueRender } from "remotion"; 
+import { Video, Sequence, useCurrentFrame, useVideoConfig, interpolate, spring } from "remotion"; 
 import { getVideoMetadata } from "@remotion/media-utils"; 
 import { theme } from "./theme";
 
@@ -11,6 +11,9 @@ interface SingleVideoClipProps {
   muted?: boolean;
   maxWidth?: number;
   maxHeight?: number; 
+  intrinsicDuration?: number;
+  intrinsicWidth?: number;
+  intrinsicHeight?: number;
 }
 
 const INTRO_FRAMES = 12;
@@ -79,7 +82,10 @@ const InnerClip: React.FC<InnerClipProps> = ({
   ); 
 };
 
-const SingleVideoClip: React.FC<SingleVideoClipProps> = ({ src, startFrame, endFrame, caption, muted = true, maxWidth, maxHeight }) => { 
+const SingleVideoClip: React.FC<SingleVideoClipProps> = ({ 
+  src, startFrame, endFrame, caption, muted = true, maxWidth, maxHeight,
+  intrinsicDuration, intrinsicWidth, intrinsicHeight 
+}) => { 
   const { fps, width: compWidth, height: compHeight } = useVideoConfig();
 
   const boundsWidth = maxWidth ?? compWidth; 
@@ -87,10 +93,15 @@ const SingleVideoClip: React.FC<SingleVideoClipProps> = ({ src, startFrame, endF
 
   const duration = endFrame - startFrame;
 
-  const [handle] = useState(() => delayRender(`Fetching video metadata for ${src}`)); 
-  const [metadata, setMetadata] = useState<{ duration: number; width: number; height: number } | null>(null);
+  const [metadata, setMetadata] = useState<{ duration: number; width: number; height: number }>({
+    duration: intrinsicDuration || 10,
+    width: intrinsicWidth || 1080,
+    height: intrinsicHeight || 1080
+  });
 
   useEffect(() => { 
+    if (intrinsicDuration && intrinsicWidth && intrinsicHeight) return;
+
     let cancelled = false;
 
     const loadMetadata = async () => {
@@ -102,7 +113,6 @@ const SingleVideoClip: React.FC<SingleVideoClipProps> = ({ src, startFrame, endF
             width: meta.width || 1080,
             height: meta.height || 1080,
           });
-          continueRender(handle);
           return;
         }
       } catch (err) {
@@ -126,21 +136,11 @@ const SingleVideoClip: React.FC<SingleVideoClipProps> = ({ src, startFrame, endF
               width: video.videoWidth || 1080,
               height: video.videoHeight || 1080,
             });
-            continueRender(handle);
             return;
           }
         }
       } catch (fallbackErr) {
-        console.warn("HTML5 video metadata load failed, using fallback defaults", fallbackErr);
-      }
-
-      if (!cancelled) {
-        setMetadata({
-          duration: 10,
-          width: 1080,
-          height: 1080,
-        });
-        continueRender(handle);
+        console.warn("HTML5 video metadata load failed", fallbackErr);
       }
     };
 
@@ -149,9 +149,7 @@ const SingleVideoClip: React.FC<SingleVideoClipProps> = ({ src, startFrame, endF
     return () => {
       cancelled = true;
     };
-  }, [src, handle]);
-
-  if (metadata === null) return null; 
+  }, [src, intrinsicDuration, intrinsicWidth, intrinsicHeight]);
 
   return (
     <Sequence from={startFrame} durationInFrames={duration} layout="none">
@@ -180,6 +178,9 @@ export const VideoClip: React.FC<{ visualClips: any[] }> = ({ visualClips }) => 
           src={clip.file_url || clip.url} 
           startFrame={clip.start} 
           endFrame={clip.end} 
+          intrinsicDuration={clip.intrinsicDuration}
+          intrinsicWidth={clip.intrinsicWidth}
+          intrinsicHeight={clip.intrinsicHeight}
         />
       ))}
     </>

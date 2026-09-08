@@ -33,6 +33,7 @@ import {
   SUBTITLE_PRESETS,
   DEFAULT_SUBTITLE_CONFIG,
   SubtitleConfiguration,
+  predefinedVisualIdentityBlocks,
 } from "./types";
 import { VOICES } from "../../constants";
 import { VOICE_SAMPLES } from "../../voiceSamples";
@@ -74,7 +75,16 @@ export const ContentDashboard = ({
   
   const [style, setStyle] = useState(() => {
     const saved = localStorage.getItem('content_dashboard_style');
-    return saved || "Director";
+    return saved === "Director" ? "Realistic" : (saved || "Realistic");
+  });
+
+  const [stylePrompt, setStylePrompt] = useState(() => {
+    const saved = localStorage.getItem('content_dashboard_style_prompt');
+    const savedStyle = localStorage.getItem('content_dashboard_style');
+    if (savedStyle === "Director" || !saved) {
+        return predefinedVisualIdentityBlocks["Realistic"] || "";
+    }
+    return saved || predefinedVisualIdentityBlocks["Realistic"] || "";
   });
 
   const [voice, setVoice] = useState(() => {
@@ -132,11 +142,12 @@ export const ContentDashboard = ({
     localStorage.setItem('content_dashboard_prompt', prompt);
     localStorage.setItem('content_dashboard_aspect', aspect);
     localStorage.setItem('content_dashboard_style', style);
+    localStorage.setItem('content_dashboard_style_prompt', stylePrompt);
     localStorage.setItem('content_dashboard_voice_id', voice.id);
     localStorage.setItem('content_dashboard_narration_style', JSON.stringify(narrationStyle));
     localStorage.setItem('content_dashboard_effect_id', effect.id);
     localStorage.setItem('content_dashboard_subtitles', JSON.stringify(subtitles));
-  }, [prompt, aspect, style, voice.id, narrationStyle, effect.id, subtitles]);
+  }, [prompt, aspect, style, stylePrompt, voice.id, narrationStyle, effect.id, subtitles]);
 
   const [configView, setConfigView] = useState<
     | "main"
@@ -254,7 +265,14 @@ export const ContentDashboard = ({
           const data = configRes.data;
           if (data.prompt) setPrompt(data.prompt);
           if (data.aspect_ratio) setAspect(data.aspect_ratio as any);
-          if (data.image_style) setStyle(data.image_style);
+          if (data.image_style) {
+            setStyle(data.image_style);
+            if (data.image_style !== "Director") {
+                setStylePrompt(predefinedVisualIdentityBlocks[data.image_style] || "");
+            } else {
+                setStylePrompt("");
+            }
+          }
 
           if (data.voice_id) {
             const v = VOICES.find((x) => x.id === data.voice_id);
@@ -490,7 +508,7 @@ export const ContentDashboard = ({
         res = await generateFreeTrialSegments(
           prompt,
           aspect,
-          style,
+          stylePrompt,
           finalEffectId,
           session.user.id,
           narrationStyle,
@@ -502,7 +520,7 @@ export const ContentDashboard = ({
         res = await generateSegments(
           prompt,
           aspect,
-          style,
+          stylePrompt,
           finalEffectId,
           session.user.id,
           narrationStyle,
@@ -658,17 +676,6 @@ export const ContentDashboard = ({
               {/* Text Area Section */}
               <div className="p-4 md:p-6 pb-2">
                 <div className="mb-3 flex items-center flex-wrap gap-2">
-                  {style !== "Director" && (
-                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 text-xs font-bold uppercase tracking-wider border border-yellow-500/20">
-                      Using {style} style template
-                      <button
-                        onClick={() => setStyle("Director")}
-                        className="hover:text-white transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
                   {selectedAvatar && (
                     <span className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-bold uppercase tracking-wider border border-indigo-500/20">
                       <img src={selectedAvatar.url} alt="Avatar" className="w-5 h-5 rounded-full object-cover" />
@@ -682,24 +689,59 @@ export const ContentDashboard = ({
                     </span>
                   )}
                 </div>
-                <textarea
-                  ref={textareaRef}
-                  className="w-full h-[250px] min-h-[250px] md:h-[150px] md:min-h-[150px] bg-transparent text-zinc-100 text-lg font-medium outline-none resize-none placeholder-zinc-500 leading-relaxed overflow-y-auto thin-scrollbar"
-                  placeholder={
-                    style !== "Director"
-                      ? "Paste only your exact voiceover script e.g. 'What if the Earth had giants. Day 1...'. The system will handle everything else."
-                      : "Paste a detailed instruction and your voiceover script e.g. 'Create a documentary video for faceless channel in anime style. A tall woman dressed in Egyptian outfit guides the viewers through the construction of the tallest pyramids. Cinematic lighting. Voiceover: \"In 1860, the tallest pyramid of Egypt was raised...\"' Optionally Include descriptions for each scene. Instructions are followed strictly."
-                  }
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                />
-                {prompt.length > MAX_CHARS && (
-                  <div className="mt-2 text-right animate-in fade-in slide-in-from-top-1 duration-200">
-                    <span className="text-red-500 text-[10px] font-black uppercase tracking-[0.2em]">
-                      Limit Exceeded: {prompt.length} / {MAX_CHARS}
-                    </span>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  {/* Voiceover Column */}
+                  <div className="flex flex-col">
+                    <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2 pl-1">Voiceover Script</span>
+                    <textarea
+                      ref={textareaRef}
+                      className="w-full h-[200px] min-h-[200px] md:h-[150px] md:min-h-[150px] bg-transparent text-zinc-100 text-lg font-medium outline-none resize-none placeholder-zinc-500 leading-relaxed overflow-y-auto thin-scrollbar"
+                      placeholder="Paste your exact voiceover script e.g. 'What if the Earth had giants. Day 1...'"
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                    />
+                    {prompt.length > MAX_CHARS && (
+                      <div className="mt-2 text-right animate-in fade-in slide-in-from-top-1 duration-200">
+                        <span className="text-red-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                          Limit Exceeded: {prompt.length} / {MAX_CHARS}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  {/* Style Prompt Column */}
+                  <div className="flex flex-col border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] pl-1">Style Prompt</span>
+                      <select
+                        className="bg-zinc-900 text-zinc-300 text-[10px] font-black uppercase tracking-wider border border-white/10 rounded px-2 py-1 outline-none appearance-none cursor-pointer hover:bg-zinc-800 transition-colors"
+                        value={style}
+                        onChange={(e) => {
+                          const newStyle = e.target.value;
+                          setStyle(newStyle);
+                          if (newStyle === "Director") {
+                             setStylePrompt("");
+                          } else {
+                             setStylePrompt(predefinedVisualIdentityBlocks[newStyle] || "");
+                          }
+                        }}
+                      >
+                        <option value="Realistic">Realistic</option>
+                        {Object.keys(predefinedVisualIdentityBlocks).filter(key => key !== "Realistic").map((key) => (
+                          <option key={key} value={key}>{key}</option>
+                        ))}
+                        <option value="Director">Custom (Director)</option>
+                      </select>
+                    </div>
+                    <textarea
+                      className="w-full h-[200px] min-h-[200px] md:h-[150px] md:min-h-[150px] bg-transparent text-zinc-300 text-sm font-medium outline-none resize-none placeholder-zinc-600 leading-relaxed overflow-y-auto thin-scrollbar"
+                      placeholder="Enter visual style instructions here... (e.g. Cinematic lighting, photorealistic, moody atmosphere)"
+                      value={stylePrompt}
+                      onChange={(e) => setStylePrompt(e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Configuration Bar Section */}
@@ -1337,6 +1379,7 @@ export const ContentDashboard = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           setStyle(styleName);
+                          setStylePrompt(predefinedVisualIdentityBlocks[styleName] || "");
                           setAspect(config.aspectRatio);
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }}

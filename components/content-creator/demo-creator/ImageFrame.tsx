@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react"; 
-import { Img, useCurrentFrame, useVideoConfig, interpolate, spring, delayRender, continueRender, Easing } from "remotion"; 
+import { Img, useCurrentFrame, useVideoConfig, interpolate, spring, Easing } from "remotion"; 
 import { theme } from "./theme";
 
 interface SingleImageFrameProps { 
@@ -11,15 +11,21 @@ interface SingleImageFrameProps {
   maxHeight?: number; 
   isSegmentImage?: boolean;
   filesData?: any[];
+  intrinsicWidth?: number;
+  intrinsicHeight?: number;
 }
 
 const INTRO_FRAMES = 6;
+
 const fitWithinBounds = (naturalWidth: number, naturalHeight: number, maxWidth: number, maxHeight: number) => { 
   const scale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight); 
   return { width: naturalWidth * scale, height: naturalHeight * scale }; 
 };
 
-const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ src, startFrame, endFrame, caption, maxWidth, maxHeight, isSegmentImage, filesData }) => { 
+const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ 
+  src, startFrame, endFrame, caption, maxWidth, maxHeight, isSegmentImage, filesData,
+  intrinsicWidth, intrinsicHeight
+}) => { 
   const frame = useCurrentFrame(); 
   const { fps, width: compWidth, height: compHeight } = useVideoConfig();
 
@@ -27,24 +33,26 @@ const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ src, startFrame, en
   const boundsWidth = maxWidth ?? compWidth; 
   const boundsHeight = maxHeight ?? compHeight;
 
-  const [handle] = useState(() => delayRender(`Fetching image metadata for ${src}`)); 
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({
+    width: intrinsicWidth || 1080,
+    height: intrinsicHeight || 1080
+  });
 
-  useEffect(() => { 
-    const img = new Image(); 
+  useEffect(() => {
+    if (intrinsicWidth && intrinsicHeight) return;
+
+    let isMounted = true;
+    const img = new window.Image(); 
     img.src = src; 
     img.onload = () => { 
-      setDimensions({ width: img.width, height: img.height }); 
-      continueRender(handle); 
+      if (isMounted) setDimensions({ width: img.width, height: img.height }); 
     }; 
     img.onerror = () => { 
       console.error(`Failed to load image metadata for ${src}`); 
-      setDimensions({ width: 1080, height: 1080 }); 
-      continueRender(handle); 
+      if (isMounted) setDimensions({ width: 1080, height: 1080 }); 
     }; 
-  }, [src, handle]);
-
-  if (!dimensions) return null; 
+    return () => { isMounted = false; };
+  }, [src, intrinsicWidth, intrinsicHeight]);
 
   const local = frame - startFrame; 
   const duration = endFrame - startFrame;
@@ -62,6 +70,7 @@ const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ src, startFrame, en
   const { width, height } = isSegmentImage 
     ? { width: compWidth, height: compHeight } 
     : fitWithinBounds(dimensions.width, dimensions.height, boundsWidth, boundsHeight);
+
   const isPortraitSize = isSegmentImage || boundsWidth <= boundsHeight;
   const radius = isPortraitSize ? 0 : 20;
 
@@ -75,8 +84,9 @@ const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ src, startFrame, en
   return ( 
     <div style={{ position: "absolute", top: "50%", left: "50%", transform: `translate(-50%, -50%) scale(${scale})`, opacity: finalOpacity, width, height }}> 
       <div style={{ position: "absolute", inset: 0, borderRadius: radius, overflow: "hidden" }}> 
-        <Img src={src} style={{ width: "100%", height: "100%", objectFit: "cover" }} />  
+        <Img src={src} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
+
       {caption && ( 
         <div style={{ position: "absolute", bottom: -44, left: 0, fontFamily: theme.font.family, fontWeight: 600, fontSize: 26, color: theme.colors.yellow, opacity: finalOpacity }}> 
           {caption}  
@@ -88,7 +98,7 @@ const SingleImageFrame: React.FC<SingleImageFrameProps> = ({ src, startFrame, en
 
 // Wrapper Component 
 export const ImageFrame: React.FC<{ visualClips: any[], filesData?: any[] }> = ({ visualClips, filesData }) => {
-  const imageClips = visualClips.filter(clip => clip.type === 'image');
+  const imageClips = visualClips.filter(clip => clip.type === 'image' || clip.type === 'avatar');
   
   return (
     <>
@@ -100,6 +110,8 @@ export const ImageFrame: React.FC<{ visualClips: any[], filesData?: any[] }> = (
           endFrame={clip.end} 
           isSegmentImage={clip.isSegmentImage}
           filesData={filesData}
+          intrinsicWidth={clip.intrinsicWidth}
+          intrinsicHeight={clip.intrinsicHeight}
         />
       ))}
     </>

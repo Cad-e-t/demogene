@@ -65,11 +65,15 @@ export const HookStyleModal: React.FC<HookStyleModalProps> = ({
 
     setIsUploading(true);
     try {
-      // 1. Get signed URL
+      // 1. Get signed URL with sanitized filename
+      const rawExt = file.name.includes('.') ? file.name.split('.').pop() || '' : '';
+      const cleanExt = (rawExt || file.type.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'png';
+      const cleanFileName = `hook_${Date.now()}.${cleanExt}`;
+
       const res = await fetch(`${API_URL}/demo/generate-hook-upload-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: file.name, fileType: file.type }),
+        body: JSON.stringify({ fileName: cleanFileName, fileType: file.type }),
       });
       const { uploadUrl, publicUrl } = await res.json();
 

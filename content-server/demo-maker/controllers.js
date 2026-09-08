@@ -12,7 +12,10 @@ export const generateUploadUrl = async (req, res) => {
     const { fileName, fileType } = req.body;
     if (!fileName || !fileType) return res.status(400).json({ error: 'Missing fileName or fileType' });
 
-    const key = `inputs/${uuidv4()}_${fileName}`;
+    // Rename file to a sanitized UUID key to prevent gaps and errors
+    const rawExt = fileName.includes('.') ? fileName.split('.').pop() : '';
+    const cleanExt = (rawExt || fileType.split('/')[1] || 'mp4').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'mp4';
+    const key = `inputs/${uuidv4()}.${cleanExt}`;
     
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET,
@@ -318,7 +321,10 @@ export const generateHookUploadUrl = async (req, res) => {
     const { fileName, fileType } = req.body;
     if (!fileName || !fileType) return res.status(400).json({ error: 'Missing fileName or fileType' });
 
-    const key = `hook_assets/${uuidv4()}_${fileName}`;
+    // Rename file to a sanitized UUID key to eliminate gaps
+    const rawExt = fileName.includes('.') ? fileName.split('.').pop() : '';
+    const cleanExt = (rawExt || fileType.split('/')[1] || 'png').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'png';
+    const key = `hook_assets/${uuidv4()}.${cleanExt}`;
     
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET,

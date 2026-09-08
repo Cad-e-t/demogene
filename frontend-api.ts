@@ -5,12 +5,15 @@ const API_BASE_URL = process.env.API_BASE_URL || "https://content-creator-417540
 const PAYMENT_API_URL = process.env.PAYMENT_API_URL || 'https://dodo-payments-service-417540185411.us-central1.run.app';
 
 export async function generateUploadUrl(fileName: string, fileType: string): Promise<{ uploadUrl: string, publicUrl: string, key: string }> {
+    const rawExt = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
+    const cleanExt = (rawExt || fileType.split('/')[1] || 'mp4').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'mp4';
+    const cleanFileName = `input_${Date.now()}.${cleanExt}`;
     const response = await fetch(`${API_BASE_URL}/generate-upload-url`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ fileName, fileType }),
+        body: JSON.stringify({ fileName: cleanFileName, fileType }),
     });
 
     if (!response.ok) {

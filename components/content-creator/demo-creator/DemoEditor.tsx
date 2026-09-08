@@ -465,6 +465,65 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
         setExporting(true);
         setShowExportMenu(false);
         try {
+            // Pre-fetch intrinsic video metadata to bypass strict Remotion delayRender timeouts during server export
+            let updatedFilesData = project.files_data || [];
+            try {
+                const { getVideoMetadata } = await import('@remotion/media-utils');
+                updatedFilesData = await Promise.all(
+                    updatedFilesData.map(async (clip: any) => {
+                        const cleanUrl = (clip.file_url || '').split('?')[0].split('#')[0].toLowerCase();
+                        const fileName = cleanUrl.split('/').pop() || '';
+                        if (/\.(mp4|mov|webm|avi|mkv|wmv)$/.test(fileName)) {
+                            try {
+                                const meta = await getVideoMetadata(clip.file_url);
+                                if (meta) {
+                                    return {
+                                        ...clip,
+                                        intrinsicDuration: meta.durationInSeconds,
+                                        intrinsicWidth: meta.width || 1080,
+                                        intrinsicHeight: meta.height || 1080
+                                    };
+                                }
+                            } catch (e) {
+                                console.warn("Failed to prefetch metadata for", clip.file_url, e);
+                                return {
+                                    ...clip,
+                                    intrinsicDuration: 10,
+                                    intrinsicWidth: 1080,
+                                    intrinsicHeight: 1080
+                                };
+                            }
+                        } else if (/\.(jpg|jpeg|png|gif|webp|svg)$/.test(fileName)) {
+                            try {
+                                const dimensions = await new Promise<{width: number, height: number}>((resolve, reject) => {
+                                    const img = new window.Image();
+                                    img.onload = () => resolve({ width: img.width, height: img.height });
+                                    img.onerror = () => reject(new Error("Image load failed"));
+                                    img.src = clip.file_url;
+                                });
+                                return {
+                                    ...clip,
+                                    intrinsicWidth: dimensions.width,
+                                    intrinsicHeight: dimensions.height
+                                };
+                            } catch (e) {
+                                console.warn("Failed to prefetch metadata for image", clip.file_url, e);
+                                return {
+                                    ...clip,
+                                    intrinsicWidth: 1080,
+                                    intrinsicHeight: 1080
+                                };
+                            }
+                        }
+                        return clip;
+                    })
+                );
+                // Save the prefetched data to the project so the export server can read it
+                await updateProject({ files_data: updatedFilesData }, true);
+            } catch (err) {
+                console.warn("Failed to process metadata before export:", err);
+            }
+
             const res = await fetch(`${API_URL}/demo/export`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1104,7 +1163,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                                 <button
                                                                     onClick={() => {
                                                                         const current = Array.isArray(project.subtitles) ? project.subtitles : [];
-                                                                        updateProject({ subtitles: current.filter(w => w !== word) });
+                                                                        updateProject({ subtitles: current.filter((w: string) => w !== word) });
                                                                     }}
                                                                     className="hover:text-white transition-colors"
                                                                 >

@@ -31,24 +31,20 @@ export const LANDING_PREVIEWS: Record<
     src: "https://assets.productcam.site/image-styles/anime.mp4",
     aspectRatio: "16:9",
   },
-  "Science Short": {
-    src: "https://assets.productcam.site/image-styles/realistic.mp4",
+  "Hoorror Story": {
+    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
     aspectRatio: "9:16",
   },
   "Animated Story": {
     src: "https://assets.productcam.site/image-styles/GameCinematic.mp4",
     aspectRatio: "9:16",
   },
-  "Skeleton Videos": {
-    src: "https://assets.productcam.site/image-styles/skeleton.mp4",
-    aspectRatio: "9:16",
-  },
   "Stickman Videos": {
     src: "https://assets.productcam.site/image-styles/Stickman.mp4",
     aspectRatio: "16:9",
   },
-  "Discipline": {
-    src: "https://assets.productcam.site/image-styles/ukiyo-e.mp4",
+  Motivational: {
+    src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4",
     aspectRatio: "16:9",
   },
 };
