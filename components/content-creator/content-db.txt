@@ -19,6 +19,26 @@ create table public.profiles (
   constraint profiles_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE
 ) TABLESPACE pg_default;
 
+-- ONBOARDING DATA TABLE (Stores user onboarding choices)
+create table public.onboarding_data (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null unique,
+  platform text null,
+  content_type text null,
+  experience_level text null,
+  answers jsonb null,
+  has_completed_onboarding boolean null default true,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.onboarding_data enable row level security;
+create policy "Users can insert own onboarding data" on public.onboarding_data
+  for insert with check (auth.uid() = user_id);
+create policy "Users can view own onboarding data" on public.onboarding_data
+  for select using (auth.uid() = user_id);
+create policy "Users can update own onboarding data" on public.onboarding_data
+  for update using (auth.uid() = user_id);
+
 
 
 create table public.content_projects (
@@ -38,6 +58,7 @@ create table public.content_projects (
   subtitle_file_path text,
   segment_durations jsonb,
   render_status text default 'pending',
+  prompt jsonb,
   status text default 'draft' check (status in ('draft', 'generating', 'completed', 'failed')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

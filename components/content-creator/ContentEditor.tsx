@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, updateSegmentAvatar, generateVideoSegment, animateAllSegments, generateDescription, retryProject, sanitizeErrorMsg } from './api';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { generateSegments, editImageSegment, saveSegments, regenerateImageSegment, generateAssets, exportVideo, generateUploadUrl, updateSegmentImage, updateSegmentAvatar, generateVideoSegment, animateAllSegments, generateDescription, retryProject, sanitizeErrorMsg } from './api';
 import { ContentVideoPlayer, EFFECT_TYPES, EFFECT_SEQUENCES } from './ContentVideoPlayer';
 import { AvatarModal } from './AvatarModal';
 import { supabase } from '../../supabaseClient';
@@ -172,7 +172,7 @@ export const EffectPreview = ({ effectType, imageUrl, aspectRatio }: { effectTyp
     );
 };
 
-export const ContentEditor = ({ session, project, initialSegments, onBack, onComplete, dodoCustomerId, onViewChange }: any) => {
+export const ContentEditor = ({ session, project, initialSegments, onBack, onComplete, dodoCustomerId, onViewChange, isNewCreation, credits: propCredits }: any) => {
     const [segments, setSegments] = useState(initialSegments);
     useEffect(() => {
         // Only set initial segments when the project changes to prevent 
@@ -250,6 +250,68 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     const [isSavingMetadata, setIsSavingMetadata] = useState(false);
     const [copiedDescription, setCopiedDescription] = useState(false);
     const [isRetrying, setIsRetrying] = useState(false);
+    const [showPromptModal, setShowPromptModal] = useState(false);
+    const [copiedPrompt, setCopiedPrompt] = useState(false);
+
+    const [userCredits, setUserCredits] = useState<number | null>(
+        typeof propCredits === 'number' ? propCredits : null
+    );
+
+    const fetchUserCredits = useCallback(async () => {
+        const userId = session?.user?.id || project?.user_id;
+        if (!userId) return;
+        try {
+            const { data } = await supabase.from('profiles').select('credits').eq('id', userId).single();
+            if (data && data.credits !== undefined && data.credits !== null) {
+                setUserCredits(data.credits);
+            }
+        } catch (e) {
+            console.error("Error fetching user credits:", e);
+        }
+    }, [session?.user?.id, project?.user_id]);
+
+    useEffect(() => {
+        if (typeof propCredits === 'number') {
+            setUserCredits(propCredits);
+        }
+    }, [propCredits]);
+
+    useEffect(() => {
+        fetchUserCredits();
+        const userId = session?.user?.id || project?.user_id;
+        if (!userId) return;
+
+        const channel = supabase.channel(`editor-credits-${userId}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'profiles',
+                filter: `id=eq.${userId}`
+            }, (payload: any) => {
+                if (payload.new && payload.new.credits !== undefined && payload.new.credits !== null) {
+                    setUserCredits(payload.new.credits);
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [fetchUserCredits, session?.user?.id, project?.user_id]);
+
+    const activePromptText = typeof project.prompt === 'object' 
+        ? (project.prompt?.voiceover || project.prompt?.prompt || project.title || "Create video")
+        : (typeof project.prompt === 'string' ? project.prompt : (project.title || "Create video"));
+    const activePromptAspectRatio = project.aspect_ratio || (typeof project.prompt === 'object' && (project.prompt?.aspectRatio || project.prompt?.aspect_ratio));
+    const activePromptStyle = project.image_style || (typeof project.prompt === 'object' && (project.prompt?.style || project.prompt?.imageStyle || project.prompt?.image_style));
+    const activePromptAvatarUrl = typeof project.prompt === 'object' && (project.prompt?.avatarUrl || project.prompt?.avatar_url);
+
+    const handleCopyPrompt = (text: string) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text);
+        setCopiedPrompt(true);
+        setTimeout(() => setCopiedPrompt(false), 2000);
+    };
 
     const handleRetryProject = async () => {
         if (isRetrying) return;
@@ -265,10 +327,21 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             setTimeout(() => setNotification(null), 5000);
         } catch (err: any) {
             console.error("Retry failed:", err);
-            setLocalProject((prev: any) => ({ ...prev, status: 'draft', render_status: 'failed' }));
             const msg = err?.message || "Failed to retry generation.";
-            if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('balance') || msg.toLowerCase().includes('insufficient')) {
-                setShowPricingModal(true);
+            
+            // Check project's latest status in DB
+            const { data: latestProj } = await supabase.from('content_projects').select('status').eq('id', project.id).single();
+            const isInsufficient = latestProj?.status === 'insufficient' || 
+                                   msg.toLowerCase().includes('credit') || 
+                                   msg.toLowerCase().includes('balance') || 
+                                   msg.toLowerCase().includes('insufficient');
+            const nextStatus = isInsufficient ? 'insufficient' : 'draft';
+
+            setLocalProject((prev: any) => ({ ...prev, status: nextStatus, render_status: 'failed' }));
+            await supabase.from('content_projects').update({ status: nextStatus, render_status: 'failed' }).eq('id', project.id);
+
+            if (nextStatus === 'insufficient') {
+                fetchUserCredits();
             } else {
                 setNotification({
                     message: msg,
@@ -278,6 +351,16 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             }
         } finally {
             setIsRetrying(false);
+        }
+    };
+
+    const handleAddCredits = async () => {
+        setShowPricingModal(true);
+        setLocalProject((prev: any) => ({ ...prev, status: 'draft' }));
+        try {
+            await supabase.from('content_projects').update({ status: 'draft' }).eq('id', project.id);
+        } catch (err) {
+            console.error("Failed to update status to draft:", err);
         }
     };
 
@@ -360,7 +443,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             }
         } catch (e: any) {
             console.error("Generate description failed", e);
-            const friendlyError = sanitizeErrorMsg(e, "Failed to generate YouTube description. Please try again.");
+            const friendlyError = sanitizeErrorMsg(e, "We encountered a technical issue while generating the YouTube description. Please try again.");
             if (friendlyError.includes("Insufficient credits") || friendlyError.includes("credit")) {
                 setShowPricingModal(true);
             } else {
@@ -411,12 +494,44 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         setTimeout(() => setCopiedDescription(false), 2000);
     };
 
-    // Generate Assets if missing
+    // Trigger initial generation once on mount if navigated from a newly created project
+    const hasTriggeredInitialGen = useRef(false);
     useEffect(() => {
-        // Removed automatic background generation on mount.
-        // The server now handles this in the background when the project is first created.
-        // Manual regeneration is still available via handleRegenerateVoice.
-    }, [audioUrl, localProject.status, localProject.render_status]);
+        const triggerInitialGeneration = async () => {
+            if ((isNewCreation || project?.isNewCreation) && !hasTriggeredInitialGen.current) {
+                hasTriggeredInitialGen.current = true;
+                try {
+                    setLocalProject((prev: any) => ({ ...prev, status: 'generating' }));
+                    const avatarUrl = project.prompt?.avatarUrl || null;
+                    await generateSegments(project.id, session?.user?.id || project.user_id, avatarUrl);
+                } catch (e: any) {
+                    console.error("Initial generation failed", e);
+                    const friendlyError = sanitizeErrorMsg(e, "We encountered a technical issue. Please try again.");
+                    
+                    // Check project's latest status in DB
+                    const { data: latestProj } = await supabase.from('content_projects').select('status').eq('id', project.id).single();
+                    const isInsufficient = latestProj?.status === 'insufficient' ||
+                                           friendlyError.toLowerCase().includes("insufficient") || 
+                                           friendlyError.toLowerCase().includes("balance") || 
+                                           friendlyError.toLowerCase().includes("credit");
+                    const nextStatus = isInsufficient ? 'insufficient' : 'draft';
+
+                    setLocalProject((prev: any) => ({ ...prev, status: nextStatus, render_status: 'failed' }));
+                    await supabase.from('content_projects').update({ status: nextStatus, render_status: 'failed' }).eq('id', project.id);
+
+                    if (nextStatus === 'insufficient') {
+                        fetchUserCredits();
+                    } else {
+                        setErrorMessage(friendlyError);
+                        setNotification({ message: friendlyError, type: 'error' });
+                        setTimeout(() => setNotification(null), 6000);
+                    }
+                }
+            }
+        };
+
+        triggerInitialGeneration();
+    }, [isNewCreation, project?.id, project?.isNewCreation, session?.user?.id, project?.user_id, fetchUserCredits]);
 
     const handleGenerateAssets = async () => {
         setIsGeneratingAssets(true);
@@ -434,7 +549,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             return true;
         } catch (e: any) {
             console.error("Asset generation failed", e);
-            const friendlyError = sanitizeErrorMsg(e, "Asset generation failed. Credits were not charged or have been refunded.");
+            const friendlyError = sanitizeErrorMsg(e, "We encountered a technical issue generating assets. Please try again. Credits were not charged or have been refunded.");
             if (friendlyError.includes("Insufficient credits")) {
                 setShowPricingModal(true);
             } else {
@@ -601,7 +716,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             
         } catch (e: any) {
             console.error("Animation failed");
-            const friendlyError = sanitizeErrorMsg(e, "Video generation failed. Please try again.");
+            const friendlyError = sanitizeErrorMsg(e, "We encountered a technical issue generating the video. Please try again.");
             if (friendlyError.includes("Insufficient credits")) {
                 setShowPricingModal(true);
             } else {
@@ -656,7 +771,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
             setTimeout(() => setNotification(null), 4000);
         } catch (e: any) {
             console.error("Animate All failed");
-            const friendlyError = sanitizeErrorMsg(e, "Batch animation failed. Please try again.");
+            const friendlyError = sanitizeErrorMsg(e, "We encountered a technical issue with batch animation. Please try again.");
             if (friendlyError.includes("Insufficient credits")) {
                 setShowPricingModal(true);
             } else {
@@ -817,7 +932,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                     setShowPricingModal(true);
                                 } else {
                                     setNotification({
-                                        message: `${failedCount} image generation failed, credits refunded. Try regenerating the images.`,
+                                        message: `We encountered a technical issue generating ${failedCount} image(s), credits refunded. Please try again.`,
                                         type: 'error'
                                     });
                                     setTimeout(() => setNotification(null), 6000);
@@ -835,7 +950,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                             setShowPricingModal(true);
                         } else {
                             setNotification({
-                                message: `Audio generation failed, credits refunded. Try regenerating the audio.`,
+                                message: `We encountered a technical issue generating audio, credits refunded. Please try again.`,
                                 type: 'error'
                             });
                             setTimeout(() => setNotification(null), 6000);
@@ -960,7 +1075,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         } catch (e: any) {
             console.error("Image regeneration failed.");
             setRegenerateStatus('error');
-            const friendlyError = sanitizeErrorMsg(e, "Image regeneration failed. Credits were not charged or have been refunded.");
+            const friendlyError = sanitizeErrorMsg(e, "We encountered a technical issue regenerating the image. Please try again. Credits were not charged or have been refunded.");
             if (friendlyError.includes("Insufficient credits")) {
                 setShowPricingModal(true);
             } else {
@@ -995,7 +1110,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         } catch (e: any) {
             console.error("Image edit failed.");
             setEditStatus('error');
-            const friendlyError = sanitizeErrorMsg(e, "Image edit failed. Credits were not charged or have been refunded.");
+            const friendlyError = sanitizeErrorMsg(e, "We encountered a technical issue editing the image. Please try again. Credits were not charged or have been refunded.");
             if (friendlyError.includes("Insufficient credits")) {
                 setShowPricingModal(true);
             } else {
@@ -1279,8 +1394,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                     <div className="flex flex-col flex-1 h-full overflow-hidden">
                         <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-2 pb-4 space-y-2 md:space-y-4">
                             {(() => {
-                                const isFreeTrial = project?.title?.toLowerCase().includes('free-trial') || localProject?.title?.toLowerCase().includes('free-trial');
-                                const visibleSegments = isFreeTrial ? segments.slice(0, 8) : segments;
+                                const visibleSegments = segments;
 
                                 return (
                                     <>
@@ -1356,13 +1470,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 </div>
                             </div>
                                         )})}
-                                        {isFreeTrial && segments.length > 8 && (
-                                            <div key="free-trial-limit" className="p-4 md:p-6 border-2 border-yellow-500/50 bg-yellow-500/10 rounded-xl text-center flex flex-col items-center justify-center mt-2">
-                                                <p className="text-zinc-200 text-sm md:text-base font-medium">
-                                                    You exceeded your free trial limit. <button onClick={() => setShowPricingModal(true)} className="text-yellow-500 underline hover:text-yellow-400 font-bold transition">Upgrade</button> to create longer videos.
-                                                </p>
-                                            </div>
-                                        )}
+
                                     </>
                                 );
                             })()}
@@ -1573,32 +1681,6 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 </div>
             </div>
 
-            {/* Retry Bar: Displays when project status is draft */}
-            {localProject.status === 'draft' && (
-                <div className="bg-gradient-to-r from-red-950/40 via-zinc-900 to-zinc-900 border-b border-red-500/30 px-6 py-2.5 flex items-center justify-between shrink-0 z-30 animate-in fade-in slide-in-from-top-1">
-                    <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse shrink-0" />
-                        <span className="text-xs md:text-sm font-medium text-zinc-300">
-                            Generation incomplete. Some scenes or assets could not be generated.
-                        </span>
-                    </div>
-                    <button
-                        onClick={handleRetryProject}
-                        disabled={isRetrying}
-                        className="px-3.5 py-1.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center gap-2 shrink-0 cursor-pointer"
-                    >
-                        <svg
-                            className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        <span>{isRetrying ? 'Retrying...' : 'Retry Generation'}</span>
-                    </button>
-                </div>
-            )}
 
             {/* Main Content Area */}
             <div className="flex-1 flex overflow-hidden relative">
@@ -1608,50 +1690,17 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
                 {/* Video Preview Area */}
                 <div className={`flex-1 bg-zinc-900 flex flex-col relative overflow-hidden h-full transition-all duration-300 ${isMobileConfigOpen ? 'md:h-full h-[35%]' : 'h-full'}`}>
-                    {(project?.title?.toLowerCase().includes('free-trial') || localProject?.title?.toLowerCase().includes('free-trial')) && (
-                        <div className="absolute top-4 left-0 right-0 z-20 flex justify-center pointer-events-none px-4">
-                            <p className="text-white/50 text-[10px] md:text-xs font-medium bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full pointer-events-auto border border-white/5 shadow-sm text-center">
-                                You exceeded your free trial limit. <button onClick={() => setShowPricingModal(true)} className="underline hover:text-white transition cursor-pointer">Upgrade</button> to create longer videos.
-                            </p>
-                        </div>
-                    )}
+
                     <div className={`flex-1 flex items-center justify-center p-4 md:p-8 min-h-0 w-full relative transition-all duration-300 ${isMobileConfigOpen ? 'scale-90 md:scale-100' : 'scale-100'}`}>
-                        {localProject.status === 'draft' && (!audioUrl || segmentDurations.length === 0) ? (
-                            <div className="flex flex-col items-center gap-4 text-center max-w-sm px-4">
-                                <div className="w-14 h-14 rounded-2xl bg-zinc-800/80 border border-white/10 flex items-center justify-center text-zinc-400">
-                                    <svg className="w-7 h-7 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h3 className="text-white font-bold text-base mb-1">Generation Interrupted</h3>
-                                    <p className="text-zinc-400 text-xs leading-relaxed">
-                                        This project stopped generating before all assets were completed. Click retry above or below to finish generating.
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={handleRetryProject}
-                                    disabled={isRetrying}
-                                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
-                                >
-                                    <svg className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                    </svg>
-                                    <span>{isRetrying ? 'Retrying Generation...' : 'Retry Generation'}</span>
-                                </button>
-                            </div>
-                        ) : (!audioUrl || segmentDurations.length === 0 || localProject.render_status === 'Animating' || ['generating', 'rendering', 'rendering_voice'].includes(localProject.status)) ? (
-                            <div className="flex flex-col items-center gap-4">
-                                <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                <div className="text-sm font-bold text-zinc-400 uppercase tracking-widest animate-pulse text-center">
-                                    {localProject.render_status === 'Animating' ? 'Animating Videos...' : 
-                                     localProject.status === 'generating' ? thinkingTexts[generatingTextIndex] :
-                                     localProject.status === 'rendering' ? 'Rendering Images...' :
-                                     localProject.status === 'rendering_voice' ? 'Rendering Voice...' :
-                                     'Preparing Preview...'}
-                                </div>
-                            </div>
-                        ) : (
+                        {Boolean(
+                            audioUrl && 
+                            segmentDurations && 
+                            segmentDurations.length > 0 && 
+                            !['generating', 'rendering', 'rendering_voice', 'draft', 'insufficient'].includes(localProject.status) && 
+                            localProject.render_status !== 'Animating' &&
+                            localProject.render_status !== 'generating' &&
+                            localProject.render_status !== 'failed'
+                        ) ? (
                             <ContentVideoPlayer
                                 segments={segments}
                                 audioUrl={audioUrl}
@@ -1666,6 +1715,145 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                 currentTime={currentTime}
                                 onTimeUpdate={handleTimeUpdate}
                             />
+                        ) : (
+                            <div className="w-full max-w-xl md:max-w-2xl px-4 pt-2 md:pt-4 pb-8 flex flex-col gap-5 self-start">
+                                {/* User Prompt Message (Right Side) */}
+                                <div className="flex justify-end w-full">
+                                    <div 
+                                        onClick={() => setShowPromptModal(true)}
+                                        className="bg-zinc-800/90 hover:bg-zinc-800 border border-white/10 hover:border-white/20 rounded-2xl rounded-tr-xs p-4 shadow-xl text-left w-full max-w-[82%] sm:max-w-[420px] h-[100px] ml-auto flex flex-col justify-between cursor-pointer group transition-all"
+                                        title="Click to view full prompt"
+                                    >
+                                        <div className="flex items-center justify-between w-full">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 shrink-0">Prompt</span>
+                                                {activePromptAspectRatio && (
+                                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-400 shrink-0">
+                                                        {activePromptAspectRatio}
+                                                    </span>
+                                                )}
+                                                {activePromptStyle && (
+                                                    <span className="text-[10px] capitalize px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-400 truncate max-w-[85px]">
+                                                        {activePromptStyle}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowPromptModal(true);
+                                                }}
+                                                className="text-[11px] font-medium text-yellow-500/90 hover:text-yellow-400 group-hover:text-yellow-400 flex items-center gap-1 transition-colors shrink-0 ml-2"
+                                                title="View full prompt in lightbox"
+                                            >
+                                                <span>View full</span>
+                                                <svg className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        <p className="text-sm text-zinc-200 font-normal leading-snug line-clamp-2 break-words mt-1">
+                                            {activePromptText}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* AI Reply Column (Left Side) */}
+                                <div className="flex justify-start w-full">
+                                    <div className="flex items-start gap-3 w-full">
+                                        {/* AI Assistant Avatar */}
+                                        <div className="w-8 h-8 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center shrink-0 shadow-sm">
+                                            <svg className="w-4 h-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                        </div>
+
+                                        {/* AI Reply Bubble */}
+                                        <div className={`bg-zinc-950/80 border border-white/10 rounded-2xl rounded-tl-xs p-4 shadow-xl text-left w-full max-w-[82%] sm:max-w-[420px] ${
+                                            (['generating', 'rendering', 'rendering_voice'].includes(localProject.status) || 
+                                              localProject.render_status === 'Animating' || 
+                                              localProject.render_status === 'generating' ||
+                                              isRetrying) ? 'h-[100px]' : 'min-h-[100px]'
+                                        } flex flex-col justify-center`}>
+                                            {(['generating', 'rendering', 'rendering_voice'].includes(localProject.status) || 
+                                              localProject.render_status === 'Animating' || 
+                                              localProject.render_status === 'generating' ||
+                                              isRetrying) ? (
+                                                <div className="flex flex-col gap-2.5">
+                                                    <div className="flex items-center gap-2.5">
+                                                        {/* Blinking / Pulsing icon indicating processing */}
+                                                        <div className="relative flex items-center justify-center w-3.5 h-3.5 shrink-0">
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500"></span>
+                                                        </div>
+                                                        <span className="text-sm font-medium text-zinc-200 tracking-wide animate-pulse">
+                                                            {localProject.render_status === 'Animating' ? 'Animating Videos...' : 
+                                                             localProject.status === 'generating' ? thinkingTexts[generatingTextIndex] :
+                                                             localProject.status === 'rendering' ? 'Rendering Scene Images...' :
+                                                             localProject.status === 'rendering_voice' ? 'Synthesizing Voiceover...' :
+                                                             'Processing video generation...'}
+                                                        </span>
+                                                    </div>
+                                                    {/* Chatbot typing dots */}
+                                                    <div className="flex items-center gap-1.5 pl-6 pt-0.5">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/70 animate-bounce [animation-delay:-0.3s]"></span>
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/70 animate-bounce [animation-delay:-0.15s]"></span>
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/70 animate-bounce"></span>
+                                                        <span className="text-xs text-zinc-500 ml-2">Crafting scenes, voice, and visual assets</span>
+                                                    </div>
+                                                </div>
+                                            ) : localProject.status === 'insufficient' ? (
+                                                /* Insufficient Credits Reply */
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                                                        <span className="text-xs font-bold uppercase tracking-wider text-amber-400">{userCredits !== null ? Math.max(0, Math.round(userCredits)) : 0} Credits Left</span>
+                                                    </div>
+                                                    <p className="text-sm text-zinc-300 leading-relaxed">
+                                                        Your balance is insufficient to complete this project. Please add credits to your account to continue generation.
+                                                    </p>
+                                                    <div className="pt-1">
+                                                        <button
+                                                            onClick={handleAddCredits}
+                                                            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 active:scale-98 text-black text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                            </svg>
+                                                            <span>Add Credits</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                /* Interrupted / Stopped State with Retry */
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                                                        <span className="text-xs font-bold uppercase tracking-wider text-yellow-500">Generation Interrupted</span>
+                                                    </div>
+                                                    <p className="text-sm text-zinc-300 leading-relaxed">
+                                                        Generation stopped before all scenes and audio could be completed. Click retry below to finish generating the remaining assets.
+                                                    </p>
+                                                    <div className="pt-1">
+                                                        <button
+                                                            onClick={handleRetryProject}
+                                                            disabled={isRetrying}
+                                                            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 active:scale-98 text-black text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                                                        >
+                                                            <svg className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                            </svg>
+                                                            <span>{isRetrying ? 'Retrying Generation...' : 'Retry Generation'}</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         )}
                     </div>
 
@@ -2487,6 +2675,119 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                         ) : (
                                             <span>Save Changes</span>
                                         )}
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Full Prompt Lightbox Modal */}
+            <AnimatePresence>
+                {showPromptModal && (
+                    <div 
+                        className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
+                        onClick={() => setShowPromptModal(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                            transition={{ duration: 0.18, ease: "easeOut" }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-[#121214] border border-white/10 p-6 md:p-7 rounded-[28px] w-full max-w-lg shadow-2xl relative flex flex-col max-h-[85vh] overflow-hidden"
+                        >
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between pb-4 border-b border-white/10 shrink-0">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-bold text-white tracking-tight">Full Prompt</h3>
+                                        <p className="text-xs text-zinc-400">Complete video generation prompt and parameters</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPromptModal(false)}
+                                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition cursor-pointer"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="py-4 overflow-y-auto max-h-[50vh] pr-1 space-y-4">
+                                <div className="bg-black/60 border border-white/10 rounded-2xl p-4 md:p-5">
+                                    <p className="text-sm md:text-[15px] text-zinc-100 font-normal leading-relaxed break-words whitespace-pre-wrap select-text">
+                                        {activePromptText}
+                                    </p>
+                                </div>
+
+                                {/* Metadata attributes if available */}
+                                {(activePromptAspectRatio || activePromptStyle || activePromptAvatarUrl) && (
+                                    <div className="pt-2 flex flex-wrap items-center gap-2.5">
+                                        {activePromptAspectRatio && (
+                                            <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl text-xs">
+                                                <span className="text-zinc-400 font-medium">Aspect Ratio:</span>
+                                                <span className="text-white font-mono font-semibold">{activePromptAspectRatio}</span>
+                                            </div>
+                                        )}
+                                        {activePromptStyle && (
+                                            <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl text-xs">
+                                                <span className="text-zinc-400 font-medium">Style:</span>
+                                                <span className="text-white capitalize font-semibold">{activePromptStyle}</span>
+                                            </div>
+                                        )}
+                                        {activePromptAvatarUrl && (
+                                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl text-xs">
+                                                <img src={activePromptAvatarUrl} alt="Avatar" className="w-5 h-5 rounded-full object-cover border border-white/20" />
+                                                <span className="text-zinc-200 font-medium">Character Avatar Attached</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="pt-4 border-t border-white/10 flex items-center justify-between shrink-0">
+                                <span className="text-xs text-zinc-500 font-mono">
+                                    {activePromptText.length} characters
+                                </span>
+                                <div className="flex items-center gap-2.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleCopyPrompt(activePromptText)}
+                                        className="px-3.5 py-2 text-xs font-bold rounded-xl transition border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-zinc-200 hover:text-white flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                        {copiedPrompt ? (
+                                            <>
+                                                <svg className="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                <span className="text-green-400">Copied!</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                </svg>
+                                                <span>Copy Prompt</span>
+                                            </>
+                                        )}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPromptModal(false)}
+                                        className="px-4 py-2 text-xs font-bold text-black bg-yellow-500 hover:bg-yellow-400 rounded-xl transition shadow-sm cursor-pointer"
+                                    >
+                                        Close
                                     </button>
                                 </div>
                             </div>

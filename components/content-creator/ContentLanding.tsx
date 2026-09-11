@@ -2,8 +2,67 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from "motion/react";
 import { Volume2, VolumeX } from 'lucide-react';
-import { CreatorPricingCards } from './CreatorPricingCards';
 import { channels,LANDING_PREVIEWS, STYLE_PREVIEWS, DEMO_CLIPS } from './creator-assets';
+
+const BASIC_ID = "pdt_0NnKC28379nFXlQADxnIZ";
+const STARTER_ID = "pdt_T48406oZ5JfWEo1XFEx9C";
+const PRO_ID = "pdt_aaVFvXmh0fAAa9TMyygKI";
+const BUSINESS_ID = "pdt_IkNZmPAGOSqCxUpSBwg2r";
+
+interface PricingCardProps {
+    title: string;
+    price: string;
+    highlights: React.ReactNode;
+    features: string[];
+    isPopular?: boolean;
+    buttonLabel: string;
+    onAction: () => void;
+    color: string;
+}
+
+const PricingCard: React.FC<PricingCardProps> = ({ title, price, highlights, features, isPopular, buttonLabel, onAction, color }) => (
+    <div className={`relative flex flex-col p-8 bg-zinc-900 rounded-[32px] border transition-all duration-300 ${isPopular ? 'border-yellow-500 shadow-2xl scale-105 z-10' : 'border-white/10 shadow-xl hover:shadow-2xl hover:-translate-y-1 hover:border-white/20'}`}>
+        {isPopular && (
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-yellow-600 text-black px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
+                Most Popular
+            </div>
+        )}
+        
+        <div className="mb-8 flex items-center justify-between">
+            <h3 className={`text-xl lg:text-2xl font-black uppercase tracking-tighter ${color}`}>{title}</h3>
+            <div className="flex items-center gap-1">
+                <span className="text-3xl lg:text-4xl font-black text-white">${price}</span>
+            </div>
+        </div>
+
+        <button 
+            onClick={onAction}
+            className={`w-full py-4 mb-8 rounded-xl font-black uppercase tracking-widest text-sm transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${isPopular ? 'bg-yellow-600 text-black hover:bg-yellow-700' : 'bg-zinc-900 text-white hover:bg-zinc-800 border border-white/20 hover:border-white/40'}`}
+        >
+            <span>{buttonLabel}</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+        </button>
+
+        <div className="mb-8 space-y-3 text-center">
+            {highlights}
+        </div>
+
+        <div className="w-full h-px bg-zinc-900/10 mb-8"></div>
+
+        <ul className="space-y-4 mb-8 flex-1 text-left">
+            {features.map((feat, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm font-medium text-zinc-400 leading-relaxed">
+                    <svg className={`w-5 h-5 shrink-0 mt-0.5 ${color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>{feat}</span>
+                </li>
+            ))}
+        </ul>
+    </div>
+);
 
 const ChannelCard: React.FC<{ channel: typeof channels[0] }> = ({ channel }) => {
     const [currentThumbnailIndex, setCurrentThumbnailIndex] = useState(0);
@@ -516,14 +575,112 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                         SIMPLE AND TRANSPARENT
                     </h2>
                     <p className="text-xl font-medium text-gray-400 max-w-2xl">
-                        Start as low as $19 - pay as you go
+                        Start as low as $9 - pay as you go
                     </p>
                 </div>
                 
-                <CreatorPricingCards 
-                    onAction={onLogin} 
-                    actionLabel="Start Creating" 
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 w-full max-w-[90rem] mx-auto items-stretch">
+                    <PricingCard 
+                        title="Basic"
+                        price="9"
+                        color="text-zinc-300"
+                        highlights={
+                            <>
+                                <p className="text-sm font-bold text-zinc-400">300 Credits</p>
+                                <p className="text-xs text-zinc-500 mt-1">Valid for 1 year</p>
+                            </>
+                        }
+                        features={[
+                            "YouTube Shorts",
+                            "YouTube Long Form Videos",
+                            "TikTok Shorts",
+                            "Multiple Styles",
+                            "Character consistency",
+                            "Video Effects",
+                            "20+ Voices",
+                            "Subtitles",
+                            "Full HD (1080p) Export"
+                        ]}
+                        buttonLabel="Start Creating"
+                        onAction={onLogin}
+                    />
+                    
+                    <PricingCard 
+                        title="Starter"
+                        price="20"
+                        isPopular
+                        color="text-zinc-100"
+                        highlights={
+                            <>
+                                <p className="text-sm font-bold text-zinc-300 pt-1">900 Credits</p>
+                                <p className="text-xs text-zinc-500 mt-1">Valid for 1 year</p>
+                            </>
+                        }
+                        features={[
+                            "YouTube Shorts",
+                            "YouTube Long Form Videos",
+                            "TikTok Shorts",
+                            "Multiple Styles",
+                            "Character consistency",
+                            "Video Effects",
+                            "20+ Voices",
+                            "Subtitles",
+                            "Full HD (1080p) Export"
+                        ]}
+                        buttonLabel="Start Creating"
+                        onAction={onLogin}
+                    />
+                    
+                    <PricingCard 
+                        title="Pro"
+                        price="45"
+                        color="text-yellow-500"
+                        highlights={
+                            <>
+                                <p className="text-sm font-bold text-yellow-400 pt-1">2000 Credits</p>
+                                <p className="text-xs text-zinc-500 mt-1">Valid for 1 year</p>
+                            </>
+                        }
+                        features={[
+                            "YouTube Shorts",
+                            "YouTube Long Form Videos",
+                            "TikTok Shorts",
+                            "Multiple Styles",
+                            "Character consistency",
+                            "Video Effects",
+                            "20+ Voices",
+                            "Subtitles",
+                            "Full HD (1080p) Export"
+                        ]}
+                        buttonLabel="Start Creating"
+                        onAction={onLogin}
+                    />
+
+                    <PricingCard 
+                        title="Business"
+                        price="200"
+                        color="text-purple-400"
+                        highlights={
+                            <>
+                                <p className="text-sm font-bold text-purple-400 pt-1">10000 Credits</p>
+                                <p className="text-xs text-zinc-500 mt-1">Valid for 1 year</p>
+                            </>
+                        }
+                        features={[
+                            "YouTube Shorts",
+                            "YouTube Long Form Videos",
+                            "TikTok Shorts",
+                            "Multiple Styles",
+                            "Character consistency",
+                            "Video Effects",
+                            "20+ Voices",
+                            "Subtitles",
+                            "Full HD (1080p) Export"
+                        ]}
+                        buttonLabel="Start Creating"
+                        onAction={onLogin}
+                    />
+                </div>
             </div>
 
             {/* --- SECTION 4: FAQ --- */}

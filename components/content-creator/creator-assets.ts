@@ -43,9 +43,17 @@ export const LANDING_PREVIEWS: Record<
     src: "https://assets.productcam.site/image-styles/Stickman.mp4",
     aspectRatio: "16:9",
   },
-  Motivational: {
-    src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4",
+  "POV Story": {
+    src: "https://assets.productcam.site/image-styles/cartoona.mp4",
     aspectRatio: "16:9",
+  },
+    "Skeleton Videos": {
+    src: "https://assets.productcam.site/image-styles/skeleton.mp4",
+    aspectRatio: "9:16",
+  },
+   "Science Short": {
+    src: "https://assets.productcam.site/image-styles/realistic.mp4",
+    aspectRatio: "9:16",
   },
 };
 
@@ -69,8 +77,8 @@ export const STYLE_TEMPLATES: Record<
     src: "https://assets.productcam.site/image-styles/GameCinematic.mp4",
     aspectRatio: "9:16",
   },
-  Sketch: {
-    src: "https://assets.productcam.site/image-styles/sketch.mp4",
+   Cartoon: {
+    src: "https://assets.productcam.site/image-styles/cartoona.mp4",
     aspectRatio: "16:9",
   },
   Stickman: {
@@ -85,8 +93,8 @@ export const STYLE_TEMPLATES: Record<
     src: "https://assets.productcam.site/image-styles/mannequin.mp4",
     aspectRatio: "9:16",
   },
-  Cartoon: {
-    src: "https://assets.productcam.site/image-styles/semirealisticcartoon.mp4",
+   Sketch: {
+    src: "https://assets.productcam.site/image-styles/sketch.mp4",
     aspectRatio: "16:9",
   },
   "Ukiyo-e": {

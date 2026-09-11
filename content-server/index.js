@@ -63,11 +63,11 @@ const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
 const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
-const COST_PER_THOUSAND_TOKENS = 0.75;
-const COST_PER_THOUSAND_INPUT_TOKENS = 0.15;
-const FLASH_COST_THOUSAND_INPUT_TOKENS = 0.15;
-const FLASH_COST_THOUSAND_OUTPUT_TOKENS = 0.75;
-const MAX_ANALYSIS_COST = 30;
+const COST_PER_THOUSAND_TOKENS = 0.85;
+const COST_PER_THOUSAND_INPUT_TOKENS = 0.2;
+const FLASH_COST_THOUSAND_INPUT_TOKENS = 0.2;
+const FLASH_COST_THOUSAND_OUTPUT_TOKENS = 0.85;
+const MAX_ANALYSIS_COST = 100;
 const MIN_BALANCE = 4; // Minimum credits required to start
 const MAX_CONCURRENT_IMAGES = 2; // Max parallel image generations to avoid rate limits
 const MAX_CONCURRENT_VIDEOS = 3; // Max parallel video generations (batch size)
@@ -127,7 +127,7 @@ async function syncProjectStatus(projectId) {
                 render_status: 'ready'
             }).eq('id', projectId);
         } else if (isAudioFailed || hasMissingSegment || hasMissingCharacter) {
-            if (project.status !== 'generating' && project.render_status !== 'generating') {
+            if (project.status !== 'generating' && project.render_status !== 'generating' && project.status !== 'insufficient') {
                 console.log(`[ContentServer] Project ${projectId} has missing elements. Setting status: 'draft', render_status: 'failed'`);
                 await supabase.from('content_projects').update({
                     status: 'draft',
@@ -140,7 +140,7 @@ async function syncProjectStatus(projectId) {
     }
 }
 
-async function processCharacters(projectId, userId, rawVisualData, style, avatarUrl, isFreeTrial) {
+async function processCharacters(projectId, userId, rawVisualData, style, avatarUrl) {
     console.log(`[ContentServer] Checking / processing character images for project ${projectId}...`);
 
     // Check if characters already exist in DB for this project (e.g. Retry or resumed generation)
@@ -216,7 +216,7 @@ async function processCharacters(projectId, userId, rawVisualData, style, avatar
     if (charsToGenerate.length === 0) return;
 
     const totalCost = charsToGenerate.length * COST_IMAGE_ULTRA; // 4 credits per char
-    if (totalCost > 0 && userId && !isFreeTrial) {
+    if (totalCost > 0 && userId) {
         const currentBalance = await getCredits(userId);
         if (currentBalance < totalCost) {
             throw new Error(`Insufficient credits for character generation. Needed: ${totalCost}, Have: ${currentBalance}`);
@@ -271,7 +271,7 @@ async function processCharacters(projectId, userId, rawVisualData, style, avatar
         await Promise.all(workers);
     }
 
-    if (failedCount > 0 && userId && !isFreeTrial) {
+    if (failedCount > 0 && userId) {
         const refundAmount = failedCount * COST_IMAGE_ULTRA;
         console.log(`[ContentServer] Refunding ${failedCount} failed character images (${refundAmount} credits) for user ${userId}`);
         await refundUser(userId, refundAmount, `Refund: Failed Character Images (${failedCount} @ ${COST_IMAGE_ULTRA} cr)`);
@@ -537,7 +537,7 @@ async function processAnimationsBackground(projectId, segments, aspectRatio, use
     await supabase.from('content_projects').update({ render_status: 'ready' }).eq('id', projectId);
 }
 
-async function processAssetsBackground(projectId, segments, voiceId, userId, isFreeTrial = false) {
+async function processAssetsBackground(projectId, segments, voiceId, userId) {
     console.log(`[ContentServer] Starting background asset generation for project ${projectId}`);
     let workDir = null;
     let chargedAmount = 0;
@@ -627,12 +627,8 @@ async function processAssetsBackground(projectId, segments, voiceId, userId, isF
         const subtitleCost = project.subtitles ? totalDuration * COST_SUBTITLE_PER_SECOND : 0;
         const totalCharge = Math.round((audioCost + subtitleCost) * 100) / 100;
 
-        if (!isFreeTrial) {
-            chargedAmount = totalCharge;
-            await chargeUser(userId, totalCharge, `Asset Gen (Audio+Subs) ${totalDuration.toFixed(1)}s`);
-        } else {
-            console.log(`[Billing] Free Trial - Skipping audio charge`);
-        }
+        chargedAmount = totalCharge;
+        await chargeUser(userId, totalCharge, `Asset Gen (Audio+Subs) ${totalDuration.toFixed(1)}s`);
 
         // 3. Upload Audio
         const audioKey = `content/${projectId}/${audioFilename}`;
@@ -733,7 +729,7 @@ async function processAssetsBackground(projectId, segments, voiceId, userId, isF
     }
 }
 
-async function processImagesBackground(projectId, segments, aspectRatio, costPerImage, userId, isFreeTrial = false) {
+async function processImagesBackground(projectId, segments, aspectRatio, costPerImage, userId) {
     console.log(`[ContentServer] Starting background image generation for project ${projectId}`);
     
     // Fetch all characters for this project
@@ -821,7 +817,7 @@ async function processImagesBackground(projectId, segments, aspectRatio, costPer
     await Promise.all(workers);
     
     // Refund for failures
-    if (failedCount > 0 && !isFreeTrial) {
+    if (failedCount > 0) {
         console.log(`[ContentServer] Refunding ${failedCount} failed images for user ${userId}`);
         await refundUser(userId, failedCount * costPerImage, `Refund: Failed Images (${failedCount})`);
     }
@@ -842,34 +838,29 @@ async function processImagesBackground(projectId, segments, aspectRatio, costPer
 app.post('/generate-segments', async (req, res) => {
     let createdProjectId = null;
     try {
-        const { prompt, aspectRatio, style, effect, userId, narrationStyle, subtitles, voiceId, avatarUrl: rawAvatarUrl } = req.body;
-        const avatarUrl = rawAvatarUrl ? rawAvatarUrl.trim().replace(/\s+/g, '%20') : null;
-        console.log(`[ContentServer] Received generate request: "${prompt.substring(0, 30)}..." with subtitles ${subtitles}`);
+        const { projectId, userId, avatarUrl: rawAvatarUrl } = req.body;
+        console.log(`[ContentServer] Received generate request for project: ${projectId}`);
+        createdProjectId = projectId;
         
         // 0. Pre-check Balance
         const userCredits = await getCredits(userId);
         const requiredMinBalance = COST_IMAGE_ULTRA;
         if (userCredits < requiredMinBalance) {
+            await supabase.from('content_projects').update({ status: 'insufficient', render_status: 'failed' }).eq('id', projectId);
             return res.status(402).json({ error: "Insufficient credits for this request." });
         }
 
-        // 1. Create Project
-        const defaultEffect = aspectRatio === '16:9' ? 'immersive' : 'cinematic';
-        const { data: project, error } = await supabase.from('content_projects').insert({
-            user_id: userId,
-            title: prompt.substring(0, 50),
-            aspect_ratio: aspectRatio,
-            image_style: style,
-            effect: effect || defaultEffect,
-            narration_style: narrationStyle, // Save style to DB
-            subtitles: subtitles || 'none', // Save subtitles to DB
-            voice_id: voiceId || 'Charon', // Save voice to DB
-            status: 'generating' // Changed from draft to generating to indicate background work
-        }).select().single();
+        // 1. Fetch Project
+        const { data: project, error } = await supabase.from('content_projects').select('*').eq('id', projectId).eq('user_id', userId).single();
+        if (error || !project) throw error || new Error("Project not found");
         
-        if (error) throw error;
-        createdProjectId = project.id;
-        console.log(`[ContentServer] Project created: ${project.id}`);
+        const avatarUrl = (rawAvatarUrl || project.prompt?.avatarUrl || project.prompt?.avatar_url || '').trim().replace(/\s+/g, '%20') || null;
+        const promptText = project.prompt?.voiceover || project.title;
+        const style = project.prompt?.style || project.image_style;
+        const aspectRatio = project.aspect_ratio;
+        const voiceId = project.voice_id;
+
+        await supabase.from('content_projects').update({ status: 'generating' }).eq('id', projectId);
 
         // Return immediately with generating status
         res.status(202).json({ projectId: project.id, status: 'generating' });
@@ -880,7 +871,7 @@ app.post('/generate-segments', async (req, res) => {
             try {
                 // 2. Generate Text Segments
                 console.log(`[ContentServer] Generating text segments...`);
-                const { segments: segmentsData, usageMetadata, rawVisualData } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', false, avatarUrl);
+                const { segments: segmentsData, usageMetadata, rawVisualData } = await generateStorySegments(promptText, aspectRatio, style, 'Balanced', false, avatarUrl);
                 console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
 
                 // 2.5 Save Text Segments to DB (Image NULL) immediately
@@ -959,11 +950,9 @@ app.post('/generate-segments', async (req, res) => {
 
             } catch (backgroundError) {
                 console.error("[ContentServer] Error in background generation:", backgroundError);
-                if (segmentsSaved) {
-                    await supabase.from('content_projects').update({ status: 'draft', render_status: 'failed' }).eq('id', project.id);
-                } else {
-                    await supabase.from('content_projects').delete().eq('id', project.id);
-                }
+                const isInsufficient = backgroundError?.message?.toLowerCase().includes('insufficient');
+                const nextStatus = isInsufficient ? 'insufficient' : 'draft';
+                await supabase.from('content_projects').update({ status: nextStatus, render_status: 'failed' }).eq('id', project.id);
             }
         })();
 
@@ -974,123 +963,6 @@ app.post('/generate-segments', async (req, res) => {
         } else {
             res.status(500).json({ error: e.message });
         }
-    }
-});
-
-// New Route: Free Trial Generate
-app.post('/generate-free-trial-segments', async (req, res) => {
-    let createdProjectId = null;
-    try {
-        const { prompt, aspectRatio, style, effect, userId, narrationStyle, subtitles, voiceId, avatarUrl: rawAvatarUrl } = req.body;
-        const avatarUrl = rawAvatarUrl ? rawAvatarUrl.trim().replace(/\s+/g, '%20') : null;
-        console.log(`[ContentServer] Received free trial generate request: "${prompt.substring(0, 30)}..."`);
-        
-        // 1. Create Project
-        const defaultEffect = aspectRatio === '16:9' ? 'immersive' : 'cinematic';
-        const { data: project, error } = await supabase.from('content_projects').insert({
-            user_id: userId,
-            title: prompt.substring(0, 50) + " - free-trial",
-            aspect_ratio: aspectRatio,
-            image_style: style,
-            effect: effect || defaultEffect,
-            narration_style: narrationStyle,
-            subtitles: subtitles || 'none',
-            voice_id: voiceId || 'Charon',
-            status: 'generating' // Changed to generating immediately
-        }).select().single();
-        
-        if (error) throw error;
-        createdProjectId = project.id;
-        console.log(`[ContentServer] Project created: ${project.id}`);
-
-        // Return immediately with generating status
-        res.status(202).json({ projectId: project.id, status: 'generating' });
-
-        // --- BACKGROUND PROCESSING ---
-        (async () => {
-            let segmentsSaved = false;
-            try {
-                // 2. Generate Text Segments (Free Trial Mode uses normal prompt now, but we pass true)
-                console.log(`[ContentServer] Generating text segments (Free Trial)...`);
-                const { segments: segmentsData, usageMetadata, rawVisualData } = await generateStorySegments(prompt, aspectRatio, style, 'Balanced', true, avatarUrl);
-                console.log(`[ContentServer] Text segments generated: ${segmentsData.length}`);
-
-                // 2.5 Save Text Segments to DB immediately
-                const segmentsToInsert = segmentsData.map((s, idx) => ({
-                    project_id: project.id,
-                    narration: s.narration,
-                    image_prompt: s.image_prompt,
-                    animation_prompt: s.animation_prompt,
-                    image_url: null,
-                    characters: s.characters || null,
-                    avatar_url: s.avatar_url || null,
-                    order_index: idx
-                }));
-
-                const { data: insertedSegments, error: segError } = await supabase
-                    .from('content_segments')
-                    .insert(segmentsToInsert)
-                    .select();
-
-                if (segError) throw segError;
-                segmentsSaved = true;
-
-                // 3. Determine Cost & Charge
-                const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;
-                const flashOutputTokens = usageMetadata?.flashUsage?.candidatesTokenCount || 0;
-                
-                const proInputTokens = usageMetadata?.proUsage?.promptTokenCount || 0;
-                const proOutputTokens = usageMetadata?.proUsage?.candidatesTokenCount || 0;
-                
-                const flashCost = (flashInputTokens / 1000) * FLASH_COST_THOUSAND_INPUT_TOKENS + (flashOutputTokens / 1000) * FLASH_COST_THOUSAND_OUTPUT_TOKENS;
-                const proCost = (proInputTokens / 1000) * COST_PER_THOUSAND_INPUT_TOKENS + (proOutputTokens / 1000) * COST_PER_THOUSAND_TOKENS;
-                
-                let analysisCost = flashCost + proCost;
-
-                if (analysisCost > MAX_ANALYSIS_COST) {
-                    analysisCost = MAX_ANALYSIS_COST;
-                }
-
-                const costPerImage = COST_IMAGE_ULTRA;
-                
-                // Only 6 segments max can be processed when isFreeTrial is true
-                const processedSegmentsCount = Math.min(segmentsData.length, 6);
-                const totalCost = (processedSegmentsCount * costPerImage) + analysisCost;
-
-                console.log(`[Billing] Free Trial - Project creation complete. Setting user credits to 0.`);
-                
-                // Mark user as having used free trial and reset credits to 0
-                await supabase.from('profiles').update({ used_free_trial: true, credits: 0 }).eq('id', userId);
-
-                // Generate Characters before starting scene rendering
-                await processCharacters(project.id, userId, rawVisualData, style, avatarUrl, true);
-
-                // 5. Update status to rendering
-                await supabase.from('content_projects').update({ status: 'rendering', render_status: 'generating' }).eq('id', project.id);
-
-                // 6. Trigger Background Image Gen
-                const segmentsToProcess = insertedSegments.slice(0, 6);
-                processImagesBackground(project.id, segmentsToProcess, aspectRatio, costPerImage, userId, true);
-
-                // 7. Trigger Background Asset Gen
-                processAssetsBackground(project.id, segmentsToProcess, voiceId, userId, true).catch(e => {
-                    console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
-                });
-
-            } catch (backgroundError) {
-                console.error("[ContentServer] Error in free trial background generation:", backgroundError);
-                if (segmentsSaved) {
-                    await supabase.from('content_projects').update({ status: 'draft', render_status: 'failed' }).eq('id', project.id);
-                } else {
-                    await supabase.from('content_projects').delete().eq('id', project.id);
-                }
-            }
-        })();
-
-    } catch (e) {
-        console.error("[ContentServer] Error in generate-free-trial-segments:", e);
-        if (createdProjectId) res.status(500).json({ error: e.message, projectId: createdProjectId, segments: [] });
-        else res.status(500).json({ error: e.message });
     }
 });
 
@@ -1575,43 +1447,39 @@ const handleRetryProject = async (req, res) => {
             return res.status(400).json({ error: "User ID is required" });
         }
 
-        const isFreeTrial = !!(project.title && project.title.toLowerCase().includes('free-trial'));
-
         // 2. First check MIN_BALANCE
         const userCredits = await getCredits(userId);
-        if (userCredits < MIN_BALANCE && !isFreeTrial) {
+        if (userCredits < MIN_BALANCE) {
+            await supabase.from('content_projects').update({ status: 'insufficient', render_status: 'failed' }).eq('id', projectId);
             return res.status(402).json({ error: "Insufficient credits for this request." });
         }
 
         // 3. Inspect what's missing in the project
-        // Check missing characters
-        const { data: existingChars } = await supabase
-            .from('content_characters')
-            .select('*')
-            .eq('project_id', projectId);
-        const missingChars = existingChars ? existingChars.filter(c => !c.image_url) : [];
-        const charCost = missingChars.length * COST_IMAGE_ULTRA; // COST_IMAGE_ULTRA (4 credits) per character
-
-        // Check missing scene segments
         const { data: segments, error: segError } = await supabase
             .from('content_segments')
             .select('*')
             .eq('project_id', projectId)
             .order('order_index');
 
-        if (segError || !segments || segments.length === 0) {
-            return res.status(400).json({ error: "No segments found for this project." });
-        }
+        const missingSegmentsCollection = !segments || segments.length === 0;
 
-        const missingSegments = segments.filter(s => !s.image_url);
+        const { data: existingChars } = await supabase
+            .from('content_characters')
+            .select('*')
+            .eq('project_id', projectId);
+            
+        const missingChars = existingChars ? existingChars.filter(c => !c.image_url) : [];
+        const charCost = missingChars.length * COST_IMAGE_ULTRA; // COST_IMAGE_ULTRA (4 credits) per character
+
+        const missingSceneImages = segments && segments.length > 0 ? segments.filter(s => !s.image_url) : [];
         const costPerImage = COST_IMAGE_ULTRA; // 4 credits
-        const sceneCost = missingSegments.length * costPerImage;
+        const sceneCost = missingSceneImages.length * costPerImage;
 
         // Check missing audio
         const missingAudio = !project.voice_file_path || !project.segment_durations || project.segment_durations.length === 0;
 
         // If nothing is missing, sync status and return
-        if (missingChars.length === 0 && missingSegments.length === 0 && !missingAudio) {
+        if (!missingSegmentsCollection && missingChars.length === 0 && missingSceneImages.length === 0 && !missingAudio) {
             await syncProjectStatus(projectId);
             return res.json({
                 success: true,
@@ -1621,13 +1489,13 @@ const handleRetryProject = async (req, res) => {
         }
 
         // 4. Upfront credit check for Character Image Generation and Scene Image Generation
-        if (!isFreeTrial) {
+        if (!missingSegmentsCollection) {
             if (userCredits < charCost) {
-                await supabase.from('content_projects').update({ status: 'draft', render_status: 'failed' }).eq('id', projectId);
+                await supabase.from('content_projects').update({ status: 'insufficient', render_status: 'failed' }).eq('id', projectId);
                 return res.status(402).json({ error: `Insufficient credits for character generation. Needed: ${charCost}, Have: ${userCredits}` });
             }
             if ((userCredits - charCost) < sceneCost) {
-                await supabase.from('content_projects').update({ status: 'draft', render_status: 'failed' }).eq('id', projectId);
+                await supabase.from('content_projects').update({ status: 'insufficient', render_status: 'failed' }).eq('id', projectId);
                 return res.status(402).json({ error: `Insufficient credits for scene image generation. Needed: ${sceneCost}, Available: ${userCredits - charCost}` });
             }
         }
@@ -1644,65 +1512,142 @@ const handleRetryProject = async (req, res) => {
             message: "Retry generation initiated",
             projectId,
             missing: {
+                segments: missingSegmentsCollection,
                 characters: missingChars.length,
-                scenes: missingSegments.length,
+                scenes: missingSceneImages.length,
                 audio: missingAudio
             }
         });
 
         // 6. Execute in background in strict order:
-        // Character Image Generation > Scene Images & Audio Generation
+        // Segments > Character Image Generation > Scene Images & Audio Generation
         (async () => {
+            let workingSegments = segments || [];
+            let workingMissingSceneImages = missingSceneImages;
+            let rawVisualData = null;
+            let currentBalance = userCredits;
+            
             try {
+                if (missingSegmentsCollection) {
+                    console.log(`[ContentServer] [Retry] Regenerating missing segments...`);
+                    const promptText = project.prompt?.voiceover || project.title;
+                    const style = project.prompt?.style || project.image_style;
+                    const avatarUrl = project.prompt?.avatarUrl || null;
+                    const aspectRatio = project.aspect_ratio || '9:16';
+                    const voiceId = project.voice_id;
+
+                    const { segments: segmentsData, usageMetadata, rawVisualData: generatedVisualData } = await generateStorySegments(promptText, aspectRatio, style, 'Balanced', false, avatarUrl);
+                    rawVisualData = generatedVisualData;
+                    console.log(`[ContentServer] [Retry] Text segments generated: ${segmentsData.length}`);
+
+                    const segmentsToInsert = segmentsData.map((s, idx) => ({
+                        project_id: project.id,
+                        narration: s.narration,
+                        image_prompt: s.image_prompt,
+                        animation_prompt: s.animation_prompt,
+                        image_url: null,
+                        characters: s.characters || null,
+                        avatar_url: s.avatar_url || null,
+                        order_index: idx
+                    }));
+
+                    const { data: insertedSegments, error: segError } = await supabase
+                        .from('content_segments')
+                        .insert(segmentsToInsert)
+                        .select();
+
+                    if (segError) throw segError;
+                    
+                    workingSegments = insertedSegments;
+                    workingMissingSceneImages = insertedSegments;
+
+                    // Determine Cost & Charge
+                    const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;
+                    const flashOutputTokens = usageMetadata?.flashUsage?.candidatesTokenCount || 0;
+                    const proInputTokens = usageMetadata?.proUsage?.promptTokenCount || 0;
+                    const proOutputTokens = usageMetadata?.proUsage?.candidatesTokenCount || 0;
+                    
+                    const flashCost = (flashInputTokens / 1000) * FLASH_COST_THOUSAND_INPUT_TOKENS + (flashOutputTokens / 1000) * FLASH_COST_THOUSAND_OUTPUT_TOKENS;
+                    const proCost = (proInputTokens / 1000) * COST_PER_THOUSAND_INPUT_TOKENS + (proOutputTokens / 1000) * COST_PER_THOUSAND_TOKENS;
+                    
+                    let analysisCost = flashCost + proCost;
+                    if (analysisCost > MAX_ANALYSIS_COST) {
+                        analysisCost = MAX_ANALYSIS_COST;
+                    }
+
+                    await chargeUser(userId, analysisCost, `AI Analysis (Retry)`);
+                    currentBalance -= analysisCost;
+                }
+
                 // Step 1: Character Image Generation
-                if (missingChars.length > 0) {
-                    console.log(`[ContentServer] [Retry] Generating ${missingChars.length} missing characters...`);
-                    const rawAvatarUrl = segments.find(s => s.avatar_url)?.avatar_url || null;
-                    const avatarUrl = rawAvatarUrl ? rawAvatarUrl.trim().replace(/\s+/g, '%20') : null;
-                    await processCharacters(projectId, userId, null, project.image_style || 'cinematic', avatarUrl, isFreeTrial);
+                if (missingChars.length > 0 || (missingSegmentsCollection && rawVisualData?.characters)) {
+                    // if segments were just generated, we need to generate characters for them.
+                    const charsToProcess = missingSegmentsCollection && rawVisualData?.characters ? rawVisualData.characters : missingChars;
+                    if (charsToProcess.length > 0) {
+                        const requiredCharCost = charsToProcess.length * COST_IMAGE_ULTRA;
+                        if (currentBalance < requiredCharCost) {
+                            throw new Error(`Insufficient credits for character generation.`);
+                        }
+                        console.log(`[ContentServer] [Retry] Generating characters...`);
+                        const rawAvatarUrl = workingSegments.find(s => s.avatar_url)?.avatar_url || null;
+                        const avatarUrl = rawAvatarUrl ? rawAvatarUrl.trim().replace(/\s+/g, '%20') : null;
+                        await processCharacters(projectId, userId, rawVisualData, project.image_style || 'cinematic', avatarUrl, false);
+                        currentBalance -= requiredCharCost;
+                    }
                 }
 
                 // Step 2: Scene Images & Audio Generation
                 const tasks = [];
 
-                if (missingSegments.length > 0) {
-                    console.log(`[ContentServer] [Retry] Generating ${missingSegments.length} missing scene images...`);
-                    if (sceneCost > 0 && !isFreeTrial) {
-                        await chargeUser(userId, sceneCost, `Image Gen Batch upfront - ${missingSegments.length} images`);
+                if (workingMissingSceneImages.length > 0) {
+                    const requiredSceneCost = workingMissingSceneImages.length * costPerImage;
+                    if (currentBalance < requiredSceneCost) {
+                        throw new Error(`Insufficient credits for scene image generation. Needed: ${requiredSceneCost}`);
+                    }
+                    console.log(`[ContentServer] [Retry] Generating ${workingMissingSceneImages.length} missing scene images...`);
+                    if (requiredSceneCost > 0) {
+                        await chargeUser(userId, requiredSceneCost, `Image Gen Batch upfront - ${workingMissingSceneImages.length} images`);
+                        currentBalance -= requiredSceneCost;
                     }
                     tasks.push(
-                        processImagesBackground(projectId, missingSegments, project.aspect_ratio || '9:16', costPerImage, userId, isFreeTrial)
+                        processImagesBackground(projectId, workingMissingSceneImages, project.aspect_ratio || '9:16', costPerImage, userId, false)
                     );
                 }
 
-                if (missingAudio) {
+                if (missingAudio || missingSegmentsCollection) {
                     console.log(`[ContentServer] [Retry] Generating missing audio...`);
                     const voiceId = project.voice_id || 'nPczCjzI2devNBz1zQrb';
                     tasks.push(
-                        processAssetsBackground(projectId, segments, voiceId, userId, isFreeTrial).catch(e => {
-                            console.error(`[ContentServer] [Retry] Audio generation failed for project ${projectId}:`, e);
+                        processAssetsBackground(projectId, workingSegments, voiceId, userId).catch(e => {
+                            console.error(`[ContentServer] [Retry] Audio Generation failed for project ${projectId}`, e);
                         })
                     );
                 }
 
-                await Promise.all(tasks);
+                if (tasks.length > 0) {
+                    await Promise.allSettled(tasks);
+                }
+                
+                // Final sync
                 await syncProjectStatus(projectId);
 
-            } catch (retryError) {
-                console.error(`[ContentServer] [Retry] Error in retry execution for project ${projectId}:`, retryError);
-                await supabase.from('content_projects').update({
-                    status: 'draft',
-                    render_status: 'failed'
-                }).eq('id', projectId);
+            } catch (backgroundError) {
+                console.error("[ContentServer] Error in retry background generation:", backgroundError);
+                const isInsufficient = backgroundError?.message?.toLowerCase().includes('insufficient');
+                const nextStatus = isInsufficient ? 'insufficient' : 'draft';
+                await supabase.from('content_projects').update({ status: nextStatus, render_status: 'failed' }).eq('id', projectId);
             }
         })();
 
     } catch (e) {
-        console.error("[ContentServer] Retry endpoint error:", e);
+        console.error("[ContentServer] Error in retry project:", e);
+        const isInsufficient = e?.message?.toLowerCase().includes('insufficient');
+        if (isInsufficient && projectId) {
+            await supabase.from('content_projects').update({ status: 'insufficient', render_status: 'failed' }).eq('id', projectId);
+        }
         res.status(500).json({ error: e.message });
     }
 };
-
 app.post('/retry-project', handleRetryProject);
 app.post('/api/retry-project', handleRetryProject);
 

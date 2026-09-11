@@ -211,12 +211,14 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
             credits = 100;
         } 
         // Content Creator Products (New Main)
-        else if (productId === "pdt_T48406oZ5JfWEo1XFEx9C") {
-            credits = 700;
+        else if (productId === "pdt_0NnKC28379nFXlQADxnIZ") {
+            credits = 300;
+        } else if (productId === "pdt_T48406oZ5JfWEo1XFEx9C") {
+            credits = 900;
         } else if (productId === "pdt_aaVFvXmh0fAAa9TMyygKI") {
-            credits = 1800;
+            credits = 2000;
         } else if (productId === "pdt_IkNZmPAGOSqCxUpSBwg2r") {
-            credits = 5500;
+            credits = 10000;
         }
 
         console.log(`[PaymentServer] Resolved Credits: ${credits}`);

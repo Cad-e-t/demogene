@@ -14,14 +14,15 @@ import {
   VolumeX,
   X,
   Plus,
+  HelpCircle,
 } from "lucide-react";
 import {
   generateSegments,
-  generateFreeTrialSegments,
   sanitizeErrorMsg,
 } from "./api";
 import { ContentEditor } from "./ContentEditor";
 import { AvatarModal } from "./AvatarModal";
+import { CreatorGuideModal } from "./CreatorGuideModal";
 import {
   IMAGE_STYLES,
   EFFECT_PRESETS,
@@ -41,6 +42,7 @@ import { STYLE_PREVIEWS, STYLE_TEMPLATES } from "./creator-assets";
 import { supabase } from "../../supabaseClient";
 import { CreatorPricingCards } from "./CreatorPricingCards";
 import { createCheckoutSession } from "../../frontend-api";
+import { Onboarding } from "./Onboarding";
 
 export const ContentDashboard = ({
   session,
@@ -57,6 +59,8 @@ export const ContentDashboard = ({
   const [loading, setLoading] = useState(false);
   const [credits, setCredits] = useState<number | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   // Typewriter State
   const [placeholder, setPlaceholder] = useState("");
@@ -205,10 +209,8 @@ export const ContentDashboard = ({
     type: "error" | "success";
   } | null>(null);
 
-  // Free Trial State
-  const [usedFreeTrial, setUsedFreeTrial] = useState(true); // Default to true so disconnects don't trigger modal
+  // User State
   const [dodoCustomerId, setDodoCustomerId] = useState<string | null>(null);
-  const [showFreeTrialModal, setShowFreeTrialModal] = useState(false);
 
   // Pricing Overlay State
   const [showPricingModal, setShowPricingModal] = useState(false);
@@ -242,23 +244,51 @@ export const ContentDashboard = ({
         // Trigger expiration check
         await supabase.rpc('expire_credit_lots', { p_user_id: session.user.id });
 
-        const [profileRes, configRes] = await Promise.all([
-          supabase
+        let profileData: any = null;
+        let onboardingData: any = null;
+        try {
+          const profileRes = await supabase
             .from("profiles")
-            .select("credits, used_free_trial, dodo_customer_id")
+            .select("credits, dodo_customer_id")
             .eq("id", session.user.id)
-            .single(),
-          supabase
-            .from("user_configurations")
-            .select("*")
-            .eq("user_id", session.user.id)
-            .single(),
-        ]);
+            .single();
+          
+          profileData = profileRes.data;
 
-        if (profileRes.data) {
-          setCredits(profileRes.data.credits || 0);
-          setUsedFreeTrial(profileRes.data.used_free_trial || false);
-          setDodoCustomerId(profileRes.data.dodo_customer_id || null);
+          const onboardingRes = await supabase
+            .from("onboarding_data")
+            .select("has_completed_onboarding")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+
+          if (onboardingRes.data) {
+             onboardingData = onboardingRes.data;
+          }
+
+        } catch (e) {
+          console.error("Failed to load profile/onboarding:", e);
+        }
+
+        const configRes = await supabase
+          .from("user_configurations")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .single();
+
+        if (profileData) {
+          setCredits(profileData.credits || 0);
+          setDodoCustomerId(profileData.dodo_customer_id || null);
+        }
+
+        if (onboardingData) {
+            // Database is the absolute source of truth if the row exists
+            if (onboardingData.has_completed_onboarding !== true) {
+              setShowOnboarding(true);
+            }
+        } else {
+            // If the user has no row in onboarding_data yet, they haven't completed it.
+            // The record will be created when they finish the onboarding flow.
+            setShowOnboarding(true);
         }
 
         if (configRes.data && !configRes.error) {
@@ -325,7 +355,6 @@ export const ContentDashboard = ({
       }, (payload: any) => {
         if (payload.new) {
           if (payload.new.credits !== undefined) setCredits(payload.new.credits);
-          if (payload.new.used_free_trial !== undefined) setUsedFreeTrial(payload.new.used_free_trial);
           if (payload.new.dodo_customer_id !== undefined) setDodoCustomerId(payload.new.dodo_customer_id);
         }
       })
@@ -480,70 +509,55 @@ export const ContentDashboard = ({
 
   const handleGenerateClick = () => {
     if (!prompt.trim()) return;
-    if (!dodoCustomerId && !usedFreeTrial) {
-      setShowFreeTrialModal(true);
-    } else {
-      handleGenerate(false);
-    }
+    handleGenerate();
   };
 
-  const handleConfirmFreeTrial = () => {
-    setShowFreeTrialModal(false);
-    handleGenerate(true);
-  };
-
-  const handleGenerate = async (isFreeTrial: boolean) => {
+  const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
     try {
-      console.log(
-        `[ContentDashboard] Starting generation... (Free Trial: ${isFreeTrial})`,
-      );
+      console.log(`[ContentDashboard] Starting generation...`);
 
       // Ensure we use the correct default if user hasn't touched it
       let finalEffectId = effect.id;
 
-      let res;
-      if (isFreeTrial) {
-        res = await generateFreeTrialSegments(
-          prompt,
-          aspect,
-          stylePrompt,
-          finalEffectId,
-          session.user.id,
-          narrationStyle,
-          subtitles,
-          voice.id,
-          selectedAvatar?.url
-        );
-      } else {
-        res = await generateSegments(
-          prompt,
-          aspect,
-          stylePrompt,
-          finalEffectId,
-          session.user.id,
-          narrationStyle,
-          subtitles,
-          voice.id,
-          selectedAvatar?.url
-        );
-      }
+      const { data: project, error } = await supabase.from('content_projects').insert({
+        user_id: session.user.id,
+        title: prompt.substring(0, 50),
+        aspect_ratio: aspect,
+        image_style: style,
+        effect: finalEffectId,
+        narration_style: narrationStyle,
+        subtitles: subtitles,
+        voice_id: voice.id,
+        prompt: {
+            voiceover: prompt,
+            style: stylePrompt,
+            avatarUrl: selectedAvatar?.url
+        },
+        status: 'generating',
+        render_status: 'pending'
+      }).select().single();
+
+      if (error) throw error;
+
       console.log(
-        "[ContentDashboard] Project generation started:",
-        res.projectId
+        "[ContentDashboard] Project created:",
+        project.id
       );
 
       setProject({
-        id: res.projectId,
-        title: prompt,
-        aspect_ratio: aspect,
-        voice_id: voice.id,
-        effect: effect.id,
-        image_style: style,
-        narration_style: narrationStyle,
-        subtitles: subtitles,
-        status: res.status || "generating",
+        id: project.id,
+        title: project.title,
+        aspect_ratio: project.aspect_ratio,
+        voice_id: project.voice_id,
+        effect: project.effect,
+        image_style: project.image_style,
+        narration_style: project.narration_style,
+        subtitles: project.subtitles,
+        status: project.status,
+        prompt: project.prompt,
+        isNewCreation: true
       });
       setSegments([]); // Initialize empty segments, they will stream in
       // We transition immediately to editor even if images are null
@@ -556,21 +570,6 @@ export const ContentDashboard = ({
       } else {
         setNotification({ message: errorMsg, type: "error" });
         setTimeout(() => setNotification(null), 5000);
-      }
-
-      if (e.isPartial && e.projectId && e.segments) {
-        setProject({
-          id: e.projectId,
-          title: prompt,
-          aspect_ratio: aspect,
-          voice_id: voice.id,
-          effect: effect.id,
-          image_style: style,
-          narration_style: narrationStyle,
-          subtitles: subtitles,
-          status: "draft",
-        });
-        setSegments(e.segments);
       }
     } finally {
       setLoading(false);
@@ -587,6 +586,7 @@ export const ContentDashboard = ({
           session={session}
           project={project}
           initialSegments={segments}
+          isNewCreation={project.isNewCreation}
           onBack={() => {
             setProject(null);
             setSegments([]);
@@ -603,35 +603,11 @@ export const ContentDashboard = ({
     return (
       <div className="flex-1 h-full relative flex flex-col bg-black overflow-y-auto overflow-x-hidden thin-scrollbar">
         {/* Credits Low Banner */}
-        {credits !== null && credits < 3 && (dodoCustomerId || usedFreeTrial) && (
+        {credits !== null && credits < 3 && (
           <div className="hidden md:block absolute top-4 right-4 z-50 max-w-[calc(100vw-2rem)] md:max-w-none">
             <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-500 whitespace-nowrap">
               <div className="w-5 h-5 sm:w-8 sm:h-8 rounded-full bg-amber-900/20 flex items-center justify-center shrink-0">
-                <svg
-                  className="w-3 h-3 sm:w-5 sm:h-5 text-amber-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] sm:text-[18px] md:text-xs font-black text-zinc-400  tracking-tight">
-                  Credits Low Top Up to create amazing content
-                </span>
-              </div>
-              <button
-                onClick={() => onViewChange("creator-pricing")}
-                className="px-2 py-1 sm:px-4 sm:py-2 bg-yellow-600 text-white text-[7px] sm:text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-yellow-500 transition-colors shadow-lg shadow-yellow-600/20 shrink-0 ml-1 sm:ml-2"
-              >
-                Top Up
-              </button>
             </div>
           </div>
         )}
@@ -693,7 +669,16 @@ export const ContentDashboard = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   {/* Voiceover Column */}
                   <div className="flex flex-col">
-                    <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2 pl-1">Voiceover Script</span>
+                    <div className="flex items-center gap-1.5 mb-2 pl-1">
+                      <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em]">Voiceover Script</span>
+                      <button 
+                        onClick={() => setShowGuideModal(true)}
+                        className="text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10 transition-colors p-0.5 rounded-full"
+                        title="How to use the studio"
+                      >
+                        <HelpCircle className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                     <textarea
                       ref={textareaRef}
                       className="w-full h-[200px] min-h-[200px] md:h-[150px] md:min-h-[150px] bg-transparent text-zinc-100 text-lg font-medium outline-none resize-none placeholder-zinc-500 leading-relaxed overflow-y-auto thin-scrollbar"
@@ -1395,37 +1380,6 @@ export const ContentDashboard = ({
           </div>
         </div>
 
-        {/* Free Trial Modal */}
-        {showFreeTrialModal && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-zinc-900 border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl relative animate-fade-in-up">
-              <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Sparkles className="w-8 h-8 text-yellow-500" />
-              </div>
-              <h2 className="text-2xl font-bold text-white text-center mb-4">
-                Start Your Free Trial!
-              </h2>
-              <p className="text-zinc-300 text-center mb-8 leading-relaxed">
-                You're using your free trial! This can only be used once.
-              </p>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setShowFreeTrialModal(false)}
-                  className="flex-1 py-3 bg-zinc-800 text-white rounded-xl font-bold hover:bg-zinc-700 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmFreeTrial}
-                  className="flex-1 py-3 bg-yellow-600 text-black rounded-xl font-bold hover:bg-yellow-500 transition"
-                >
-                  Confirm
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Pricing Overlay Modal */}
         {showPricingModal && (
           <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
@@ -1573,6 +1527,27 @@ export const ContentDashboard = ({
             setIsAvatarModalOpen(false);
         }}
         onShowPricing={() => setShowPricingModal(true)}
+      />
+
+      {showOnboarding && (
+        <Onboarding
+          session={session}
+          onComplete={(answers) => {
+            setShowOnboarding(false);
+            if (answers?.contentType === 'long_form') {
+              setAspect('16:9');
+              localStorage.setItem('content_dashboard_aspect', '16:9');
+            } else if (answers?.contentType === 'shorts') {
+              setAspect('9:16');
+              localStorage.setItem('content_dashboard_aspect', '9:16');
+            }
+          }}
+        />
+      )}
+
+      <CreatorGuideModal
+        isOpen={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
       />
     </div>
   );
