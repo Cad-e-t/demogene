@@ -13,20 +13,24 @@ const DODO_PAYMENTS_API_KEY = process.env.DODO_PAYMENTS_API_KEY;
 const DODO_WEBHOOK_SECRET = process.env.DODO_WEBHOOK_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'; 
-const MODE = process.env.MODE || 'test_mode';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://crappik.site'; 
+const MODE = process.env.MODE || 'live_mode';
 
 
 if (!DODO_PAYMENTS_API_KEY || !DODO_WEBHOOK_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     console.warn("⚠️  Payment Server: Required environment variables missing. Server may not function correctly.");
 }
 
+
+
 // --- MIDDLEWARE ---
 const allowedOrigins = new Set([
   'https://productcam.site',
+  'https://creator.productcam.site',
   'https://demogene.vercel.app',
   'https://www.productcam.site',
-  'http://localhost:3000'
+  'http://localhost:3000',
+  "https://crappik.site"
 ]);
 
 app.use(cors({
@@ -95,7 +99,7 @@ const processWebhookAsync = async (data) => {
                 console.log(`[PaymentServer] Processing payment.succeeded for User ID: ${userId}`);
                 const { billing, currency, card_last_four, customer, customer_id } = eventData;
                 
-                // 1. Update Profile (Always update 'profiles' now)
+                // 1. Update Profile (Always update 'profiles' for billing metadata)
                 const profileUpdateData = {
                      billing_address: billing,
                      last_payment_currency: currency,
@@ -109,7 +113,7 @@ const processWebhookAsync = async (data) => {
                 if (customer?.email) profileUpdateData.customer_email = customer.email;
                 if (customer?.name) profileUpdateData.customer_name = customer.name;
 
-                console.log(`[PaymentServer] Updating user profile...`);
+                console.log(`[PaymentServer] Updating user profile metadata...`);
                 try {
                     const { error: profileError } = await supabase.from('profiles').update(profileUpdateData).eq('id', userId);
                     if (profileError) {
@@ -122,17 +126,24 @@ const processWebhookAsync = async (data) => {
                 }
 
                 const credits = parseInt(metadata.credits_to_add || '0');
+                const productId = metadata.product_id;
                 
-                console.log(`[PaymentServer] Credits to add: ${credits}. Target Table: profiles`);
+                console.log(`[PaymentServer] Credits to add: ${credits}. Product ID: ${productId}`);
 
                 if (credits > 0) {
-                    // Unified Credit Grant: Always use grant_credits_from_purchase which targets 'profiles'
-                    console.log(`[PaymentServer] Granting credits via RPC...`);
+                    // Determine which table/function to use based on product ID
+                    // ProductCam IDs: pdt_0NXR7opzKCuqk7OCHV44O, pdt_0NXR7hQfq3toyw4xmfZ9t
+                    const productCamIds = ["pdt_0NXR7opzKCuqk7OCHV44O", "pdt_0NXR7hQfq3toyw4xmfZ9t"];
+                    const isProductCam = productCamIds.includes(productId);
+
+                    const rpcFunction = isProductCam ? 'grant_demo_credits' : 'grant_credits_from_purchase';
+                    
+                    console.log(`[PaymentServer] Granting credits via RPC: ${rpcFunction}`);
                     try {
-                        const { error } = await supabase.rpc('grant_credits_from_purchase', {
+                        const { error } = await supabase.rpc(rpcFunction, {
                             p_user_id: userId,
                             p_credits_to_add: credits,
-                            p_description: `Purchase of ${credits} credits`,
+                            p_description: `Purchase of ${credits} credits (${isProductCam ? 'ProductCam' : 'ContentCreator'})`,
                             p_metadata: eventData
                         });
                         if (error) {
@@ -203,14 +214,12 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
         let credits = 0;
         
         // ProductCam Products (Legacy)
-        if (productId === "pdt_0NXR7yFQlGXuk4YfAk8WY") {
-            credits = 10;
-        } else if (productId === "pdt_0NXR7opzKCuqk7OCHV44O") {
-            credits = 30;
+        if (productId === "pdt_0NXR7opzKCuqk7OCHV44O") {
+            credits = 700;
         } else if (productId === "pdt_0NXR7hQfq3toyw4xmfZ9t") {
-            credits = 100;
+            credits = 1800;
         } 
-        // Content Creator Products (New Main)
+          // Content Creator Products (New Main)
         else if (productId === "pdt_0NnKC28379nFXlQADxnIZ") {
             credits = 300;
         } else if (productId === "pdt_T48406oZ5JfWEo1XFEx9C") {
@@ -268,3 +277,15 @@ app.post('/create-checkout-session', authMiddleware, async (req, res) => {
 app.get('/', (req, res) => res.send("Payment Service Running"));
 
 app.listen(PORT, () => console.log(`Payment Server on ${PORT}`));
+
+
+
+
+
+
+
+
+
+
+
+

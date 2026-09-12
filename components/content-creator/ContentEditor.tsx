@@ -649,7 +649,7 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
     };
 
     const handleExport = async (quality: string) => {
-        if (!dodoCustomerId) {
+        if (userCredits !== null && userCredits <= 0) {
             setShowExportUpgradeModal(true);
             return;
         }
