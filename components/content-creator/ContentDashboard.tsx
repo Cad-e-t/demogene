@@ -226,9 +226,6 @@ export const ContentDashboard = ({
     return prompt.trim().split(/\s+/).filter(w => w.length > 0).length;
   }, [prompt]);
 
-  const isFreeUser = !dodoCustomerId;
-  const isOverFreeLimit = isFreeUser && wordCount > 500;
-
   const estimatedImages = React.useMemo(() => {
     if (sentenceCount === 0) return 0;
     let count = Math.round(sentenceCount / 2);
@@ -640,15 +637,8 @@ export const ContentDashboard = ({
           <div className="w-full max-w-3xl px-4 md:px-8 mb-12 flex flex-col items-center justify-center z-20">
             <div
               ref={promptBoxRef}
-             className={`w-full bg-zinc-900 rounded-3xl shadow-2xl border ${prompt.length > MAX_CHARS || isOverFreeLimit ? "border-red-500 ring-1 ring-red-500" : style !== "Director" ?  "border-blue-500/50 focus-within:border-blue-500 ring-1 ring-blue-500/20" : "border-yellow-500/50 focus-within:border-yellow-500 ring-1 ring-yellow-500/20"} flex flex-col transition-all duration-300 relative`}
+             className={`w-full bg-zinc-900 rounded-3xl shadow-2xl border ${prompt.length > MAX_CHARS ? "border-red-500 ring-1 ring-red-500" : style !== "Director" ?  "border-blue-500/50 focus-within:border-blue-500 ring-1 ring-blue-500/20" : "border-yellow-500/50 focus-within:border-yellow-500 ring-1 ring-yellow-500/20"} flex flex-col transition-all duration-300 relative`}
             >
-              {isOverFreeLimit && (
-                <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 rounded-t-3xl text-center">
-                  <span className="text-red-500 text-xs font-bold uppercase tracking-wider">
-                    Upgrade for unlimited text input
-                  </span>
-                </div>
-              )}
               {/* Text Area Section */}
               <div className="p-4 md:p-6 pb-2">
                 <div className="mb-3 flex items-center flex-wrap gap-2">
@@ -1261,7 +1251,7 @@ export const ContentDashboard = ({
                 <button
                   onClick={handleGenerateClick}
                   disabled={
-                    loading || !prompt.trim() || prompt.length > MAX_CHARS || isOverFreeLimit
+                    loading || !prompt.trim() || prompt.length > MAX_CHARS
                   }
                   className="w-12 h-12 flex-none bg-yellow-600 text-black rounded-2xl flex items-center justify-center hover:bg-yellow-500 transition disabled:opacity-50 shadow-lg shadow-yellow-500/20 transform active:scale-95 duration-200"
                 >
