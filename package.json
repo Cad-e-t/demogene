@@ -12,6 +12,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.975.0",
     "@aws-sdk/s3-request-presigner": "^3.975.0",
+    "@breezystack/lamejs": "^1.2.7",
     "@google/genai": "^1.31.0",
     "@remotion/bundler": "^4.0.489",
     "@remotion/cli": "^4.0.456",

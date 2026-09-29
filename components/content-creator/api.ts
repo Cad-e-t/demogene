@@ -5,6 +5,7 @@ import { ContentProject, ContentSegment, SubtitleConfiguration, VoiceStyleConfig
 import { supabase } from "../../supabaseClient";
 
 export const API_URL = "https://content-creator-417540185411.us-central1.run.app"; // Or env var
+export const EXPORT_API_URL = "https://content-export-417540185411.us-central1.run.app";
 
 export const sanitizeErrorMsg = (error: any, fallback: string) => {
     const rawError = typeof error === 'string' ? error : error?.message || String(error) || "";
@@ -136,7 +137,7 @@ export async function generateAssets(projectId: string, voiceId: string, userId:
 }
 
 export async function exportVideo(projectId: string, userId: string, quality: string = '1080p') {
-    const res = await fetch(`${API_URL}/export-video`, {
+    const res = await fetch(`${EXPORT_API_URL}/export-video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, userId, quality })

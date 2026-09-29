@@ -15,6 +15,7 @@ import { generateSubtitles, burnSubtitles } from './subtitle-generator.js';
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
 import { AssemblyAI } from 'assemblyai';
 import numberToWords from 'number-to-words';
+import { Mp3Encoder } from '@breezystack/lamejs';
 
 import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics, saveHookAsset, getHookAssets, regenerateDemoAudio } from './demo-maker/controllers.js';
 import { generateAvatarUploadUrl, saveAvatar, getAvatars, deleteAvatar, generateAvatarImage } from './avatar-controllers.js';
@@ -104,6 +105,33 @@ async function refundUser(userId, amount, description) {
     } else {
         console.log(`[Billing] Successfully refunded user ${userId}: ${amount} credits ("${description}")`);
     }
+}
+
+// Encode raw 16-bit PCM buffer to MP3 in memory using pure JS (no ffmpeg)
+function encodePcmToMp3(pcmBuffer, sampleRate = 24000, channels = 1, kbps = 128) {
+    const encoder = new Mp3Encoder(channels, sampleRate, kbps);
+    const sampleCount = Math.floor(pcmBuffer.length / 2);
+    let samples;
+    if (pcmBuffer.byteOffset % 2 === 0) {
+        samples = new Int16Array(pcmBuffer.buffer, pcmBuffer.byteOffset, sampleCount);
+    } else {
+        const copy = Buffer.from(pcmBuffer);
+        samples = new Int16Array(copy.buffer, copy.byteOffset, sampleCount);
+    }
+    const mp3Chunks = [];
+    const blockSize = 1152;
+    for (let i = 0; i < samples.length; i += blockSize) {
+        const chunk = samples.subarray(i, i + blockSize);
+        const mp3buf = encoder.encodeBuffer(chunk);
+        if (mp3buf.length > 0) {
+            mp3Chunks.push(Buffer.from(mp3buf));
+        }
+    }
+    const endBuf = encoder.flush();
+    if (endBuf.length > 0) {
+        mp3Chunks.push(Buffer.from(endBuf));
+    }
+    return Buffer.concat(mp3Chunks);
 }
 
 // Synchronizes the project status: sets 'completed' if all assets/images are generated, or 'draft' if anything is missing
@@ -475,7 +503,7 @@ function getKeyFromUrl(url) {
 
 // --- Background Processors ---
 
-async function processAnimationsBackground(projectId, segments, aspectRatio, userId, modelType = 'fast') {
+async function processAnimationsBackground(projectId, segments, aspectRatio, userId, modelType = 'ultra') {
     let failedCost = 0;
     
     for (let i = 0; i < segments.length; i += MAX_CONCURRENT_VIDEOS) {
@@ -484,7 +512,7 @@ async function processAnimationsBackground(projectId, segments, aspectRatio, use
         
         await Promise.all(batch.map(async (seg) => {
             const finalDur = seg._duration || 4;
-            const cost = seg._cost || (finalDur * (modelType === 'ultra' ? 5 : 2));
+            const cost = seg._cost || (finalDur * 5);
             try {
                 // Generate video via Replicate
                 const videoBuffer = await generateVideo(seg.image_url, seg.animation_prompt, modelType, aspectRatio, finalDur);
@@ -553,8 +581,6 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
         workDir = path.join(TEMP_DIR, `assets_${uuidv4()}`);
         if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
 
-        const { execSync } = await import('child_process');
-
         // GREEDY BUCKET CHUNKING logic
         const batches = [];
         let currentBatch = [];
@@ -573,7 +599,7 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
         }
         if (currentBatch.length > 0) batches.push(currentBatch.join(" "));
 
-        const chunkAudioPaths = [];
+        const chunkAudioBuffers = [];
         const pMap = async (array, asyncFn, concurrency) => {
             const results = new Array(array.length);
             const queue = [...array.map((item, index) => ({ item, index }))];
@@ -597,31 +623,14 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
                 console.error(`[ContentServer] Chunk ${index} generation failed.`, err);
                 throw new Error("Failed to generate TTS audio chunk");
             }
-            const pcmPath = path.join(workDir, `chunk_${index}.pcm`);
-            const mp3Path = path.join(workDir, `chunk_${index}.mp3`);
-            fs.writeFileSync(pcmPath, chunkBuffer);
-            execSync(`ffmpeg -f s16le -ar 24000 -ac 1 -i "${pcmPath}" -y "${mp3Path}"`, { stdio: 'ignore' });
-            
-            chunkAudioPaths[index] = mp3Path;
+            chunkAudioBuffers[index] = chunkBuffer;
         }, 2); // 2 parallel requests
 
-        const concatListPath = path.join(workDir, 'concat.txt');
-        const concatListContent = chunkAudioPaths.map(p => `file '${p}'`).join('\n');
-        fs.writeFileSync(concatListPath, concatListContent);
+        // Concatenate raw PCM audio chunks in memory
+        const combinedPcm = Buffer.concat(chunkAudioBuffers);
 
-        const audioFilename = `voiceover_${uuidv4()}.mp3`;
-        const audioPath = path.join(workDir, audioFilename);
-        
-        try {
-            execSync(`ffmpeg -f concat -safe 0 -i "${concatListPath}" -c copy "${audioPath}"`, { stdio: 'ignore' });
-        } catch (e) {
-            console.error("FFmpeg Concat Failed:", e);
-            throw new Error("Failed to concat TTS audio chunks");
-        }
-
-        // 2. Calculate Duration & Charge
-        const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`);
-        const totalDuration = parseFloat(out.toString());
+        // 2. Calculate Duration & Charge (raw PCM: 24,000 samples/sec * 1 channel * 2 bytes = 48,000 bytes/sec)
+        const totalDuration = combinedPcm.length / 48000;
         
         const audioCost = totalDuration * COST_AUDIO_PER_SECOND;
         const subtitleCost = project.subtitles ? totalDuration * COST_SUBTITLE_PER_SECOND : 0;
@@ -630,14 +639,20 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
         chargedAmount = totalCharge;
         await chargeUser(userId, totalCharge, `Asset Gen (Audio+Subs) ${totalDuration.toFixed(1)}s`);
 
+        // Encode combined PCM directly to MP3
+        const finalMp3Buffer = encodePcmToMp3(combinedPcm, 24000, 1, 128);
+
+        const audioFilename = `voiceover_${uuidv4()}.mp3`;
+        const audioPath = path.join(workDir, audioFilename);
+        fs.writeFileSync(audioPath, finalMp3Buffer);
+
         // 3. Upload Audio
         const audioKey = `content/${projectId}/${audioFilename}`;
-        const audioBufferFile = fs.readFileSync(audioPath);
         await withRetry(async () => {
             await s3.send(new PutObjectCommand({
                 Bucket: R2_BUCKET,
                 Key: audioKey,
-                Body: audioBufferFile,
+                Body: finalMp3Buffer,
                 ContentType: 'audio/mpeg'
             }));
         });
@@ -894,6 +909,32 @@ app.post('/generate-segments', async (req, res) => {
                 if (segError) throw segError;
                 segmentsSaved = true;
                 console.log(`[ContentServer] Segments saved to DB. Evaluating costs...`);
+
+                // Save Character Text Data to DB (Image NULL) immediately
+                if (rawVisualData && (rawVisualData.recurring_subjects || rawVisualData.avatar)) {
+                    try {
+                        const characters = await generateCharacterImagesData(rawVisualData, style, avatarUrl);
+                        if (characters && characters.length > 0) {
+                            const charsToInsert = characters.map(char => ({
+                                project_id: project.id,
+                                character_id: char.character_id,
+                                outfit_id: char.outfit_id,
+                                full_desc: char.full_desc,
+                                image_url: null
+                            }));
+                            const { error: charInsertErr } = await supabase
+                                .from('content_characters')
+                                .insert(charsToInsert);
+                            if (charInsertErr) {
+                                console.error("[ContentServer] Error inserting characters to DB immediately:", charInsertErr);
+                            } else {
+                                console.log(`[ContentServer] Saved ${charsToInsert.length} character(s) text data to DB.`);
+                            }
+                        }
+                    } catch (charErr) {
+                        console.error("[ContentServer] Error preparing/saving character text data:", charErr);
+                    }
+                }
 
                 // 3. Determine Cost & Charge
                 const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;
@@ -1560,6 +1601,32 @@ const handleRetryProject = async (req, res) => {
                     
                     workingSegments = insertedSegments;
                     workingMissingSceneImages = insertedSegments;
+
+                    // Save Character Text Data to DB (Image NULL) immediately
+                    if (rawVisualData && (rawVisualData.recurring_subjects || rawVisualData.avatar)) {
+                        try {
+                            const characters = await generateCharacterImagesData(rawVisualData, style, avatarUrl);
+                            if (characters && characters.length > 0) {
+                                const charsToInsert = characters.map(char => ({
+                                    project_id: project.id,
+                                    character_id: char.character_id,
+                                    outfit_id: char.outfit_id,
+                                    full_desc: char.full_desc,
+                                    image_url: null
+                                }));
+                                const { error: charInsertErr } = await supabase
+                                    .from('content_characters')
+                                    .insert(charsToInsert);
+                                if (charInsertErr) {
+                                    console.error("[ContentServer] [Retry] Error inserting characters to DB immediately:", charInsertErr);
+                                } else {
+                                    console.log(`[ContentServer] [Retry] Saved ${charsToInsert.length} character(s) text data to DB.`);
+                                }
+                            }
+                        } catch (charErr) {
+                            console.error("[ContentServer] [Retry] Error preparing/saving character text data:", charErr);
+                        }
+                    }
 
                     // Determine Cost & Charge
                     const flashInputTokens = usageMetadata?.flashUsage?.promptTokenCount || 0;

@@ -42,7 +42,7 @@ Your task is to:
  "outfits": { "O1": { "upper": "description of upper-body clothing.", "lower": "description of lower-body clothing.", 
 "footwear": "description of footwear."}, "segments": [ { "segment_id": "1", "location": "Location ID if recurring (e.g., 'LOC1'), 
 or empty string if it appears only once.", "narration": "The exact script segment being visualized.", "scene_description":
-"A highly detailed, comma-separated paragraph describing the exact first frame from which the scene begins.", 
+"A highly detailed, comma-separated paragraph describing the exact **first frame** from which the scene begins and the animation prompt animates.", 
 "animation_prompt": "A concise prompt describing how the scene unfolds from that first frame, including subject actions, camera
 movement, environmental motion, and appropriate sound effects.", "subjects": [ { "id": "ID of the subject (e.g., 'SUBJ1').", 
 "outfit": "ID of the outfit (e.g., 'O1')." } ] }
@@ -51,19 +51,12 @@ USER INPUT: ${userInput}
 
 ------------
 
-1.  SEGMENTING RULES (Must apply unless user specifies otherwise):
+1. SEGMENTING RULES (Must apply unless user specifies otherwise):
 
-  Segment the narration into individual cinematic shots. Each segment should visualize one primary visual moment or idea in the script.
- 
-  Create a new segment whenever the narration introduces:
-  - A new subject, object, environment, or visual detail that deserves focus
-  - A new idea
-  - A new physical action, or interaction
-  - A reaction or consequence
-  - A reveal or change in perspective
-  - A different camera composition needed to clearly show the moment
+   Segment the narration into individual cinematic shots. Create one segment for each complete sentence.
+   Do not treat a punctuation mark alone as a sentence boundary. Short fragments that depend on the surrounding sentence for their meaning should remain part of that sentence's segment.
+   If a complete sentence contains multiple distinct visual moments, split it into separate segments.
 
-  IMPORTANT: A segment should not span more than one sentence. If a sentence contains multiple moments, ideas, action, emotion that could be shown through separate camera shots, split them into separate segments.
 
 2.  RECURRING SUBJECT RULES
 
@@ -77,7 +70,7 @@ USER INPUT: ${userInput}
     vehicles, objects). Only generate subsequent outfits ('O2', etc.) if a
     change is required by the script.
   - Tracking Subjects: List every recurring subject referenced in an scene_description under the segment's subjects array. 
-  For each subject, include its outfit ID (if applicable) and the outfit parts that should appear in that shot.
+  For each subject, include its outfit ID (if applicable) that should appear in that shot.
 
 
 3.  RECURRING LOCATION RULES
@@ -102,22 +95,19 @@ USER INPUT: ${userInput}
   - Store complete-body garments that cannot be separated into upper and lower parts (e.g., jumpsuits, gowns, spacesuits) under upper, and leave lower empty.
   - Categorize headwear with upper, while accessories represent separate wearable items such as jewelry, watches, glasses, or bags.
   - Keep outfit descriptions concise but sufficiently detailed for consistent generation.
-  - Use the outfit_parts array to list only the attire visible within the specific shot's framing and subject posture, including the complete upper parts If any part of the upper body is visible, and lower parts If any part of the lower body is visible. 
-    Include all outfit parts when the full body is visible.
 
-5.  SCENE DESCRIPTION RULES
+5.  SCENE DESCRIPTION RULES (FIRST FRAME)
 
   - Independence: Treat every prompt as an independent scene description. Aside
     from recurring subjects, you must repeat the full description of other
     entities, objects and environments every time they appear.
   - First Frame Snapshot: The scene description details the exact visual layout
-    of the very first frame of the shot. All scene descriptions MUST detail the physical placement,
-    position, posture, and state of the subjects at that specific starting
-    millisecond. No baked-in motion blur or speed lines.   
-  - Subject Handling: Reference recurring subjects STRICTLY by
-    their bare ID (e.g., 'SUBJ1 walking...'). NEVER
-    describe them, or use their base/physical description or outfits description
-    inside the scene description.
+    of the very first frame of the shot. No baked-in motion blur or speed lines.   
+  - **Subject Handling:** Reference recurring subjects STRICTLY by their bare ID 
+    (e.g., 'SUBJ1 walking...'). NEVER describe them or use their base description or outfit description. 
+    When a shot only shows part of a recurring subject's body, still identify that body part through
+    their bare ID (e.g., 'close-up of SUBJ1's hand').
+  - **Subject Positioning**: Whenever a subject appears in a scene, **specify their exact position within the environment**, not just the action they are performing.
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder
     shot", "split-screen", in the scene description is prohibited.
   - Environment: If the location appears only once, fully describe the visible environment 
@@ -228,9 +218,8 @@ describing permanent features, layout, and atmosphere." } }, "segments": [ {
 "segment_id": "1", "location": "Location ID if
 recurring (e.g., 'LOC1'), or empty string if it appears only once.",
 "narration": "The exact script segment being visualized.", "scene_description":
-"A highly detailed, comma-separated paragraph describing the exact first frame
-from which the scene begins.", "animation_prompt": "A concise prompt describing
-how the scene unfolds from that first frame, including subject actions, camera
+"A highly detailed, comma-separated paragraph describing the exact **first frame** from which the scene begins and the animation prompt animates.", 
+"animation_prompt": "A concise prompt describing how the scene unfolds from that first frame, including subject actions, camera
 movement, environmental motion, and appropriate sound effects.", "subjects": [ {
 "id": "ID of the subject (e.g., 'AVATAR' or 'SUBJ1').", "outfit": "ID of the
 outfit (e.g., 'O1')."} ] } ] }
@@ -239,20 +228,11 @@ USER INPUT: ${userInput}
 
 ------------
 
-1.  SEGMENTING RULES (Must apply unless user specifies otherwise):
+1. SEGMENTING RULES (Must apply unless user specifies otherwise):
 
-  Segment the narration into individual cinematic shots. Each segment should visualize one primary visual moment or idea in the script.
- 
-  IMPORTANT: A segment should never span more than one sentence. If a sentence contains multiple moments, ideas, action, emotion that could be shown through separate camera shots, split them into separate segments.
-
-  Create a new segment whenever the narration introduces:
-  - A new subject, object, environment, or visual detail that deserves focus
-  - A new idea
-  - A new physical action, or interaction
-  - A reaction or consequence
-  - A reveal or change in perspective
-  - A different camera composition needed to clearly show the moment
-
+   Segment the narration into individual cinematic shots. Create one segment for each complete sentence.
+   Very short fragments or incompelete sentences that depend on the surrounding sentence for their meaning should remain part of that sentence's segment.
+   If a complete sentence contains multiple distinct visual moments, split it into separate segments.
   
 2.  AVATAR RULES:
 
@@ -272,9 +252,7 @@ USER INPUT: ${userInput}
   - Reference the avatar in scene descriptions strictly by the bare identifier
     AVATAR, exactly as recurring subjects are referenced by their IDs.
   - Outfits: Assume the avatar is human or humanoid. Generate a
-    scene-appropriate default outfit (O1) for the avatar. Only generate
-    additional outfits (O2, etc.) if a wardrobe change is required by the
-    script.
+    scene-appropriate default outfit (O1) for the avatar.
   - Tracking Avatar: Whenever the avatar is referenced in a scene description,
     include a subject entry with ID AVATAR and its outfit ID/outfit parts that
     should appear in that shot, in that segment's subjects array.
@@ -293,7 +271,7 @@ USER INPUT: ${userInput}
     change is required by the script.
   - Tracking Subjects: List every recurring subject referenced in a
     scene_description under the segment's subjects array. For each subject,
-    include its outfit ID and only the outfit parts that should appear in that
+    include its outfit ID that should appear in that
     shot.
 
 
@@ -322,24 +300,19 @@ USER INPUT: ${userInput}
     wearable items such as jewelry, watches, glasses, or bags.
   - Keep outfit descriptions concise but sufficiently detailed for consistent
     generation.
-  - Use the outfit_parts array to list only the attire visible within the
-    specific shot's framing and subject posture, including the complete upper parts
-    If any part of the upper body is visible, and lower parts If any part of the lower body is visible. 
-    Include all outfit parts when the full body is visible.
 
-6.  SCENE DESCRIPTION RULES
+6.  SCENE DESCRIPTION RULES (FIRST FRAME)
 
   - Independence: Treat every prompt as an independent scene description. Aside
     from recurring subjects, you must repeat the full description of other
     entities, objects and environments every time they appear.
    - First Frame Snapshot: The scene description details the exact visual layout
-    of the very first frame of the shot. All scene descriptions MUST detail the physical placement,
-    position, posture, and state of the subjects at that specific starting
-    millisecond. No baked-in motion blur or speed lines.  
-  - Subject Handling: Reference recurring subjects and the avatar STRICTLY by
-    their bare ID (e.g., 'AVATAR sitting in a...' or 'SUBJ1 walking...'). NEVER
-    describe them, or use their base/physical description or outfits description
-    inside the scene description.
+    of the very first frame of the shot. No baked-in motion blur or speed lines.  
+  - **Subject Handling:** Reference recurring subjects STRICTLY by their bare ID 
+    (e.g., 'SUBJ1 walking...'). NEVER describe them or use their base description or outfit description. 
+    When a shot only shows part of a recurring subject's body, still identify that body part through
+    their bare ID (e.g., 'close-up of SUBJ1's hand').
+  - **Subject Positioning**: Whenever a subject appears in a scene, **specify their exact position within the environment**, not just the action they are performing.
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder
     shot", "split-screen", in the scene description is prohibited.
   - Environment: If the location appears only once, fully describe the visible environment 
