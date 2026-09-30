@@ -53,10 +53,13 @@ USER INPUT: ${userInput}
 
 1. SEGMENTING RULES (Must apply unless user specifies otherwise):
 
-   Segment the narration into individual cinematic shots. Create one segment for each complete sentence.
-   Do not treat a punctuation mark alone as a sentence boundary. Short fragments that depend on the surrounding sentence for their meaning should remain part of that sentence's segment.
-   If a complete sentence contains multiple distinct visual moments, split it into separate segments.
+Segment the narration into individual cinematic shots. **By default, create one segment per complete sentence.**
 
+* Do not create a separate segment for a fragment of fewer than 3 words; combine it with the nearest appropriate complete sentence.
+* **Never combine more than 2 complete sentences** into one segment.
+* A complete sentence of **3 or more words** should normally receive its own segment.
+* If one sentence contains multiple distinct visual moments, split it into separate segments.
+  
 
 2.  RECURRING SUBJECT RULES
 
@@ -230,9 +233,12 @@ USER INPUT: ${userInput}
 
 1. SEGMENTING RULES (Must apply unless user specifies otherwise):
 
-   Segment the narration into individual cinematic shots. Create one segment for each complete sentence.
-   Very short fragments or incompelete sentences that depend on the surrounding sentence for their meaning should remain part of that sentence's segment.
-   If a complete sentence contains multiple distinct visual moments, split it into separate segments.
+Segment the narration into individual cinematic shots. **By default, create one segment per complete sentence.**
+
+* Do not create a separate segment for a fragment of fewer than 3 words; combine it with the nearest appropriate complete sentence.
+* **Never combine more than 2 complete sentences** into one segment.
+* A complete sentence of **3 or more words** should normally receive its own segment.
+* If one sentence contains multiple distinct visual moments, split it into separate segments.
   
 2.  AVATAR RULES:
 
