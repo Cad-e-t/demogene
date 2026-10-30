@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
-import { execSync } from 'child_process';
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { AssemblyAI } from 'assemblyai';
 
@@ -10,10 +9,34 @@ import { generateVoiceover } from './gemini.js';
 import { calculateAudioLineDurations } from './video-processor.js';
 import { supabase } from './supabase.js';
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from '../storage.js';
-import { getDurationValue, parseTime, cleanup, alignSegmentsWithTranscription } from './utils.js';
+import { parseTime, cleanup, alignSegmentsWithTranscription } from './utils.js';
 import { generateStorySegments } from '../gemini.js';
 
 const TEMP_DIR = os.tmpdir();
+
+// Prepend standard 44-byte RIFF/WAV header to raw PCM buffer (24kHz, 16-bit, mono) without ffmpeg
+function pcmToWavBuffer(pcmBuffer, sampleRate = 24000, numChannels = 1, bitDepth = 16) {
+    const byteRate = sampleRate * numChannels * (bitDepth / 8);
+    const blockAlign = numChannels * (bitDepth / 8);
+    const dataSize = pcmBuffer.length;
+    const header = Buffer.alloc(44);
+
+    header.write('RIFF', 0);
+    header.writeUInt32LE(dataSize + 36, 4);
+    header.write('WAVE', 8);
+    header.write('fmt ', 12);
+    header.writeUInt32LE(16, 16);
+    header.writeUInt16LE(1, 20);
+    header.writeUInt16LE(numChannels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(byteRate, 28);
+    header.writeUInt16LE(blockAlign, 32);
+    header.writeUInt16LE(bitDepth, 34);
+    header.write('data', 36);
+    header.writeUInt32LE(dataSize, 40);
+
+    return Buffer.concat([header, pcmBuffer]);
+}
 
 function getKeyFromUrl(url) {
     if (!url) return null;
@@ -72,7 +95,7 @@ export async function runDemoProcessing(jobData) {
         }
 
         console.log('--- Generating AI Story Segments for Demo ---');
-        const result = await generateStorySegments(userPrompt, aspect, 'Cinematic', 'Balanced', false, avatarUrl);
+        const result = await generateStorySegments(userPrompt, aspect, 'Rendering Style: Flat 2D cartoon style, natural coloring. Character Design: Characters are 2D stick figures. They retain distinct permanent features (e.g., hair-style, eyes, facial hair.)', 'Balanced', false, avatarUrl);
         const aiSegmentsData = result?.segments || [];
         console.log(`Generated ${aiSegmentsData.length} AI segments.`);
 
@@ -115,22 +138,19 @@ export async function runDemoProcessing(jobData) {
             
             const { audioBuffer } = await generateVoiceover(segments, voiceId, "Read aloud in a calm, deliberate tone with brisk continuous delivery");
             
-            const rawAudioPath = path.join(TEMP_DIR, `raw_audio_${uuidv4()}.pcm`);
-            filesToDelete.push(rawAudioPath);
-            fs.writeFileSync(rawAudioPath, audioBuffer);
+            if (!audioBuffer || audioBuffer.length === 0) {
+                throw new Error("TTS returned empty audio buffer");
+            }
             
             const audioFilename = `audio_${uuidv4()}.wav`;
             const audioPath = path.join(TEMP_DIR, audioFilename);
             filesToDelete.push(audioPath);
             
-            try {
-                execSync(`ffmpeg -f s16le -ar 24000 -ac 1 -i "${rawAudioPath}" -y "${audioPath}"`, { stdio: 'ignore' });
-            } catch (e) {
-                console.error("FFmpeg PCM Conversion Failed:", e);
-                throw new Error("Failed to convert TTS audio");
-            }
+            const wavBuffer = pcmToWavBuffer(audioBuffer, 24000, 1, 16);
+            fs.writeFileSync(audioPath, wavBuffer);
 
-            const totalAudioDuration = getDurationValue(audioPath);
+            // Exact duration from raw PCM (24,000 samples/sec * 1 channel * 2 bytes = 48,000 bytes/sec)
+            const totalAudioDuration = audioBuffer.length / 48000;
 
             // Upload audio to R2
             const audioKey = `demo-audio/${audioFilename}`;
@@ -209,22 +229,19 @@ export async function runDemoAudioRegeneration({ projectId, segments, voiceId, u
 
         const { audioBuffer } = await generateVoiceover(segments, voiceId, "Read aloud in a calm, deliberate tone with brisk continuous delivery");
 
-        const rawAudioPath = path.join(TEMP_DIR, `raw_audio_${uuidv4()}.pcm`);
-        filesToDelete.push(rawAudioPath);
-        fs.writeFileSync(rawAudioPath, audioBuffer);
-        
+        if (!audioBuffer || audioBuffer.length === 0) {
+            throw new Error("TTS returned empty audio buffer");
+        }
+
         const audioFilename = `audio_${uuidv4()}.wav`;
         const audioPath = path.join(TEMP_DIR, audioFilename);
         filesToDelete.push(audioPath);
-        
-        try {
-            execSync(`ffmpeg -f s16le -ar 24000 -ac 1 -i "${rawAudioPath}" -y "${audioPath}"`, { stdio: 'ignore' });
-        } catch (e) {
-            console.error("FFmpeg PCM Conversion Failed:", e);
-            throw new Error("Failed to convert TTS audio");
-        }
 
-        const totalAudioDuration = getDurationValue(audioPath);
+        const wavBuffer = pcmToWavBuffer(audioBuffer, 24000, 1, 16);
+        fs.writeFileSync(audioPath, wavBuffer);
+
+        // Exact duration from raw PCM (24,000 samples/sec * 1 channel * 2 bytes = 48,000 bytes/sec)
+        const totalAudioDuration = audioBuffer.length / 48000;
 
         // Upload audio to R2
         const audioKey = `demo-audio/${audioFilename}`;

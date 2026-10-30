@@ -1,16 +1,9 @@
 import { GoogleGenAI, Modality } from "@google/genai";
-import { MOCK_ANALYSIS_RESULT } from "./mocks.js";
-
 const TEST_MODE = process.env.TEST_MODE === 'true'; 
-const MODEL_NAME = process.env.GEMINI_MODEL_NAME || "gemini-3-pro-preview";
+const MODEL_NAME = process.env.GEMINI_MODEL_NAME || "gemini-3.7-flash";
 const TTS_MODEL_NAME = process.env.GEMINI_TTS_MODEL_NAME || "gemini-2.5-flash-preview-tts";
 
 export async function analyzeVideo(fileBase64, mimeType, prompt) {
-  if (TEST_MODE) {
-    console.log("TEST_MODE: Using mock analysis result.");
-    return MOCK_ANALYSIS_RESULT;
-  }
-
   if (!process.env.API_KEY) throw new Error("API Key missing");
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -145,13 +138,13 @@ export async function generateVoiceover(scriptLines, voiceName, stylePrompt) {
     const chunkBuffers = [];
     
     for (let i = 0; i < batches.length; i++) {
-        const batchText = batches[i];
+        const batchText = batches[i]; // Loud, excited, confident, with strong falling declarative intonation at sentence end.
         
         const prompt = `Read the following transcript based on the director's note.
 
 # Director's note
-Style: Calm, confident, with strong falling declarative intonation at sentence end.
-Pace: Natural conversation pace 
+Style: intelligent, authoritative narrative delivery with controlled urgency, subtle intrigue, strategic pacing and pauses, strong emphasis on key words, and a serious, slightly conspiratorial tone—as if revealing an important story unfolding in real time.
+Pace: Fast conversation pace 
 Accent: Canadian'
 
 ## Transcript:

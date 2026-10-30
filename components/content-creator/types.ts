@@ -177,7 +177,7 @@ export const predefinedVisualIdentityBlocks: Record<string, string> = {
         'Game3D': 'Rendering Style: Clean 3D simulation style, bright studio lighting, Blender Cycles shading. Character Design: Characters are smooth, slightly plastic textures and subsurface scattering. ',
         'Creepy': `Rendering Style: 2D cartoon horror style, bold lines, muted night-time colors, hunted tone. Character Design: Exaggerated characters with large unsettling eyes (wide whites and dot pupils).`,
         'Realistic': `Rendering Style: Photorealistic style depiction. Real-world texture.`,
-        'Stickman': `Rendering Style: Flat 2D cartoon style, natural coloring. Character Design: Characters are 2D stick figures. They retain distinct permanent features (e.g., hair-style, eyes, facial hair.)`,
+        'Stickman': `Rendering Style: Flat 2D cartoon style, natural coloring. Character Design: Characters are stickman with circular faces, and thin black lines for limbs. They have distinct features (e.g., hair-style, eyes, facial hair.)`,
         'Anime': `Rendering Style: 2D anime-style depiction, clean, consistent line art.`,
         'Sketch': `Rendering Style: Hand-drawn pencil sketch, light sketch strokes, natural hand-drawn feel. No color, no solid fills`,
         'Documentary': `Rendering Style: Black and white photojournalistic style, gritty and immediate.`,

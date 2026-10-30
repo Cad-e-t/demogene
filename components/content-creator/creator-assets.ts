@@ -31,10 +31,6 @@ export const LANDING_PREVIEWS: Record<
     src: "https://assets.productcam.site/image-styles/anime.mp4",
     aspectRatio: "16:9",
   },
-  "Hoorror Story": {
-    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
-    aspectRatio: "9:16",
-  },
   "Animated Story": {
     src: "https://assets.productcam.site/image-styles/GameCinematic.mp4",
     aspectRatio: "9:16",
@@ -44,7 +40,7 @@ export const LANDING_PREVIEWS: Record<
     aspectRatio: "16:9",
   },
   "POV Story": {
-    src: "https://assets.productcam.site/image-styles/cartoona.mp4",
+    src: "https://assets.productcam.site/image-styles/cartoon.mp4",
     aspectRatio: "16:9",
   },
     "Skeleton Videos": {
@@ -90,15 +86,15 @@ export const STYLE_TEMPLATES: Record<
     aspectRatio: "9:16",
   },
     Mannequin: {
-    src: "https://assets.productcam.site/image-styles/mannequin.mp4",
+    src: "https://assets.productcam.site/image-styles/manneqin.mp4",
     aspectRatio: "9:16",
   },
    Sketch: {
-    src: "https://assets.productcam.site/image-styles/sketch.mp4",
+    src: "https://assets.productcam.site/image-styles/skech.mp4",
     aspectRatio: "16:9",
   },
   "Ukiyo-e": {
-    src: "https://assets.productcam.site/image-styles/ukiyo-e.mp4",
+    src: "https://assets.productcam.site/image-styles/ukyo-e.mp4",
     aspectRatio: "16:9",
   },
   Écorché: {

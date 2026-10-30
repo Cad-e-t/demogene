@@ -9,7 +9,7 @@ import {
     getYouTubeDescriptionPrompt
 } from "./prompt.js";
 
-const MODEL_NAME = "gemini-3.6-flash"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
+const MODEL_NAME = "gemini-3.8-flash"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
 const GENERATE_IMAGE_MODEL = "gemini-3.1-flash-lite-image";  
 const EDIT_IMAGE_MODEL = "gemini-3.1-flash-lite-image"; //
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
@@ -81,6 +81,8 @@ VISUAL IDENTITY: ${visualIdentityBlock}`;
         let segCharacters = [];
         let charIndex = 1;
 
+        const ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+        const getOrdinal = (n) => ORDINALS[n - 1] || `${n}th`;
         const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
         if (avatarUrl) {
@@ -102,7 +104,7 @@ VISUAL IDENTITY: ${visualIdentityBlock}`;
                 }
                 if (chosenOutfit) {
                     segCharacters.push({ character_id: 'AVATAR', outfit_id: chosenOutfit, index: charIndex });
-                    finalImagePrompt = finalImagePrompt.replace(idRegex, `character in image ${charIndex}`);
+                    finalImagePrompt = finalImagePrompt.replace(idRegex, `character in the ${getOrdinal(charIndex)} image`);
                     charIndex++;
                     segAvatarUrl = avatarUrl;
                 }
@@ -127,7 +129,7 @@ VISUAL IDENTITY: ${visualIdentityBlock}`;
                 }
                 if (chosenOutfit) {
                     segCharacters.push({ character_id: subId, outfit_id: chosenOutfit, index: charIndex });
-                    finalImagePrompt = finalImagePrompt.replace(idRegex, `character in image ${charIndex}`);
+                    finalImagePrompt = finalImagePrompt.replace(idRegex, `character in the ${getOrdinal(charIndex)} image`);
                     charIndex++;
                 }
             }

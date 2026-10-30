@@ -33,16 +33,15 @@ Your task is to:
    objects, environments, actions, behaviors, interactions, and events that naturally occur within the
    reality of the narration. Express all meaning through observable physical reality. Every idea, concept,
    or emotion must be visualized as real subjects performing real actions in real environments—NEVER as symbolic, metaphorical, allegorical, conceptual, or abstract imagery. 
-   Strictly follow the SEGMENTING RULES, RECURRING SUBJECT RULES, RECURRING LOCATION RULES, OUTFIT RULES, SCENE DESCRIPTION RULES, and ANIMATION PROMPT RULES below, deferring to the user's instructions only when they differ.
+   Strictly follow the SEGMENTING RULES, RECURRING SUBJECT RULES, VISUAL ENVIRONMENT RULES, OUTFIT RULES, SCENE DESCRIPTION RULES, and ANIMATION PROMPT RULES below, deferring to the user's instructions only when they differ.
 4.  Output the results strictly in the following JSON format. No markdown
     formatting, preamble, or explanations.
 
 { "style": "Short sentence defining the visual style for rendering (e.g.,'photorealistic documentary style, real world texture.').",
   "recurring_subjects": { "SUBJ1": { "base": "Complete immutable physical description. Naturally phrased.", 
  "outfits": { "O1": { "upper": "description of upper-body clothing.", "lower": "description of lower-body clothing.", 
-"footwear": "description of footwear."}, "segments": [ { "segment_id": "1", "location": "Location ID if recurring (e.g., 'LOC1'), 
-or empty string if it appears only once.", "narration": "The exact script segment being visualized.", "scene_description":
-"A highly detailed, comma-separated paragraph describing the exact **first frame** from which the scene begins and the animation prompt animates.", 
+"footwear": "description of footwear."}, "segments": [ { "segment_id": "1", "narration": "The exact script segment being visualized.", "scene_description":
+"A highly detailed, comma-separated description of the static visual state at the exact beginning of the shot, before any action or movement occurs.", 
 "animation_prompt": "A concise prompt describing how the scene unfolds from that first frame, including subject actions, camera
 movement, environmental motion, and appropriate sound effects.", "subjects": [ { "id": "ID of the subject (e.g., 'SUBJ1').", 
 "outfit": "ID of the outfit (e.g., 'O1')." } ] }
@@ -53,12 +52,13 @@ USER INPUT: ${userInput}
 
 1. SEGMENTING RULES (Must apply unless user specifies otherwise):
 
-Segment the narration into individual cinematic shots. **By default, create one segment per complete sentence.**
+- Segment the narration into individual cinematic shots. **By default, create one segment per complete sentence.**
 
-* Do not create a separate segment for a fragment of fewer than 3 words; combine it with the nearest appropriate complete sentence.
-* **Never combine more than 2 complete sentences** into one segment.
-* A complete sentence of **3 or more words** should normally receive its own segment.
-* If one sentence contains multiple distinct visual moments, split it into separate segments.
+- Do not create a separate segment for a fragment of fewer than 3 words; combine it with the nearest appropriate complete sentence.
+- **Never combine 2 complete sentences** into one segment.
+- A complete sentence of **3 or more words** should normally receive its own segment.
+- If one sentence contains multiple distinct visual moments, split it into separate segments.
+
   
 
 2.  RECURRING SUBJECT RULES
@@ -66,8 +66,7 @@ Segment the narration into individual cinematic shots. **By default, create one 
   - Relevance: Only define 'recurring_subjects' if the script features actual
     recurring subjects. If not, leave the recurring_subjects object and the
     segment subjects arrays empty.
-  - Base Descriptions: For humans or humanoid figures, the "base" description must include: gender and age range,
-   followed by skin tone, hair color, and hair style (when present). Do not include clothing here.
+  - Base Descriptions: For humans or humanoid figures, the "base" description must include: gender and age range, hair color, and hair style (when present). Do not include clothing here.
   - Outfits: Outfits are primarily for humanoids or clothed entities. Leave the
     'outfits' object empty for subjects that do not wear clothes (e.g., animals,
     vehicles, objects). Only generate subsequent outfits ('O2', etc.) if a
@@ -76,20 +75,11 @@ Segment the narration into individual cinematic shots. **By default, create one 
   For each subject, include its outfit ID (if applicable) that should appear in that shot.
 
 
-3.  RECURRING LOCATION RULES
+3. VISUAL ENVIRONMENT RULES
 
-  - Relevance: Only define recurring_locations when multiple segments occur in
-    the same physical location or environment. Otherwise leave the
-    recurring_locations object empty.
-  - Description: Write one concise sentence describing the location's permanent
-    appearance and environment, including its layout, architecture, materials, 
-    lighting style, color palette, and overall atmosphere.
-  - Tracking Locations (important): If a segment takes place inside a recurring location,
-    include its location ID in the segment's "location" field. If the location
-    appears only once, leave "location" empty and fully describe the environment
-    inside the segment's scene_description.
-  - Location ID (e.g., "LOC1") should never appear inside the scene_description. It belongs only in the segment's "location" field.
-
+  - **Selection:** For each segment, choose the simplest effective composition: a plain white background for isolated subjects, concepts, symbols, and visual metaphors; a minimal environment when physical context aids understanding; or a detailed environment when setting, atmosphere, or spatial relationships are essential.
+  - **Description:** Describe only the visual elements needed to communicate the segment clearly, including relevant subjects, objects, their positions, and necessary environmental details.
+  - **Continuity:** Preserve character identity, important object states, and spatial relationships when relevant to the narrative. Establish each segment's environment independently, allowing locations and visual compositions to change naturally between segments.
 
 
 4.  OUTFIT RULES
@@ -99,13 +89,13 @@ Segment the narration into individual cinematic shots. **By default, create one 
   - Categorize headwear with upper, while accessories represent separate wearable items such as jewelry, watches, glasses, or bags.
   - Keep outfit descriptions concise but sufficiently detailed for consistent generation.
 
-5.  SCENE DESCRIPTION RULES (FIRST FRAME)
+5.  SCENE DESCRIPTION RULES
 
+  - **First Frame Snapshot: Describe only the static visual state at the exact beginning of the shot, before any action or movement occurs. 
+    Imagine pausing scene at frame 1. Describe only what the paused image shows. Action verbs are forbidden.**
   - Independence: Treat every prompt as an independent scene description. Aside
     from recurring subjects, you must repeat the full description of other
     entities, objects and environments every time they appear.
-  - First Frame Snapshot: The scene description details the exact visual layout
-    of the very first frame of the shot. No baked-in motion blur or speed lines.   
   - **Subject Handling:** Reference recurring subjects STRICTLY by their bare ID 
     (e.g., 'SUBJ1 walking...'). NEVER describe them or use their base description or outfit description. 
     When a shot only shows part of a recurring subject's body, still identify that body part through
@@ -113,9 +103,7 @@ Segment the narration into individual cinematic shots. **By default, create one 
   - **Subject Positioning**: Whenever a subject appears in a scene, **specify their exact position within the environment**, not just the action they are performing.
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder
     shot", "split-screen", in the scene description is prohibited.
-  - Environment: If the location appears only once, fully describe the visible environment 
-    and lighting within the shot. If a recurring location ID is used for the segment, 
-    do not repeat permanent location details inside the scene description.  
+  - Environment: Fully describe the choosen environment and lighting within the shot.
   - Composition: Clearly specify camera framing and perspective.
   - Labels: Avoid artificial text, words, or labels inside the scene unless
     requested by the user.
@@ -128,8 +116,7 @@ Segment the narration into individual cinematic shots. **By default, create one 
     camera mechanics that directly follow the first frame established in the
     Scene Description.
   - Subject Referencing: Never use IDs in the animation prompt. Reference subjects 
-    like a human director using their narrative role + outfit or distinguishing physical traits. 
-    So the video model can accurately recognize, target, and animate them.  
+    like a human director using their narrative role. So the video model can accurately recognize, target, and animate them.  
   - Motion: Keep it simple. One primary focus + one primary action + one camera move.
   - Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan
     left, push in, orbit, tracking shot, static).
@@ -141,15 +128,12 @@ Segment the narration into individual cinematic shots. **By default, create one 
 
 7.  SCENE CONCEPTUALIZATION:
 
-  - Cinematic Realism: Frame scenes dramatically like a physical camera
-    capturing reality. Translate abstract ideas into visible, concrete physical
-    behaviors, mechanical actions, or direct environmental consequences. Do not
-    place subjects next to arbitrary objects just to symbolize an idea.
+  - Cinematic Realism: Translate the script into cinematic, physically grounded scenes. 
+    Convert abstract ideas into visible subjects, environments, objects, poses,
+    expressions, and physical consequences. Do not place subjects next to arbitrary objects just to symbolize an idea.
   - Single Intent Framing: Each scene defines a clear primary visual intention,
     with additional elements included when they contribute to the same unified
     action, event, or environmental transformation.
-  - Continuous Action: Connect scenes using camera logic (e.g., pull out from a
-    macro shot to reveal a wide environment).
   - Internal Reveal: When generating prompts for how a process or object works.
     Show the internal mechanics by framing shot from directly inside the object.
   - Group Dynamics: When a segment involves a collective subject (e.g., people,
@@ -202,8 +186,8 @@ Your task is to:
     all meaning through observable physical reality. Every idea, concept, or
     emotion must be visualized as real subjects performing real actions in real
     environments—NEVER as symbolic, metaphorical, allegorical, conceptual, or
-    abstract imagery. Strictly follow the SEGMENTING RULES, RECURRING SUBJECT RULES, RECURRING
-    LOCATION RULES, OUTFIT RULES, SCENE DESCRIPTION RULES, and ANIMATION PROMPT
+    abstract imagery. Strictly follow the SEGMENTING RULES, RECURRING SUBJECT RULES, VISUAL ENVIRONMENT RULES,
+    OUTFIT RULES, SCENE DESCRIPTION RULES, and ANIMATION PROMPT
     RULES below, deferring to the user's instructions only when they differ.
 4.  Output the results strictly in the following JSON format. No markdown
     formatting, preamble, or explanations.
@@ -215,13 +199,9 @@ Your task is to:
 "recurring_subjects": {"SUBJ1": { "base": "Complete immutable physical description. Naturally
 phrased.", "outfits": { "O1": { "upper": "description of upper-body clothing.",
 "lower": "description of lower-body clothing.", "footwear": "description of
-footwear.", "accessories": "Visible accessories, if any." } } } },
-"recurring_locations": { "LOC1": { "description": "One concise sentence
-describing permanent features, layout, and atmosphere." } }, "segments": [ {
-"segment_id": "1", "location": "Location ID if
-recurring (e.g., 'LOC1'), or empty string if it appears only once.",
-"narration": "The exact script segment being visualized.", "scene_description":
-"A highly detailed, comma-separated paragraph describing the exact **first frame** from which the scene begins and the animation prompt animates.", 
+footwear.", "accessories": "Visible accessories, if any." } } } }, "segments": [ {
+"segment_id": "1", "narration": "The exact script segment being visualized.", "scene_description":
+"A highly detailed, comma-separated description of the static visual state at the exact beginning of the shot, before any action or movement occurs.", 
 "animation_prompt": "A concise prompt describing how the scene unfolds from that first frame, including subject actions, camera
 movement, environmental motion, and appropriate sound effects.", "subjects": [ {
 "id": "ID of the subject (e.g., 'AVATAR' or 'SUBJ1').", "outfit": "ID of the
@@ -233,12 +213,11 @@ USER INPUT: ${userInput}
 
 1. SEGMENTING RULES (Must apply unless user specifies otherwise):
 
-Segment the narration into individual cinematic shots. **By default, create one segment per complete sentence.**
-
-* Do not create a separate segment for a fragment of fewer than 3 words; combine it with the nearest appropriate complete sentence.
-* **Never combine more than 2 complete sentences** into one segment.
-* A complete sentence of **3 or more words** should normally receive its own segment.
-* If one sentence contains multiple distinct visual moments, split it into separate segments.
+- Segment the narration into individual cinematic shots. **By default, create one segment per complete sentence.**
+- Do not create a separate segment for a fragment of fewer than 3 words; combine it with the nearest appropriate complete sentence.
+- **Never combine 2 complete sentences** into one segment.
+- A complete sentence of **3 or more words** should normally receive its own segment.
+- If one sentence contains multiple distinct visual moments, split it into separate segments.
   
 2.  AVATAR RULES:
 
@@ -269,7 +248,7 @@ Segment the narration into individual cinematic shots. **By default, create one 
     recurring subjects. If not, leave the recurring_subjects object and the
     segment subjects arrays empty.
   - Base Descriptions: For humans or humanoid figures, the "base" description
-    must include: gender and age range, followed by skin tone, hair color, and
+    must include: gender and age range, hair color, and
     hair style (when present). Do not include clothing here.
   - Outfits: Outfits are primarily for humanoids or clothed entities. Leave the
     'outfits' object empty for subjects that do not wear clothes (e.g., animals,
@@ -281,19 +260,11 @@ Segment the narration into individual cinematic shots. **By default, create one 
     shot.
 
 
-4.  RECURRING LOCATION RULES
+4. VISUAL ENVIRONMENT RULES
 
-  - Relevance: Only define recurring_locations when multiple segments occur in
-    the same physical location or environment. Otherwise leave the
-    recurring_locations object empty.
-  - Description: Write one concise sentence describing the location's permanent
-    appearance and environment, including its layout, architecture, materials, 
-    lighting style, color palette, and overall atmosphere.
-  - Tracking Locations (important): If a segment takes place inside a recurring location,
-    include its location ID in the segment's "location" field. If the location
-    appears only once, leave "location" empty and fully describe the environment
-    inside the segment's scene_description.
-  - Location ID (e.g., "LOC1") should never appear inside the scene_description. It belongs only in the segment's "location" field.
+  - **Selection:** For each segment, choose the simplest effective composition: a plain white background for isolated subjects, concepts, symbols, and visual metaphors; a minimal environment when physical context aids understanding; or a detailed environment when setting, atmosphere, or spatial relationships are essential.
+  - **Description:** Describe only the visual elements needed to communicate the segment clearly, including relevant subjects, objects, their positions, and necessary environmental details.
+  - **Continuity:** Preserve character identity, important object states, and spatial relationships when relevant to the narrative. Establish each segment's environment independently, allowing locations and visual compositions to change naturally between segments.
 
 5.  OUTFIT RULES
 
@@ -307,13 +278,12 @@ Segment the narration into individual cinematic shots. **By default, create one 
   - Keep outfit descriptions concise but sufficiently detailed for consistent
     generation.
 
-6.  SCENE DESCRIPTION RULES (FIRST FRAME)
+6.  SCENE DESCRIPTION RULES
 
+  - **First Frame Snapshot: Describe only the static visual state at the exact beginning of the shot, before any action or movement occurs. Imagine pausing scene at frame 1. Describe only what the paused image shows. Action verbs are forbidden.**  
   - Independence: Treat every prompt as an independent scene description. Aside
     from recurring subjects, you must repeat the full description of other
     entities, objects and environments every time they appear.
-   - First Frame Snapshot: The scene description details the exact visual layout
-    of the very first frame of the shot. No baked-in motion blur or speed lines.  
   - **Subject Handling:** Reference recurring subjects STRICTLY by their bare ID 
     (e.g., 'SUBJ1 walking...'). NEVER describe them or use their base description or outfit description. 
     When a shot only shows part of a recurring subject's body, still identify that body part through
@@ -321,9 +291,7 @@ Segment the narration into individual cinematic shots. **By default, create one 
   - **Subject Positioning**: Whenever a subject appears in a scene, **specify their exact position within the environment**, not just the action they are performing.
   - Banned Words: Use of the words "The" (and "the"), and "over-the-shoulder
     shot", "split-screen", in the scene description is prohibited.
-  - Environment: If the location appears only once, fully describe the visible environment 
-    and lighting within the shot. If a recurring location ID is used for the segment, 
-    do not repeat permanent location details inside the scene description.  
+  - Environment: Fully describe the choosen environment and lighting within the shot.  
   - Composition: Clearly specify camera framing and perspective.
   - Labels: Avoid artificial text, words, or labels inside the image unless
     requested by the user.
@@ -336,9 +304,8 @@ Segment the narration into individual cinematic shots. **By default, create one 
     camera mechanics that directly follow the first frame established in the
     Scene Description.
   - Subject Referencing: Never use IDs in the animation prompt. Reference
-    subjects and avatar like a human director using their narrative role +
-    clothing as identifiers. So the video model can accurately recognize,
-    target, and animate them.
+    subjects and avatar like a human director using their narrative role as identifiers. 
+    So the video model can accurately recognize, target, and animate them.
   - Motion: Keep it simple. One primary focus + one primary action + one camera
     move.
   - Camera Movement: Specify exact cinematic camera mechanics (e.g., slow pan
@@ -351,15 +318,12 @@ Segment the narration into individual cinematic shots. **By default, create one 
 
 8.  SCENE CONCEPTUALIZATION:
 
-  - Cinematic Realism: Frame scenes dramatically like a physical camera
-    capturing reality. Translate abstract ideas into visible, concrete physical
-    behaviors, mechanical actions, or direct environmental consequences. Do not
-    place subjects next to arbitrary objects just to symbolize an idea.
+  - Cinematic Realism: Translate the script into cinematic, physically grounded scenes. 
+    Convert abstract ideas into visible subjects, environments, objects, poses,
+    expressions, and physical consequences. Do not place subjects next to arbitrary objects just to symbolize an idea.
   - Single Intent Framing: Each scene defines a clear primary visual intention,
     with additional elements included when they contribute to the same unified
     action, event, or environmental transformation.
-  - Continuous Action: Connect scenes using camera logic (e.g., pull out from a
-    macro shot to reveal a wide environment).
   - Internal Reveal: When generating prompts for how a process or object works.
     Show the internal mechanics by framing shot from directly inside the object.
   - Group Dynamics: When a segment involves a collective subject (e.g., people,
@@ -397,12 +361,13 @@ ${videoTitle}
 
 Requirements:
 
-* Clearly state what the video is about in the first 1–2 sentences, using the most relevant keywords from the **video title and content** naturally so both viewers and YouTube can immediately understand the video's topic.
+* Clearly state what the video is about in the first 1–2 sentences, using the most relevant keywords from the **video title and content** naturally so both viewers and YouTube can immediately understand the video.
 * Make the opening 1–2 sentences clear, compelling, and directly relevant to the video's topic.
 * Keep the description readable, straightforward, and concise.
 * Briefly explain what viewers will learn, discover, or experience in the video.
 * Add a **Timestamps** section with clear, useful timestamps for the video's major sections or important moments. Base timestamps on the actual video/script structure; do not invent sections that aren't present.
-* End with a small set of highly relevant hashtags.
+* Add search query section, listing search terms relevent to video's topic.
+* End with a set of highly relevant hashtags.
 * Do not use unnecessary filler, excessive emojis, or awkward SEO phrasing.
 * Do not repeat the video title unnecessarily.
 * Do not include an explanation or commentary about your choices.
