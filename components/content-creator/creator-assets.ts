@@ -2,18 +2,9 @@ export const STYLE_PREVIEWS: Record<string, string> = {
   Realistic: "https://assets.productcam.site/image-styles/realistic.png",
   Anime: "https://assets.productcam.site/image-styles/anime.png",
   Creepy: "https://assets.productcam.site/image-styles/cartoonhorror.png",
-  Game3D: "https://assets.productcam.site/image-styles/gamecinematic.png",
-  Sketch: "https://assets.productcam.site/image-styles/sketch.png",
   Stickman: "https://assets.productcam.site/image-styles/stickman.png",
   Skeleton: "https://assets.productcam.site/image-styles/skeleton.png",
-  Cartoon: "https://assets.productcam.site/image-styles/softcartoon.png",
-  Documentary: "https://assets.productcam.site/image-styles/documentary.png",
-  Claymation: "https://assets.productcam.site/image-styles/claymation.png",
-  Lego: "https://assets.productcam.site/image-styles/lego.png",
   "Ukiyo-e": "https://assets.productcam.site/image-styles/ukiyo-e.png",
-  Bobblehead: "https://assets.productcam.site/image-styles/bobblehead.png",
-  Écorché: "https://assets.productcam.site/image-styles/ecorche.png",
-  Mannequin: "https://assets.productcam.site/image-styles/faceless.png",
 };
 
 export const DEMO_CLIPS: Record<string, string> = {
@@ -31,19 +22,11 @@ export const LANDING_PREVIEWS: Record<
     src: "https://assets.productcam.site/image-styles/anime.mp4",
     aspectRatio: "16:9",
   },
-  "Animated Story": {
-    src: "https://assets.productcam.site/image-styles/GameCinematic.mp4",
-    aspectRatio: "9:16",
-  },
   "Stickman Videos": {
     src: "https://assets.productcam.site/image-styles/Stickman.mp4",
     aspectRatio: "16:9",
   },
-  "POV Story": {
-    src: "https://assets.productcam.site/image-styles/cartoon.mp4",
-    aspectRatio: "16:9",
-  },
-    "Skeleton Videos": {
+  "Skeleton Videos": {
     src: "https://assets.productcam.site/image-styles/skeleton.mp4",
     aspectRatio: "9:16",
   },
