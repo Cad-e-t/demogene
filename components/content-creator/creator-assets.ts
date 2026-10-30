@@ -52,14 +52,6 @@ export const STYLE_TEMPLATES: Record<
     src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
     aspectRatio: "9:16",
   },
-  Game3D: {
-    src: "https://assets.productcam.site/image-styles/GameCinematic.mp4",
-    aspectRatio: "9:16",
-  },
-   Cartoon: {
-    src: "https://assets.productcam.site/image-styles/cartoona.mp4",
-    aspectRatio: "16:9",
-  },
   Stickman: {
     src: "https://assets.productcam.site/image-styles/Stickman.mp4",
     aspectRatio: "16:9",
@@ -67,22 +59,6 @@ export const STYLE_TEMPLATES: Record<
   Skeleton: {
     src: "https://assets.productcam.site/image-styles/skeleton.mp4",
     aspectRatio: "9:16",
-  },
-    Mannequin: {
-    src: "https://assets.productcam.site/image-styles/manneqin.mp4",
-    aspectRatio: "9:16",
-  },
-   Sketch: {
-    src: "https://assets.productcam.site/image-styles/skech.mp4",
-    aspectRatio: "16:9",
-  },
-  "Ukiyo-e": {
-    src: "https://assets.productcam.site/image-styles/ukyo-e.mp4",
-    aspectRatio: "16:9",
-  },
-  Écorché: {
-    src: "https://assets.productcam.site/image-styles/ecorche.mp4",
-    aspectRatio: "16:9",
   },
 };
 

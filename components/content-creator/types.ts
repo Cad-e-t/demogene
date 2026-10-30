@@ -112,7 +112,7 @@ export interface ContentStory {
 }
 
 export const IMAGE_STYLES = [
-    "Realistic", "Anime",  'Creepy', 'Cartoon', "Sketch", "Game3D", "Stickman", "Claymation", "Lego", "Bobblehead", "Mannequin", "Écorché", "Documentary", "Exaggerated2D", "Ukiyo-e"
+    "Realistic", "Anime",  'Creepy', "Sketch", "Stickman",  "Ukiyo-e"
 ];
 
 export const EFFECT_PRESETS = [
