@@ -1,8 +1,8 @@
 export const STYLE_PREVIEWS: Record<string, string> = {
   Realistic: "https://assets.productcam.site/image-styles/realistic.png",
+  Stickman: "https://assets.productcam.site/image-styles/stickman.png",
   Anime: "https://assets.productcam.site/image-styles/anime.png",
   Creepy: "https://assets.productcam.site/image-styles/cartoonhorror.png",
-  Stickman: "https://assets.productcam.site/image-styles/stickman.png",
   Skeleton: "https://assets.productcam.site/image-styles/skeleton.png",
   "Ukiyo-e": "https://assets.productcam.site/image-styles/ukiyo-e.png",
 };
@@ -25,6 +25,10 @@ export const LANDING_PREVIEWS: Record<
   "Stickman Videos": {
     src: "https://assets.productcam.site/image-styles/Stickman.mp4",
     aspectRatio: "16:9",
+  },
+  "Creepy": {
+    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
+    aspectRatio: "9:16",
   },
   "Skeleton Videos": {
     src: "https://assets.productcam.site/image-styles/skeleton.mp4",

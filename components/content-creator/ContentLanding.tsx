@@ -259,13 +259,13 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                         {/* Headline */}
                         <h1 className="text-4xl md:text-5xl lg:text-7xl font-black tracking-tighter mb-8 leading-[1.1]">
                             Create <br />
-                            <span className="text-yellow-500">Animated Stories</span> <br />
-                            & Documentary Videos With AI
+                            <span className="text-yellow-500">Educative Content</span> <br />
+                            & Explainers With AI
                         </h1>
 
                         {/* Subtitle */}
                         <p className="text-lg md:text-xl text-gray-400 font-medium leading-relaxed mb-10">
-                            Our AI makes story shorts, documentaries, animated explainers, & long-form storytelling videos for you. Grow your audience, stress-free.
+                            Our AI makes animated explainers, long-form informational videos, and documentaries for you. Grow your audience, stress-free.
                         </p>
 
                         {/* Primary CTA */}
@@ -362,7 +362,7 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
             <div className="relative z-10 w-full py-24 px-6 md:px-12 bg-black">
                 <div className="max-w-[1800px] mx-auto flex flex-col items-center">
                     <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-16 text-white text-center">
-                        Create Binge-worthy Stories For Every Niche
+                        Create Binge-worthy Faceless Videos In Seconds
                     </h2>
                     
                     <div className="flex flex-wrap justify-center items-center gap-6 md:gap-8 w-full">
