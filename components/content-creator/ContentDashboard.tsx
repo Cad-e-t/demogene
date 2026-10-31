@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Equal,
   ChevronRight,
@@ -15,6 +16,10 @@ import {
   X,
   Plus,
   HelpCircle,
+  MessageSquare,
+  Star,
+  Check,
+  Loader2,
 } from "lucide-react";
 import {
   generateSegments,
@@ -61,6 +66,16 @@ export const ContentDashboard = ({
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
+
+  // Feedback Modal State
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackRating, setFeedbackRating] = useState<number>(0);
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [bugReportText, setBugReportText] = useState<string>("");
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+  const activeFeedbackRowIdRef = useRef<string | null>(null);
+  const ratingSaveChainRef = useRef<Promise<void>>(Promise.resolve());
 
   // Typewriter State
   const [placeholder, setPlaceholder] = useState("");
@@ -264,6 +279,35 @@ export const ContentDashboard = ({
 
         } catch (e) {
           console.error("Failed to load profile/onboarding:", e);
+        }
+
+        // Load user's saved feedback star rating (without loading bug reports)
+        const cachedRating = localStorage.getItem(`content_feedback_rating_${session.user.id}`);
+        if (cachedRating) {
+          const parsedRating = parseInt(cachedRating, 10);
+          if (parsedRating >= 1 && parsedRating <= 5) {
+            setFeedbackRating(parsedRating);
+          }
+        }
+        try {
+          const feedbackRes = await supabase
+            .from("content_feedback")
+            .select("rating")
+            .eq("user_id", session.user.id)
+            .not("rating", "is", null)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (!feedbackRes.error && feedbackRes.data && typeof feedbackRes.data.rating === "number") {
+            setFeedbackRating(feedbackRes.data.rating);
+            localStorage.setItem(
+              `content_feedback_rating_${session.user.id}`,
+              String(feedbackRes.data.rating),
+            );
+          }
+        } catch (e) {
+          console.error("Failed to load feedback rating:", e);
         }
 
         const configRes = await supabase
@@ -504,6 +548,142 @@ export const ContentDashboard = ({
     };
   }, [configView]);
 
+  const openFeedbackModal = async () => {
+    setBugReportText("");
+    setHoverRating(0);
+    setFeedbackSuccess(false);
+    activeFeedbackRowIdRef.current = null;
+    setShowFeedbackModal(true);
+
+    if (session?.user?.id) {
+      try {
+        const { data, error } = await supabase
+          .from("content_feedback")
+          .select("rating")
+          .eq("user_id", session.user.id)
+          .not("rating", "is", null)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!error && data && typeof data.rating === "number") {
+          setFeedbackRating(data.rating);
+          localStorage.setItem(
+            `content_feedback_rating_${session.user.id}`,
+            String(data.rating),
+          );
+        }
+      } catch (e) {
+        console.error("Failed to refresh feedback rating:", e);
+      }
+    }
+  };
+
+  const handleSelectRating = (starValue: number) => {
+    setFeedbackRating(starValue);
+    setFeedbackSuccess(false);
+    if (!session?.user?.id) return;
+
+    const userId = session.user.id;
+    localStorage.setItem(`content_feedback_rating_${userId}`, String(starValue));
+
+    ratingSaveChainRef.current = ratingSaveChainRef.current.then(async () => {
+      try {
+        const nowIso = new Date().toISOString();
+        if (activeFeedbackRowIdRef.current) {
+          const { error } = await supabase
+            .from("content_feedback")
+            .update({ rating: starValue, updated_at: nowIso })
+            .eq("id", activeFeedbackRowIdRef.current)
+            .eq("user_id", userId);
+          if (error) throw error;
+        } else {
+          const { data, error } = await supabase
+            .from("content_feedback")
+            .insert({
+              user_id: userId,
+              rating: starValue,
+              updated_at: nowIso,
+            })
+            .select("id")
+            .single();
+          if (error) throw error;
+          if (data?.id) {
+            activeFeedbackRowIdRef.current = data.id;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to save star rating:", err);
+      }
+    });
+  };
+
+  const handleSubmitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session?.user?.id) return;
+
+    const trimmedBug = bugReportText.trim();
+    if (!trimmedBug && !feedbackRating) return;
+
+    setIsSubmittingFeedback(true);
+    try {
+      await ratingSaveChainRef.current;
+      const nowIso = new Date().toISOString();
+
+      if (trimmedBug) {
+        if (activeFeedbackRowIdRef.current) {
+          const { error } = await supabase
+            .from("content_feedback")
+            .update({
+              rating: feedbackRating || null,
+              bug_report: trimmedBug,
+              updated_at: nowIso,
+            })
+            .eq("id", activeFeedbackRowIdRef.current)
+            .eq("user_id", session.user.id);
+          if (error) throw error;
+          activeFeedbackRowIdRef.current = null;
+        } else {
+          const { error } = await supabase
+            .from("content_feedback")
+            .insert({
+              user_id: session.user.id,
+              rating: feedbackRating || null,
+              bug_report: trimmedBug,
+              updated_at: nowIso,
+            });
+          if (error) throw error;
+        }
+        setBugReportText("");
+      } else if (feedbackRating && !activeFeedbackRowIdRef.current) {
+        const { data, error } = await supabase
+          .from("content_feedback")
+          .insert({
+            user_id: session.user.id,
+            rating: feedbackRating,
+            updated_at: nowIso,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        if (data?.id) {
+          activeFeedbackRowIdRef.current = data.id;
+        }
+      }
+
+      setFeedbackSuccess(true);
+    } catch (err: any) {
+      console.error("Failed to submit feedback:", err);
+      setNotification({
+        message: sanitizeErrorMsg(err, "Failed to submit feedback"),
+        type: "error",
+      });
+      setTimeout(() => setNotification(null), 5000);
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
   const handleGenerateClick = () => {
     if (!prompt.trim()) return;
     handleGenerate();
@@ -628,6 +808,18 @@ export const ContentDashboard = ({
                 d="M4 6h16M4 12h16M4 18h16"
               />
             </svg>
+          </button>
+        </div>
+
+        {/* Feedback Button - Top right corner of the page, top-right side of the prompt box */}
+        <div className="absolute top-4 right-4 md:top-5 md:right-6 z-[55]">
+          <button
+            type="button"
+            onClick={openFeedbackModal}
+            className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-white/20 text-zinc-200 hover:text-white text-xs font-bold tracking-wide transition-all flex items-center gap-2 shadow-lg cursor-pointer"
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-yellow-500" />
+            <span>Feedback</span>
           </button>
         </div>
 
@@ -1539,6 +1731,152 @@ export const ContentDashboard = ({
         isOpen={showGuideModal}
         onClose={() => setShowGuideModal(false)}
       />
+
+      {/* Feedback & Bug Report Modal */}
+      <AnimatePresence>
+        {showFeedbackModal && (
+          <div
+            onClick={() => setShowFeedbackModal(false)}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto"
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: -10 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="bg-[#121214] border border-white/10 rounded-[28px] w-full max-w-md shadow-2xl relative flex flex-col overflow-hidden my-auto"
+            >
+              {/* Modal Header */}
+              <div className="px-6 pt-6 pb-4 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <MessageSquare className="w-4 h-4 text-yellow-500" />
+                  <span className="text-sm font-bold text-white tracking-tight">
+                    Feedback & Bug Report
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFeedbackModal(false)}
+                  className="text-zinc-500 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10"
+                  aria-label="Close feedback modal"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <form onSubmit={handleSubmitFeedback} className="p-6 space-y-6">
+                <div>
+                  <h3 className="text-xl font-extrabold text-white tracking-tight">
+                    Help us improve your studio experience
+                  </h3>
+                  <p className="text-sm text-zinc-400 mt-1.5 leading-relaxed">
+                    Ran into a bug or something unexpected? Please let us know what happened below — every report helps us squash issues quickly.
+                  </p>
+                </div>
+
+                {/* Five-Star Rating */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-zinc-300">
+                      How would you rate Crappik so far?
+                    </span>
+                    {feedbackRating > 0 && (
+                      <span className="text-xs font-medium text-yellow-500">
+                        {feedbackRating} / 5 stars
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="flex items-center gap-1.5"
+                    onMouseLeave={() => setHoverRating(0)}
+                  >
+                    {[1, 2, 3, 4, 5].map((starValue) => {
+                      const activeStar = (hoverRating || feedbackRating) >= starValue;
+                      return (
+                        <button
+                          key={starValue}
+                          type="button"
+                          onMouseEnter={() => setHoverRating(starValue)}
+                          onClick={() => handleSelectRating(starValue)}
+                          aria-label={`Rate ${starValue} out of 5 stars`}
+                          aria-pressed={feedbackRating >= starValue}
+                          className="w-11 h-11 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/15 flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                        >
+                          <Star
+                            className={`w-6 h-6 transition-all ${
+                              activeStar
+                                ? "fill-yellow-400 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.35)]"
+                                : "text-zinc-600"
+                            }`}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Bug Report Input (never pre-populated with previous reports) */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="content-bug-report"
+                    className="block text-xs font-bold text-zinc-300"
+                  >
+                    Report a bug
+                  </label>
+                  <textarea
+                    id="content-bug-report"
+                    value={bugReportText}
+                    onChange={(e) => {
+                      setBugReportText(e.target.value);
+                      if (feedbackSuccess) setFeedbackSuccess(false);
+                    }}
+                    placeholder="Tell us what went wrong or what felt off..."
+                    rows={4}
+                    className="w-full rounded-2xl bg-black/50 border border-white/10 focus:border-yellow-500/60 p-3.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none resize-none transition-colors thin-scrollbar"
+                  />
+                </div>
+
+                {feedbackSuccess && (
+                  <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                    <Check className="w-4 h-4 shrink-0" />
+                    <span>Thanks for sharing! Your feedback has been saved.</span>
+                  </div>
+                )}
+
+                {/* Submit / Close Actions */}
+                <div className="flex items-center justify-end gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowFeedbackModal(false)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      isSubmittingFeedback ||
+                      (!bugReportText.trim() && !feedbackRating)
+                    }
+                    className="px-5 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 disabled:opacity-40 disabled:pointer-events-none text-black text-xs font-black tracking-wide transition-all flex items-center gap-2 shadow-lg shadow-yellow-500/15 active:scale-95 cursor-pointer"
+                  >
+                    {isSubmittingFeedback ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>Send Feedback</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
