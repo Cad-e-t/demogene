@@ -170,7 +170,7 @@ const FAQS = [
 export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, onNavigate?: (path: string) => void }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-    const [galleryStyles, setGalleryStyles] = useState(['Animated Story',  'Skeleton Videos', 'Science Short']);
+    const [galleryStyles, setGalleryStyles] = useState(['Creepy', 'Skeleton Videos', 'Science Short']);
     const [mutedStates, setMutedStates] = useState<Record<string, boolean>>({});
 
     const handleVideoClick = (index: number) => {
