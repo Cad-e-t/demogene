@@ -88,39 +88,54 @@ export const ContentSidebar: React.FC<Props> = ({ currentView, setView, onNaviga
                          </div>
                      </div>
 
-                     {isProfileOpen && (
-                        <div className="absolute bottom-[60px] left-4 right-4 bg-black border border-white/10 rounded-xl shadow-xl p-1 animate-fade-in z-[60]">
-                            <button 
-                                onClick={handleLogout}
-                                className="w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-900/20 rounded-lg transition-colors flex items-center gap-2"
-                            >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                                Log Out
-                            </button>
-                        </div>
-                     )}
-                     
-                     <button 
-                        onClick={() => setIsProfileOpen(!isProfileOpen)}
-                        className={`w-full flex items-center gap-3 p-2 hover:bg-zinc-900 rounded-xl transition-colors text-left border border-transparent hover:border-white/5 ${isProfileOpen ? 'bg-zinc-900 border-white/10' : ''}`}
-                     >
-                         {avatarUrl && !imageError ? (
-                             <img 
-                                src={avatarUrl} 
-                                alt={displayName} 
-                                className="w-9 h-9 rounded-full object-cover bg-black shrink-0" 
-                                onError={() => setImageError(true)}
-                             />
-                         ) : (
-                             <div className="w-9 h-9 rounded-full bg-yellow-600 text-black flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
-                                 {initial}
-                             </div>
+                     <div className="relative w-full">
+                         {isProfileOpen && (
+                            <div className="absolute bottom-full mb-2 left-0 right-0 bg-black border border-white/10 rounded-xl shadow-xl p-1 animate-fade-in z-[60]">
+                                <button 
+                                    onClick={handleLogout}
+                                    className="w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-900/20 rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                                    Log Out
+                                </button>
+                            </div>
                          )}
-                         <div className="flex-1 min-w-0">
-                             <p className="text-sm font-bold text-white truncate">{displayName}</p>
-                         </div>
-                         <svg className={`w-4 h-4 text-zinc-500 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                     </button>
+                         
+                         <button 
+                            onClick={() => setIsProfileOpen(!isProfileOpen)}
+                            className={`w-full flex items-center gap-3 p-2 hover:bg-zinc-900 rounded-xl transition-colors text-left border border-transparent hover:border-white/5 ${isProfileOpen ? 'bg-zinc-900 border-white/10' : ''}`}
+                         >
+                             {avatarUrl && !imageError ? (
+                                 <img 
+                                    src={avatarUrl} 
+                                    alt={displayName} 
+                                    className="w-9 h-9 rounded-full object-cover bg-black shrink-0" 
+                                    onError={() => setImageError(true)}
+                                 />
+                             ) : (
+                                 <div className="w-9 h-9 rounded-full bg-yellow-600 text-black flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+                                     {initial}
+                                 </div>
+                             )}
+                             <div className="flex-1 min-w-0">
+                                 <p className="text-sm font-bold text-white truncate">{displayName}</p>
+                             </div>
+                             <svg className={`w-4 h-4 text-zinc-500 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                         </button>
+                     </div>
+
+                     <div className="px-2 pt-2 border-t border-white/5 flex items-center">
+                         <button
+                             type="button"
+                             onClick={() => {
+                                 onNavigate('/terms');
+                                 onClose();
+                             }}
+                             className="text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                         >
+                             Terms of Service
+                         </button>
+                     </div>
                  </div>
             </aside>
         </>

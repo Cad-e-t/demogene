@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ContentApp } from './components/content-creator/ContentApp';
 import { ContentLanding } from './components/content-creator/ContentLanding';
 import { TermsOfService } from './components/TermsOfService';
+import { RefundPolicy } from './components/RefundPolicy';
 import { LoginPage } from './components/LoginPage';
 
 import { CropData, TrimData, VoiceOption, VideoProject, TimeRange, BackgroundOption } from './types';
@@ -50,6 +51,7 @@ const usePathRoute = () => {
   if (path === '/features') return { view: 'features', slug: null };
   if (path === '/about') return { view: 'about', slug: null };
   if (path === '/terms') return { view: 'terms', slug: null };
+  if (path === '/refund-policy' || path === '/refund') return { view: 'refund-policy', slug: null };
   if (path === '/login') return { view: 'login', slug: null };
   if (path === '/pricing-details') return { view: 'pricing-details', slug: null };
   if (path.startsWith('/content-creator')) return { view: 'content-creator', slug: null };
@@ -161,7 +163,7 @@ export default function App() {
   };
 
   // Content Creator Application Handling
-  if (currentView === 'content-creator') {
+  if (currentView === 'content-creator' || (session && currentView === 'home')) {
     return <ContentApp session={session} onNavigate={navigateTo} />;
   }
 
@@ -181,6 +183,7 @@ export default function App() {
       <main className="transition-all duration-300 min-h-screen">
           
           {currentView === 'terms' && <TermsOfService onNavigate={navigateTo} />}
+          {currentView === 'refund-policy' && <RefundPolicy onNavigate={navigateTo} />}
 
       </main>
 

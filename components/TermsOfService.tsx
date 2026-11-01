@@ -82,8 +82,24 @@ export const TermsOfService: React.FC<{ onNavigate: (path: string) => void }> = 
                             </section>
 
                             <section className="pt-8 border-t border-gray-100">
-                                <p className="text-sm text-gray-400">
-                                    If you have any questions about these Terms, please contact us at support@crappik.site
+                                <p className="text-sm text-gray-500">
+                                    For support or if you have any questions about these Terms, please email us at{' '}
+                                    <a
+                                        href="mailto:crappik@outlook.com"
+                                        className="font-semibold text-gray-800 hover:text-black underline underline-offset-2 transition-colors"
+                                    >
+                                        crappik@outlook.com
+                                    </a>{' '}
+                                    or send us a message on{' '}
+                                    <a
+                                        href="https://x.com/crappik"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-semibold text-gray-800 hover:text-black underline underline-offset-2 transition-colors"
+                                    >
+                                        X
+                                    </a>
+                                    .
                                 </p>
                             </section>
                         </div>

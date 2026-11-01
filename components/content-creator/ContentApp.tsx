@@ -207,7 +207,7 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
     };
 
     if (!session) {
-        return <ContentLanding onLogin={handleLogin} />;
+        return <ContentLanding onLogin={handleLogin} onNavigate={onNavigate} />;
     }
 
     const showGlobalOverlay = false; // Paywall removed as per user request

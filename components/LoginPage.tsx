@@ -44,7 +44,9 @@ export const LoginPage = () => {
                     
                     <p className="mt-8 text-xs text-zinc-500 text-center leading-relaxed">
                         By continuing, you agree to our <br/>
-                        <button onClick={() => navigateTo('/terms')} className="text-zinc-400 hover:text-white underline underline-offset-2">Terms of Service</button>
+                        <button onClick={() => navigateTo('/terms')} className="text-zinc-400 hover:text-white underline underline-offset-2 transition-colors cursor-pointer">Terms of Service</button>
+                        {' '}and{' '}
+                        <button onClick={() => navigateTo('/refund-policy')} className="text-zinc-400 hover:text-white underline underline-offset-2 transition-colors cursor-pointer">Refund Policy</button>
                     </p>
                 </div>
             </div>

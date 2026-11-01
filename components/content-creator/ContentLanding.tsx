@@ -162,7 +162,7 @@ const FAQS = [
     { q: "Can I use the videos commercially?", a: "Yes. You have full commercial rights to all content you generate on the platform." },
     { q: "What happens if I run out of credits?", a: "You can purchase more credits at any time. We don't charge monthly subscriptions, so you only pay for what you use." },
     { q: "Is there a watermark?", a: "No. All paid credit tiers generate watermark-free videos." },
-    { q: "Do we offer free trials?", a: "We do offer one free trial generation to test out the tool. Credits are required to continue creating." },
+    { q: "Do we offer free trials?", a: "No. Due to the immediate computational costs of AI video, image, and voice generation, we do not offer free trials. Instead, you can start with our low-cost $9 pay-as-you-go pack with no subscription commitment." },
     { q: "Are my payments secure?", a: "Absolutely. We use Dodo Payments, a highly secure platform trusted by Stripe, to handle all transactions. Your sensitive payment info never even touches our servers." },
     { q: "Can I get a refund?", a: "We currently don't offer refunds. All payments made are final." }
 ];
@@ -189,6 +189,15 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
         setIsMenuOpen(false);
     };
 
+    const handleRoute = (path: string) => {
+        setIsMenuOpen(false);
+        if (onNavigate) {
+            onNavigate(path);
+        } else {
+            window.location.href = path;
+        }
+    };
+
     return (
         <div className="relative w-full min-h-screen bg-black text-white overflow-x-hidden flex flex-col font-sans">
             
@@ -212,9 +221,23 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                 </div>
 
                 {/* Top Center: Nav Links (Desktop) */}
-                <nav className="hidden md:flex items-center gap-8 absolute left-1/2 transform -translate-x-1/2">
+                <nav className="hidden md:flex items-center gap-6 lg:gap-8 absolute left-1/2 transform -translate-x-1/2 whitespace-nowrap">
                     <a href="/" className="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Home</a>
                     <a href="#pricing" onClick={scrollToPricing} className="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Pricing</a>
+                    <button
+                        type="button"
+                        onClick={() => handleRoute('/terms')}
+                        className="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors cursor-pointer"
+                    >
+                        Terms of Service
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleRoute('/refund-policy')}
+                        className="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors cursor-pointer"
+                    >
+                        Refund Policy
+                    </button>
                 </nav>
 
                 {/* Top Right: CTA (Desktop) & Mobile Toggle */}
@@ -239,9 +262,11 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
 
             {/* Mobile Menu Overlay */}
             {isMenuOpen && (
-                <div className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center gap-10 md:hidden animate-fade-in">
+                <div className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center gap-8 md:hidden animate-fade-in">
                     <a href="/" className="text-2xl font-black uppercase tracking-tighter text-white">Home</a>
                     <button onClick={scrollToPricing} className="text-2xl font-black uppercase tracking-tighter text-white">Pricing</button>
+                    <button onClick={() => handleRoute('/terms')} className="text-2xl font-black uppercase tracking-tighter text-white">Terms of Service</button>
+                    <button onClick={() => handleRoute('/refund-policy')} className="text-2xl font-black uppercase tracking-tighter text-white">Refund Policy</button>
                     <button onClick={onLogin} className="text-2xl font-black uppercase tracking-tighter text-yellow-400">Get Started</button>
                     
                     <button onClick={() => setIsMenuOpen(false)} className="absolute top-8 right-6 p-2 text-gray-500 hover:text-white transition-colors">
@@ -755,14 +780,20 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
                     <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest">
                         Crappik © 2026
                     </p>
-                    {onNavigate && (
+                    <div className="flex items-center gap-6">
                         <button 
-                            onClick={() => onNavigate('/terms')}
-                            className="text-xs font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors"
+                            onClick={() => handleRoute('/terms')}
+                            className="text-xs font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors cursor-pointer"
                         >
                             Terms of Service
                         </button>
-                    )}
+                        <button 
+                            onClick={() => handleRoute('/refund-policy')}
+                            className="text-xs font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors cursor-pointer"
+                        >
+                            Refund Policy
+                        </button>
+                    </div>
                 </div>
             </div>
 
