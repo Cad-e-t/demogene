@@ -9,10 +9,10 @@ import {
     getYouTubeDescriptionPrompt
 } from "./prompt.js";
 
-const MODEL_NAME = "gemini-3.8-flash"; //"gemini-3.1-pro-preview"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
+const MODEL_NAME = "gemini-3.8-flash"; //gemini-2.5-pro"; // Using Gemini 3 Pro for reasoning
 const GENERATE_IMAGE_MODEL = "gemini-3.1-flash-lite-image";  
 const EDIT_IMAGE_MODEL = "gemini-3.1-flash-lite-image"; //
-const TTS_MODEL = "gemini-2.5-flash-preview-tts";
+const TTS_MODEL = "gemini-3.8-flash-lite-tts"; //"gemini-2.5-flash-preview-tts";
 const VIDEO_MODEL = "veo-3.1-lite-generate-preview";
 
 export async function generateStorySegments(prompt, aspect, style, visualDensity = 'Balanced', isFreeTrial = false, rawAvatarUrl = null) {
@@ -31,8 +31,9 @@ export async function generateStorySegments(prompt, aspect, style, visualDensity
 
 VISUAL GUIDELINE
 
-The 'style' field must conform to the rendering style, and all character descriptions to the character design constraints as specified in the VISUAL IDENTITY below.
+Follow the rendering style and character design constraints defined in VISUAL IDENTITY for the style field and all character descriptions, respectively.
 
+Keep character design details out of the style field. Apply each constraint only to its designated field.
 
 VISUAL IDENTITY: ${visualIdentityBlock}`;
 
@@ -334,38 +335,28 @@ export async function generateFullVoiceover(text, voiceName, narrationStyle) {
     if (!process.env.API_KEY) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    let style = "Flat delivery with minimal pitch variation and a dry, understated sarcastic edge.";
     let pace = "Natural conversation pace";
-    let accent = "American (Gen)";
 
     if (narrationStyle && typeof narrationStyle === 'object') {
-        style = narrationStyle.style || style;
         pace = narrationStyle.pace || pace;
-        accent = narrationStyle.accent || accent;
     } else if (typeof narrationStyle === 'string') {
         try {
             const parsed = JSON.parse(narrationStyle);
-            style = parsed.style || style;
-            pace = parsed.pace || pace;
-            accent = parsed.accent || accent;
+            pace = parsed?.pace || pace;
         } catch (e) {
             // fallback
         }
     }
 
-    const prompt = `Read the following transcript based on the director's note.
-
-# Director's note
-Style: ${style}
-Pace: ${pace}
-Accent: ${accent}
-
-## Transcript:
-${text}`;
-
     const response = await ai.models.generateContent({
         model: TTS_MODEL,
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{
+            role: 'user',
+            parts: [{
+                text: text,
+                speechMetadata: { style: pace },
+            }],
+        }],
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: {
@@ -382,8 +373,32 @@ ${text}`;
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!base64Audio) throw new Error("No audio generated");
-    
-    return Buffer.from(base64Audio, 'base64');
+
+    const audioBuffer = Buffer.from(base64Audio, 'base64');
+
+    // Strip RIFF/WAV container header so callers receive raw 24 kHz 16-bit mono PCM
+    if (
+        audioBuffer.length >= 44 &&
+        audioBuffer.toString('ascii', 0, 4) === 'RIFF' &&
+        audioBuffer.toString('ascii', 8, 12) === 'WAVE'
+    ) {
+        let offset = 12;
+        while (offset + 8 <= audioBuffer.length) {
+            const chunkId = audioBuffer.toString('ascii', offset, offset + 4);
+            const chunkSize = audioBuffer.readUInt32LE(offset + 4);
+            if (chunkId === 'data') {
+                const dataStart = offset + 8;
+                const dataEnd = (chunkSize === 0xFFFFFFFF || dataStart + chunkSize > audioBuffer.length)
+                    ? audioBuffer.length
+                    : dataStart + chunkSize;
+                return Buffer.from(audioBuffer.subarray(dataStart, dataEnd));
+            }
+            offset += 8 + chunkSize + (chunkSize % 2);
+        }
+        return Buffer.from(audioBuffer.subarray(44));
+    }
+
+    return audioBuffer;
 }
 
 export async function generateGeminiVideo(imageUrl, animationPrompt, aspectRatio) {

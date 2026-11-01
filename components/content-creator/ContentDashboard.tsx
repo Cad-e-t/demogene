@@ -832,9 +832,9 @@ export const ContentDashboard = ({
              className={`w-full bg-zinc-900 rounded-3xl shadow-2xl border ${prompt.length > MAX_CHARS ? "border-red-500 ring-1 ring-red-500" : style !== "Director" ?  "border-blue-500/50 focus-within:border-blue-500 ring-1 ring-blue-500/20" : "border-yellow-500/50 focus-within:border-yellow-500 ring-1 ring-yellow-500/20"} flex flex-col transition-all duration-300 relative`}
             >
               {/* Text Area Section */}
-              <div className="p-4 md:p-6 pb-2">
-                <div className="mb-3 flex items-center flex-wrap gap-2">
-                  {selectedAvatar && (
+              <div className="p-3.5 md:p-5 pb-2">
+                {selectedAvatar && (
+                  <div className="mb-2.5 flex items-center flex-wrap gap-2">
                     <span className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-bold uppercase tracking-wider border border-indigo-500/20">
                       <img src={selectedAvatar.url} alt="Avatar" className="w-5 h-5 rounded-full object-cover" />
                       With Avatar
@@ -845,14 +845,14 @@ export const ContentDashboard = ({
                         <X className="w-3 h-3" />
                       </button>
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
                   {/* Voiceover Column */}
                   <div className="flex flex-col">
-                    <div className="flex items-center gap-1.5 mb-2 pl-1">
-                      <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em]">Voiceover Script</span>
+                    <div className="flex items-center gap-1.5 mb-1.5 pl-1">
+                      <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em]">Voiceover</span>
                       <button 
                         onClick={() => setShowGuideModal(true)}
                         className="text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10 transition-colors p-0.5 rounded-full"
@@ -863,7 +863,7 @@ export const ContentDashboard = ({
                     </div>
                     <textarea
                       ref={textareaRef}
-                      className="w-full h-[200px] min-h-[200px] md:h-[150px] md:min-h-[150px] bg-transparent text-zinc-100 text-lg font-medium outline-none resize-none placeholder-zinc-500 leading-relaxed overflow-y-auto thin-scrollbar"
+                      className="w-full h-[140px] min-h-[140px] md:h-[115px] md:min-h-[115px] bg-transparent text-zinc-100 text-lg font-medium outline-none resize-none placeholder-zinc-500 leading-relaxed overflow-y-auto thin-scrollbar"
                       placeholder="Paste your exact voiceover script e.g. 'What if the Earth had giants. Day 1...'"
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
@@ -878,9 +878,9 @@ export const ContentDashboard = ({
                   </div>
 
                   {/* Style Prompt Column */}
-                  <div className="flex flex-col border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] pl-1">Style Prompt</span>
+                  <div className="flex flex-col border-t md:border-t-0 md:border-l border-white/5 pt-3 md:pt-0 md:pl-6">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] pl-1">Style</span>
                       <select
                         className="bg-zinc-900 text-zinc-300 text-[10px] font-black uppercase tracking-wider border border-white/10 rounded px-2 py-1 outline-none appearance-none cursor-pointer hover:bg-zinc-800 transition-colors"
                         value={style}
@@ -902,7 +902,7 @@ export const ContentDashboard = ({
                       </select>
                     </div>
                     <textarea
-                      className="w-full h-[200px] min-h-[200px] md:h-[150px] md:min-h-[150px] bg-transparent text-zinc-300 text-sm font-medium outline-none resize-none placeholder-zinc-600 leading-relaxed overflow-y-auto thin-scrollbar"
+                      className="w-full h-[140px] min-h-[140px] md:h-[115px] md:min-h-[115px] bg-transparent text-zinc-300 text-sm font-medium outline-none resize-none placeholder-zinc-600 leading-relaxed overflow-y-auto thin-scrollbar"
                       placeholder="Enter visual style instructions here... (e.g. Cinematic lighting, photorealistic, moody atmosphere)"
                       value={stylePrompt}
                       onChange={(e) => setStylePrompt(e.target.value)}
@@ -912,17 +912,17 @@ export const ContentDashboard = ({
               </div>
 
               {/* Configuration Bar Section */}
-              <div className="p-3 md:p-4 bg-zinc-900 border-t border-white/5 flex items-center justify-between gap-2 rounded-b-3xl">
+              <div className="px-3 py-2.5 md:px-4 md:py-3 bg-zinc-900 border-t border-white/5 flex items-center justify-between gap-2 rounded-b-3xl">
                 {/* Left Side: Config Buttons */}
                 <div className="flex items-center gap-1.5 flex-wrap pb-1">
                   {/* Config Buttons */}
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 md:gap-1.5">
                     {/* Avatar Button */}
                     <button
                       onClick={() => setIsAvatarModalOpen(true)}
-                      className="px-2 md:px-3 py-2 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1 md:gap-2 whitespace-nowrap bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"
+                      className="px-2 md:px-2.5 py-1.5 md:py-2 rounded-xl text-[9px] sm:text-[10px] md:text-[11px] font-bold uppercase tracking-wide transition-all flex items-center gap-1 md:gap-1.5 whitespace-nowrap bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
                       <span className="hidden md:inline">Avatar</span>
                     </button>
                     {/* Ratio Button */}
@@ -933,11 +933,11 @@ export const ContentDashboard = ({
                             configView === "aspect" ? "main" : "aspect",
                           )
                         }
-                        className={`config-control-button px-2 md:px-3 py-2 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1 md:gap-2 whitespace-nowrap ${configView === "aspect" ? "bg-yellow-500 text-black" : "bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"}`}
+                        className={`config-control-button px-2 md:px-2.5 py-1.5 md:py-2 rounded-xl text-[9px] sm:text-[10px] md:text-[11px] font-bold uppercase tracking-wide transition-all flex items-center gap-1 md:gap-1.5 whitespace-nowrap ${configView === "aspect" ? "bg-yellow-500 text-black" : "bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"}`}
                       >
                         {aspect === "9:16" ? (
                           <svg
-                            className="w-3.5 h-3.5"
+                            className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -947,7 +947,7 @@ export const ContentDashboard = ({
                           </svg>
                         ) : (
                           <svg
-                            className="w-3.5 h-3.5"
+                            className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -987,10 +987,10 @@ export const ContentDashboard = ({
                             configView === "voice" ? "main" : "voice",
                           )
                         }
-                        className={`config-control-button px-2 md:px-3 py-2 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1 md:gap-2 whitespace-nowrap ${configView === "voice" ? "bg-yellow-500 text-black" : "bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"}`}
+                        className={`config-control-button px-2 md:px-2.5 py-1.5 md:py-2 rounded-xl text-[9px] sm:text-[10px] md:text-[11px] font-bold uppercase tracking-wide transition-all flex items-center gap-1 md:gap-1.5 whitespace-nowrap ${configView === "voice" ? "bg-yellow-500 text-black" : "bg-black/40 text-zinc-400 hover:text-white hover:bg-black/60"}`}
                       >
                         <svg
-                          className="w-3.5 h-3.5"
+                          className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -1001,7 +1001,7 @@ export const ContentDashboard = ({
                           <line x1="12" y1="19" x2="12" y2="23" />
                           <line x1="8" y1="23" x2="16" y2="23" />
                         </svg>
-                        {voice.name}
+                        {voice.id}
                       </button>
                       {configView === "voice" && (
                         <div className="config-modal absolute top-full left-0 mt-4 w-[360px] bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-3 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
@@ -1036,15 +1036,15 @@ export const ContentDashboard = ({
                                   <button
                                     key={v.id}
                                     onClick={() => handleVoiceSelect(v)}
-                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${voice.id === v.id ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
+                                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-[11px] md:text-xs font-bold transition-all ${voice.id === v.id ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
                                   >
-                                    <span>{v.name}</span>
+                                    <span className="truncate text-left">{v.name}</span>
                                     {VOICE_SAMPLES[v.id] && (
                                       <div
                                         onClick={(e) =>
                                           toggleVoiceSample(e, v.id)
                                         }
-                                        className={`p-1 rounded-full ${playingVoiceId === v.id ? "bg-black/20 text-black" : "text-zinc-500 hover:text-white"}`}
+                                        className={`p-1 rounded-full shrink-0 ${playingVoiceId === v.id ? "bg-black/20 text-black" : "text-zinc-500 hover:text-white"}`}
                                       >
                                         {playingVoiceId === v.id ? (
                                           <svg
@@ -1087,13 +1087,9 @@ export const ContentDashboard = ({
                                 </h4>
                                 {voiceAccordion !== "tone" && (
                                   <span className="text-[10px] text-yellow-500 font-bold truncate w-full text-left">
-                                    {VOICE_STYLES.find(
-                                      (s) => s.prompt === narrationStyle.style,
-                                    )?.name ||
-                                      VOICE_STYLES.find(
-                                        (s) => s.id === "storyteller",
-                                      )?.name ||
-                                      VOICE_STYLES[0].name}
+                                    {VOICE_PACES.find(
+                                      (p) => p.prompt === narrationStyle.pace,
+                                    )?.name || VOICE_PACES[0].name}
                                   </span>
                                 )}
                               </div>
@@ -1108,70 +1104,21 @@ export const ContentDashboard = ({
                               </svg>
                             </button>
                             {voiceAccordion === "tone" && (
-                              <div className="flex gap-2 p-1 max-h-[300px] overflow-y-auto thin-scrollbar animate-in fade-in slide-in-from-top-1 duration-200">
-                                <div className="flex-1 space-y-1">
-                                  <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1">
-                                    Style
-                                  </div>
-                                  {VOICE_STYLES.map((s) => (
-                                    <button
-                                      key={s.id}
-                                      onClick={() =>
-                                        handleNarrationStyleChange(
-                                          "style",
-                                          s.prompt,
-                                        )
-                                      }
-                                      className={`w-full flex flex-col items-start px-3 py-2 rounded-xl transition-all ${narrationStyle.style === s.prompt ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
-                                      title={s.description}
-                                    >
-                                      <span className="text-xs font-bold">
-                                        {s.name}
-                                      </span>
-                                      <span
-                                        className={`text-[10px] ${narrationStyle.style === s.prompt ? "text-black/70" : "text-zinc-500"} text-left line-clamp-1`}
-                                      >
-                                        {s.description}
-                                      </span>
-                                    </button>
-                                  ))}
-                                </div>
-                                <div className="flex-1 border-l border-white/5 pl-2 space-y-1">
-                                  <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1">
-                                    Pace
-                                  </div>
-                                  {VOICE_PACES.map((p) => (
-                                    <button
-                                      key={p.id}
-                                      onClick={() =>
-                                        handleNarrationStyleChange(
-                                          "pace",
-                                          p.prompt,
-                                        )
-                                      }
-                                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.pace === p.prompt ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
-                                    >
-                                      <span>{p.name}</span>
-                                    </button>
-                                  ))}
-                                  <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1 mt-4">
-                                    Accent
-                                  </div>
-                                  {VOICE_ACCENTS.map((a) => (
-                                    <button
-                                      key={a.id}
-                                      onClick={() =>
-                                        handleNarrationStyleChange(
-                                          "accent",
-                                          a.prompt,
-                                        )
-                                      }
-                                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.accent === a.prompt ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
-                                    >
-                                      <span>{a.name}</span>
-                                    </button>
-                                  ))}
-                                </div>
+                              <div className="space-y-1 p-1 max-h-[300px] overflow-y-auto thin-scrollbar animate-in fade-in slide-in-from-top-1 duration-200">
+                                {VOICE_PACES.map((p) => (
+                                  <button
+                                    key={p.id}
+                                    onClick={() =>
+                                      handleNarrationStyleChange(
+                                        "pace",
+                                        p.prompt,
+                                      )
+                                    }
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[11px] md:text-xs font-bold transition-all ${narrationStyle.pace === p.prompt ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
+                                  >
+                                    <span>{p.name}</span>
+                                  </button>
+                                ))}
                               </div>
                             )}
                           </div>
@@ -1230,7 +1177,7 @@ export const ContentDashboard = ({
                                 Voice
                               </div>
                               <div className="text-[10px] text-zinc-500">
-                                {voice.name}
+                                {voice.id}
                               </div>
                             </div>
                           </div>
@@ -1306,15 +1253,15 @@ export const ContentDashboard = ({
                                     <button
                                       key={v.id}
                                       onClick={() => handleVoiceSelect(v)}
-                                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${voice.id === v.id ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
+                                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-[11px] md:text-xs font-bold transition-all ${voice.id === v.id ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
                                     >
-                                      <span>{v.name}</span>
+                                      <span className="truncate text-left">{v.name}</span>
                                       {VOICE_SAMPLES[v.id] && (
                                         <div
                                           onClick={(e) =>
                                             toggleVoiceSample(e, v.id)
                                           }
-                                          className={`p-1 rounded-full ${playingVoiceId === v.id ? "bg-black/20 text-black" : "text-zinc-500 hover:text-white"}`}
+                                          className={`p-1 rounded-full shrink-0 ${playingVoiceId === v.id ? "bg-black/20 text-black" : "text-zinc-500 hover:text-white"}`}
                                         >
                                           {playingVoiceId === v.id ? (
                                             <Pause className="w-3 h-3" />
@@ -1343,14 +1290,10 @@ export const ContentDashboard = ({
                                   </h4>
                                   {voiceAccordion !== "tone" && (
                                     <span className="text-[10px] text-yellow-500 font-bold truncate w-full text-left">
-                                      {VOICE_STYLES.find(
-                                        (s) =>
-                                          s.prompt === narrationStyle.style,
-                                      )?.name ||
-                                        VOICE_STYLES.find(
-                                          (s) => s.id === "storyteller",
-                                        )?.name ||
-                                        VOICE_STYLES[0].name}
+                                      {VOICE_PACES.find(
+                                        (p) =>
+                                          p.prompt === narrationStyle.pace,
+                                      )?.name || VOICE_PACES[0].name}
                                     </span>
                                   )}
                                 </div>
@@ -1365,70 +1308,21 @@ export const ContentDashboard = ({
                                 </svg>
                               </button>
                               {voiceAccordion === "tone" && (
-                                <div className="flex gap-2 p-1 max-h-[300px] overflow-y-auto thin-scrollbar animate-in fade-in slide-in-from-top-1 duration-200">
-                                  <div className="flex-1 space-y-1">
-                                    <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1">
-                                      Style
-                                    </div>
-                                    {VOICE_STYLES.map((s) => (
-                                      <button
-                                        key={s.id}
-                                        onClick={() =>
-                                          handleNarrationStyleChange(
-                                            "style",
-                                            s.prompt,
-                                          )
-                                        }
-                                        className={`w-full flex flex-col items-start px-3 py-2 rounded-xl transition-all ${narrationStyle.style === s.prompt ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
-                                        title={s.description}
-                                      >
-                                        <span className="text-xs font-bold">
-                                          {s.name}
-                                        </span>
-                                        <span
-                                          className={`text-[10px] ${narrationStyle.style === s.prompt ? "text-black/70" : "text-zinc-500"} text-left line-clamp-1`}
-                                        >
-                                          {s.description}
-                                        </span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                  <div className="flex-1 border-l border-white/5 pl-2 space-y-1">
-                                    <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1">
-                                      Pace
-                                    </div>
-                                    {VOICE_PACES.map((p) => (
-                                      <button
-                                        key={p.id}
-                                        onClick={() =>
-                                          handleNarrationStyleChange(
-                                            "pace",
-                                            p.prompt,
-                                          )
-                                        }
-                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.pace === p.prompt ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
-                                      >
-                                        <span>{p.name}</span>
-                                      </button>
-                                    ))}
-                                    <div className="text-[10px] uppercase text-zinc-500 font-bold px-2 py-1 mt-4">
-                                      Accent
-                                    </div>
-                                    {VOICE_ACCENTS.map((a) => (
-                                      <button
-                                        key={a.id}
-                                        onClick={() =>
-                                          handleNarrationStyleChange(
-                                            "accent",
-                                            a.prompt,
-                                          )
-                                        }
-                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.accent === a.prompt ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
-                                      >
-                                        <span>{a.name}</span>
-                                      </button>
-                                    ))}
-                                  </div>
+                                <div className="space-y-1 p-1 max-h-[300px] overflow-y-auto thin-scrollbar animate-in fade-in slide-in-from-top-1 duration-200">
+                                  {VOICE_PACES.map((p) => (
+                                    <button
+                                      key={p.id}
+                                      onClick={() =>
+                                        handleNarrationStyleChange(
+                                          "pace",
+                                          p.prompt,
+                                        )
+                                      }
+                                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${narrationStyle.pace === p.prompt ? "bg-yellow-500 text-black" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
+                                    >
+                                      <span>{p.name}</span>
+                                    </button>
+                                  ))}
                                 </div>
                               )}
                             </div>

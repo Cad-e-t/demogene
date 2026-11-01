@@ -13,9 +13,9 @@ import { generateVideo } from './replicate.js';
 import { assembleVideo } from './video-assembler.js';
 import { generateSubtitles, burnSubtitles } from './subtitle-generator.js';
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from './storage.js';
+import { Mp3Encoder } from '@breezystack/lamejs';
 import { AssemblyAI } from 'assemblyai';
 import numberToWords from 'number-to-words';
-import { Mp3Encoder } from '@breezystack/lamejs';
 
 import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics, saveHookAsset, getHookAssets, regenerateDemoAudio } from './demo-maker/controllers.js';
 import { generateAvatarUploadUrl, saveAvatar, getAvatars, deleteAvatar, generateAvatarImage } from './avatar-controllers.js';
@@ -62,7 +62,7 @@ const TEMP_DIR = os.tmpdir();
 const COST_VIDEO_GROK = 20;
 const COST_IMAGE_ULTRA = 4; // Credits per image
 const COST_IMAGE_EDIT = 4; // Credits per edit
-const COST_AUDIO_PER_SECOND = 0.05; // Credits per second (3 credits per minute)
+const COST_AUDIO_PER_SECOND = 0.035; // Credits per second (2.1 credits per minute)
 const COST_SUBTITLE_PER_SECOND = 0.017; // Credits per second (1 credit per minute)
 const COST_PER_THOUSAND_TOKENS = 0.85;
 const COST_PER_THOUSAND_INPUT_TOKENS = 0.2;

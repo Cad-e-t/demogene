@@ -144,7 +144,7 @@ export const BillingDashboard = ({ session, onViewChange, onToggleSidebar }: any
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center p-3 bg-black rounded-xl border border-white/5">
                                         <span className="text-sm font-bold text-zinc-200">Audio Generation</span>
-                                        <span className="text-sm font-black text-yellow-600">3 credits / minute <span className="text-xs font-medium text-zinc-500">(0.05/sec)</span></span>
+                                        <span className="text-sm font-black text-yellow-600">2.1 credits / minute <span className="text-xs font-medium text-zinc-500">(0.05/sec)</span></span>
                                     </div>
                                     <div className="flex justify-between items-center p-3 bg-black rounded-xl border border-white/5">
                                         <span className="text-sm font-bold text-zinc-200">Subtitles Generation</span>
