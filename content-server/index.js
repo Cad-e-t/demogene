@@ -17,8 +17,9 @@ import { Mp3Encoder } from '@breezystack/lamejs';
 import { AssemblyAI } from 'assemblyai';
 import numberToWords from 'number-to-words';
 
-import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics, saveHookAsset, getHookAssets, regenerateDemoAudio } from './demo-maker/controllers.js';
+import { generateUploadUrl as demoGenerateUploadUrl, deleteVideo as demoDeleteVideo, processVideo as demoProcessVideo, exportDemoVideo, generateHookUploadUrl, generateHookImage, deleteHookAsset, demoGenerateMotionGraphics, saveHookAsset, getHookAssets, regenerateDemoAudio, retryDemoVideo } from './demo-maker/controllers.js';
 import { generateAvatarUploadUrl, saveAvatar, getAvatars, deleteAvatar, generateAvatarImage } from './avatar-controllers.js';
+import { sendExportCompletedEmail, sendExportFailedEmail } from './email.js';
 
 
 // --- Setup ---
@@ -146,22 +147,21 @@ async function syncProjectStatus(projectId) {
         const hasMissingSegment = !segments || segments.length === 0 || segments.some(s => !s.image_url);
         const hasMissingCharacter = characters && characters.length > 0 && characters.some(c => !c.image_url);
         const hasAudio = !!project.voice_file_path;
+        const hasDurations = Array.isArray(project.segment_durations) && project.segment_durations.length > 0;
         const isAudioFailed = project.render_status === 'failed';
 
-        if (!hasMissingSegment && !hasMissingCharacter && hasAudio && !isAudioFailed) {
+        if (!hasMissingSegment && !hasMissingCharacter && hasAudio && hasDurations && !isAudioFailed) {
             console.log(`[ContentServer] Project ${projectId} is fully generated. Setting status: 'completed', render_status: 'ready'`);
             await supabase.from('content_projects').update({
                 status: 'completed',
                 render_status: 'ready'
             }).eq('id', projectId);
-        } else if (isAudioFailed || hasMissingSegment || hasMissingCharacter) {
-            if (project.status !== 'generating' && project.render_status !== 'generating' && project.status !== 'insufficient') {
-                console.log(`[ContentServer] Project ${projectId} has missing elements. Setting status: 'draft', render_status: 'failed'`);
-                await supabase.from('content_projects').update({
-                    status: 'draft',
-                    render_status: 'failed'
-                }).eq('id', projectId);
-            }
+        } else {
+            console.log(`[ContentServer] Project ${projectId} has missing elements (segmentsMissing: ${hasMissingSegment}, charsMissing: ${hasMissingCharacter}, hasAudio: ${hasAudio}, hasDurations: ${hasDurations}). Setting status: 'draft', render_status: 'failed'`);
+            await supabase.from('content_projects').update({
+                status: 'draft',
+                render_status: 'failed'
+            }).eq('id', projectId);
         }
     } catch (err) {
         console.error(`[ContentServer] Error in syncProjectStatus for ${projectId}:`, err);
@@ -565,10 +565,14 @@ async function processAnimationsBackground(projectId, segments, aspectRatio, use
     await supabase.from('content_projects').update({ render_status: 'ready' }).eq('id', projectId);
 }
 
-async function processAssetsBackground(projectId, segments, voiceId, userId) {
+async function processAssetsBackground(projectId, segments, voiceId, userId, updateFinalStatus = true) {
     console.log(`[ContentServer] Starting background asset generation for project ${projectId}`);
     let workDir = null;
-    let chargedAmount = 0;
+    let audioCharged = 0;
+    let subtitleCharged = 0;
+    let audioSucceeded = false;
+    let audioUrl = null;
+
     try {
         // Fetch Project Data (to get subtitles config, narration style, etc)
         const { data: project } = await supabase.from('content_projects').select('*').eq('id', projectId).single();
@@ -632,11 +636,13 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
         // 2. Calculate Duration & Charge (raw PCM: 24,000 samples/sec * 1 channel * 2 bytes = 48,000 bytes/sec)
         const totalDuration = combinedPcm.length / 48000;
         
-        const audioCost = totalDuration * COST_AUDIO_PER_SECOND;
-        const subtitleCost = project.subtitles ? totalDuration * COST_SUBTITLE_PER_SECOND : 0;
+        const audioCost = Math.round((totalDuration * COST_AUDIO_PER_SECOND) * 100) / 100;
+        const subtitleCost = project.subtitles ? Math.round((totalDuration * COST_SUBTITLE_PER_SECOND) * 100) / 100 : 0;
         const totalCharge = Math.round((audioCost + subtitleCost) * 100) / 100;
 
-        chargedAmount = totalCharge;
+        audioCharged = audioCost;
+        subtitleCharged = subtitleCost;
+
         await chargeUser(userId, totalCharge, `Asset Gen (Audio+Subs) ${totalDuration.toFixed(1)}s`);
 
         // Encode combined PCM directly to MP3
@@ -656,61 +662,17 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
                 ContentType: 'audio/mpeg'
             }));
         });
-        const audioUrl = `${R2_PUBLIC_URL}/${audioKey}`;
+        audioUrl = `${R2_PUBLIC_URL}/${audioKey}`;
 
-        // 4. Generate/Save Transcription
-        let transcription = null;
-        if (project.subtitles) {
-            console.log(`[ContentServer] Transcribing audio for project ${projectId}...`);
-            const transcript = await client.transcripts.transcribe({
-                audio: audioPath,
-                speech_models: ["universal-3-pro", "universal-2"],
-                language_detection: true,
-            });
-
-            if (transcript.status === 'error') {
-                throw new Error(`Transcription failed: ${transcript.error}`);
-            }
-            
-            // Extract only the needed fields to save database space
-            let filteredWords = [];
-            if (transcript.words) {
-                filteredWords = transcript.words.map(w => ({
-                    text: w.text ? w.text.replace(/[-\u2013\u2014]/g, ' ').replace(/;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
-                    start: w.start,
-                    end: w.end
-                }));
-            }
-            transcription = { 
-                text: transcript.text || '',
-                words: filteredWords 
-            };
-        }
-
-        // 5. Calculate Segment Durations
-        let segmentDurations;
-        try {
-            segmentDurations = alignSegmentsWithTranscription(segments, transcription, totalDuration);
-            if (!segmentDurations) {
-                throw new Error("Transcription alignment failed or no transcription available");
-            }
-        } catch (e) {
-            console.warn("[ContentServer] Transcription alignment failed, falling back to heuristic", e);
-            segmentDurations = calculateAudioLineDurations(segments, totalDuration);
-        }
-
-        // 6. Update Project
+        // 1 & 3: Immediate DB Save right after audio is uploaded to R2
         await supabase.from('content_projects').update({
-            voice_file_path: audioUrl,
-            transcription: transcription, // Store transcription JSON
-            segment_durations: segmentDurations,
-            render_status: 'ready' // Assets ready
+            voice_file_path: audioUrl
         }).eq('id', projectId);
+        audioSucceeded = true;
+        console.log(`[ContentServer] Successfully saved voice_file_path immediately for project ${projectId}`);
 
-        await syncProjectStatus(projectId);
-
-        // 7. Discard old audio if it exists to prevent storage bloat and caching issues
-        if (project.voice_file_path) {
+        // Discard old audio if it exists to prevent storage bloat and caching issues
+        if (project.voice_file_path && project.voice_file_path !== audioUrl) {
             const oldKey = getKeyFromUrl(project.voice_file_path);
             if (oldKey) {
                 console.log(`[ContentServer] Deleting old audio: ${oldKey}`);
@@ -721,18 +683,99 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
             }
         }
 
-        console.log(`[ContentServer] Background asset generation complete for project ${projectId}`);
-        
-        return { audioUrl, transcription, segmentDurations };
+        // 4 & 5. Separated Subtitle Isolation (Transcription + Segment Durations)
+        let transcription = null;
+        let segmentDurations = null;
+
+        try {
+            if (project.subtitles) {
+                console.log(`[ContentServer] Transcribing audio for project ${projectId}...`);
+                const transcript = await client.transcripts.transcribe({
+                    audio: audioPath,
+                    speech_models: ["universal-3-pro", "universal-2"],
+                    language_detection: true,
+                });
+
+                if (transcript.status === 'error') {
+                    throw new Error(`Transcription failed: ${transcript.error}`);
+                }
+                
+                // Extract only the needed fields to save database space
+                let filteredWords = [];
+                if (transcript.words) {
+                    filteredWords = transcript.words.map(w => ({
+                        text: w.text ? w.text.replace(/[-\u2013\u2014]/g, ' ').replace(/;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
+                        start: w.start,
+                        end: w.end
+                    }));
+                }
+                transcription = { 
+                    text: transcript.text || '',
+                    words: filteredWords 
+                };
+            }
+
+            // Calculate Segment Durations
+            try {
+                segmentDurations = alignSegmentsWithTranscription(segments, transcription, totalDuration);
+                if (!segmentDurations) {
+                    throw new Error("Transcription alignment failed or no transcription available");
+                }
+            } catch (e) {
+                console.warn("[ContentServer] Transcription alignment failed, falling back to heuristic", e);
+                segmentDurations = calculateAudioLineDurations(segments, totalDuration);
+            }
+
+            // 6. Update Project with full assets
+            const updatePayload = {
+                voice_file_path: audioUrl,
+                transcription: transcription, // Store transcription JSON
+                segment_durations: segmentDurations
+            };
+            if (updateFinalStatus) {
+                updatePayload.render_status = 'ready'; // Assets ready
+            }
+            await supabase.from('content_projects').update(updatePayload).eq('id', projectId);
+
+            if (updateFinalStatus) {
+                await syncProjectStatus(projectId);
+            }
+            console.log(`[ContentServer] Background asset generation complete for project ${projectId}`);
+            return { audioUrl, transcription, segmentDurations };
+
+        } catch (subError) {
+            console.error(`[ContentServer] Subtitle/Transcription failed for project ${projectId}, audio preserved.`, subError);
+            
+            // Set render_status to failed and status to draft so frontend can notify and allow retry (only if updating final status)
+            if (updateFinalStatus) {
+                await supabase.from('content_projects').update({
+                    status: 'draft',
+                    render_status: 'failed'
+                }).eq('id', projectId);
+            }
+
+            // Refund ONLY subtitle cost since audio was successfully generated and saved
+            if (subtitleCharged > 0) {
+                await refundUser(userId, subtitleCharged, `Refund: Failed Subtitle Gen (${projectId})`);
+                subtitleCharged = 0;
+            }
+
+            throw subError;
+        }
 
     } catch (e) {
         console.error(`[ContentServer] Asset generation failed for project ${projectId}`, e);
-        // Set render_status to failed and status to draft so frontend can notify and allow retry
-        await supabase.from('content_projects').update({ status: 'draft', render_status: 'failed' }).eq('id', projectId);
-        
-        // Refund if charged
-        if (chargedAmount > 0) {
-            await refundUser(userId, chargedAmount, `Refund: Failed Asset Gen (${projectId})`);
+
+        // If audio succeeded, subtitle catch already handled the subtitle-only refund and DB update.
+        // If audio itself failed, refund the entire charge and mark failed (only if updating final status).
+        if (!audioSucceeded) {
+            if (updateFinalStatus) {
+                await supabase.from('content_projects').update({ status: 'draft', render_status: 'failed' }).eq('id', projectId);
+            }
+            const totalToRefund = audioCharged + subtitleCharged;
+            if (totalToRefund > 0) {
+                await refundUser(userId, totalToRefund, `Refund: Failed Audio Gen (${projectId})`);
+            }
         }
 
         // Isolation: failure here doesn't affect images
@@ -744,7 +787,7 @@ async function processAssetsBackground(projectId, segments, voiceId, userId) {
     }
 }
 
-async function processImagesBackground(projectId, segments, aspectRatio, costPerImage, userId) {
+async function processImagesBackground(projectId, segments, aspectRatio, costPerImage, userId, updateFinalStatus = true) {
     console.log(`[ContentServer] Starting background image generation for project ${projectId}`);
     
     // Fetch all characters for this project
@@ -838,12 +881,16 @@ async function processImagesBackground(projectId, segments, aspectRatio, costPer
     }
 
     // UPDATE PROJECT STATUS
-    if (failedCount > 0) {
-        await supabase.from('content_projects').update({ status: 'draft', render_status: 'failed' }).eq('id', projectId);
-        console.log(`[ContentServer] Background image generation had ${failedCount} failures for project ${projectId}. Status set to draft, render_status failed.`);
+    if (updateFinalStatus) {
+        if (failedCount > 0) {
+            await supabase.from('content_projects').update({ status: 'draft', render_status: 'failed' }).eq('id', projectId);
+            console.log(`[ContentServer] Background image generation had ${failedCount} failures for project ${projectId}. Status set to draft, render_status failed.`);
+        } else {
+            await syncProjectStatus(projectId);
+            console.log(`[ContentServer] Background image generation complete for project ${projectId}. Synced status.`);
+        }
     } else {
-        await syncProjectStatus(projectId);
-        console.log(`[ContentServer] Background image generation complete for project ${projectId}. Synced status.`);
+        console.log(`[ContentServer] Background image generation finished for project ${projectId} (failures: ${failedCount}). Status update deferred to final check.`);
     }
 }
 
@@ -981,13 +1028,18 @@ app.post('/generate-segments', async (req, res) => {
                     render_status: 'generating'
                 }).eq('id', project.id);
 
-                // 6. Trigger Background Image Gen
-                processImagesBackground(project.id, insertedSegments, aspectRatio, costPerImage, userId, false);
-
-                // 7. Trigger Background Asset Gen (Audio/Subtitles)
-                processAssetsBackground(project.id, insertedSegments, voiceId, userId).catch(e => {
+                // 6. Trigger Image Gen and Asset Gen (Audio/Transcription) in parallel without setting final status separately
+                const imageTask = processImagesBackground(project.id, insertedSegments, aspectRatio, costPerImage, userId, false);
+                const assetTask = processAssetsBackground(project.id, insertedSegments, voiceId, userId, false).catch(e => {
                     console.error(`[ContentServer] Parallel Asset Gen failed for project ${project.id}`, e);
                 });
+
+                // Wait for all generation tasks to complete before setting final status
+                await Promise.allSettled([imageTask, assetTask]);
+
+                // 7. Final check at the very end of project creation
+                console.log(`[ContentServer] All generation tasks completed for project ${project.id}. Running final asset check...`);
+                await syncProjectStatus(project.id);
 
             } catch (backgroundError) {
                 console.error("[ContentServer] Error in background generation:", backgroundError);
@@ -1462,6 +1514,132 @@ app.post('/generate-assets', async (req, res) => {
     }
 });
 
+// Helper: Retries transcription and segment alignment when voice_file_path already exists (skips Gemini TTS)
+async function retryTranscriptionAndAlignment(projectId, segments, userId, updateFinalStatus = true) {
+    console.log(`[SmartRetry] 🚀 Starting transcription and alignment retry for project ${projectId}...`);
+    let workDir = null;
+    let transcriptionCharged = 0;
+
+    try {
+        console.log(`[SmartRetry] 🔍 Fetching project data from Supabase for project ${projectId}...`);
+        const { data: project } = await supabase.from('content_projects').select('*').eq('id', projectId).single();
+        if (!project || !project.voice_file_path) {
+            throw new Error("No existing voiceover audio found to transcribe");
+        }
+        console.log(`[SmartRetry] 🎧 Existing audio URL located: ${project.voice_file_path}`);
+
+        workDir = path.join(TEMP_DIR, `retry_transcription_${uuidv4()}`);
+        if (!fs.existsSync(workDir)) fs.mkdirSync(workDir, { recursive: true });
+
+        const audioPath = path.join(workDir, 'existing_voiceover.mp3');
+        console.log(`[SmartRetry] ⬇️ Downloading existing voiceover to temporary path: ${audioPath}...`);
+        await downloadUrlToFile(project.voice_file_path, audioPath);
+        console.log(`[SmartRetry] ✅ Voiceover downloaded successfully.`);
+
+        const stats = fs.statSync(audioPath);
+        // Estimate audio duration from MP3 file size (128 kbps = 16,000 bytes/sec)
+        // If segments or project duration is present, fallback gracefully
+        const estimatedDuration = Math.max(1, stats.size / 16000);
+        const transcriptionCost = project.subtitles ? Math.round((estimatedDuration * COST_SUBTITLE_PER_SECOND) * 100) / 100 : 0;
+        console.log(`[SmartRetry] ⏱️ Estimated audio duration: ${estimatedDuration.toFixed(2)}s | Calculated transcription cost: ${transcriptionCost} credits`);
+
+        if (transcriptionCost > 0) {
+            console.log(`[SmartRetry] 💳 Checking user credit balance for user ${userId}...`);
+            const currentBalance = await getCredits(userId);
+            console.log(`[SmartRetry] 💰 Current balance: ${currentBalance} credits | Needed: ${transcriptionCost} credits`);
+            if (currentBalance < transcriptionCost) {
+                throw new Error(`Insufficient credits for transcription retry. Needed: ${transcriptionCost}, Have: ${currentBalance}`);
+            }
+            console.log(`[SmartRetry] 💸 Charging user ${transcriptionCost} credits for transcription retry...`);
+            await chargeUser(userId, transcriptionCost, `Transcription Retry (${estimatedDuration.toFixed(1)}s)`);
+            transcriptionCharged = transcriptionCost;
+            console.log(`[SmartRetry] ✅ User charged successfully.`);
+        } else {
+            console.log(`[SmartRetry] ℹ️ Subtitles disabled or zero cost. Skipping upfront charge.`);
+        }
+
+        let transcription = null;
+        if (project.subtitles) {
+            console.log(`[SmartRetry] 🎙️ Calling AssemblyAI to transcribe existing audio for project ${projectId}...`);
+            const transcript = await client.transcripts.transcribe({
+                audio: audioPath,
+                speech_models: ["universal-3-pro", "universal-2"],
+                language_detection: true,
+            });
+
+            if (transcript.status === 'error') {
+                throw new Error(`Transcription failed: ${transcript.error}`);
+            }
+            console.log(`[SmartRetry] ✅ AssemblyAI transcription completed successfully.`);
+
+            let filteredWords = [];
+            if (transcript.words) {
+                filteredWords = transcript.words.map(w => ({
+                    text: w.text ? w.text.replace(/[-\u2013\u2014]/g, ' ').replace(/;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
+                    start: w.start,
+                    end: w.end
+                }));
+            }
+            transcription = {
+                text: transcript.text || '',
+                words: filteredWords
+            };
+            console.log(`[SmartRetry] 📝 Extracted ${filteredWords.length} words for subtitles.`);
+        }
+
+        // Align segments with transcription
+        let segmentDurations;
+        console.log(`[SmartRetry] 📐 Aligning ${segments.length} segment(s) with transcription timestamps...`);
+        try {
+            segmentDurations = alignSegmentsWithTranscription(segments, transcription, estimatedDuration);
+            if (!segmentDurations) {
+                throw new Error("Transcription alignment failed or no transcription available");
+            }
+            console.log(`[SmartRetry] ✅ Alignment succeeded. Durations: ${JSON.stringify(segmentDurations)}`);
+        } catch (e) {
+            console.warn("[SmartRetry] ⚠️ Transcription alignment failed on retry, falling back to heuristic calculation:", e.message);
+            segmentDurations = calculateAudioLineDurations(segments, estimatedDuration);
+            console.log(`[SmartRetry] ℹ️ Heuristic durations calculated: ${JSON.stringify(segmentDurations)}`);
+        }
+
+        // Update Project
+        console.log(`[SmartRetry] 💾 Updating content_projects with transcription and segment_durations...`);
+        const updatePayload = {
+            transcription: transcription,
+            segment_durations: segmentDurations
+        };
+        if (updateFinalStatus) {
+            updatePayload.render_status = 'ready';
+        }
+        await supabase.from('content_projects').update(updatePayload).eq('id', projectId);
+        console.log(`[SmartRetry] ✅ Project record updated.`);
+
+        if (updateFinalStatus) {
+            await syncProjectStatus(projectId);
+        }
+        console.log(`[SmartRetry] 🎉 Transcription and alignment retry fully completed for project ${projectId}`);
+        return { transcription, segmentDurations };
+
+    } catch (err) {
+        console.error(`[SmartRetry] ❌ Transcription retry failed for project ${projectId}:`, err.message || err);
+        if (updateFinalStatus) {
+            await supabase.from('content_projects').update({ status: 'draft', render_status: 'failed' }).eq('id', projectId);
+        }
+
+        if (transcriptionCharged > 0) {
+            console.log(`[SmartRetry] 🔄 Refunding ${transcriptionCharged} credits to user ${userId}...`);
+            await refundUser(userId, transcriptionCharged, `Refund: Failed Transcription Retry (${projectId})`);
+            console.log(`[SmartRetry] ✅ Refund processed.`);
+        }
+        throw err;
+    } finally {
+        if (workDir && fs.existsSync(workDir)) {
+            console.log(`[SmartRetry] 🧹 Cleaning up temporary workspace: ${workDir}`);
+            fs.rmSync(workDir, { recursive: true, force: true });
+        }
+    }
+}
+
 // Retry endpoint: resumes incomplete projects (characters > scene images & audio)
 const handleRetryProject = async (req, res) => {
     const { projectId, userId: bodyUserId } = req.body;
@@ -1516,11 +1694,13 @@ const handleRetryProject = async (req, res) => {
         const costPerImage = COST_IMAGE_ULTRA; // 4 credits
         const sceneCost = missingSceneImages.length * costPerImage;
 
-        // Check missing audio
-        const missingAudio = !project.voice_file_path || !project.segment_durations || project.segment_durations.length === 0;
+        // Differentiate missing audio vs existing audio needing transcription/alignment retry
+        const hasAudioFile = !!project.voice_file_path;
+        const missingAudio = !hasAudioFile;
+        const missingTranscription = hasAudioFile && (!project.segment_durations || project.segment_durations.length === 0);
 
         // If nothing is missing, sync status and return
-        if (!missingSegmentsCollection && missingChars.length === 0 && missingSceneImages.length === 0 && !missingAudio) {
+        if (!missingSegmentsCollection && missingChars.length === 0 && missingSceneImages.length === 0 && !missingAudio && !missingTranscription) {
             await syncProjectStatus(projectId);
             return res.json({
                 success: true,
@@ -1556,7 +1736,8 @@ const handleRetryProject = async (req, res) => {
                 segments: missingSegmentsCollection,
                 characters: missingChars.length,
                 scenes: missingSceneImages.length,
-                audio: missingAudio
+                audio: missingAudio,
+                transcription: missingTranscription
             }
         });
 
@@ -1681,12 +1862,23 @@ const handleRetryProject = async (req, res) => {
                     );
                 }
 
+                // 4. Smart Audio / Transcription Retry:
+                // If audio already exists, skip Gemini TTS and only retry transcription & alignment.
+                // Otherwise, generate full audio + transcription.
                 if (missingAudio || missingSegmentsCollection) {
-                    console.log(`[ContentServer] [Retry] Generating missing audio...`);
+                    console.log(`[ContentServer] [Retry] 🎙️ Audio file is missing. Invoking full processAssetsBackground for project ${projectId}...`);
                     const voiceId = project.voice_id || 'nPczCjzI2devNBz1zQrb';
                     tasks.push(
-                        processAssetsBackground(projectId, workingSegments, voiceId, userId).catch(e => {
+                        processAssetsBackground(projectId, workingSegments, voiceId, userId, false).catch(e => {
                             console.error(`[ContentServer] [Retry] Audio Generation failed for project ${projectId}`, e);
+                        })
+                    );
+                } else if (missingTranscription) {
+                    console.log(`[SmartRetry] 🎯 Smart Retry triggered! Audio already exists on R2 (${project.voice_file_path}).`);
+                    console.log(`[SmartRetry] ⏩ Skipping Gemini TTS completely. Dispatching retryTranscriptionAndAlignment for project ${projectId}...`);
+                    tasks.push(
+                        retryTranscriptionAndAlignment(projectId, workingSegments, userId, false).catch(e => {
+                            console.error(`[SmartRetry] ❌ Background transcription retry failed for project ${projectId}:`, e.message || e);
                         })
                     );
                 }
@@ -1881,14 +2073,30 @@ app.post('/export-video', async (req, res) => {
                 }
 
                 // Update Story
-                await supabase.from('content_stories').update({
+                const { error: storyUpdateError } = await supabase.from('content_stories').update({
                     video_url: videoUrl,
                     status: 'completed'
                 }).eq('id', story.id);
 
+                if (storyUpdateError) {
+                    throw storyUpdateError;
+                }
+
+                await sendExportCompletedEmail({
+                    supabase,
+                    userId: userId || project?.user_id,
+                    projectTitle: project?.title,
+                    videoUrl
+                });
+
             } catch (e) {
                 console.error("Export Failed", e);
                 await supabase.from('content_stories').update({ status: 'failed' }).eq('id', story.id);
+                await sendExportFailedEmail({
+                    supabase,
+                    userId: userId || project?.user_id,
+                    projectTitle: project?.title
+                });
             } finally {
                 fs.rmSync(workDir, { recursive: true, force: true });
             }
@@ -2003,6 +2211,7 @@ app.delete('/demo/videos/:id', demoDeleteVideo);
 app.post('/demo/process-video', demoProcessVideo);
 app.post('/demo/regenerate-audio', regenerateDemoAudio);
 app.post('/demo/export', exportDemoVideo);
+app.post('/demo/retry', retryDemoVideo);
 app.post('/demo/generate-motion-graphics', demoGenerateMotionGraphics);
 app.post('/demo/generate-hook-upload-url', generateHookUploadUrl);
 app.post('/demo/save-hook-asset', saveHookAsset);

@@ -3,6 +3,7 @@ const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const DodoPayments = require('dodopayments');
 const { Webhook } = require('standardwebhooks');
+const { sendCreditPurchaseSuccessEmail, sendTransactionFailedEmail } = require('./email');
 
 const app = express();
 const PORT = process.env.PORT || 8087;
@@ -89,13 +90,18 @@ const processWebhookAsync = async (data) => {
 
         console.log(`[PaymentServer] Metadata:`, JSON.stringify(metadata));
 
-        if (!userId) {
-            console.warn('[PaymentServer] ⚠️ Webhook: No user_id in metadata. Cannot process credit grant.', data);
+        if (!userId && !eventData.customer?.email) {
+            console.warn('[PaymentServer] ⚠️ Webhook: No user_id in metadata and no customer email. Cannot process.', data);
             return;
         }
 
         switch (type) {
-            case 'payment.succeeded':
+            case 'payment.succeeded': {
+                if (!userId) {
+                    console.warn('[PaymentServer] ⚠️ Webhook: No user_id in metadata. Cannot process credit grant.', data);
+                    return;
+                }
+
                 console.log(`[PaymentServer] Processing payment.succeeded for User ID: ${userId}`);
                 const { billing, currency, card_last_four, customer, customer_id } = eventData;
                 
@@ -125,7 +131,7 @@ const processWebhookAsync = async (data) => {
                     console.error(`[PaymentServer] 🔴 Exception during profile update:`, updateErr);
                 }
 
-                const credits = parseInt(metadata.credits_to_add || '0');
+                const credits = parseInt(metadata.credits_to_add || '0', 10);
                 const productId = metadata.product_id;
                 
                 console.log(`[PaymentServer] Credits to add: ${credits}. Product ID: ${productId}`);
@@ -150,6 +156,14 @@ const processWebhookAsync = async (data) => {
                             console.error("[PaymentServer] 🔴 Credit Grant RPC Error:", error);
                         } else {
                             console.log(`[PaymentServer] ✅ Processed purchase of ${credits} credits for user ${userId}`);
+                            await sendCreditPurchaseSuccessEmail({
+                                supabase,
+                                userId,
+                                creditsAdded: credits,
+                                cardLastFour: card_last_four,
+                                customer,
+                                frontendUrl: FRONTEND_URL,
+                            });
                         }
                     } catch (rpcErr) {
                         console.error("[PaymentServer] 🔴 Credit Grant RPC Exception:", rpcErr);
@@ -158,6 +172,23 @@ const processWebhookAsync = async (data) => {
                     console.warn(`[PaymentServer] ⚠️ Credits amount is 0. Skipping credit grant.`);
                 }
                 break;
+            }
+
+            case 'payment.failed': {
+                console.log(`[PaymentServer] Processing payment.failed for User ID: ${userId || 'unknown'}`);
+                const { customer, error_message, failure_reason } = eventData;
+                const creditsAttempted = parseInt(metadata.credits_to_add || '0', 10);
+
+                await sendTransactionFailedEmail({
+                    supabase,
+                    userId,
+                    creditsAttempted,
+                    reason: error_message || failure_reason || null,
+                    customer,
+                    frontendUrl: FRONTEND_URL,
+                });
+                break;
+            }
             
             default:
                 console.log(`[PaymentServer] Ignored webhook event type: ${type}`);

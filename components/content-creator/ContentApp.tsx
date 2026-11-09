@@ -230,7 +230,9 @@ export const ContentApp = ({ session: parentSession, onNavigate }: { session: an
                     <ContentDashboard 
                         session={session} 
                         onViewChange={(v: string) => onNavigate(`/content-creator/${v}`)}
+                        onNavigate={onNavigate}
                         initialProjectData={activeProjectData}
+                        onSetActiveProject={setActiveProjectData}
                         onClearProject={handleClearActiveProject}
                         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     />

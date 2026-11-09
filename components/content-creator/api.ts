@@ -218,3 +218,17 @@ export async function retryProject(projectId: string, userId: string) {
     }
     return await res.json();
 }
+
+export async function retryDemoProject(projectId: string, userId: string, voiceId?: string) {
+    const res = await fetch(`${API_URL}/demo/retry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, userId, voiceId })
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(sanitizeErrorMsg(err.error, "Demo retry failed. Please try again."));
+    }
+    return await res.json();
+}
+

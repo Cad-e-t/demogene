@@ -24,6 +24,7 @@
     "react-dom": "^18.3.1",
     "remotion": "^4.0.489",
     "replicate": "^1.4.0",
+    "resend": "^6.37.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {

@@ -11,6 +11,7 @@ import { supabase } from './supabase.js';
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from '../storage.js';
 import { parseTime, cleanup, alignSegmentsWithTranscription } from './utils.js';
 import { generateStorySegments } from '../gemini.js';
+import { sendExportCompletedEmail, sendExportFailedEmail } from '../email.js';
 
 const TEMP_DIR = os.tmpdir();
 
@@ -131,6 +132,12 @@ export async function runDemoProcessing(jobData) {
                 avatar_url: s.avatar_url || avatarUrl || null,
                 order_index: idx
             }));
+
+            // Step 1 Save: Immediately save generated segments to demo_projects
+            await supabase.from('demo_projects').update({
+                segments: segments
+            }).eq('id', projectId);
+            console.log(`[Demo Processing] Step 1 complete: Saved segments to demo_projects for ${projectId}`);
         }
 
         if (segments.length > 0) {
@@ -162,6 +169,12 @@ export async function runDemoProcessing(jobData) {
             }));
             audioUrl = `${R2_PUBLIC_URL}/${audioKey}`;
 
+            // Step 2 Save: Immediately save audio URL to demo_projects
+            await supabase.from('demo_projects').update({
+                voice_path: audioUrl
+            }).eq('id', projectId);
+            console.log(`[Demo Processing] Step 2 complete: Saved voice_path to demo_projects for ${projectId}`);
+
             console.log('--- Transcribing Audio ---');
             const aaiClient = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
             const transcriptRes = await aaiClient.transcripts.transcribe({
@@ -190,16 +203,20 @@ export async function runDemoProcessing(jobData) {
                 console.log("Transcription alignment failed, falling back to character count.");
                 segmentDurations = calculateAudioLineDurations(segments, totalAudioDuration);
             }
-        }
 
-        console.log('--- Saving to Database ---');
-        await supabase.from('demo_projects').update({
-            transcription,
-            segments,
-            segment_durations: segmentDurations,
-            voice_path: audioUrl,
-            status: 'ready'
-        }).eq('id', projectId);
+            // Step 3 Save: Save transcription, segment durations, and set status to ready
+            await supabase.from('demo_projects').update({
+                transcription,
+                segment_durations: segmentDurations,
+                status: 'ready'
+            }).eq('id', projectId);
+            console.log(`[Demo Processing] Step 3 complete: Saved transcription and ready status for ${projectId}`);
+        } else {
+            // No segments generated
+            await supabase.from('demo_projects').update({
+                status: 'ready'
+            }).eq('id', projectId);
+        }
 
         console.log(`[Demo Processing] Completed for Project: ${projectId}`);
 
@@ -214,6 +231,231 @@ export async function runDemoProcessing(jobData) {
              p_description: 'Refund: Demo processing failed',
              p_metadata: { error: error.message }
         });
+    } finally {
+        cleanup(filesToDelete);
+    }
+}
+
+// Smart Retry for Demo Maker: only regenerates what is missing
+export async function retryDemoProcessing(jobData) {
+    const { projectId, userId, voiceId: overrideVoiceId } = jobData;
+    const filesToDelete = [];
+    console.log(`[Demo Retry] 🚀 Starting smart retry for demo project: ${projectId}`);
+
+    try {
+        // 1. Fetch current demo_project state
+        const { data: project, error: projError } = await supabase
+            .from('demo_projects')
+            .select('*')
+            .eq('id', projectId)
+            .single();
+
+        if (projError || !project) {
+            throw new Error(`Demo project ${projectId} not found`);
+        }
+
+        const voiceId = overrideVoiceId || project.voice_id || 'Puck';
+        let segments = Array.isArray(project.segments) && project.segments.length > 0 ? project.segments : [];
+        let avatarUrl = null;
+
+        try {
+            const { data: avatarData } = await supabase
+                .from('avatar')
+                .select('url')
+                .eq('user_id', userId || project.user_id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if (avatarData && avatarData.length > 0) {
+                avatarUrl = avatarData[0].url;
+            }
+        } catch (e) {
+            console.error("[Demo Retry] Failed to query user avatars:", e);
+        }
+
+        // 2. Check segments: if missing in demo_projects.segments, check demo_segments table first
+        if (segments.length === 0) {
+            console.log(`[Demo Retry] Checking demo_segments table for existing records for project ${projectId}...`);
+            const { data: dbSegments } = await supabase
+                .from('demo_segments')
+                .select('*')
+                .eq('project_id', projectId)
+                .order('order_index', { ascending: true });
+
+            if (dbSegments && dbSegments.length > 0) {
+                console.log(`[Demo Retry] Found ${dbSegments.length} existing records in demo_segments! Rebuilding segments column without calling AI.`);
+                segments = dbSegments.map((s, idx) => ({
+                    narration: s.narration || "",
+                    isHook: true,
+                    video_start: "00:00.000",
+                    video_end: "00:00.000",
+                    image_prompt: s.image_prompt || s.narration || "AI Scene Prompt",
+                    animation_prompt: s.animation_prompt || 'Balanced',
+                    avatar_url: s.avatar_url || avatarUrl || null,
+                    order_index: idx
+                }));
+
+                // Save to demo_projects.segments immediately
+                await supabase.from('demo_projects').update({
+                    segments: segments
+                }).eq('id', projectId);
+                console.log(`[Demo Retry] Rebuilt and saved segments to demo_projects.`);
+            } else {
+                // If demo_segments table is also empty, generate AI segments from prompt / title
+                console.log(`[Demo Retry] No records in demo_segments. Calling generateStorySegments...`);
+                const userPrompt = project.prompt || project.title || '';
+                const aspect = project.aspect_ratio || '16:9';
+                
+                const result = await generateStorySegments(userPrompt, aspect, 'Rendering Style: Flat 2D cartoon style, natural coloring. Character Design: Characters are 2D stick figures. They retain distinct permanent features (e.g., hair-style, eyes, facial hair.)', 'Balanced', false, avatarUrl);
+                const aiSegmentsData = result?.segments || [];
+
+                if (aiSegmentsData.length > 0) {
+                    const segmentsToInsert = aiSegmentsData.map((s, idx) => ({
+                        project_id: projectId,
+                        narration: s.narration || "",
+                        image_prompt: s.image_prompt || s.narration || "AI Scene Prompt",
+                        animation_prompt: s.animation_prompt || 'Balanced',
+                        image_url: null,
+                        avatar_url: s.avatar_url || avatarUrl || null,
+                        order_index: idx
+                    }));
+
+                    await supabase.from('demo_segments').insert(segmentsToInsert);
+
+                    segments = aiSegmentsData.map((s, idx) => ({
+                        narration: s.narration || "",
+                        isHook: true,
+                        video_start: "00:00.000",
+                        video_end: "00:00.000",
+                        image_prompt: s.image_prompt || s.narration || "AI Scene Prompt",
+                        animation_prompt: s.animation_prompt || 'Balanced',
+                        avatar_url: s.avatar_url || avatarUrl || null,
+                        order_index: idx
+                    }));
+
+                    await supabase.from('demo_projects').update({
+                        segments: segments
+                    }).eq('id', projectId);
+                    console.log(`[Demo Retry] Generated and saved new segments to demo_projects.`);
+                }
+            }
+        } else {
+            console.log(`[Demo Retry] ✅ Segments already exist (${segments.length} segments). Skipping segment generation.`);
+        }
+
+        // 3. Check audio (voice_path): if missing, generate audio before transcribing it
+        let audioUrl = project.voice_path;
+        let totalAudioDuration = (Array.isArray(project.segment_durations) && project.segment_durations.length > 0)
+            ? project.segment_durations.reduce((a, b) => a + b, 0)
+            : 0;
+        let audioPath = null;
+
+        if (!audioUrl) {
+            console.log(`[Demo Retry] 🎙️ Audio is missing. Generating voiceover...`);
+            if (segments.length === 0) {
+                throw new Error("No segments available to generate audio");
+            }
+
+            const { audioBuffer } = await generateVoiceover(segments, voiceId, "Read aloud in a calm, deliberate tone with brisk continuous delivery");
+            if (!audioBuffer || audioBuffer.length === 0) {
+                throw new Error("TTS returned empty audio buffer");
+            }
+
+            const audioFilename = `audio_${uuidv4()}.wav`;
+            audioPath = path.join(TEMP_DIR, audioFilename);
+            filesToDelete.push(audioPath);
+
+            const wavBuffer = pcmToWavBuffer(audioBuffer, 24000, 1, 16);
+            fs.writeFileSync(audioPath, wavBuffer);
+
+            totalAudioDuration = audioBuffer.length / 48000;
+
+            const audioKey = `demo-audio/${audioFilename}`;
+            await s3.send(new PutObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: audioKey,
+                Body: fs.createReadStream(audioPath),
+                ContentType: 'audio/wav'
+            }));
+            audioUrl = `${R2_PUBLIC_URL}/${audioKey}`;
+
+            // Save audio immediately to demo_projects
+            await supabase.from('demo_projects').update({
+                voice_path: audioUrl
+            }).eq('id', projectId);
+            console.log(`[Demo Retry] ✅ Voiceover generated and saved: ${audioUrl}`);
+        } else {
+            console.log(`[Demo Retry] ✅ Audio already exists: ${audioUrl}. Reusing existing audio.`);
+        }
+
+        // 4. Check transcription & segment durations: if missing or incomplete, generate transcription
+        const hasValidTranscription = project.transcription && Array.isArray(project.transcription.words) && project.transcription.words.length > 0;
+        const hasValidDurations = Array.isArray(project.segment_durations) && project.segment_durations.length === segments.length;
+
+        if (!hasValidTranscription || !hasValidDurations) {
+            console.log(`[Demo Retry] 📝 Transcription or segment durations missing. Transcribing audio...`);
+            
+            // If we don't have the local file yet, download it
+            if (!audioPath) {
+                const downloadedFilename = `audio_${uuidv4()}.wav`;
+                audioPath = path.join(TEMP_DIR, downloadedFilename);
+                filesToDelete.push(audioPath);
+
+                console.log(`[Demo Retry] Downloading audio from ${audioUrl}...`);
+                const response = await fetch(audioUrl);
+                if (!response.ok) throw new Error(`Failed to download audio from ${audioUrl}`);
+                const arrayBuffer = await response.arrayBuffer();
+                fs.writeFileSync(audioPath, Buffer.from(arrayBuffer));
+
+                if (!totalAudioDuration) {
+                    const stats = fs.statSync(audioPath);
+                    // 24kHz 16-bit mono WAV = 48000 bytes/sec
+                    totalAudioDuration = Math.max(1, (stats.size - 44) / 48000);
+                }
+            }
+
+            const aaiClient = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
+            const transcriptRes = await aaiClient.transcripts.transcribe({
+                audio: audioPath,
+                speech_models: ["universal-3-pro", "universal-2"],
+                language_detection: true,
+            });
+
+            let filteredWords = [];
+            if (transcriptRes.words) {
+                filteredWords = transcriptRes.words.map(w => ({
+                    text: w.text ? w.text.replace(/[-\u2013\u2014]/g, ' ').replace(/;|:|(?<!\d)[.,]|[.,](?!\d)/g, '') : '',
+                    start: w.start,
+                    end: w.end
+                }));
+            }
+
+            const transcription = {
+                text: transcriptRes.text || '',
+                words: filteredWords
+            };
+
+            const segmentDurations = alignSegmentsWithTranscription(segments, transcription, totalAudioDuration) 
+                || calculateAudioLineDurations(segments, totalAudioDuration);
+
+            await supabase.from('demo_projects').update({
+                transcription,
+                segment_durations: segmentDurations,
+                status: 'ready'
+            }).eq('id', projectId);
+
+            console.log(`[Demo Retry] ✅ Transcription & durations generated and saved. Status set to ready.`);
+        } else {
+            console.log(`[Demo Retry] ✅ Transcription and durations already present. Ensuring status is ready.`);
+            await supabase.from('demo_projects').update({
+                status: 'ready'
+            }).eq('id', projectId);
+        }
+
+        console.log(`[Demo Retry] 🎉 Smart retry successfully completed for project: ${projectId}`);
+
+    } catch (error) {
+        console.error(`[Demo Retry] ❌ Error in retryDemoProcessing for project ${projectId}:`, error);
+        await supabase.from('demo_projects').update({ status: 'failed' }).eq('id', projectId);
     } finally {
         cleanup(filesToDelete);
     }
@@ -322,8 +564,11 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled, 
     const workDir = path.join(TEMP_DIR, `demo_export_${uuidv4()}`);
     if (!fs.existsSync(workDir)) fs.mkdirSync(workDir);
 
+    let projectTitle = null;
+
     try {
         const { data: project } = await supabase.from('demo_projects').select('*').eq('id', projectId).single();
+        projectTitle = project?.title || null;
                 
         if (!project || !project.voice_path) {
             throw new Error("Missing assets for export");
@@ -461,10 +706,23 @@ export async function runDemoExport({ projectId, userId, motionGraphicsEnabled, 
         await supabase.from('demo_projects').update({ status: 'ready' }).eq('id', projectId);
         
         console.log(`[Demo Export] Completed for Project: ${projectId}`);
+
+        await sendExportCompletedEmail({
+            supabase,
+            userId,
+            projectTitle,
+            videoUrl
+        });
     } catch (error) {
         console.error(`[Demo Export] Error for Project ${projectId}:`, error);
         await supabase.from('demo_projects').update({ status: 'failed' }).eq('id', projectId);
         await supabase.from('content_stories').update({ status: 'failed' }).eq('demo_project_id', projectId);
+
+        await sendExportFailedEmail({
+            supabase,
+            userId,
+            projectTitle
+        });
     } finally {
         cleanup(filesToDelete);
         if (fs.existsSync(workDir)) {

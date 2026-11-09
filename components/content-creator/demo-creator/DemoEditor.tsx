@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../supabaseClient';
 import { DemoVideoPlayer } from './DemoVideoPlayer';
-import { API_URL, sanitizeErrorMsg, generateUploadUrl, updateSegmentImage } from '../api';
+import { API_URL, sanitizeErrorMsg, generateUploadUrl, updateSegmentImage, retryDemoProject } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
 import { DEFAULT_SUBTITLE_CONFIG, SubtitleConfiguration } from '../types';
-import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2, Edit2, CheckCheck, Mic, Sparkles, Upload, Image, Trash2 } from 'lucide-react';
+import { Layout, Type, Layers, ChevronLeft, Settings2, Palette, Undo2, Redo2, Edit2, CheckCheck, Mic, Sparkles, Upload, Image, Trash2, RotateCcw } from 'lucide-react';
 import { HookStyleModal } from './HookStyleModal';
 import { alignSegmentsWithTranscription, computeFilesData } from './alignment-utils';
 import { VOICES } from '../../../voiceConfig';
@@ -29,6 +29,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     const [activeHookIndex, setActiveHookIndex] = useState<number | null>(null);
     
     const [showExportMenu, setShowExportMenu] = useState(false);
+    const [isRetrying, setIsRetrying] = useState(false);
     
     // Editor States for Frame Segments
     const [isEditingFrames, setIsEditingFrames] = useState(false);
@@ -108,7 +109,11 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
 
     // Auto-correction for existing incorrectly sized segments
     useEffect(() => {
-        if (!project || !project.segments || !project.transcription?.words || !project.total_audio_duration) return;
+        const audioDuration = (project?.segment_durations && Array.isArray(project.segment_durations) && project.segment_durations.length > 0)
+            ? project.segment_durations.reduce((a: number, b: number) => a + b, 0)
+            : 0;
+
+        if (!project || !project.segments || !project.transcription?.words || !audioDuration) return;
         
         const numSegments = project.segments.length;
         const currentDurations = project.segment_durations || [];
@@ -119,18 +124,18 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
             needsCorrection = true;
         } else {
             const currentTotal = currentDurations.reduce((a: number, b: number) => a + b, 0);
-            if (Math.abs(currentTotal - project.total_audio_duration) > 0.1) {
+            if (Math.abs(currentTotal - audioDuration) > 0.1) {
                 needsCorrection = true;
             }
         }
 
         if (needsCorrection) {
-            const newDurations = alignSegmentsWithTranscription(project.segments, project.transcription, project.total_audio_duration);
+            const newDurations = alignSegmentsWithTranscription(project.segments, project.transcription, audioDuration);
             if (newDurations && newDurations.length === numSegments) {
                 updateProject({ segment_durations: newDurations }, true);
             }
         }
-    }, [project?.id, project?.segments?.length, !!project?.transcription?.words, project?.total_audio_duration]);
+    }, [project?.id, project?.segments?.length, !!project?.transcription?.words]);
 
     const checkAndConvertData = async (data: any) => {
         let updated = false;
@@ -283,12 +288,15 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
         const newState = { ...project, ...finalUpdates };
         
         if (updates.segments !== undefined || updates.hook_style !== undefined || updates.video_transform !== undefined || updates.transcription !== undefined || updates.segment_durations !== undefined) {
+            const audioDuration = (newState.segment_durations && Array.isArray(newState.segment_durations) && newState.segment_durations.length > 0)
+                ? newState.segment_durations.reduce((a: number, b: number) => a + b, 0)
+                : 0;
             const filesData = computeFilesData(
                 newState.segments || [],
                 newState.transcription,
                 newState.video_transform?.hooks || {},
                 newState.hook_style,
-                newState.total_audio_duration,
+                audioDuration,
                 newState.segment_durations
             );
             finalUpdates.files_data = filesData;
@@ -543,6 +551,24 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
         }
     };
 
+    const handleRetry = async () => {
+        if (!project || !session?.user?.id || isRetrying) return;
+        try {
+            setIsRetrying(true);
+            setErrorMessage(null);
+            setProject((prev: any) => ({ ...prev, status: 'processing' }));
+            await retryDemoProject(project.id, session.user.id, project.voice_id || voice?.id);
+        } catch (err: any) {
+            console.error("Retry failed:", err);
+            const msg = sanitizeErrorMsg(err, "Failed to retry generation. Please try again.");
+            setErrorMessage(msg);
+            alert(msg);
+            setProject((prev: any) => ({ ...prev, status: 'failed' }));
+        } finally {
+            setIsRetrying(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex-1 flex items-center justify-center bg-black text-white">
@@ -561,6 +587,21 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
     }
 
     const isProcessing = project.status === 'processing';
+
+    const totalAudioDuration = (project?.segment_durations && Array.isArray(project.segment_durations) && project.segment_durations.length > 0)
+        ? project.segment_durations.reduce((a: number, b: number) => a + b, 0)
+        : 0;
+
+    const hasMissingAssets = !isProcessing && project && (
+        project.status === 'failed' ||
+        !project.voice_path ||
+        !project.transcription ||
+        !project.transcription.words ||
+        project.transcription.words.length === 0 ||
+        !project.segment_durations ||
+        project.segment_durations.length === 0 ||
+        ((!project.segments || project.segments.length === 0) && demoSegments.length === 0)
+    );
 
     const MODULES = [
         { id: 'frames', icon: Layers, label: 'Frames' },
@@ -605,10 +646,21 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-4 relative">
+                <div className="flex items-center gap-3 relative">
+                    {hasMissingAssets && (
+                        <button 
+                            onClick={handleRetry}
+                            disabled={isRetrying || isProcessing}
+                            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-bold rounded-full transition-all flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+                            title="Regenerate missing assets"
+                        >
+                            <RotateCcw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+                            <span>{isRetrying ? 'Retrying...' : 'Retry Generation'}</span>
+                        </button>
+                    )}
                     <button 
                         onClick={() => setShowExportMenu(!showExportMenu)}
-                        disabled={isProcessing || exporting}
+                        disabled={isProcessing || exporting || hasMissingAssets}
                         className="px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         {exporting ? (
@@ -652,28 +704,69 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                 We are analyzing your video, generating the voiceover, and syncing everything up. This usually takes a minute.
                             </p>
                         </div>
+                    ) : hasMissingAssets && (!project.voice_path || project.status === 'failed') ? (
+                        <div className="flex-1 flex flex-col items-center justify-center bg-zinc-950 p-6 text-center">
+                            <div className="w-14 h-14 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4 text-yellow-500">
+                                <RotateCcw className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-lg font-bold text-white mb-2">
+                                {project.status === 'failed' ? 'Generation Incomplete' : 'Missing Audio Assets'}
+                            </h3>
+                            <p className="text-zinc-400 text-sm max-w-md mb-6 leading-relaxed">
+                                {!project.voice_path
+                                    ? 'Voiceover audio and transcription could not be completed.'
+                                    : 'Some video assets are incomplete.'}
+                                {' '}Click retry below to resume and generate only the missing assets.
+                            </p>
+                            <button
+                                onClick={handleRetry}
+                                disabled={isRetrying}
+                                className="px-5 py-2.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black text-sm font-bold rounded-full transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+                            >
+                                <RotateCcw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
+                                <span>{isRetrying ? 'Retrying Generation...' : 'Retry Missing Assets'}</span>
+                            </button>
+                        </div>
                     ) : (
-                        <DemoVideoPlayer 
-                            videoUrl={project.video_url}
-                            audioUrl={project.voice_path}
-                            totalAudioDuration={project.total_audio_duration}
-                            segments={demoSegments}
-                            segmentDurations={project.segment_durations || []}
-                            transcription={project.transcription}
-                            filesData={project.files_data || []}
-                            subtitleStyle={project.subtitles || DEFAULT_SUBTITLE_CONFIG}
-                            hookStyle={project.hook_style}
-                            aspectRatio={project.aspect_ratio || '16:9'}
-                            isPlaying={isPlaying}
-                            onPlayPause={() => setIsPlaying(!isPlaying)}
-                            currentTime={currentTime}
-                            onTimeUpdate={setCurrentTime}
-                            videoTransform={project.video_transform}
-                            onVideoTransformChange={async (transform) => {
-                                updateProject({ video_transform: transform });
-                            }}
-                            backgroundType={project.background_type || 'white'}
-                        />
+                        <div className="flex-1 flex flex-col h-full relative">
+                            {hasMissingAssets && (
+                                <div className="bg-yellow-500/10 border-b border-yellow-500/20 px-4 py-2 flex items-center justify-between text-xs text-yellow-400 z-30">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                                        <span>Some assets are missing or incomplete. Click retry to generate them.</span>
+                                    </div>
+                                    <button
+                                        onClick={handleRetry}
+                                        disabled={isRetrying}
+                                        className="px-3 py-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                    >
+                                        <RotateCcw className={`w-3 h-3 ${isRetrying ? 'animate-spin' : ''}`} />
+                                        <span>{isRetrying ? 'Retrying...' : 'Retry'}</span>
+                                    </button>
+                                </div>
+                            )}
+                            <DemoVideoPlayer 
+                                videoUrl={project.video_url}
+                                audioUrl={project.voice_path}
+                                totalAudioDuration={totalAudioDuration}
+                                segments={demoSegments}
+                                segmentDurations={project.segment_durations || []}
+                                transcription={project.transcription}
+                                filesData={project.files_data || []}
+                                subtitleStyle={project.subtitles || DEFAULT_SUBTITLE_CONFIG}
+                                hookStyle={project.hook_style}
+                                aspectRatio={project.aspect_ratio || '16:9'}
+                                isPlaying={isPlaying}
+                                onPlayPause={() => setIsPlaying(!isPlaying)}
+                                currentTime={currentTime}
+                                onTimeUpdate={setCurrentTime}
+                                videoTransform={project.video_transform}
+                                onVideoTransformChange={async (transform) => {
+                                    updateProject({ video_transform: transform });
+                                }}
+                                backgroundType={project.background_type || 'white'}
+                            />
+                        </div>
                     )}
                 </div>
 
@@ -704,7 +797,7 @@ export const DemoEditor: React.FC<DemoEditorProps> = ({ session, projectId, onTo
                                                                 return { ...rest, isHook: true };
                                                             });
                                                             
-                                                            let newDurations = alignSegmentsWithTranscription(newSegments, project.transcription, project.total_audio_duration);
+                                                            let newDurations = alignSegmentsWithTranscription(newSegments, project.transcription, totalAudioDuration);
                                                             if (!newDurations || newDurations.length !== newSegments.length) {
                                                                 newDurations = editingSegments.map((seg: any) => seg._duration);
                                                             }

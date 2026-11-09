@@ -52,7 +52,9 @@ import { Onboarding } from "./Onboarding";
 export const ContentDashboard = ({
   session,
   onViewChange,
+  onNavigate,
   initialProjectData,
+  onSetActiveProject,
   onClearProject,
   onToggleSidebar,
 }: any) => {
@@ -89,7 +91,7 @@ export const ContentDashboard = ({
 
   const [aspect, setAspect] = useState<"9:16" | "16:9">(() => {
     const saved = localStorage.getItem('content_dashboard_aspect');
-    return (saved as "9:16" | "16:9") || "9:16";
+    return (saved as "9:16" | "16:9") || "16:9";
   });
   
   const [style, setStyle] = useState(() => {
@@ -452,7 +454,9 @@ export const ContentDashboard = ({
         if (!prevProject || prevProject.id !== initialProjectData.project.id) {
           setSegments(initialProjectData.segments);
         }
-        return initialProjectData.project;
+        return prevProject?.id === initialProjectData.project.id && prevProject?.isNewCreation
+          ? { ...initialProjectData.project, isNewCreation: true }
+          : initialProjectData.project;
       });
 
       // Sync local state if reloading project
@@ -723,7 +727,7 @@ export const ContentDashboard = ({
         project.id
       );
 
-      setProject({
+      const newProj = {
         id: project.id,
         title: project.title,
         aspect_ratio: project.aspect_ratio,
@@ -735,8 +739,22 @@ export const ContentDashboard = ({
         status: project.status,
         prompt: project.prompt,
         isNewCreation: true
-      });
+      };
+
+      setProject(newProj);
       setSegments([]); // Initialize empty segments, they will stream in
+
+      if (onSetActiveProject) {
+        onSetActiveProject({ project: newProj, segments: [] });
+      }
+
+      if (onNavigate) {
+        onNavigate(`/content-creator/dashboard?project=${project.id}`);
+      } else {
+        const url = new URL(window.location.href);
+        url.searchParams.set('project', project.id);
+        window.history.pushState({}, '', url.toString());
+      }
       // We transition immediately to editor even if images are null
     } catch (e: any) {
       console.error("[ContentDashboard] Generation failed", e);

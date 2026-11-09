@@ -1,7 +1,7 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 const TEST_MODE = process.env.TEST_MODE === 'true'; 
-const MODEL_NAME = process.env.GEMINI_MODEL_NAME || "gemini-3.7-flash";
-const TTS_MODEL_NAME = process.env.GEMINI_TTS_MODEL_NAME || "gemini-2.5-flash-preview-tts";
+const MODEL_NAME = process.env.GEMINI_MODEL_NAME || "gemini-3.8-flash";
+const TTS_MODEL_NAME = process.env.GEMINI_TTS_MODEL_NAME || "gemini-3.8-flash-lite-tts";
 
 export async function analyzeVideo(fileBase64, mimeType, prompt) {
   if (!process.env.API_KEY) throw new Error("API Key missing");
@@ -140,14 +140,7 @@ export async function generateVoiceover(scriptLines, voiceName, stylePrompt) {
     for (let i = 0; i < batches.length; i++) {
         const batchText = batches[i]; // Loud, excited, confident, with strong falling declarative intonation at sentence end.
         
-        const prompt = `Read the following transcript based on the director's note.
-
-# Director's note
-Style: intelligent, authoritative narrative delivery with controlled urgency, subtle intrigue, strategic pacing and pauses, strong emphasis on key words, and a serious, slightly conspiratorial tone—as if revealing an important story unfolding in real time.
-Pace: Fast conversation pace 
-Accent: Canadian'
-
-## Transcript:
+        const prompt = `
 ${batchText}`;
         
         let success = false;
@@ -161,7 +154,12 @@ ${batchText}`;
                 
                 const response = await ai.models.generateContent({
                     model: TTS_MODEL_NAME,
-                    contents: [{ parts: [{ text: prompt }] }],
+                    contents: [{
+                        role: 'user',
+                        parts: [{
+                            text: prompt,
+                            speechMetadata: { style: 'Fast, loud, no dead air' },
+                        }]}],
                     config: {
                         responseModalities: [Modality.AUDIO],
                         speechConfig: {

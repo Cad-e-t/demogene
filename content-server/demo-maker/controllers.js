@@ -4,7 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { s3, R2_BUCKET, R2_PUBLIC_URL } from '../storage.js';
 import { supabase } from './supabase.js';
-import { runDemoProcessing, runDemoExport, runDemoAudioRegeneration } from './background-job.js';
+import { runDemoProcessing, runDemoExport, runDemoAudioRegeneration, retryDemoProcessing } from './background-job.js';
 import { generateImage } from '../gemini.js';
 
 export const generateUploadUrl = async (req, res) => {
@@ -425,3 +425,39 @@ export async function demoGenerateMotionGraphics(req, res) {
         res.status(500).json({ error: e.message });
     }
 }
+
+export const retryDemoVideo = async (req, res) => {
+    try {
+        const { projectId, userId, voiceId } = req.body;
+        if (!userId || !projectId) {
+            return res.status(400).json({ error: 'Missing userId or projectId' });
+        }
+
+        const { data: project, error: pError } = await supabase
+            .from('demo_projects')
+            .select('*')
+            .eq('id', projectId)
+            .single();
+
+        if (pError || !project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        if (project.user_id !== userId) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        await supabase.from('demo_projects').update({ status: 'processing' }).eq('id', projectId);
+
+        res.status(202).json({ message: 'Demo retry started' });
+
+        retryDemoProcessing({
+            projectId,
+            userId,
+            voiceId: voiceId || project.voice_id
+        });
+    } catch (error) {
+        console.error("Demo Retry Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
