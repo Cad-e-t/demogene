@@ -376,23 +376,35 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         return () => clearInterval(interval);
     }, [isGeneratingAssets, loadingImage, submitting, isGeneratingDescription]);
 
-    // Fetch latest project details on mount
-    useEffect(() => {
-        const fetchProject = async () => {
+    // Fetch latest project details and segments
+    const fetchProject = useCallback(async () => {
+        if (!project?.id) return;
+        try {
             const { data } = await supabase.from('content_projects').select('*').eq('id', project.id).single();
             if (data) {
                 setLocalProject(data);
-                setAudioUrl(data.voice_file_path);
-                setTranscription(data.transcription);
-                setSegmentDurations(data.segment_durations || []);
+                if (data.voice_file_path) setAudioUrl(data.voice_file_path);
+                if (data.transcription) setTranscription(data.transcription);
+                if (data.segment_durations && Array.isArray(data.segment_durations) && data.segment_durations.length > 0) {
+                    setSegmentDurations(data.segment_durations);
+                }
                 if (data.description) setMetadataDescription(data.description);
                 if (data.subtitles) {
                     setSubtitles(data.subtitles as SubtitleConfiguration);
                 }
             }
-        };
-        fetchProject();
+            const { data: segs } = await supabase.from('content_segments').select('*').eq('project_id', project.id).order('order_index', { ascending: true });
+            if (segs && segs.length > 0) {
+                setSegments(segs);
+            }
+        } catch (err) {
+            console.error("[ContentEditor] Error fetching project:", err);
+        }
     }, [project.id]);
+
+    useEffect(() => {
+        fetchProject();
+    }, [fetchProject]);
 
     // Fetch project characters for segment character references
     useEffect(() => {
@@ -919,9 +931,30 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 setLastStatus(payload.new.status);
                 setLastRenderStatus(payload.new.render_status);
 
+                // Auto-load assets when they appear in the DB
+                if (payload.new.voice_file_path) {
+                    setAudioUrl(payload.new.voice_file_path);
+                }
+                if (payload.new.transcription) {
+                    setTranscription(payload.new.transcription);
+                }
+                if (payload.new.segment_durations && Array.isArray(payload.new.segment_durations) && payload.new.segment_durations.length > 0) {
+                    setSegmentDurations(payload.new.segment_durations);
+                }
+                if (payload.new.subtitles) {
+                    setSubtitles(payload.new.subtitles as SubtitleConfiguration);
+                }
+                if (payload.new.subtitle_state) {
+                    setSubtitleState(payload.new.subtitle_state);
+                }
+
+                // If completed/ready, immediately trigger full fetch from DB
+                if (payload.new.status === 'completed' || payload.new.render_status === 'ready') {
+                    fetchProject();
+                }
+
                 // Check for image generation failures
                 if (oldStatus === 'generating' && payload.new.status === 'draft') {
-                    // We need to wait a bit for segments to sync or fetch them
                     setTimeout(async () => {
                         const { data: currentSegments } = await supabase.from('content_segments').select('image_url').eq('project_id', project.id);
                         if (currentSegments) {
@@ -957,23 +990,33 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                         }
                     })();
                 }
-                
-                // Auto-load assets when they appear in the DB
-                if (payload.new.voice_file_path && !audioUrl) {
-                    setAudioUrl(payload.new.voice_file_path);
-                    setTranscription(payload.new.transcription);
-                    setSegmentDurations(payload.new.segment_durations || []);
-                }
-                if (payload.new.subtitles) {
-                    setSubtitles(payload.new.subtitles as SubtitleConfiguration);
-                }
-                if (payload.new.subtitle_state) {
-                    setSubtitleState(payload.new.subtitle_state);
-                }
             })
             .subscribe();
         return () => { supabase.removeChannel(channel); };
-    }, [project.id, audioUrl]);
+    }, [project.id, fetchProject]);
+
+    // Active Generation Polling fallback (ensures sync even if Realtime events are dropped or TOASTed)
+    useEffect(() => {
+        const isGenerating = ['generating', 'rendering', 'rendering_voice'].includes(localProject.status) || 
+                             localProject.render_status === 'generating' ||
+                             localProject.render_status === 'Animating';
+        if (!isGenerating) return;
+
+        const interval = setInterval(() => {
+            fetchProject();
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [localProject.status, localProject.render_status, fetchProject]);
+
+    // Safety sync when status is completed but assets are still empty in state
+    useEffect(() => {
+        if (localProject.status === 'completed' && localProject.render_status === 'ready') {
+            if (!audioUrl || !segmentDurations || segmentDurations.length === 0) {
+                fetchProject();
+            }
+        }
+    }, [localProject.status, localProject.render_status, audioUrl, segmentDurations, fetchProject]);
 
     // 3. Subscribe to Segment Changes
     useEffect(() => {
@@ -1663,169 +1706,183 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                 <div className={`flex-1 bg-zinc-900 flex flex-col relative overflow-hidden h-full transition-all duration-300 ${isMobileConfigOpen ? 'md:h-full h-[35%]' : 'h-full'}`}>
 
                     <div className={`flex-1 flex items-center justify-center p-4 md:p-8 min-h-0 w-full relative transition-all duration-300 ${isMobileConfigOpen ? 'scale-90 md:scale-100' : 'scale-100'}`}>
-                        {Boolean(
-                            audioUrl && 
-                            segmentDurations && 
-                            segmentDurations.length > 0 && 
-                            !['generating', 'rendering', 'rendering_voice', 'draft', 'insufficient'].includes(localProject.status) && 
-                            localProject.render_status !== 'Animating' &&
-                            localProject.render_status !== 'generating' &&
-                            localProject.render_status !== 'failed'
-                        ) ? (
-                            <ContentVideoPlayer
-                                segments={segments}
-                                audioUrl={audioUrl}
-                                transcription={transcription}
-                                segmentDurations={segmentDurations}
-                                aspectRatio={project.aspect_ratio}
-                                effect={effect}
-                                subtitleStyle={subtitles}
-                                subtitleState={subtitleState}
-                                isPlaying={isPlaying}
-                                onPlayPause={togglePlay}
-                                currentTime={currentTime}
-                                onTimeUpdate={handleTimeUpdate}
-                            />
-                        ) : (
-                            <div className="w-full max-w-xl md:max-w-2xl px-4 pt-2 md:pt-4 pb-8 flex flex-col gap-5 self-start">
-                                {/* User Prompt Message (Right Side) */}
-                                <div className="flex justify-end w-full">
-                                    <div 
-                                        onClick={() => setShowPromptModal(true)}
-                                        className="bg-zinc-800/90 hover:bg-zinc-800 border border-white/10 hover:border-white/20 rounded-2xl rounded-tr-xs p-4 shadow-xl text-left w-full max-w-[82%] sm:max-w-[420px] h-[100px] ml-auto flex flex-col justify-between cursor-pointer group transition-all"
-                                        title="Click to view full prompt"
-                                    >
-                                        <div className="flex items-center justify-between w-full">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 shrink-0">Prompt</span>
-                                                {activePromptAspectRatio && (
-                                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-400 shrink-0">
-                                                        {activePromptAspectRatio}
-                                                    </span>
-                                                )}
-                                                {activePromptStyle && (
-                                                    <span className="text-[10px] capitalize px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-400 truncate max-w-[85px]">
-                                                        {activePromptStyle}
-                                                    </span>
+                        {(() => {
+                            const isProjectReady = localProject.status === 'completed' && localProject.render_status === 'ready';
+                            const hasAudioAndDurations = Boolean(audioUrl && segmentDurations && segmentDurations.length > 0);
+                            const canDisplayPlayer = hasAudioAndDurations && (
+                                isProjectReady || (
+                                    !['generating', 'rendering', 'rendering_voice', 'draft', 'insufficient'].includes(localProject.status) && 
+                                    localProject.render_status !== 'Animating' &&
+                                    localProject.render_status !== 'generating' &&
+                                    localProject.render_status !== 'failed'
+                                )
+                            );
+
+                            if (canDisplayPlayer) {
+                                return (
+                                    <ContentVideoPlayer
+                                        segments={segments}
+                                        audioUrl={audioUrl}
+                                        transcription={transcription}
+                                        segmentDurations={segmentDurations}
+                                        aspectRatio={project.aspect_ratio}
+                                        effect={effect}
+                                        subtitleStyle={subtitles}
+                                        subtitleState={subtitleState}
+                                        isPlaying={isPlaying}
+                                        onPlayPause={togglePlay}
+                                        currentTime={currentTime}
+                                        onTimeUpdate={handleTimeUpdate}
+                                    />
+                                );
+                            }
+
+                            return (
+                                <div className="w-full max-w-xl md:max-w-2xl px-4 pt-2 md:pt-4 pb-8 flex flex-col gap-5 self-start">
+                                    {/* User Prompt Message (Right Side) */}
+                                    <div className="flex justify-end w-full">
+                                        <div 
+                                            onClick={() => setShowPromptModal(true)}
+                                            className="bg-zinc-800/90 hover:bg-zinc-800 border border-white/10 hover:border-white/20 rounded-2xl rounded-tr-xs p-4 shadow-xl text-left w-full max-w-[82%] sm:max-w-[420px] h-[100px] ml-auto flex flex-col justify-between cursor-pointer group transition-all"
+                                            title="Click to view full prompt"
+                                        >
+                                            <div className="flex items-center justify-between w-full">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 shrink-0">Prompt</span>
+                                                    {activePromptAspectRatio && (
+                                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-400 shrink-0">
+                                                            {activePromptAspectRatio}
+                                                        </span>
+                                                    )}
+                                                    {activePromptStyle && (
+                                                        <span className="text-[10px] capitalize px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-400 truncate max-w-[85px]">
+                                                            {activePromptStyle}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setShowPromptModal(true);
+                                                    }}
+                                                    className="text-[11px] font-medium text-yellow-500/90 hover:text-yellow-400 group-hover:text-yellow-400 flex items-center gap-1 transition-colors shrink-0 ml-2"
+                                                    title="View full prompt in lightbox"
+                                                >
+                                                    <span>View full</span>
+                                                    <svg className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            <p className="text-sm text-zinc-200 font-normal leading-snug line-clamp-2 break-words mt-1">
+                                                {activePromptText}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* AI Reply Column (Left Side) */}
+                                    <div className="flex justify-start w-full">
+                                        <div className="flex items-start gap-3 w-full">
+                                            {/* AI Assistant Avatar */}
+                                            <div className="w-8 h-8 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center shrink-0 shadow-sm">
+                                                <svg className="w-4 h-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                </svg>
+                                            </div>
+
+                                            {/* AI Reply Bubble */}
+                                            <div className={`bg-zinc-950/80 border border-white/10 rounded-2xl rounded-tl-xs p-4 shadow-xl text-left w-full max-w-[82%] sm:max-w-[420px] ${
+                                                (['generating', 'rendering', 'rendering_voice'].includes(localProject.status) || 
+                                                  localProject.render_status === 'Animating' || 
+                                                  localProject.render_status === 'generating' ||
+                                                  (isProjectReady && !hasAudioAndDurations) ||
+                                                  isRetrying) ? 'h-[100px]' : 'min-h-[100px]'
+                                            } flex flex-col justify-center`}>
+                                                {(['generating', 'rendering', 'rendering_voice'].includes(localProject.status) || 
+                                                  localProject.render_status === 'Animating' || 
+                                                  localProject.render_status === 'generating' ||
+                                                  (isProjectReady && !hasAudioAndDurations) ||
+                                                  isRetrying) ? (
+                                                    <div className="flex flex-col gap-2.5">
+                                                        <div className="flex items-center gap-2.5">
+                                                            {/* Blinking / Pulsing icon indicating processing */}
+                                                            <div className="relative flex items-center justify-center w-3.5 h-3.5 shrink-0">
+                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500"></span>
+                                                            </div>
+                                                            <span className="text-sm font-medium text-zinc-200 tracking-wide animate-pulse">
+                                                                {isProjectReady ? 'Finalizing video player...' :
+                                                                 localProject.render_status === 'Animating' ? 'Animating Videos...' : 
+                                                                 localProject.status === 'generating' ? thinkingTexts[generatingTextIndex] :
+                                                                 localProject.status === 'rendering' ? 'Rendering Scene Images...' :
+                                                                 localProject.status === 'rendering_voice' ? 'Synthesizing Voiceover...' :
+                                                                 'Processing video generation...'}
+                                                            </span>
+                                                        </div>
+                                                        {/* Chatbot typing dots */}
+                                                        <div className="flex items-center gap-1.5 pl-6 pt-0.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/70 animate-bounce [animation-delay:-0.3s]"></span>
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/70 animate-bounce [animation-delay:-0.15s]"></span>
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/70 animate-bounce"></span>
+                                                            <span className="text-xs text-zinc-500 ml-2">
+                                                                {isProjectReady ? 'Loading audio and scenes' : 'Crafting scenes, voice, and visual assets'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ) : localProject.status === 'insufficient' ? (
+                                                    /* Insufficient Credits Reply */
+                                                    <div className="flex flex-col gap-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                                                            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">{userCredits !== null ? Math.max(0, Math.round(userCredits)) : 0} Credits Left</span>
+                                                        </div>
+                                                        <p className="text-sm text-zinc-300 leading-relaxed">
+                                                            Your balance is insufficient to complete this project. Please add credits to your account to continue generation.
+                                                        </p>
+                                                        <div className="pt-1">
+                                                            <button
+                                                                onClick={handleAddCredits}
+                                                                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 active:scale-98 text-black text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                                </svg>
+                                                                <span>Add Credits</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    /* Interrupted / Stopped State with Retry */
+                                                    <div className="flex flex-col gap-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                                                            <span className="text-xs font-bold uppercase tracking-wider text-yellow-500">Generation Interrupted</span>
+                                                        </div>
+                                                        <p className="text-sm text-zinc-300 leading-relaxed">
+                                                            Generation stopped before all scenes and audio could be completed. Click retry below to finish generating the remaining assets.
+                                                        </p>
+                                                        <div className="pt-1">
+                                                            <button
+                                                                onClick={handleRetryProject}
+                                                                disabled={isRetrying}
+                                                                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 active:scale-98 text-black text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                                                            >
+                                                                <svg className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                                </svg>
+                                                                <span>{isRetrying ? 'Retrying Generation...' : 'Retry Generation'}</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setShowPromptModal(true);
-                                                }}
-                                                className="text-[11px] font-medium text-yellow-500/90 hover:text-yellow-400 group-hover:text-yellow-400 flex items-center gap-1 transition-colors shrink-0 ml-2"
-                                                title="View full prompt in lightbox"
-                                            >
-                                                <span>View full</span>
-                                                <svg className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                                                </svg>
-                                            </button>
-                                        </div>
-
-                                        <p className="text-sm text-zinc-200 font-normal leading-snug line-clamp-2 break-words mt-1">
-                                            {activePromptText}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* AI Reply Column (Left Side) */}
-                                <div className="flex justify-start w-full">
-                                    <div className="flex items-start gap-3 w-full">
-                                        {/* AI Assistant Avatar */}
-                                        <div className="w-8 h-8 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center shrink-0 shadow-sm">
-                                            <svg className="w-4 h-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                            </svg>
-                                        </div>
-
-                                        {/* AI Reply Bubble */}
-                                        <div className={`bg-zinc-950/80 border border-white/10 rounded-2xl rounded-tl-xs p-4 shadow-xl text-left w-full max-w-[82%] sm:max-w-[420px] ${
-                                            (['generating', 'rendering', 'rendering_voice'].includes(localProject.status) || 
-                                              localProject.render_status === 'Animating' || 
-                                              localProject.render_status === 'generating' ||
-                                              isRetrying) ? 'h-[100px]' : 'min-h-[100px]'
-                                        } flex flex-col justify-center`}>
-                                            {(['generating', 'rendering', 'rendering_voice'].includes(localProject.status) || 
-                                              localProject.render_status === 'Animating' || 
-                                              localProject.render_status === 'generating' ||
-                                              isRetrying) ? (
-                                                <div className="flex flex-col gap-2.5">
-                                                    <div className="flex items-center gap-2.5">
-                                                        {/* Blinking / Pulsing icon indicating processing */}
-                                                        <div className="relative flex items-center justify-center w-3.5 h-3.5 shrink-0">
-                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500"></span>
-                                                        </div>
-                                                        <span className="text-sm font-medium text-zinc-200 tracking-wide animate-pulse">
-                                                            {localProject.render_status === 'Animating' ? 'Animating Videos...' : 
-                                                             localProject.status === 'generating' ? thinkingTexts[generatingTextIndex] :
-                                                             localProject.status === 'rendering' ? 'Rendering Scene Images...' :
-                                                             localProject.status === 'rendering_voice' ? 'Synthesizing Voiceover...' :
-                                                             'Processing video generation...'}
-                                                        </span>
-                                                    </div>
-                                                    {/* Chatbot typing dots */}
-                                                    <div className="flex items-center gap-1.5 pl-6 pt-0.5">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/70 animate-bounce [animation-delay:-0.3s]"></span>
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/70 animate-bounce [animation-delay:-0.15s]"></span>
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/70 animate-bounce"></span>
-                                                        <span className="text-xs text-zinc-500 ml-2">Crafting scenes, voice, and visual assets</span>
-                                                    </div>
-                                                </div>
-                                            ) : localProject.status === 'insufficient' ? (
-                                                /* Insufficient Credits Reply */
-                                                <div className="flex flex-col gap-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                                                        <span className="text-xs font-bold uppercase tracking-wider text-amber-400">{userCredits !== null ? Math.max(0, Math.round(userCredits)) : 0} Credits Left</span>
-                                                    </div>
-                                                    <p className="text-sm text-zinc-300 leading-relaxed">
-                                                        Your balance is insufficient to complete this project. Please add credits to your account to continue generation.
-                                                    </p>
-                                                    <div className="pt-1">
-                                                        <button
-                                                            onClick={handleAddCredits}
-                                                            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 active:scale-98 text-black text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                            </svg>
-                                                            <span>Add Credits</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                /* Interrupted / Stopped State with Retry */
-                                                <div className="flex flex-col gap-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                                                        <span className="text-xs font-bold uppercase tracking-wider text-yellow-500">Generation Interrupted</span>
-                                                    </div>
-                                                    <p className="text-sm text-zinc-300 leading-relaxed">
-                                                        Generation stopped before all scenes and audio could be completed. Click retry below to finish generating the remaining assets.
-                                                    </p>
-                                                    <div className="pt-1">
-                                                        <button
-                                                            onClick={handleRetryProject}
-                                                            disabled={isRetrying}
-                                                            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 active:scale-98 text-black text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-                                                        >
-                                                            <svg className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                                            </svg>
-                                                            <span>{isRetrying ? 'Retrying Generation...' : 'Retry Generation'}</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
                     </div>
 
                     {/* Playback Controls removed from here and moved to ContentVideoPlayer */}
