@@ -1373,8 +1373,6 @@ export const ContentDashboard = ({
 
         {/* Style Templates Section */}
         <div className="w-full flex flex-col items-center justify-center p-4 pb-32">
-          <div className="w-full max-w-7xl flex flex-col items-center mb-6">
-          </div>
           <div
             ref={galleryRef}
             className="w-full max-w-7xl flex gap-4 overflow-x-auto pb-4 thin-scrollbar snap-x snap-mandatory px-4 md:px-12"
