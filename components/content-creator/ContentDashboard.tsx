@@ -1374,12 +1374,6 @@ export const ContentDashboard = ({
         {/* Style Templates Section */}
         <div className="w-full flex flex-col items-center justify-center p-4 pb-32">
           <div className="w-full max-w-7xl flex flex-col items-center mb-6">
-            <h2 className="text-xl font-bold text-white uppercase tracking-[0.2em] mb-2">
-              Style Templates
-            </h2>
-            <p className="text-zinc-500 text-sm text-center max-w-2xl">
-             Choose from popular templates to skip prompting and start creating immediately
-            </p>
           </div>
           <div
             ref={galleryRef}
