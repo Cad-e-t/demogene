@@ -18,25 +18,9 @@ export const LANDING_PREVIEWS: Record<
   string,
   { src: string; aspectRatio: string }
 > = {
-  "Immersive Long Forms ": {
-    src: "https://assets.productcam.site/image-styles/anime.mp4",
-    aspectRatio: "16:9",
-  },
   "Stickman Videos": {
     src: "https://assets.productcam.site/image-styles/Stickman.mp4",
     aspectRatio: "16:9",
-  },
-  "Creepy": {
-    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
-    aspectRatio: "9:16",
-  },
-  "Skeleton Videos": {
-    src: "https://assets.productcam.site/image-styles/skeleton.mp4",
-    aspectRatio: "9:16",
-  },
-   "Science Short": {
-    src: "https://assets.productcam.site/image-styles/realistic.mp4",
-    aspectRatio: "9:16",
   },
 };
 
@@ -44,25 +28,9 @@ export const STYLE_TEMPLATES: Record<
   string,
   { src: string; aspectRatio: "9:16" | "16:9" }
 > = {
-  Realistic: {
-    src: "https://assets.productcam.site/image-styles/realistic.mp4",
-    aspectRatio: "9:16",
-  },
-  Anime: {
-    src: "https://assets.productcam.site/image-styles/anime.mp4",
-    aspectRatio: "16:9",
-  },
-  Creepy: {
-    src: "https://assets.productcam.site/image-styles/cartoonhorror.mp4",
-    aspectRatio: "9:16",
-  },
   Stickman: {
     src: "https://assets.productcam.site/image-styles/Stickman.mp4",
     aspectRatio: "16:9",
-  },
-  Skeleton: {
-    src: "https://assets.productcam.site/image-styles/skeleton.mp4",
-    aspectRatio: "9:16",
   },
 };
 

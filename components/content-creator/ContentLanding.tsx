@@ -170,17 +170,7 @@ const FAQS = [
 export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, onNavigate?: (path: string) => void }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-    const [galleryStyles, setGalleryStyles] = useState(['Creepy', 'Skeleton Videos', 'Science Short']);
     const [mutedStates, setMutedStates] = useState<Record<string, boolean>>({});
-
-    const handleVideoClick = (index: number) => {
-        if (index === 1) return; // Already center
-        const newStyles = [...galleryStyles];
-        const temp = newStyles[1];
-        newStyles[1] = newStyles[index];
-        newStyles[index] = temp;
-        setGalleryStyles(newStyles);
-    };
 
     const scrollToPricing = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -277,84 +267,27 @@ export const ContentLanding = ({ onLogin, onNavigate }: { onLogin: () => void, o
 
             {/* --- HERO --- */}
             <div className="min-h-screen flex flex-col items-center justify-center relative z-10 px-6 pt-32 pb-24 w-full max-w-7xl mx-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20 items-center w-full">
-                    
-                    {/* Left Column: Content */}
-                    <div className="text-left flex flex-col items-start max-w-2xl">
-                        {/* Headline */}
-                        <h1 className="text-4xl md:text-5xl lg:text-7xl font-black tracking-tighter mb-8 leading-[1.1]">
-                            Create <br />
-                            <span className="text-yellow-500">Educative Content</span> <br />
-                            & Explainers With AI
-                        </h1>
+                <div className="text-center flex flex-col items-center max-w-4xl mx-auto">
+                    {/* Headline */}
+                    <h1 className="text-4xl md:text-5xl lg:text-7xl font-black tracking-tighter mb-8 leading-[1.1]">
+                        Create <br />
+                        <span className="text-yellow-500">Stickman</span> <br />
+                        Explainers With AI
+                    </h1>
 
-                        {/* Subtitle */}
-                        <p className="text-lg md:text-xl text-gray-400 font-medium leading-relaxed mb-10">
-                            Our AI makes animated explainers, long-form informational videos, and documentaries for you. Grow your audience, stress-free.
-                        </p>
+                    {/* Subtitle */}
+                    <p className="text-lg md:text-xl text-gray-400 font-medium leading-relaxed mb-10 max-w-2xl">
+                        Our AI makes animated, long-form, stickman explainer videos for you. Grow your audience, stress-free.
+                    </p>
 
-                        {/* Primary CTA */}
-                        <button 
-                            onClick={onLogin}
-                            className="group relative px-10 py-5 bg-yellow-500 text-black rounded-full font-black text-lg md:text-xl uppercase tracking-widest hover:scale-105 hover:bg-yellow-500 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(234,179,8,0.4)]"
-                        >
-                            <span className="relative z-10">Start Creating</span>
-                            <div className="absolute inset-0 rounded-full bg-yellow-500 blur-lg opacity-60 group-hover:opacity-90 transition-opacity"></div>
-                        </button>
-                    </div>
-
-                    {/* Right Column: Fan Video Gallery */}
-                    <div className="relative h-[320px] md:h-[450px] flex items-center justify-center mt-12 md:mt-0">
-                        <div className="relative w-full max-w-[160px] md:max-w-[260px] aspect-[9/16]">
-                            {galleryStyles.map((style, index) => {
-                                const diff = index - 1;
-                                const isActive = index === 1;
-                                // Tilt the stack toward the right side (base +10deg)
-                                // Overlap only at lower portions (origin-bottom)
-                                const rotation = diff * 20 + 10;
-                                // Horizontal margins between cards to reduce overlap
-                                const translateX = diff * 65 + 15; 
-                                
-                                return (
-                                    <motion.div 
-                                        key={style}
-                                        onClick={() => handleVideoClick(index)}
-                                        layout
-                                        initial={false}
-                                        animate={{
-                                            rotate: rotation,
-                                            x: `${translateX}%`,
-                                            scale: isActive ? 1.05 : 0.95,
-                                            zIndex: isActive ? 30 : 20 - Math.abs(diff),
-                                        }}
-                                        transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                                        className="absolute inset-0 cursor-pointer origin-bottom"
-                                    >
-                                        <div className={`w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border-2 transition-colors duration-300 ${isActive ? 'border-white/30 shadow-[0_0_50px_rgba(0,0,0,0.5)]' : 'border-white/10 shadow-2xl'} bg-zinc-900 relative`}>
-                                            <video 
-                                                src={LANDING_PREVIEWS[style]?.src} 
-                                                autoPlay 
-                                                muted={mutedStates[style] !== false} 
-                                                loop 
-                                                playsInline 
-                                                className="w-full h-full object-cover"
-                                            />
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setMutedStates(prev => ({ ...prev, [style]: prev[style] === false }));
-                                                }}
-                                                className="absolute bottom-2 right-2 p-1.5 bg-black/50 rounded-full text-white hover:bg-black/80 transition-colors z-20"
-                                                aria-label="Toggle sound"
-                                            >
-                                                {mutedStates[style] === false ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                                            </button>
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                    {/* Primary CTA */}
+                    <button 
+                        onClick={onLogin}
+                        className="group relative px-10 py-5 bg-yellow-500 text-black rounded-full font-black text-lg md:text-xl uppercase tracking-widest hover:scale-105 hover:bg-yellow-500 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(234,179,8,0.4)]"
+                    >
+                        <span className="relative z-10">Start Creating</span>
+                        <div className="absolute inset-0 rounded-full bg-yellow-500 blur-lg opacity-60 group-hover:opacity-90 transition-opacity"></div>
+                    </button>
                 </div>
             </div>
 

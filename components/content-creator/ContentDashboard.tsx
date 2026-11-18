@@ -94,18 +94,15 @@ export const ContentDashboard = ({
     return (saved as "9:16" | "16:9") || "16:9";
   });
   
-  const [style, setStyle] = useState(() => {
-    const saved = localStorage.getItem('content_dashboard_style');
-    return saved === "Director" ? "Realistic" : (saved || "Realistic");
-  });
+  const [style, setStyle] = useState("Stickman");
 
   const [stylePrompt, setStylePrompt] = useState(() => {
     const saved = localStorage.getItem('content_dashboard_style_prompt');
     const savedStyle = localStorage.getItem('content_dashboard_style');
-    if (savedStyle === "Director" || !saved) {
-        return predefinedVisualIdentityBlocks["Realistic"] || "";
+    if (savedStyle !== "Stickman" || !saved) {
+        return predefinedVisualIdentityBlocks["Stickman"] || "";
     }
-    return saved || predefinedVisualIdentityBlocks["Realistic"] || "";
+    return saved || predefinedVisualIdentityBlocks["Stickman"] || "";
   });
 
   const [voice, setVoice] = useState(() => {
@@ -339,12 +336,8 @@ export const ContentDashboard = ({
           if (data.prompt) setPrompt(data.prompt);
           if (data.aspect_ratio) setAspect(data.aspect_ratio as any);
           if (data.image_style) {
-            setStyle(data.image_style);
-            if (data.image_style !== "Director") {
-                setStylePrompt(predefinedVisualIdentityBlocks[data.image_style] || "");
-            } else {
-                setStylePrompt("");
-            }
+            setStyle("Stickman");
+            setStylePrompt(predefinedVisualIdentityBlocks["Stickman"] || "");
           }
 
           if (data.voice_id) {
@@ -905,18 +898,10 @@ export const ContentDashboard = ({
                         onChange={(e) => {
                           const newStyle = e.target.value;
                           setStyle(newStyle);
-                          if (newStyle === "Director") {
-                             setStylePrompt("");
-                          } else {
-                             setStylePrompt(predefinedVisualIdentityBlocks[newStyle] || "");
-                          }
+                          setStylePrompt(predefinedVisualIdentityBlocks[newStyle] || "");
                         }}
                       >
-                        <option value="Realistic">Realistic</option>
-                        {Object.keys(predefinedVisualIdentityBlocks).filter(key => key !== "Realistic").map((key) => (
-                          <option key={key} value={key}>{key}</option>
-                        ))}
-                        <option value="Director">Custom (Director)</option>
+                        <option value="Stickman">Stickman</option>
                       </select>
                     </div>
                     <textarea

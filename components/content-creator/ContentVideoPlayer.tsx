@@ -903,7 +903,7 @@ export const ContentVideoPlayer: React.FC<ContentVideoPlayerProps> = ({
                 className="relative shadow-2xl rounded-xl overflow-hidden bg-black flex items-center justify-center cursor-pointer"
                 style={{ 
                     aspectRatio: aspectRatio === '9:16' ? '9/16' : '16/9',
-                    maxHeight: '100%',
+                    maxHeight: aspectRatio === '9:16' ? '93%' : '100%',
                     maxWidth: '100%'
                 }}
                 onClick={() => setShowControls(true)}
