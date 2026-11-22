@@ -692,6 +692,22 @@ export const ContentDashboard = ({
     try {
       console.log(`[ContentDashboard] Starting generation...`);
 
+      // Perform initial credit check on frontend before triggering server generation
+      const requiredMinBalance = 4; // Matches server COST_IMAGE_ULTRA / MIN_BALANCE
+      let currentCredits = credits ?? 0;
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!profileError && profileData && typeof profileData.credits === 'number') {
+        currentCredits = profileData.credits;
+        setCredits(currentCredits);
+      }
+
+      const hasSufficientCredits = currentCredits >= requiredMinBalance;
+
       // Ensure we use the correct default if user hasn't touched it
       let finalEffectId = effect.id;
 
@@ -709,15 +725,16 @@ export const ContentDashboard = ({
             style: stylePrompt,
             avatarUrl: selectedAvatar?.url
         },
-        status: 'generating',
-        render_status: 'pending'
+        status: hasSufficientCredits ? 'generating' : 'insufficient',
+        render_status: hasSufficientCredits ? 'pending' : 'failed'
       }).select().single();
 
       if (error) throw error;
 
       console.log(
         "[ContentDashboard] Project created:",
-        project.id
+        project.id,
+        `(sufficient credits: ${hasSufficientCredits})`
       );
 
       const newProj = {
@@ -730,8 +747,9 @@ export const ContentDashboard = ({
         narration_style: project.narration_style,
         subtitles: project.subtitles,
         status: project.status,
+        render_status: project.render_status,
         prompt: project.prompt,
-        isNewCreation: true
+        isNewCreation: hasSufficientCredits
       };
 
       setProject(newProj);

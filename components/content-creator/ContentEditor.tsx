@@ -259,15 +259,24 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
     const fetchUserCredits = useCallback(async () => {
         const userId = session?.user?.id || project?.user_id;
-        if (!userId) return;
+        if (!userId) return null;
         try {
+            const { data: activeCredits, error: rpcError } = await supabase.rpc('get_active_credits', { p_user_id: userId });
+            if (!rpcError && activeCredits !== null && activeCredits !== undefined) {
+                const numericCredits = Number(activeCredits);
+                setUserCredits(numericCredits);
+                return numericCredits;
+            }
             const { data } = await supabase.from('profiles').select('credits').eq('id', userId).single();
             if (data && data.credits !== undefined && data.credits !== null) {
-                setUserCredits(data.credits);
+                const numericCredits = Number(data.credits);
+                setUserCredits(numericCredits);
+                return numericCredits;
             }
         } catch (e) {
             console.error("Error fetching user credits:", e);
         }
+        return null;
     }, [session?.user?.id, project?.user_id]);
 
     useEffect(() => {
@@ -319,6 +328,14 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         try {
             const userId = session?.user?.id || project.user_id;
             setLocalProject((prev: any) => ({ ...prev, status: 'generating', render_status: 'generating' }));
+            const currentCredits = await fetchUserCredits();
+            if (currentCredits !== null && currentCredits < 4) {
+                creditInsufficientRef.current = true;
+                setLocalProject((prev: any) => ({ ...prev, status: 'insufficient', render_status: 'failed' }));
+                await supabase.from('content_projects').update({ status: 'insufficient', render_status: 'failed' }).eq('id', project.id);
+                return;
+            }
+            creditInsufficientRef.current = false;
             await retryProject(project.id, userId);
             setNotification({
                 message: "Retry initiated. Generating missing scenes and assets...",
@@ -382,7 +399,12 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
         try {
             const { data } = await supabase.from('content_projects').select('*').eq('id', project.id).single();
             if (data) {
-                setLocalProject(data);
+                setLocalProject((prev: any) => {
+                    if (creditInsufficientRef.current && data.status === 'generating') {
+                        return { ...data, status: 'insufficient', render_status: 'failed' };
+                    }
+                    return data;
+                });
                 if (data.voice_file_path) setAudioUrl(data.voice_file_path);
                 if (data.transcription) setTranscription(data.transcription);
                 if (data.segment_durations && Array.isArray(data.segment_durations) && data.segment_durations.length > 0) {
@@ -508,14 +530,26 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
 
     // Trigger initial generation once on mount if navigated from a newly created project
     const hasTriggeredInitialGen = useRef(false);
+    const creditInsufficientRef = useRef(false);
     useEffect(() => {
         const triggerInitialGeneration = async () => {
             if ((isNewCreation || project?.isNewCreation) && !hasTriggeredInitialGen.current) {
                 hasTriggeredInitialGen.current = true;
                 try {
+                    const userId = session?.user?.id || project.user_id;
                     setLocalProject((prev: any) => ({ ...prev, status: 'generating' }));
+
+                    // Perform credit check inside ContentEditor after entering generating state
+                    const currentCredits = await fetchUserCredits();
+                    if (currentCredits !== null && currentCredits < 4) {
+                        creditInsufficientRef.current = true;
+                        setLocalProject((prev: any) => ({ ...prev, status: 'insufficient', render_status: 'failed' }));
+                        await supabase.from('content_projects').update({ status: 'insufficient', render_status: 'failed' }).eq('id', project.id);
+                        return;
+                    }
+
                     const avatarUrl = project.prompt?.avatarUrl || null;
-                    await generateSegments(project.id, session?.user?.id || project.user_id, avatarUrl);
+                    await generateSegments(project.id, userId, avatarUrl);
                 } catch (e: any) {
                     console.error("Initial generation failed", e);
                     const friendlyError = sanitizeErrorMsg(e, "We encountered a technical issue. Please try again.");
@@ -527,6 +561,9 @@ export const ContentEditor = ({ session, project, initialSegments, onBack, onCom
                                            friendlyError.toLowerCase().includes("balance") || 
                                            friendlyError.toLowerCase().includes("credit");
                     const nextStatus = isInsufficient ? 'insufficient' : 'draft';
+                    if (nextStatus === 'insufficient') {
+                        creditInsufficientRef.current = true;
+                    }
 
                     setLocalProject((prev: any) => ({ ...prev, status: nextStatus, render_status: 'failed' }));
                     await supabase.from('content_projects').update({ status: nextStatus, render_status: 'failed' }).eq('id', project.id);
