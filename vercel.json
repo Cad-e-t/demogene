@@ -1,4 +1,16 @@
 {
+  "redirects": [
+    {
+      "source": "/web-animation",
+      "destination": "https://crappik.web-animation.site",
+      "permanent": false
+    },
+    {
+      "source": "/web-animation/",
+      "destination": "https://crappik.web-animation.site",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

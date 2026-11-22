@@ -24,24 +24,36 @@ export const navigateTo = (path: string) => {
   window.scrollTo(0, 0);
 };
 
-// Custom Route Hook using History API
+// Custom Route Hook using History API & Hash
 const usePathRoute = () => {
   const [path, setPath] = useState(window.location.pathname);
+  const [hash, setHash] = useState(window.location.hash);
 
   useEffect(() => {
     const handlePathChange = () => {
       setPath(window.location.pathname);
+      setHash(window.location.hash);
     };
     
     window.addEventListener(PUSH_STATE_EVENT, handlePathChange);
     window.addEventListener('popstate', handlePathChange); // Handle back/forward buttons
+    window.addEventListener('hashchange', handlePathChange);
     
     return () => {
       window.removeEventListener(PUSH_STATE_EVENT, handlePathChange);
       window.removeEventListener('popstate', handlePathChange);
+      window.removeEventListener('hashchange', handlePathChange);
     };
   }, []);
 
+  if (
+    path === '/web-animation' ||
+    path === '/web-animation/' ||
+    hash === '#/web-animation' ||
+    hash === '#web-animation'
+  ) {
+    return { view: 'web-animation', slug: null };
+  }
   if (path.startsWith('/blog/')) {
     return { view: 'blog-post', slug: path.replace('/blog/', '') };
   }
@@ -103,7 +115,11 @@ export default function App() {
               }
           } else {
               // Default landing to creator studio if on root
-              if (window.location.pathname === '/') {
+              if (
+                window.location.pathname === '/' &&
+                window.location.hash !== '#/web-animation' &&
+                window.location.hash !== '#web-animation'
+              ) {
                   navigateTo('/content-creator');
               }
           }
@@ -161,6 +177,17 @@ export default function App() {
       setProfile(null);
       window.location.href = '/';
   };
+
+  // External redirect for /web-animation route & hash
+  useEffect(() => {
+    if (currentView === 'web-animation') {
+      window.location.replace('https://crappik.web-animation.site');
+    }
+  }, [currentView]);
+
+  if (currentView === 'web-animation') {
+    return null;
+  }
 
   // Content Creator Application Handling
   if (currentView === 'content-creator' || (session && currentView === 'home')) {
