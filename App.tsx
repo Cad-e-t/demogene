@@ -181,7 +181,7 @@ export default function App() {
   // External redirect for /web-animation route & hash
   useEffect(() => {
     if (currentView === 'web-animation') {
-      window.location.replace('https://crappik.web-animation.site');
+      window.location.replace('https://web-animation.crappik.site');
     }
   }, [currentView]);
 

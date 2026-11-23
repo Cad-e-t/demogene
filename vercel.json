@@ -2,12 +2,12 @@
   "redirects": [
     {
       "source": "/web-animation",
-      "destination": "https://crappik.web-animation.site",
+      "destination": "https://web-animation.crappik.site",
       "permanent": false
     },
     {
       "source": "/web-animation/",
-      "destination": "https://crappik.web-animation.site",
+      "destination": "https://web-animation.crappik.site",
       "permanent": false
     }
   ],
